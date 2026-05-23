@@ -438,6 +438,9 @@
     }
     .page-select:focus { border-color: var(--accent); }
     /* Publish button on platform cards */
+    .btn-sm.ghl-btn { border-color: #f97316; color: #f97316; background: rgba(249,115,22,0.08); }
+    .btn-sm.ghl-btn:hover { background: rgba(249,115,22,0.18); }
+    .btn-sm.ghl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn-publish {
       padding: 5px 11px; border-radius: 7px; font-size: 11px; font-weight: 700;
       border: 1px solid var(--green); background: rgba(46,228,156,0.1);
@@ -847,15 +850,16 @@ let _hashtagData = null;
 let _calendarData = [];
 let _forgeMode = 'idea';
 let _activeTemplate = 'just-listed';
+let _ghlAccounts = [];
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DAY_NAMES = { Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday', Fri:'Friday', Sat:'Saturday', Sun:'Sunday' };
 const PLATFORMS = [
-  { key: 'linkedin',  label: 'LinkedIn',  icon: '💼', chars: '150-200 words' },
-  { key: 'facebook',  label: 'Facebook',  icon: '📘', chars: '100-150 words' },
-  { key: 'instagram', label: 'Instagram', icon: '📸', chars: '3 lines + hashtags' },
-  { key: 'x',         label: 'X',         icon: '✖', chars: '< 280 chars' },
-  { key: 'tiktok',    label: 'TikTok',    icon: '🎵', chars: 'hook + 3 lines + hashtags' },
+  { key: 'linkedin',  label: 'LinkedIn',  icon: '💼', chars: '150-200 words',      ghlPlatform: 'linkedin' },
+  { key: 'facebook',  label: 'Facebook',  icon: '📘', chars: '100-150 words',      ghlPlatform: 'facebook' },
+  { key: 'instagram', label: 'Instagram', icon: '📸', chars: '3 lines + hashtags', ghlPlatform: 'instagram' },
+  { key: 'x',         label: 'X',         icon: '✖', chars: '< 280 chars',         ghlPlatform: null },
+  { key: 'tiktok',    label: 'TikTok',    icon: '🎵', chars: 'hook + 3 lines + hashtags', ghlPlatform: 'tiktok' },
 ];
 const PLAT_BADGES = { LinkedIn:'LI', Facebook:'FB', Instagram:'IG', X:'X', TikTok:'TT', All:'ALL' };
 
@@ -1076,17 +1080,14 @@ function renderForgeOutput(data) {
     footer.appendChild(copyBtn);
     footer.appendChild(calBtn);
 
-    // Publish button — shown for connected platforms
-    const publishKey = plat.key;
-    const connData = _connections[publishKey] || {};
-    if (connData.connected && (publishKey === 'facebook' || publishKey === 'linkedin' || publishKey === 'instagram' || publishKey === 'tiktok')) {
-      const pubBtn = document.createElement('button');
-      pubBtn.className = 'btn-publish';
-      if (publishKey === 'instagram') pubBtn.textContent = '📸 Copy Caption';
-      else if (publishKey === 'tiktok') pubBtn.textContent = '🎵 Copy Caption';
-      else pubBtn.textContent = '🚀 Publish';
-      pubBtn.addEventListener('click', () => quickPublish(publishKey, ta.value, pubBtn));
-      footer.appendChild(pubBtn);
+    // GHL Send to Planner button
+    const ghlAccount = (_ghlAccounts || []).find(a => a.platform === plat.ghlPlatform && !a.expired);
+    if (ghlAccount) {
+      const ghlBtn = document.createElement('button');
+      ghlBtn.className = 'btn-sm ghl-btn';
+      ghlBtn.textContent = '⚡ Send to GHL';
+      ghlBtn.addEventListener('click', () => sendToGHL(ghlAccount.id, ta.value, ghlBtn));
+      footer.appendChild(ghlBtn);
     }
 
     card.appendChild(header);
@@ -1506,6 +1507,40 @@ function renderRepurposeOutput(data) {
   }
 }
 
+/* ─── GHL Social Planner ─────────────────────────────────────────── */
+async function loadGHLAccounts() {
+  try {
+    const res = await fetch('/api/social/ghl/accounts');
+    if (!res.ok) return;
+    const data = await res.json();
+    _ghlAccounts = data.accounts || [];
+  } catch (err) {
+    console.warn('[SocialStudio] loadGHLAccounts:', err.message);
+  }
+}
+
+async function sendToGHL(accountId, content, btn) {
+  const orig = btn.textContent;
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/social/ghl/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ account_id: accountId, content })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'GHL error');
+    btn.textContent = '✅ In GHL!';
+    ssToast('Saved to GHL Social Planner as draft', 'success');
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+  } catch (err) {
+    btn.textContent = '❌ Failed';
+    ssToast('GHL error: ' + err.message, 'error');
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+  }
+}
+
 /* ─── Connections ───────────────────────────────────────────────── */
 let _connections = { facebook: {connected:false}, instagram: {connected:false}, linkedin: {connected:false}, tiktok: {connected:false} };
 
@@ -1898,6 +1933,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadHashtags();
   loadCalendar();
   loadConnections();
+  loadGHLAccounts();
 });
 </script>
 <script src="/recorder-widget.js"></script>

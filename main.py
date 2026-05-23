@@ -4270,6 +4270,97 @@ async def social_connections():
     })
 
 
+# ── GHL Social Planner ────────────────────────────────────────────────────────
+
+_GHL_API_BASE  = "https://services.leadconnectorhq.com"
+_GHL_API_VER   = "2021-07-28"
+
+def _ghl_headers():
+    return {
+        "Authorization": f"Bearer {os.getenv('GHL_TOKEN', '')}",
+        "Version": _GHL_API_VER,
+        "Content-Type": "application/json",
+    }
+
+def _ghl_location():
+    return os.getenv("GHL_LOCATION_ID", "")
+
+
+@app.get("/api/social/ghl/accounts")
+async def ghl_social_accounts():
+    """Return all connected GHL social accounts for this location."""
+    loc = _ghl_location()
+    if not loc:
+        return JSONResponse({"error": "GHL_LOCATION_ID not configured"}, status_code=500)
+    try:
+        async with _httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                f"{_GHL_API_BASE}/social-media-posting/{loc}/accounts",
+                headers=_ghl_headers(),
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            accounts = data.get("results", {}).get("accounts", [])
+            # Return only active (non-expired) accounts
+            active = [
+                {
+                    "id":       a["id"],
+                    "name":     a["name"],
+                    "platform": a["platform"],
+                    "expired":  a.get("isExpired", False),
+                }
+                for a in accounts
+                if not a.get("deleted", False)
+            ]
+            return JSONResponse({"accounts": active})
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+@app.post("/api/social/ghl/publish")
+async def ghl_publish_post(request: Request):
+    """
+    Send a post to GHL Social Planner as a draft or scheduled post.
+    Body: { platform: str, content: str, account_id: str, scheduled_at: Optional[str] }
+    """
+    loc = _ghl_location()
+    if not loc:
+        return JSONResponse({"error": "GHL_LOCATION_ID not configured"}, status_code=500)
+
+    body         = await request.json()
+    content      = (body.get("content") or "").strip()
+    account_id   = (body.get("account_id") or "").strip()
+    scheduled_at = body.get("scheduled_at")  # ISO string or None
+
+    if not content:
+        return JSONResponse({"error": "content required"}, status_code=400)
+    if not account_id:
+        return JSONResponse({"error": "account_id required"}, status_code=400)
+
+    payload = {
+        "locationId": loc,
+        "accountIds": [account_id],
+        "summary":    content,
+        "status":     "scheduled" if scheduled_at else "draft",
+    }
+    if scheduled_at:
+        payload["scheduledAt"] = scheduled_at
+
+    try:
+        async with _httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                f"{_GHL_API_BASE}/social-media-posting/{loc}/posts",
+                headers=_ghl_headers(),
+                json=payload,
+            )
+            resp.raise_for_status()
+            result = resp.json()
+            post_id = result.get("id") or result.get("post", {}).get("id", "")
+            return JSONResponse({"ok": True, "post_id": post_id, "status": payload["status"]})
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
 # ── End Social Publishing ──────────────────────────────────────────────────────
 
 @app.post("/api/yt/competitor-spy")
