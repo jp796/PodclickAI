@@ -1,0 +1,1905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Social Studio · PodClickAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #030B2C;
+      --surface:  #050E3D;
+      --surface2: #0a1845;
+      --surface3: #102078;
+      --border:   #1a2c6b;
+      --accent:   #05C3F9;
+      --accent2:  #00FBF0;
+      --coral:    #FF557E;
+      --text:     #e2e8f0;
+      --text-muted: #8899cc;
+      --green:    #2EE49C;
+      --yellow:   #FFB340;
+      --radius:   12px;
+      --font:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Scrollbar ─────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Header ────────────────────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px; border-bottom: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0;
+    }
+    .brand { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; display: flex; align-items: center; }
+    .brand .pc { color: var(--text); }
+    .brand .ai {
+      background: linear-gradient(135deg, #05C3F9, #00FBF0);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .brand .sub { font-size: 13px; font-weight: 500; color: var(--text-muted); margin-left: 10px; }
+    .nav-toggle {
+      display: flex; align-items: center; gap: 2px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 3px;
+    }
+    .nav-toggle a {
+      padding: 5px 13px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      color: var(--text-muted); text-decoration: none;
+      transition: background .12s, color .12s; white-space: nowrap;
+    }
+    .nav-toggle a:hover { background: var(--surface); color: var(--text); }
+    .nav-toggle a.active { background: var(--surface); color: var(--accent); }
+
+    /* ── Tab bar ───────────────────────────────────────────────────── */
+    .tab-bar {
+      display: flex; align-items: stretch;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 0 24px; flex-shrink: 0; overflow-x: auto;
+    }
+    .tab-bar button {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      padding: 14px 18px; font-size: 13px; font-weight: 600;
+      color: var(--text-muted); cursor: pointer; white-space: nowrap;
+      transition: color .15s, border-color .15s;
+    }
+    .tab-bar button:hover { color: var(--text); }
+    .tab-bar button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    /* ── Content area ──────────────────────────────────────────────── */
+    .content-area {
+      flex: 1; overflow-y: auto; padding: 28px 24px;
+      max-width: 1100px; width: 100%; margin: 0 auto;
+    }
+
+    /* ── Panel visibility ──────────────────────────────────────────── */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* ── Mode selector (pill tabs) ─────────────────────────────────── */
+    .mode-selector {
+      display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap;
+    }
+    .mode-btn {
+      padding: 7px 16px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text-muted); cursor: pointer; transition: all .12s;
+    }
+    .mode-btn:hover { border-color: var(--accent); color: var(--text); }
+    .mode-btn.active { background: rgba(5,195,249,0.15); border-color: var(--accent); color: var(--accent); }
+
+    /* ── Mode sub-panels ───────────────────────────────────────────── */
+    .mode-panel { display: none; }
+    .mode-panel.active { display: block; }
+
+    /* ── Form elements ─────────────────────────────────────────────── */
+    label {
+      display: block; font-size: 11px; font-weight: 600;
+      color: var(--text-muted); margin-bottom: 5px; margin-top: 14px;
+      text-transform: uppercase; letter-spacing: 0.07em;
+    }
+    label:first-child { margin-top: 0; }
+    input[type="text"], select, textarea {
+      width: 100%; padding: 9px 12px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 13px;
+      font-family: var(--font); outline: none;
+      transition: border-color .15s;
+    }
+    input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    select option { background: var(--surface2); }
+    textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+
+    /* ── Buttons ───────────────────────────────────────────────────── */
+    .btn-primary {
+      width: 100%; padding: 12px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none; border-radius: 10px; color: var(--bg);
+      font-size: 14px; font-weight: 800; cursor: pointer;
+      transition: opacity .15s, transform .1s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      margin-top: 16px;
+    }
+    .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-primary:active { transform: none; }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .btn-sm {
+      padding: 6px 13px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text-muted); cursor: pointer; transition: all .12s;
+    }
+    .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm.coral { border-color: var(--coral); color: var(--coral); background: rgba(255,85,126,0.08); }
+    .btn-sm.coral:hover { background: rgba(255,85,126,0.18); }
+    .btn-sm.accent { border-color: var(--accent); color: var(--accent); background: rgba(5,195,249,0.08); }
+
+    .btn-add {
+      width: 100%; padding: 7px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      border: 1px dashed var(--border); background: none;
+      color: var(--text-muted); cursor: pointer; transition: all .12s;
+      margin-top: 6px;
+    }
+    .btn-add:hover { border-color: var(--accent); color: var(--accent); }
+
+    .btn-calendar {
+      padding: 10px 20px; border-radius: 10px; font-size: 13px; font-weight: 700;
+      border: 1px solid var(--accent); background: rgba(5,195,249,0.1);
+      color: var(--accent); cursor: pointer; transition: all .15s;
+      margin-top: 16px;
+    }
+    .btn-calendar:hover { background: rgba(5,195,249,0.2); }
+
+    /* ── Card / Surface ────────────────────────────────────────────── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+    }
+    .card + .card { margin-top: 14px; }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .card-title {
+      font-size: 13px; font-weight: 700; color: var(--text);
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ── Forge section box ─────────────────────────────────────────── */
+    .forge-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 22px; margin-bottom: 20px;
+    }
+    .forge-box-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      color: var(--accent); text-transform: uppercase; margin-bottom: 16px;
+    }
+
+    /* ── Template selector ─────────────────────────────────────────── */
+    .template-grid {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;
+    }
+    .tmpl-btn {
+      padding: 7px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text-muted); cursor: pointer; transition: all .12s;
+    }
+    .tmpl-btn:hover { border-color: var(--accent2); color: var(--text); }
+    .tmpl-btn.active { background: rgba(0,251,240,0.12); border-color: var(--accent2); color: var(--accent2); }
+
+    .tmpl-fields { display: none; }
+    .tmpl-fields.active { display: block; }
+
+    /* ── Spinner ───────────────────────────────────────────────────── */
+    .spinner-wrap {
+      display: flex; align-items: center; gap: 12px;
+      padding: 20px; color: var(--text-muted); font-size: 13px;
+    }
+    .spinner {
+      width: 20px; height: 20px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Output grid (4 platforms) ─────────────────────────────────── */
+    .output-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+      margin-top: 20px;
+    }
+    @media (max-width: 700px) { .output-grid { grid-template-columns: 1fr; } }
+
+    .platform-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .platform-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .platform-name {
+      display: flex; align-items: center; gap: 7px;
+      font-size: 12px; font-weight: 700; color: var(--text);
+    }
+    .plat-icon { font-size: 16px; }
+    .char-badge {
+      font-size: 10px; font-weight: 600; padding: 2px 7px;
+      border-radius: 10px; background: rgba(5,195,249,0.12);
+      color: var(--accent); border: 1px solid rgba(5,195,249,0.3);
+    }
+    .platform-body { padding: 12px 14px; }
+    .output-textarea {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 12px;
+      font-family: var(--font); line-height: 1.6; padding: 10px 12px;
+      resize: vertical; min-height: 140px; outline: none;
+    }
+    .output-textarea:focus { border-color: var(--accent); }
+    .platform-footer {
+      display: flex; gap: 8px; padding: 10px 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Calendar grid ─────────────────────────────────────────────── */
+    .cal-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px;
+      margin-top: 6px;
+    }
+    @media (max-width: 900px) { .cal-grid { grid-template-columns: repeat(4, 1fr); } }
+    @media (max-width: 600px) { .cal-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .cal-day {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px; min-height: 120px;
+      display: flex; flex-direction: column;
+    }
+    .cal-day-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .cal-day-name { font-size: 12px; font-weight: 700; color: var(--text); }
+    .today-badge {
+      font-size: 9px; font-weight: 700; padding: 2px 6px;
+      background: var(--coral); color: #fff; border-radius: 8px;
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .cal-slots { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+    .cal-slot {
+      display: flex; align-items: center; gap: 6px; padding: 5px 8px;
+      background: var(--surface2); border-radius: 6px;
+      font-size: 11px; color: var(--text); cursor: default;
+    }
+    .cal-slot-plat {
+      font-size: 10px; font-weight: 700; padding: 1px 5px;
+      border-radius: 4px; background: rgba(5,195,249,0.15);
+      color: var(--accent); white-space: nowrap;
+    }
+    .cal-slot-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cal-slot-del {
+      background: none; border: none; color: var(--text-muted);
+      cursor: pointer; font-size: 13px; padding: 0 2px;
+      transition: color .12s; flex-shrink: 0;
+    }
+    .cal-slot-del:hover { color: var(--coral); }
+
+    /* ── Hashtag chips ─────────────────────────────────────────────── */
+    .hash-cards {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px;
+    }
+    @media (max-width: 600px) { .hash-cards { grid-template-columns: 1fr; } }
+
+    .hash-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px;
+    }
+    .hash-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .hash-card-title { font-size: 13px; font-weight: 700; color: var(--text); }
+    .hash-card-sub { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .chip {
+      padding: 4px 10px; border-radius: 14px; font-size: 11px; font-weight: 600;
+      border: 1px solid var(--accent2); color: var(--accent2);
+      background: rgba(0,251,240,0.06);
+    }
+    .hash-actions { display: flex; gap: 7px; flex-wrap: wrap; }
+
+    /* ── Repurpose angle cards ─────────────────────────────────────── */
+    .angle-cards { display: flex; flex-direction: column; gap: 14px; margin-top: 20px; }
+    .angle-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px;
+    }
+    .angle-card-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+    }
+    .plat-badge {
+      font-size: 11px; font-weight: 700; padding: 3px 9px;
+      border-radius: 8px; background: rgba(5,195,249,0.12);
+      color: var(--accent); border: 1px solid rgba(5,195,249,0.3);
+    }
+    .angle-summary { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; }
+    .angle-text {
+      width: 100%; background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 12px;
+      font-family: var(--font); line-height: 1.6; padding: 10px 12px;
+      resize: vertical; min-height: 100px; outline: none;
+    }
+    .angle-text:focus { border-color: var(--accent); }
+    .angle-footer { margin-top: 10px; display: flex; gap: 8px; }
+
+    /* ── Section heading ───────────────────────────────────────────── */
+    .section-heading {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      color: var(--accent); text-transform: uppercase; margin-bottom: 4px;
+    }
+    .section-sub {
+      font-size: 13px; color: var(--text-muted); margin-bottom: 20px;
+    }
+
+    /* ── Input row ─────────────────────────────────────────────────── */
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 500px) { .row2 { grid-template-columns: 1fr; } }
+
+    /* ── Toast ─────────────────────────────────────────────────────── */
+    #ss-toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      padding: 11px 18px; border-radius: 10px; font-size: 13px; font-weight: 600;
+      pointer-events: none; opacity: 0; transition: opacity .2s;
+      max-width: 320px;
+    }
+    #ss-toast.show { opacity: 1; }
+    #ss-toast.info    { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+    #ss-toast.success { background: rgba(46,228,156,0.15); border: 1px solid var(--green); color: var(--green); }
+    #ss-toast.error   { background: rgba(255,85,126,0.15); border: 1px solid var(--coral); color: var(--coral); }
+
+    /* ── Modal overlay ─────────────────────────────────────────────── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      background: rgba(3,11,44,0.85); align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; width: 100%; max-width: 480px; padding: 26px;
+    }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .modal-title { font-size: 15px; font-weight: 800; color: var(--text); }
+    .modal-close {
+      background: none; border: none; color: var(--text-muted); font-size: 20px;
+      cursor: pointer; transition: color .12s;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    /* ── Connections panel ─────────────────────────────────────────── */
+    .conn-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px; margin-top: 6px;
+    }
+    .conn-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px;
+      display: flex; flex-direction: column; gap: 14px;
+    }
+    .conn-header { display: flex; align-items: center; gap: 12px; }
+    .conn-logo { font-size: 28px; flex-shrink: 0; }
+    .conn-info { flex: 1; }
+    .conn-name { font-size: 14px; font-weight: 700; color: var(--text); }
+    .conn-note { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .conn-status {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; font-weight: 700; padding: 3px 9px;
+      border-radius: 8px; margin-top: 4px;
+    }
+    .conn-status.connected {
+      background: rgba(46,228,156,0.12); color: var(--green);
+      border: 1px solid rgba(46,228,156,0.3);
+    }
+    .conn-status.disconnected {
+      background: rgba(136,153,204,0.1); color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .conn-status::before { content: '●'; font-size: 8px; }
+    .conn-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .conn-note-box {
+      background: rgba(255,179,64,0.08); border: 1px solid rgba(255,179,64,0.25);
+      border-radius: 8px; padding: 10px 12px;
+      font-size: 11px; color: var(--yellow); line-height: 1.5;
+    }
+    .page-select {
+      width: 100%; padding: 7px 10px; margin-top: 8px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 12px;
+      font-family: var(--font); outline: none;
+    }
+    .page-select:focus { border-color: var(--accent); }
+    /* Publish button on platform cards */
+    .btn-publish {
+      padding: 5px 11px; border-radius: 7px; font-size: 11px; font-weight: 700;
+      border: 1px solid var(--green); background: rgba(46,228,156,0.1);
+      color: var(--green); cursor: pointer; transition: all .12s;
+    }
+    .btn-publish:hover { background: rgba(46,228,156,0.22); }
+    .btn-publish:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Utility ───────────────────────────────────────────────────── */
+    .hidden { display: none !important; }
+    .mt8 { margin-top: 8px; }
+    .mt16 { margin-top: 16px; }
+    .text-muted { color: var(--text-muted); font-size: 12px; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+    .input-row { display: flex; gap: 10px; margin-bottom: 16px; }
+    .input-row input, .input-row select { flex: 1; }
+    .clear-link {
+      font-size: 12px; color: var(--text-muted); cursor: pointer;
+      text-decoration: underline; background: none; border: none;
+      padding: 0; margin-top: 12px; display: inline-block;
+    }
+    .clear-link:hover { color: var(--coral); }
+
+    /* ── Screen Recorder ──────────────────────────────────────────── */
+    .rec-shell {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 40px 24px; min-height: 340px;
+    }
+    .rec-center {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 16px; text-align: center;
+    }
+    .rec-status-text {
+      font-size: 13px; color: var(--text-muted); letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .rec-btn {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: var(--accent); border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; color: #fff;
+      box-shadow: 0 0 0 0 rgba(99,102,241,.4);
+      transition: background .2s, transform .12s, box-shadow .2s;
+    }
+    .rec-btn:hover { transform: scale(1.06); }
+    .rec-btn.recording {
+      background: var(--coral);
+      animation: recPulse 1.4s ease-in-out infinite;
+    }
+    @keyframes recPulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,.45); }
+      50%      { box-shadow: 0 0 0 16px rgba(239,68,68,0); }
+    }
+    .rec-timer {
+      font-size: 36px; font-weight: 700; letter-spacing: .08em;
+      color: var(--text); font-variant-numeric: tabular-nums;
+    }
+    .rec-options { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+    .rec-toggle-label {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 13px; color: var(--text-muted); cursor: pointer;
+    }
+    .rec-toggle-label input { accent-color: var(--accent); }
+    .rec-hint { font-size: 12px; color: var(--text-muted); margin: 0; }
+    .rec-video-preview {
+      width: 100%; border-radius: 10px; background: #000;
+      border: 1px solid var(--border); margin-bottom: 16px;
+      max-height: 400px;
+    }
+    .rec-action-row {
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────── -->
+<header>
+  <div class="brand">
+    <span class="pc">Pod</span><span class="ai">Click</span><span class="ai">AI</span>
+    <span class="sub">Social Studio</span>
+  </div>
+  <nav class="nav-toggle">
+    <a href="/">Dashboard</a>
+    <a href="/youtube-studio">Click Studio</a>
+    <a href="/studio">Studio</a>
+    <a href="/brand-studio">Brand Studio</a>
+    <a href="/social-studio" class="active">Social Studio</a>
+  </nav>
+</header>
+
+<!-- ── Tab bar ────────────────────────────────────────────────────── -->
+<div class="tab-bar">
+  <button class="active" data-tab="forge" onclick="switchPanel('forge')">✍️ Post Forge</button>
+  <button data-tab="calendar" onclick="switchPanel('calendar')">📅 Content Calendar</button>
+  <button data-tab="hashtags" onclick="switchPanel('hashtags')">🏷️ Hashtag Lab</button>
+  <button data-tab="repurpose" onclick="switchPanel('repurpose')">♻️ Repurpose Hub</button>
+  <button data-tab="connections" onclick="switchPanel('connections')">🔗 Connections</button>
+  <button data-tab="recorder" onclick="switchPanel('recorder')">🎬 Screen Recorder</button>
+</div>
+
+<!-- ── Content area ───────────────────────────────────────────────── -->
+<div class="content-area">
+
+  <!-- ════════════════════════════════════════════════════════════════
+       PANEL 1 — Post Forge
+  ═════════════════════════════════════════════════════════════════ -->
+  <div id="panel-forge" class="panel active">
+    <p class="section-heading">Post Forge</p>
+    <p class="section-sub">Generate platform-ready posts for LinkedIn, Facebook, Instagram, and X.</p>
+
+    <!-- Entry mode tabs -->
+    <div class="mode-selector">
+      <button class="mode-btn active" data-mode="idea" onclick="switchForgeMode('idea')">From Idea</button>
+      <button class="mode-btn" data-mode="episode" onclick="switchForgeMode('episode')">From Episode</button>
+      <button class="mode-btn" data-mode="template" onclick="switchForgeMode('template')">From Template</button>
+    </div>
+
+    <!-- Mode: From Idea -->
+    <div id="mode-idea" class="mode-panel active forge-box">
+      <div class="forge-box-title">From Idea</div>
+      <label for="forge-topic">What do you want to post about?</label>
+      <textarea id="forge-topic" rows="3" placeholder="e.g. Why now is still a great time to buy in Springfield despite rising rates..."></textarea>
+      <label for="forge-market">Your market / city</label>
+      <input type="text" id="forge-market" placeholder="e.g. Springfield, MO" />
+      <button class="btn-primary" onclick="runForge()">⚡ Generate Posts</button>
+    </div>
+
+    <!-- Mode: From Episode -->
+    <div id="mode-episode" class="mode-panel forge-box">
+      <div class="forge-box-title">From Episode</div>
+      <label for="forge-title">Episode Title</label>
+      <input type="text" id="forge-title" placeholder="e.g. How I Closed 3 Deals in One Week" />
+      <label for="forge-hookline">Hook Line</label>
+      <input type="text" id="forge-hookline" placeholder="e.g. Most agents are leaving money on the table..." />
+      <label for="forge-ep-topic">Topic</label>
+      <input type="text" id="forge-ep-topic" placeholder="e.g. Lead generation, seller motivation" />
+      <label for="forge-ep-market">Market / City</label>
+      <input type="text" id="forge-ep-market" placeholder="e.g. Springfield, MO" />
+      <button class="btn-primary" onclick="runForge()">⚡ Generate Posts</button>
+    </div>
+
+    <!-- Mode: From Template -->
+    <div id="mode-template" class="mode-panel forge-box">
+      <div class="forge-box-title">From Template</div>
+      <div class="template-grid">
+        <button class="tmpl-btn active" data-tmpl="just-listed" onclick="switchTemplate('just-listed')">Just Listed</button>
+        <button class="tmpl-btn" data-tmpl="market-update" onclick="switchTemplate('market-update')">Market Update</button>
+        <button class="tmpl-btn" data-tmpl="client-win" onclick="switchTemplate('client-win')">Client Win</button>
+        <button class="tmpl-btn" data-tmpl="hot-take" onclick="switchTemplate('hot-take')">Hot Take</button>
+        <button class="tmpl-btn" data-tmpl="tip-week" onclick="switchTemplate('tip-week')">Tip of the Week</button>
+      </div>
+
+      <!-- Just Listed -->
+      <div id="tmpl-just-listed" class="tmpl-fields active">
+        <label>Address / Area</label>
+        <input type="text" id="tmpl-jl-address" placeholder="e.g. 123 Oak St, South Springfield" />
+        <label>Price</label>
+        <input type="text" id="tmpl-jl-price" placeholder="e.g. $285,000" />
+        <label>Key Features</label>
+        <input type="text" id="tmpl-jl-features" placeholder="e.g. 3 bed, 2 bath, updated kitchen, large backyard" />
+      </div>
+
+      <!-- Market Update -->
+      <div id="tmpl-market-update" class="tmpl-fields">
+        <label>Market</label>
+        <input type="text" id="tmpl-mu-market" placeholder="e.g. Springfield, MO" />
+        <label>Stat / Headline</label>
+        <input type="text" id="tmpl-mu-stat" placeholder="e.g. Inventory down 18% from last quarter" />
+        <label>Timeframe</label>
+        <input type="text" id="tmpl-mu-timeframe" placeholder="e.g. Q1 2026, last 30 days" />
+      </div>
+
+      <!-- Client Win -->
+      <div id="tmpl-client-win" class="tmpl-fields">
+        <label>Client Type</label>
+        <input type="text" id="tmpl-cw-clienttype" placeholder="e.g. First-time buyer, Relocating family" />
+        <label>Outcome</label>
+        <input type="text" id="tmpl-cw-outcome" placeholder="e.g. Closed $15k under asking in 9 days" />
+        <label>Market</label>
+        <input type="text" id="tmpl-cw-market" placeholder="e.g. Springfield, MO" />
+      </div>
+
+      <!-- Hot Take -->
+      <div id="tmpl-hot-take" class="tmpl-fields">
+        <label>Opinion / Take</label>
+        <input type="text" id="tmpl-ht-opinion" placeholder="e.g. Waiting for rates to drop is the worst advice in real estate right now" />
+        <label>Market</label>
+        <input type="text" id="tmpl-ht-market" placeholder="e.g. Springfield, MO" />
+      </div>
+
+      <!-- Tip of the Week -->
+      <div id="tmpl-tw-fields" class="tmpl-fields">
+        <label>Tip Topic</label>
+        <input type="text" id="tmpl-tw-topic" placeholder="e.g. How to win a bidding war without overpaying" />
+        <label>Market</label>
+        <input type="text" id="tmpl-tw-market" placeholder="e.g. Springfield, MO" />
+      </div>
+
+      <button class="btn-primary" onclick="runForge()">⚡ Generate Posts</button>
+    </div>
+
+    <!-- Output area -->
+    <div id="forge-output" class="hidden">
+      <div id="forge-loading" class="spinner-wrap hidden">
+        <div class="spinner"></div>
+        Writing your posts...
+      </div>
+      <div id="forge-results" class="hidden">
+        <div class="output-grid" id="forge-platform-grid"></div>
+        <div style="margin-top:16px;">
+          <button class="btn-calendar" onclick="openCalendarModal(null)">📅 Add to Calendar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       PANEL 2 — Content Calendar
+  ═════════════════════════════════════════════════════════════════ -->
+  <div id="panel-calendar" class="panel">
+    <p class="section-heading">Content Calendar</p>
+    <p class="section-sub">Plan and queue your weekly social posts at a glance.</p>
+
+    <div class="cal-grid" id="cal-grid"></div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       PANEL 3 — Hashtag Lab
+  ═════════════════════════════════════════════════════════════════ -->
+  <div id="panel-hashtags" class="panel">
+    <p class="section-heading">Hashtag Lab</p>
+    <p class="section-sub">Generate optimized hashtag sets for your market and niche.</p>
+
+    <div class="forge-box">
+      <div class="row2">
+        <div>
+          <label for="hash-market">Your market / city</label>
+          <input type="text" id="hash-market" placeholder="e.g. Springfield, MO" />
+        </div>
+        <div>
+          <label for="hash-niche">Your niche</label>
+          <input type="text" id="hash-niche" placeholder="e.g. First-time buyers, Luxury homes, Investors" />
+        </div>
+      </div>
+      <button class="btn-primary" onclick="generateHashtags()">🏷️ Generate Hashtag Sets</button>
+    </div>
+
+    <div id="hash-loading" class="spinner-wrap hidden">
+      <div class="spinner"></div>
+      Building your hashtag sets...
+    </div>
+
+    <div id="hash-output" class="hidden">
+      <div class="hash-cards" id="hash-cards-grid"></div>
+      <button class="clear-link" onclick="clearHashtags()">Clear Saved Hashtags</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       PANEL 4 — Repurpose Hub
+  ═════════════════════════════════════════════════════════════════ -->
+  <div id="panel-repurpose" class="panel">
+    <p class="section-heading">Repurpose Hub</p>
+    <p class="section-sub">Paste a YouTube URL or transcript to extract 5 social post angles.</p>
+
+    <div class="forge-box">
+      <label for="repurpose-url">YouTube URL <span class="text-muted">(optional)</span></label>
+      <input type="text" id="repurpose-url" placeholder="https://www.youtube.com/watch?v=..." />
+      <label for="repurpose-transcript" style="margin-top:14px;">Or paste transcript text <span class="text-muted">(optional — at least one required)</span></label>
+      <textarea id="repurpose-transcript" rows="6" placeholder="Paste your transcript or video description here..."></textarea>
+      <label for="repurpose-market" style="margin-top:14px;">Your market / city</label>
+      <input type="text" id="repurpose-market" placeholder="e.g. Springfield, MO" />
+      <button class="btn-primary" onclick="runRepurpose()">♻️ Extract Post Angles</button>
+    </div>
+
+    <div id="repurpose-loading" class="spinner-wrap hidden">
+      <div class="spinner"></div>
+      Analyzing content...
+    </div>
+
+    <div id="repurpose-output" class="hidden">
+      <div class="angle-cards" id="angle-cards-list"></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       PANEL 5 — Connections
+  ═════════════════════════════════════════════════════════════════ -->
+  <div id="panel-connections" class="panel">
+    <p class="section-heading">Platform Connections</p>
+    <p class="section-sub">Connect your social profiles to publish directly from Post Forge.</p>
+
+    <div class="conn-grid" id="conn-grid">
+      <!-- rendered by renderConnections() -->
+      <div class="spinner-wrap"><div class="spinner"></div> Loading connections...</div>
+    </div>
+
+    <hr class="divider">
+    <p class="section-heading" style="margin-top:0">Setup Instructions</p>
+    <div class="forge-box" style="margin-top:8px;">
+      <div class="forge-box-title">Required Environment Variables</div>
+      <p class="text-muted" style="margin-bottom:10px;">Add these to your <code style="background:rgba(255,255,255,0.06);padding:1px 6px;border-radius:4px;">.env</code> file, then restart the server.</p>
+      <div style="font-size:12px;line-height:2;color:var(--text-muted);">
+        <code style="color:var(--accent2);">META_APP_ID</code> — Facebook App ID (from <a href="https://developers.facebook.com/apps/" target="_blank" style="color:var(--accent);">developers.facebook.com</a>)<br>
+        <code style="color:var(--accent2);">META_APP_SECRET</code> — Facebook App Secret<br>
+        <code style="color:var(--accent2);">LINKEDIN_CLIENT_ID</code> — LinkedIn OAuth Client ID (from <a href="https://www.linkedin.com/developers/apps" target="_blank" style="color:var(--accent);">linkedin.com/developers/apps</a>)<br>
+        <code style="color:var(--accent2);">LINKEDIN_CLIENT_SECRET</code> — LinkedIn OAuth Client Secret
+      </div>
+      <div class="conn-note-box" style="margin-top:14px;">
+        <strong>Redirect URIs to register:</strong><br>
+        Facebook App → Valid OAuth Redirect URIs: <code>http://localhost:8765/api/social/meta/callback</code><br>
+        LinkedIn App → Authorized Redirect URLs: <code>http://localhost:8765/api/social/linkedin/callback</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       PANEL 6 — Screen Recorder
+  ═════════════════════════════════════════════════════════════════ -->
+  <div id="panel-recorder" class="panel">
+    <p class="section-heading">Screen Recorder</p>
+    <p class="section-sub">Record your screen to create demo videos — for TikTok app review, tutorials, or walkthroughs.</p>
+
+    <div class="rec-shell">
+      <!-- ── Idle / Recording state ── -->
+      <div id="rec-idle-state">
+        <div class="rec-center">
+          <div class="rec-status-text" id="rec-status-text">Ready to record</div>
+          <button class="rec-btn" id="rec-btn" onclick="recToggle()">
+            <span id="rec-btn-icon">⏺</span>
+          </button>
+          <div class="rec-timer" id="rec-timer">00:00</div>
+          <div class="rec-options">
+            <label class="rec-toggle-label">
+              <input type="checkbox" id="rec-mic" checked>
+              🎙️ Include microphone
+            </label>
+          </div>
+          <p class="rec-hint">Click record → share your screen → click stop when done.</p>
+        </div>
+      </div>
+
+      <!-- ── Preview state (shown after recording) ── -->
+      <div id="rec-preview-state" class="hidden">
+        <p class="section-heading" style="margin-top:0">Recording Preview</p>
+        <video id="rec-video" controls class="rec-video-preview"></video>
+        <div class="rec-action-row">
+          <button class="btn-primary" onclick="recDownloadWebM()">⬇ Download WebM</button>
+          <button class="btn-secondary" id="rec-convert-btn" onclick="recConvertMP4()">🎬 Convert to MP4</button>
+          <button class="btn-secondary" onclick="recReset()">🔄 Record Again</button>
+        </div>
+        <div class="conn-note-box" style="margin-top:14px;">
+          <strong>TikTok App Review:</strong> Download the MP4 and upload it at
+          <a href="https://developers.tiktok.com/apps/" target="_blank" style="color:var(--accent);">developers.tiktok.com/apps</a>
+          → your app → Submit for Review → demo video upload.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content-area -->
+
+<!-- ── Calendar Add Modal ─────────────────────────────────────────── -->
+<div id="cal-modal" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">📅 Add Post to Calendar</span>
+      <button class="modal-close" onclick="closeCalendarModal()">×</button>
+    </div>
+    <label for="cal-modal-title">Post Title / Summary</label>
+    <input type="text" id="cal-modal-title" placeholder="e.g. Just Listed — Oak Street" />
+    <label for="cal-modal-platform" style="margin-top:12px;">Platform</label>
+    <select id="cal-modal-platform">
+      <option value="LinkedIn">LinkedIn</option>
+      <option value="Facebook">Facebook</option>
+      <option value="Instagram">Instagram</option>
+      <option value="X">X (Twitter)</option>
+      <option value="All">All Platforms</option>
+    </select>
+    <label for="cal-modal-day" style="margin-top:12px;">Day</label>
+    <select id="cal-modal-day">
+      <option value="Mon">Monday</option>
+      <option value="Tue">Tuesday</option>
+      <option value="Wed">Wednesday</option>
+      <option value="Thu">Thursday</option>
+      <option value="Fri">Friday</option>
+      <option value="Sat">Saturday</option>
+      <option value="Sun">Sunday</option>
+    </select>
+    <label for="cal-modal-content" style="margin-top:12px;">Post Content <span class="text-muted">(optional)</span></label>
+    <textarea id="cal-modal-content" rows="4" placeholder="Paste post copy here or leave blank for planning..."></textarea>
+    <button class="btn-primary" onclick="submitCalendarModal()" style="margin-top:16px;">Add to Calendar</button>
+  </div>
+</div>
+
+<!-- ── Toast ──────────────────────────────────────────────────────── -->
+<div id="ss-toast"></div>
+
+<!-- ── JavaScript ─────────────────────────────────────────────────── -->
+<script>
+'use strict';
+
+/* ─── Global state ──────────────────────────────────────────────── */
+let _forgeData = null;
+let _hashtagData = null;
+let _calendarData = [];
+let _forgeMode = 'idea';
+let _activeTemplate = 'just-listed';
+
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_NAMES = { Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday', Fri:'Friday', Sat:'Saturday', Sun:'Sunday' };
+const PLATFORMS = [
+  { key: 'linkedin',  label: 'LinkedIn',  icon: '💼', chars: '150-200 words' },
+  { key: 'facebook',  label: 'Facebook',  icon: '📘', chars: '100-150 words' },
+  { key: 'instagram', label: 'Instagram', icon: '📸', chars: '3 lines + hashtags' },
+  { key: 'x',         label: 'X',         icon: '✖', chars: '< 280 chars' },
+  { key: 'tiktok',    label: 'TikTok',    icon: '🎵', chars: 'hook + 3 lines + hashtags' },
+];
+const PLAT_BADGES = { LinkedIn:'LI', Facebook:'FB', Instagram:'IG', X:'X', TikTok:'TT', All:'ALL' };
+
+/* ─── Utility ───────────────────────────────────────────────────── */
+function escHtml(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+let _toastTimer = null;
+function ssToast(msg, kind = 'info') {
+  const el = document.getElementById('ss-toast');
+  el.className = kind;
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+/* ─── Panel switching ───────────────────────────────────────────── */
+function switchPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+  const panel = document.getElementById('panel-' + name);
+  if (panel) panel.classList.add('active');
+  const btn = document.querySelector(`.tab-bar button[data-tab="${name}"]`);
+  if (btn) btn.classList.add('active');
+}
+
+/* ─── Forge mode switching ──────────────────────────────────────── */
+function switchForgeMode(mode) {
+  _forgeMode = mode;
+  document.querySelectorAll('.mode-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  const panel = document.getElementById('mode-' + mode);
+  if (panel) panel.classList.add('active');
+  const btn = document.querySelector(`.mode-btn[data-mode="${mode}"]`);
+  if (btn) btn.classList.add('active');
+}
+
+/* ─── Template switching ────────────────────────────────────────── */
+function switchTemplate(name) {
+  _activeTemplate = name;
+  document.querySelectorAll('.tmpl-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tmpl-fields').forEach(f => f.classList.remove('active'));
+  const btn = document.querySelector(`.tmpl-btn[data-tmpl="${name}"]`);
+  if (btn) btn.classList.add('active');
+  // Map template key to field div id
+  const fieldMap = {
+    'just-listed': 'tmpl-just-listed',
+    'market-update': 'tmpl-market-update',
+    'client-win': 'tmpl-client-win',
+    'hot-take': 'tmpl-hot-take',
+    'tip-week': 'tmpl-tw-fields',
+  };
+  const fieldId = fieldMap[name];
+  if (fieldId) {
+    const el = document.getElementById(fieldId);
+    if (el) el.classList.add('active');
+  }
+}
+
+/* ─── Collect forge inputs ──────────────────────────────────────── */
+function collectForgePayload() {
+  if (_forgeMode === 'idea') {
+    return {
+      mode: 'idea',
+      topic: document.getElementById('forge-topic').value.trim(),
+      market: document.getElementById('forge-market').value.trim(),
+    };
+  }
+  if (_forgeMode === 'episode') {
+    return {
+      mode: 'episode',
+      title: document.getElementById('forge-title').value.trim(),
+      hook_line: document.getElementById('forge-hookline').value.trim(),
+      topic: document.getElementById('forge-ep-topic').value.trim(),
+      market: document.getElementById('forge-ep-market').value.trim(),
+    };
+  }
+  if (_forgeMode === 'template') {
+    const base = { mode: 'template', template: _activeTemplate };
+    if (_activeTemplate === 'just-listed') {
+      return { ...base,
+        address: document.getElementById('tmpl-jl-address').value.trim(),
+        price: document.getElementById('tmpl-jl-price').value.trim(),
+        features: document.getElementById('tmpl-jl-features').value.trim(),
+      };
+    }
+    if (_activeTemplate === 'market-update') {
+      return { ...base,
+        market: document.getElementById('tmpl-mu-market').value.trim(),
+        stat: document.getElementById('tmpl-mu-stat').value.trim(),
+        timeframe: document.getElementById('tmpl-mu-timeframe').value.trim(),
+      };
+    }
+    if (_activeTemplate === 'client-win') {
+      return { ...base,
+        client_type: document.getElementById('tmpl-cw-clienttype').value.trim(),
+        outcome: document.getElementById('tmpl-cw-outcome').value.trim(),
+        market: document.getElementById('tmpl-cw-market').value.trim(),
+      };
+    }
+    if (_activeTemplate === 'hot-take') {
+      return { ...base,
+        opinion: document.getElementById('tmpl-ht-opinion').value.trim(),
+        market: document.getElementById('tmpl-ht-market').value.trim(),
+      };
+    }
+    if (_activeTemplate === 'tip-week') {
+      return { ...base,
+        tip_topic: document.getElementById('tmpl-tw-topic').value.trim(),
+        market: document.getElementById('tmpl-tw-market').value.trim(),
+      };
+    }
+  }
+  return {};
+}
+
+/* ─── Run Post Forge ────────────────────────────────────────────── */
+async function runForge() {
+  const payload = collectForgePayload();
+
+  // Basic validation
+  const hasContent = Object.values(payload).some(v => typeof v === 'string' && v.length > 0 && v !== payload.mode && v !== payload.template);
+  if (!hasContent) {
+    ssToast('Fill in at least one field before generating.', 'error');
+    return;
+  }
+
+  const outputDiv = document.getElementById('forge-output');
+  const loadingDiv = document.getElementById('forge-loading');
+  const resultsDiv = document.getElementById('forge-results');
+
+  outputDiv.classList.remove('hidden');
+  loadingDiv.classList.remove('hidden');
+  resultsDiv.classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/social/forge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    _forgeData = data;
+    loadingDiv.classList.add('hidden');
+    resultsDiv.classList.remove('hidden');
+    renderForgeOutput(data);
+  } catch (err) {
+    loadingDiv.classList.add('hidden');
+    ssToast('Generation failed: ' + err.message, 'error');
+    console.error('[SocialStudio] runForge:', err);
+  }
+}
+
+/* ─── Render Forge Output ───────────────────────────────────────── */
+function renderForgeOutput(data) {
+  const grid = document.getElementById('forge-platform-grid');
+  grid.innerHTML = '';
+
+  PLATFORMS.forEach(plat => {
+    const content = (data[plat.key] || data[plat.label.toLowerCase()] || '').trim();
+
+    const card = document.createElement('div');
+    card.className = 'platform-card';
+
+    const header = document.createElement('div');
+    header.className = 'platform-header';
+    header.innerHTML = `
+      <div class="platform-name">
+        <span class="plat-icon">${plat.icon}</span>
+        ${escHtml(plat.label)}
+      </div>
+      <span class="char-badge">${escHtml(plat.chars)}</span>
+    `;
+
+    const body = document.createElement('div');
+    body.className = 'platform-body';
+    const ta = document.createElement('textarea');
+    ta.className = 'output-textarea';
+    ta.value = content || `[${plat.label} post will appear here]`;
+    ta.setAttribute('spellcheck', 'false');
+    body.appendChild(ta);
+
+    const footer = document.createElement('div');
+    footer.className = 'platform-footer';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'btn-sm accent';
+    copyBtn.textContent = 'Copy';
+    copyBtn.dataset.text = content;
+    copyBtn.addEventListener('click', () => {
+      const textToCopy = ta.value;
+      navigator.clipboard.writeText(textToCopy).catch(() => {
+        const tempTa = document.createElement('textarea');
+        tempTa.value = textToCopy;
+        document.body.appendChild(tempTa);
+        tempTa.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempTa);
+      });
+      copyBtn.textContent = '✓ Copied!';
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+    });
+
+    const calBtn = document.createElement('button');
+    calBtn.className = 'btn-sm';
+    calBtn.textContent = '📅 Schedule';
+    calBtn.addEventListener('click', () => {
+      openCalendarModal({ platform: plat.label, content: ta.value });
+    });
+
+    footer.appendChild(copyBtn);
+    footer.appendChild(calBtn);
+
+    // Publish button — shown for connected platforms
+    const publishKey = plat.key;
+    const connData = _connections[publishKey] || {};
+    if (connData.connected && (publishKey === 'facebook' || publishKey === 'linkedin' || publishKey === 'instagram' || publishKey === 'tiktok')) {
+      const pubBtn = document.createElement('button');
+      pubBtn.className = 'btn-publish';
+      if (publishKey === 'instagram') pubBtn.textContent = '📸 Copy Caption';
+      else if (publishKey === 'tiktok') pubBtn.textContent = '🎵 Copy Caption';
+      else pubBtn.textContent = '🚀 Publish';
+      pubBtn.addEventListener('click', () => quickPublish(publishKey, ta.value, pubBtn));
+      footer.appendChild(pubBtn);
+    }
+
+    card.appendChild(header);
+    card.appendChild(body);
+    card.appendChild(footer);
+    grid.appendChild(card);
+  });
+}
+
+/* ─── Calendar ──────────────────────────────────────────────────── */
+async function loadCalendar() {
+  try {
+    const res = await fetch('/api/social/calendar');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    _calendarData = Array.isArray(data) ? data : (data.entries || []);
+  } catch (err) {
+    _calendarData = [];
+    console.warn('[SocialStudio] loadCalendar:', err.message);
+  }
+  renderCalendar(_calendarData);
+}
+
+function renderCalendar(entries) {
+  const grid = document.getElementById('cal-grid');
+  if (!grid) return;
+
+  const today = new Date();
+  const todayDay = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][today.getDay()];
+
+  grid.innerHTML = '';
+
+  DAYS.forEach(day => {
+    const dayEntries = entries.filter(e => e.day === day);
+
+    const col = document.createElement('div');
+    col.className = 'cal-day';
+
+    const header = document.createElement('div');
+    header.className = 'cal-day-header';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'cal-day-name';
+    nameEl.textContent = DAY_NAMES[day];
+    header.appendChild(nameEl);
+
+    if (day === todayDay) {
+      const badge = document.createElement('span');
+      badge.className = 'today-badge';
+      badge.textContent = 'Today';
+      header.appendChild(badge);
+    }
+
+    const slots = document.createElement('div');
+    slots.className = 'cal-slots';
+
+    dayEntries.forEach(entry => {
+      const slot = document.createElement('div');
+      slot.className = 'cal-slot';
+
+      const platBadge = document.createElement('span');
+      platBadge.className = 'cal-slot-plat';
+      platBadge.textContent = PLAT_BADGES[entry.platform] || entry.platform || 'ALL';
+      slot.appendChild(platBadge);
+
+      const title = document.createElement('span');
+      title.className = 'cal-slot-title';
+      title.textContent = entry.title || 'Untitled';
+      title.title = entry.title || '';
+      slot.appendChild(title);
+
+      const del = document.createElement('button');
+      del.className = 'cal-slot-del';
+      del.textContent = '×';
+      del.title = 'Remove';
+      del.addEventListener('click', () => deleteCalendarEntry(entry.id));
+      slot.appendChild(del);
+
+      slots.appendChild(slot);
+    });
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn-add';
+    addBtn.textContent = '+ Add Post';
+    addBtn.addEventListener('click', () => openCalendarModal({ day }));
+
+    col.appendChild(header);
+    col.appendChild(slots);
+    col.appendChild(addBtn);
+    grid.appendChild(col);
+  });
+}
+
+function openCalendarModal(prefillData) {
+  const modal = document.getElementById('cal-modal');
+  if (!modal) return;
+
+  // Clear fields
+  document.getElementById('cal-modal-title').value = '';
+  document.getElementById('cal-modal-content').value = '';
+  document.getElementById('cal-modal-platform').value = 'LinkedIn';
+  document.getElementById('cal-modal-day').value = 'Mon';
+
+  if (prefillData) {
+    if (prefillData.platform) {
+      const sel = document.getElementById('cal-modal-platform');
+      if ([...sel.options].some(o => o.value === prefillData.platform)) {
+        sel.value = prefillData.platform;
+      }
+    }
+    if (prefillData.content) {
+      document.getElementById('cal-modal-content').value = prefillData.content;
+    }
+    if (prefillData.day) {
+      document.getElementById('cal-modal-day').value = prefillData.day;
+    }
+    if (prefillData.title) {
+      document.getElementById('cal-modal-title').value = prefillData.title;
+    }
+  }
+
+  modal.classList.add('open');
+}
+
+function closeCalendarModal() {
+  const modal = document.getElementById('cal-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+async function submitCalendarModal() {
+  const title = document.getElementById('cal-modal-title').value.trim();
+  const platform = document.getElementById('cal-modal-platform').value;
+  const day = document.getElementById('cal-modal-day').value;
+  const content = document.getElementById('cal-modal-content').value.trim();
+
+  if (!title) {
+    ssToast('Please enter a post title.', 'error');
+    return;
+  }
+
+  await addToCalendar(day, platform, title, content);
+  closeCalendarModal();
+}
+
+async function addToCalendar(day, platform, title, content) {
+  try {
+    const res = await fetch('/api/social/calendar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ day, platform, title, content }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const entry = await res.json();
+    _calendarData.push(entry);
+    renderCalendar(_calendarData);
+    ssToast(`📅 "${title}" added to ${DAY_NAMES[day]}`, 'success');
+  } catch (err) {
+    ssToast('Failed to add entry: ' + err.message, 'error');
+    console.error('[SocialStudio] addToCalendar:', err);
+  }
+}
+
+async function deleteCalendarEntry(id) {
+  if (!confirm('Remove this post from the calendar?')) return;
+  try {
+    const res = await fetch(`/api/social/calendar/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _calendarData = _calendarData.filter(e => e.id !== id);
+    renderCalendar(_calendarData);
+    ssToast('Post removed from calendar.', 'info');
+  } catch (err) {
+    ssToast('Failed to remove entry: ' + err.message, 'error');
+    console.error('[SocialStudio] deleteCalendarEntry:', err);
+  }
+}
+
+/* ─── Hashtags ──────────────────────────────────────────────────── */
+async function loadHashtags() {
+  try {
+    const res = await fetch('/api/social/hashtags');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && (data.core || data.niche || data.local || data.trending)) {
+      _hashtagData = data;
+      document.getElementById('hash-output').classList.remove('hidden');
+      renderHashtags(data);
+    }
+  } catch (err) {
+    console.warn('[SocialStudio] loadHashtags:', err.message);
+  }
+}
+
+async function generateHashtags() {
+  const market = document.getElementById('hash-market').value.trim();
+  const niche = document.getElementById('hash-niche').value.trim();
+
+  if (!market && !niche) {
+    ssToast('Enter at least your market or niche.', 'error');
+    return;
+  }
+
+  const loading = document.getElementById('hash-loading');
+  const output = document.getElementById('hash-output');
+  loading.classList.remove('hidden');
+  output.classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/social/hashtags', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ market, niche }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    _hashtagData = data;
+    loading.classList.add('hidden');
+    output.classList.remove('hidden');
+    renderHashtags(data);
+    ssToast('Hashtag sets generated!', 'success');
+  } catch (err) {
+    loading.classList.add('hidden');
+    ssToast('Generation failed: ' + err.message, 'error');
+    console.error('[SocialStudio] generateHashtags:', err);
+  }
+}
+
+function renderHashtags(data) {
+  const grid = document.getElementById('hash-cards-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  const sets = [
+    { key: 'core',     label: 'Core',     sub: 'Use on every post',            count: 10 },
+    { key: 'niche',    label: 'Niche',     sub: 'Real estate niche specific',   count: 10 },
+    { key: 'local',    label: 'Local',     sub: 'Market / city specific',       count: 10 },
+    { key: 'trending', label: 'Trending',  sub: 'Currently trending in RE',     count: 5  },
+  ];
+
+  sets.forEach(set => {
+    const tags = data[set.key] || [];
+
+    const card = document.createElement('div');
+    card.className = 'hash-card';
+
+    const header = document.createElement('div');
+    header.className = 'hash-card-header';
+    header.innerHTML = `
+      <div>
+        <div class="hash-card-title">${escHtml(set.label)} <span class="char-badge">${tags.length}</span></div>
+        <div class="hash-card-sub">${escHtml(set.sub)}</div>
+      </div>
+    `;
+
+    const chips = document.createElement('div');
+    chips.className = 'chips';
+    tags.forEach(tag => {
+      const chip = document.createElement('span');
+      chip.className = 'chip';
+      chip.textContent = tag.startsWith('#') ? tag : '#' + tag;
+      chips.appendChild(chip);
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'hash-actions';
+
+    const copyAllBtn = document.createElement('button');
+    copyAllBtn.className = 'btn-sm accent';
+    copyAllBtn.textContent = 'Copy All';
+    copyAllBtn.addEventListener('click', () => copyHashtagSet(tags, 'space', copyAllBtn));
+
+    const copyIgBtn = document.createElement('button');
+    copyIgBtn.className = 'btn-sm';
+    copyIgBtn.textContent = 'Copy for Instagram';
+    copyIgBtn.addEventListener('click', () => copyHashtagSet(tags, 'newline', copyIgBtn));
+
+    actions.appendChild(copyAllBtn);
+    actions.appendChild(copyIgBtn);
+
+    card.appendChild(header);
+    card.appendChild(chips);
+    card.appendChild(actions);
+    grid.appendChild(card);
+  });
+}
+
+function copyHashtagSet(tags, format, btn) {
+  const normalized = tags.map(t => t.startsWith('#') ? t : '#' + t);
+  const text = format === 'newline' ? normalized.join('\n') : normalized.join(' ');
+  navigator.clipboard.writeText(text).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  });
+  const orig = btn.textContent;
+  btn.textContent = '✓ Copied!';
+  setTimeout(() => { btn.textContent = orig; }, 2000);
+}
+
+function clearHashtags() {
+  if (!confirm('Clear saved hashtags?')) return;
+  _hashtagData = null;
+  document.getElementById('hash-output').classList.add('hidden');
+  document.getElementById('hash-cards-grid').innerHTML = '';
+  ssToast('Hashtags cleared.', 'info');
+}
+
+/* ─── Repurpose Hub ─────────────────────────────────────────────── */
+async function runRepurpose() {
+  const url = document.getElementById('repurpose-url').value.trim();
+  const transcript = document.getElementById('repurpose-transcript').value.trim();
+  const market = document.getElementById('repurpose-market').value.trim();
+
+  if (!url && !transcript) {
+    ssToast('Provide a YouTube URL or paste a transcript.', 'error');
+    return;
+  }
+
+  const loading = document.getElementById('repurpose-loading');
+  const output = document.getElementById('repurpose-output');
+  loading.classList.remove('hidden');
+  output.classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/social/repurpose', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, transcript, market }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    loading.classList.add('hidden');
+    output.classList.remove('hidden');
+    renderRepurposeOutput(data);
+  } catch (err) {
+    loading.classList.add('hidden');
+    ssToast('Analysis failed: ' + err.message, 'error');
+    console.error('[SocialStudio] runRepurpose:', err);
+  }
+}
+
+const REPURPOSE_PLATFORMS = ['LinkedIn', 'Facebook', 'Instagram', 'X', 'LinkedIn'];
+
+function renderRepurposeOutput(data) {
+  const list = document.getElementById('angle-cards-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const angles = Array.isArray(data) ? data : (data.angles || []);
+
+  angles.forEach((angle, i) => {
+    const plat = angle.platform || REPURPOSE_PLATFORMS[i % REPURPOSE_PLATFORMS.length];
+    const summary = angle.summary || angle.angle || `Angle ${i + 1}`;
+    const postText = angle.content || angle.post || '';
+
+    const card = document.createElement('div');
+    card.className = 'angle-card';
+
+    const header = document.createElement('div');
+    header.className = 'angle-card-header';
+
+    const badge = document.createElement('span');
+    badge.className = 'plat-badge';
+    badge.textContent = plat;
+    header.appendChild(badge);
+
+    const sum = document.createElement('span');
+    sum.className = 'angle-summary';
+    sum.textContent = summary;
+    header.appendChild(sum);
+
+    const ta = document.createElement('textarea');
+    ta.className = 'angle-text';
+    ta.value = postText;
+    ta.setAttribute('spellcheck', 'false');
+
+    const footer = document.createElement('div');
+    footer.className = 'angle-footer';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'btn-sm accent';
+    copyBtn.textContent = 'Copy';
+    copyBtn.addEventListener('click', () => {
+      const text = ta.value;
+      navigator.clipboard.writeText(text).catch(() => {
+        const tempTa = document.createElement('textarea');
+        tempTa.value = text;
+        document.body.appendChild(tempTa);
+        tempTa.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempTa);
+      });
+      copyBtn.textContent = '✓ Copied!';
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+    });
+
+    const schedBtn = document.createElement('button');
+    schedBtn.className = 'btn-sm';
+    schedBtn.textContent = '📅 Schedule';
+    schedBtn.addEventListener('click', () => {
+      openCalendarModal({ platform: plat, content: ta.value, title: summary });
+    });
+
+    footer.appendChild(copyBtn);
+    footer.appendChild(schedBtn);
+
+    card.appendChild(header);
+    card.appendChild(ta);
+    card.appendChild(footer);
+    list.appendChild(card);
+  });
+
+  if (angles.length === 0) {
+    list.innerHTML = '<p class="text-muted" style="padding:20px 0;">No angles returned. Try providing more content.</p>';
+  }
+}
+
+/* ─── Connections ───────────────────────────────────────────────── */
+let _connections = { facebook: {connected:false}, instagram: {connected:false}, linkedin: {connected:false}, tiktok: {connected:false} };
+
+async function loadConnections() {
+  try {
+    const res = await fetch('/api/social/connections');
+    if (!res.ok) return;
+    _connections = await res.json();
+    renderConnections();
+  } catch (err) {
+    console.warn('[SocialStudio] loadConnections:', err.message);
+  }
+}
+
+function renderConnections() {
+  const grid = document.getElementById('conn-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  const platforms = [
+    {
+      key: 'facebook',
+      logo: '📘',
+      name: 'Facebook',
+      note: 'Posts to your selected Facebook Page',
+      authUrl: '/api/social/meta/auth',
+      disconnectEndpoint: '/api/social/meta/disconnect',
+      extra: null,
+    },
+    {
+      key: 'instagram',
+      logo: '📸',
+      name: 'Instagram',
+      note: 'Connected via Facebook — image posts only (captions copied)',
+      authUrl: '/api/social/meta/auth',
+      disconnectEndpoint: '/api/social/meta/disconnect',
+      extra: 'requires_image',
+    },
+    {
+      key: 'linkedin',
+      logo: '💼',
+      name: 'LinkedIn',
+      note: 'Posts text updates to your LinkedIn profile',
+      authUrl: '/api/social/linkedin/auth',
+      disconnectEndpoint: '/api/social/linkedin/disconnect',
+      extra: null,
+    },
+    {
+      key: 'tiktok',
+      logo: '🎵',
+      name: 'TikTok',
+      note: 'Video clips posted from Clip Studio — captions copied here',
+      authUrl: '/api/tiktok/auth',
+      disconnectEndpoint: '/api/tiktok/disconnect',
+      extra: 'video_only',
+    },
+  ];
+
+  platforms.forEach(plat => {
+    const conn = _connections[plat.key] || {};
+    const connected = conn.connected;
+
+    const card = document.createElement('div');
+    card.className = 'conn-card';
+
+    const header = document.createElement('div');
+    header.className = 'conn-header';
+    header.innerHTML = `<div class="conn-logo">${plat.logo}</div>
+      <div class="conn-info">
+        <div class="conn-name">${escHtml(plat.name)}</div>
+        <div class="conn-note">${escHtml(plat.note)}</div>
+        <div class="conn-status ${connected ? 'connected' : 'disconnected'}">${connected ? 'Connected' : 'Not connected'}</div>
+      </div>`;
+    card.appendChild(header);
+
+    // Page selector for Facebook
+    if (plat.key === 'facebook' && connected && conn.pages && conn.pages.length) {
+      const sel = document.createElement('select');
+      sel.className = 'page-select';
+      conn.pages.forEach(pg => {
+        const opt = document.createElement('option');
+        opt.value = pg.id;
+        opt.textContent = pg.name;
+        if (pg.id === conn.selected_page_id) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change', () => selectFBPage(sel.value));
+      card.appendChild(sel);
+    }
+
+    // Instagram note
+    if (plat.key === 'instagram' && connected) {
+      const note = document.createElement('div');
+      note.className = 'conn-note-box';
+      note.textContent = 'Instagram requires an image for feed posts. After generating, use Copy to grab caption and add your photo in the app.';
+      card.appendChild(note);
+    }
+
+    // LinkedIn connected name
+    if (plat.key === 'linkedin' && connected && conn.name) {
+      const nameNote = document.createElement('div');
+      nameNote.className = 'text-muted';
+      nameNote.textContent = 'Posting as: ' + conn.name;
+      card.appendChild(nameNote);
+    }
+
+    // TikTok video-only note
+    if (plat.key === 'tiktok' && connected) {
+      const note = document.createElement('div');
+      note.className = 'conn-note-box';
+      note.innerHTML = 'TikTok is video-only. Go to <strong>Clip Studio</strong> to publish clips directly. Use Post Forge to generate your caption, then copy it here.';
+      card.appendChild(note);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'conn-actions';
+
+    if (!connected) {
+      const connectBtn = document.createElement('button');
+      connectBtn.className = 'btn-sm accent';
+      connectBtn.textContent = '🔗 Connect ' + plat.name;
+      connectBtn.addEventListener('click', () => { window.location.href = plat.authUrl; });
+      actions.appendChild(connectBtn);
+    } else if (plat.key !== 'instagram') {
+      // Instagram shares OAuth with Facebook — only show disconnect on FB
+      const disconnectBtn = document.createElement('button');
+      disconnectBtn.className = 'btn-sm coral';
+      disconnectBtn.textContent = 'Disconnect';
+      disconnectBtn.addEventListener('click', () => disconnectPlatform(plat.disconnectEndpoint, plat.name));
+      actions.appendChild(disconnectBtn);
+    }
+
+    card.appendChild(actions);
+    grid.appendChild(card);
+  });
+}
+
+async function selectFBPage(pageId) {
+  try {
+    await fetch('/api/social/meta/select-page', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page_id: pageId }),
+    });
+    ssToast('Active page updated.', 'success');
+  } catch (err) {
+    ssToast('Failed to update page: ' + err.message, 'error');
+  }
+}
+
+async function disconnectPlatform(endpoint, name) {
+  if (!confirm(`Disconnect ${name}? You'll need to re-authorize to publish.`)) return;
+  try {
+    const res = await fetch(endpoint, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    ssToast(`${name} disconnected.`, 'info');
+    await loadConnections();
+  } catch (err) {
+    ssToast('Disconnect failed: ' + err.message, 'error');
+  }
+}
+
+/* ─── Quick Publish ─────────────────────────────────────────────── */
+async function quickPublish(platform, text, btn) {
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '…';
+
+  try {
+    if (platform === 'instagram') {
+      // Instagram needs image — copy text and inform user
+      await navigator.clipboard.writeText(text).catch(() => {});
+      ssToast('📋 Caption copied — add your photo in the Instagram app.', 'info');
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => { btn.disabled = false; btn.textContent = origText; }, 2500);
+      return;
+    }
+
+    if (platform === 'tiktok') {
+      // TikTok is video-only — copy caption and direct to Clip Studio
+      await navigator.clipboard.writeText(text).catch(() => {});
+      ssToast('🎵 Caption copied — go to Clip Studio to publish your video to TikTok.', 'info');
+      btn.textContent = '✓ Copied!';
+      setTimeout(() => { btn.disabled = false; btn.textContent = origText; }, 2500);
+      return;
+    }
+
+    const endpointMap = { facebook: '/api/social/publish/facebook', linkedin: '/api/social/publish/linkedin' };
+    const endpoint = endpointMap[platform];
+    if (!endpoint) {
+      ssToast('Publishing not available for ' + platform, 'info');
+      btn.disabled = false; btn.textContent = origText;
+      return;
+    }
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text }),
+    });
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      if (data.error && data.error.includes('not connected')) {
+        ssToast('Not connected — go to Connections tab to authorize.', 'error');
+      } else {
+        ssToast('Publish failed: ' + (data.error || 'Unknown error'), 'error');
+      }
+      btn.disabled = false; btn.textContent = origText;
+      return;
+    }
+
+    ssToast('✅ Published to ' + platform + '!', 'success');
+    btn.textContent = '✓ Posted!';
+    setTimeout(() => { btn.disabled = false; btn.textContent = origText; }, 3000);
+
+  } catch (err) {
+    ssToast('Error: ' + err.message, 'error');
+    btn.disabled = false; btn.textContent = origText;
+  }
+}
+
+/* ─── Screen Recorder ──────────────────────────────────────────── */
+let _recMediaRecorder = null;
+let _recChunks = [];
+let _recBlob = null;
+let _recStream = null;
+let _recTimerInterval = null;
+let _recSeconds = 0;
+let _recActive = false;
+
+function _recFmtTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+}
+
+async function recToggle() {
+  if (_recActive) {
+    recStop();
+  } else {
+    await recStart();
+  }
+}
+
+async function recStart() {
+  try {
+    const wantMic = document.getElementById('rec-mic').checked;
+
+    // Get screen stream
+    const screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: 30 },
+      audio: true,
+    });
+
+    let finalStream = screenStream;
+
+    // Optionally mix in mic
+    if (wantMic) {
+      try {
+        const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const ctx = new AudioContext();
+        const dest = ctx.createMediaStreamDestination();
+        const screenAudio = ctx.createMediaStreamSource(new MediaStream(screenStream.getAudioTracks()));
+        const micAudio = ctx.createMediaStreamSource(micStream);
+        screenAudio.connect(dest);
+        micAudio.connect(dest);
+        const mixed = new MediaStream([
+          ...screenStream.getVideoTracks(),
+          ...dest.stream.getAudioTracks(),
+        ]);
+        finalStream = mixed;
+      } catch (_) {
+        // mic permission denied — continue without mic
+        finalStream = screenStream;
+      }
+    }
+
+    _recStream = finalStream;
+    _recChunks = [];
+    _recSeconds = 0;
+
+    // Pick supported MIME type
+    const mimeType = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+    _recMediaRecorder = new MediaRecorder(finalStream, mimeType ? { mimeType } : {});
+    _recMediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) _recChunks.push(e.data); };
+    _recMediaRecorder.onstop = () => {
+      _recBlob = new Blob(_recChunks, { type: 'video/webm' });
+      _recShowPreview();
+    };
+
+    _recMediaRecorder.start(1000); // collect every 1s
+    _recActive = true;
+
+    // UI — recording state
+    document.getElementById('rec-btn').classList.add('recording');
+    document.getElementById('rec-btn-icon').textContent = '⏹';
+    document.getElementById('rec-status-text').textContent = 'Recording…';
+    document.getElementById('rec-timer').style.color = 'var(--coral)';
+
+    _recTimerInterval = setInterval(() => {
+      _recSeconds++;
+      document.getElementById('rec-timer').textContent = _recFmtTime(_recSeconds);
+    }, 1000);
+
+    // Auto-stop when user stops screen share
+    finalStream.getVideoTracks()[0].addEventListener('ended', () => { if (_recActive) recStop(); });
+
+  } catch (err) {
+    if (err.name !== 'NotAllowedError') {
+      ssToast('Recording failed: ' + err.message, 'error');
+    }
+  }
+}
+
+function recStop() {
+  if (!_recMediaRecorder) return;
+  _recActive = false;
+  clearInterval(_recTimerInterval);
+  _recMediaRecorder.stop();
+  if (_recStream) { _recStream.getTracks().forEach(t => t.stop()); _recStream = null; }
+
+  // Reset btn UI (preview will show after onstop fires)
+  document.getElementById('rec-btn').classList.remove('recording');
+  document.getElementById('rec-btn-icon').textContent = '⏺';
+  document.getElementById('rec-status-text').textContent = 'Processing…';
+}
+
+function _recShowPreview() {
+  document.getElementById('rec-idle-state').classList.add('hidden');
+  const previewEl = document.getElementById('rec-preview-state');
+  previewEl.classList.remove('hidden');
+  const videoEl = document.getElementById('rec-video');
+  videoEl.src = URL.createObjectURL(_recBlob);
+  ssToast('✅ Recording complete — ' + _recFmtTime(_recSeconds), 'success');
+}
+
+function recDownloadWebM() {
+  if (!_recBlob) return;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(_recBlob);
+  a.download = 'screen-recording-' + Date.now() + '.webm';
+  a.click();
+}
+
+async function recConvertMP4() {
+  if (!_recBlob) return;
+  const btn = document.getElementById('rec-convert-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Converting…';
+  ssToast('Converting to MP4 — this may take a moment…', 'info');
+  try {
+    const fd = new FormData();
+    fd.append('file', _recBlob, 'recording.webm');
+    const res = await fetch('/api/screen-record/convert', { method: 'POST', body: fd });
+    if (!res.ok) { throw new Error('Server error ' + res.status); }
+    const mp4Blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(mp4Blob);
+    a.download = 'screen-recording-' + Date.now() + '.mp4';
+    a.click();
+    ssToast('✅ MP4 ready — check your downloads!', 'success');
+  } catch (err) {
+    ssToast('Conversion failed: ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🎬 Convert to MP4';
+  }
+}
+
+function recReset() {
+  _recBlob = null;
+  _recChunks = [];
+  _recSeconds = 0;
+  document.getElementById('rec-timer').textContent = '00:00';
+  document.getElementById('rec-timer').style.color = '';
+  document.getElementById('rec-status-text').textContent = 'Ready to record';
+  document.getElementById('rec-video').src = '';
+  document.getElementById('rec-preview-state').classList.add('hidden');
+  document.getElementById('rec-idle-state').classList.remove('hidden');
+}
+
+/* ─── Close modal on overlay click ─────────────────────────────── */
+document.getElementById('cal-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeCalendarModal();
+});
+
+/* ─── Init ──────────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  loadHashtags();
+  loadCalendar();
+  loadConnections();
+});
+</script>
+<script src="/recorder-widget.js"></script>
+</body>
+</html>

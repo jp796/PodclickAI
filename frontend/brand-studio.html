@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brand Studio · PodClickAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #030B2C;
+      --surface:  #050E3D;
+      --surface2: #091660;
+      --surface3: #102078;
+      --border:   #1a2c6b;
+      --accent:   #05C3F9;
+      --accent2:  #00FBF0;
+      --coral:    #FF557E;
+      --text:     #F5F7FA;
+      --text-dim: #8AAFC5;
+      --green:    #2EE49C;
+      --yellow:   #FFB340;
+      --radius:   12px;
+      --font:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Scrollbar ─────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Header ────────────────────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px; border-bottom: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0;
+    }
+    .brand { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; }
+    .brand .pc { color: var(--text); }
+    .brand .ai {
+      background: linear-gradient(135deg, #05C3F9, #00FBF0);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .brand .sub { font-size: 13px; font-weight: 500; color: var(--text-dim); margin-left: 10px; }
+    .nav-toggle {
+      display: flex; align-items: center; gap: 2px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 3px;
+    }
+    .nav-toggle a {
+      padding: 5px 13px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      color: var(--text-dim); text-decoration: none;
+      transition: background .12s, color .12s; white-space: nowrap;
+    }
+    .nav-toggle a:hover { background: var(--surface); color: var(--text); }
+    .nav-toggle a.active { background: var(--surface); color: var(--text); }
+
+    /* ── Main layout ───────────────────────────────────────────────── */
+    main {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Left pane (intake) ────────────────────────────────────────── */
+    .left-pane {
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .pane-header {
+      padding: 20px 22px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      color: var(--accent); text-transform: uppercase;
+    }
+
+    .section {
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-title {
+      font-size: 12px; font-weight: 700; color: var(--text);
+      letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-title .step-num {
+      width: 20px; height: 20px; border-radius: 50%;
+      background: var(--accent); color: var(--bg);
+      font-size: 11px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    label {
+      display: block; font-size: 11px; font-weight: 600;
+      color: var(--text-dim); margin-bottom: 5px; margin-top: 12px;
+      text-transform: uppercase; letter-spacing: 0.07em;
+    }
+    label:first-child { margin-top: 0; }
+    input[type="text"], select, textarea {
+      width: 100%; padding: 9px 12px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 13px;
+      font-family: var(--font); outline: none;
+      transition: border-color .15s;
+    }
+    input[type="text"]:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+    }
+    select option { background: var(--surface2); }
+    textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* ── Voice picker ──────────────────────────────────────────────── */
+    .voice-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .voice-btn {
+      padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text-dim);
+      transition: all .12s; white-space: nowrap;
+    }
+    .voice-btn:hover { border-color: var(--accent); color: var(--text); }
+    .voice-btn.active { background: rgba(5,195,249,0.15); border-color: var(--accent); color: var(--accent); }
+    .voice-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; margin-top: 10px; }
+    .voice-label:first-child { margin-top: 0; }
+
+    /* ── Mood cards ────────────────────────────────────────────────── */
+    .mood-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;
+    }
+    .mood-card {
+      border: 2px solid var(--border); border-radius: 10px;
+      padding: 12px 10px; cursor: pointer; transition: all .15s;
+      text-align: center; position: relative; overflow: hidden;
+    }
+    .mood-card:hover { border-color: var(--accent); }
+    .mood-card.active { border-color: var(--accent); background: rgba(5,195,249,0.08); }
+    .mood-card .mood-swatch {
+      height: 28px; border-radius: 5px; margin-bottom: 8px;
+    }
+    .mood-card .mood-name { font-size: 12px; font-weight: 700; color: var(--text); }
+    .mood-card .mood-desc { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+    /* ── Generate button ───────────────────────────────────────────── */
+    .generate-wrap { padding: 18px 22px; }
+    .btn-generate {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #05C3F9, #00FBF0);
+      border: none; border-radius: var(--radius); color: var(--bg);
+      font-size: 15px; font-weight: 800; cursor: pointer;
+      letter-spacing: 0.02em; transition: opacity .15s, transform .1s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-generate:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* ── Right pane (outputs) ──────────────────────────────────────── */
+    .right-pane {
+      display: flex; flex-direction: column; overflow: hidden;
+      background: var(--bg);
+    }
+
+    .output-tabs {
+      display: flex; border-bottom: 1px solid var(--border);
+      background: var(--surface); padding: 0 20px; gap: 0;
+      flex-shrink: 0;
+    }
+    .output-tab {
+      padding: 14px 20px; font-size: 13px; font-weight: 600;
+      color: var(--text-dim); cursor: pointer; border-bottom: 2px solid transparent;
+      transition: color .12s, border-color .12s; white-space: nowrap;
+    }
+    .output-tab:hover { color: var(--text); }
+    .output-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+    .output-body { flex: 1; overflow-y: auto; padding: 24px; }
+
+    .output-panel { display: none; }
+    .output-panel.active { display: block; }
+
+    /* ── Empty state ───────────────────────────────────────────────── */
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; height: 100%; min-height: 400px;
+      color: var(--text-dim); text-align: center; gap: 12px;
+    }
+    .empty-icon { font-size: 48px; opacity: 0.4; }
+    .empty-title { font-size: 16px; font-weight: 700; color: var(--text-dim); }
+    .empty-sub { font-size: 13px; color: var(--text-dim); opacity: 0.7; max-width: 320px; line-height: 1.5; }
+
+    /* ── Output card ───────────────────────────────────────────────── */
+    .out-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px; margin-bottom: 16px;
+    }
+    .out-card-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .out-card-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+      color: var(--accent); text-transform: uppercase;
+    }
+    .btn-copy {
+      padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text-dim);
+      transition: all .12s;
+    }
+    .btn-copy:hover { border-color: var(--accent); color: var(--accent); }
+
+    .out-text {
+      font-size: 13px; line-height: 1.7; color: var(--text);
+      white-space: pre-wrap;
+    }
+    .out-text.mono {
+      font-family: 'Courier New', monospace; font-size: 12px;
+      background: var(--surface2); border-radius: 8px;
+      padding: 12px; line-height: 1.6;
+    }
+
+    .value-prop-box {
+      background: linear-gradient(135deg, rgba(5,195,249,0.1), rgba(0,251,240,0.06));
+      border: 1px solid rgba(5,195,249,0.3); border-radius: 10px;
+      padding: 16px 20px; margin-bottom: 16px;
+      font-size: 16px; font-weight: 700; color: var(--text);
+      line-height: 1.4; font-style: italic;
+    }
+
+    .pain-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .pain-list li {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 13px; line-height: 1.5; color: var(--text);
+    }
+    .pain-list li::before {
+      content: '→'; color: var(--coral); font-weight: 700; flex-shrink: 0; margin-top: 1px;
+    }
+
+    .pillar-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .pillar-chip {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px;
+      font-size: 13px; font-weight: 600; color: var(--text);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .pillar-chip::before { content: '◆'; color: var(--accent); font-size: 10px; }
+
+    /* ── Bio sub-tabs ──────────────────────────────────────────────── */
+    .sub-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+    .sub-tab {
+      padding: 5px 14px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text-dim); transition: all .12s;
+    }
+    .sub-tab:hover { border-color: var(--accent); color: var(--text); }
+    .sub-tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+    .sub-panel { display: none; }
+    .sub-panel.active { display: block; }
+
+    /* ── Content plan grid ─────────────────────────────────────────── */
+    .month-grid { display: flex; flex-direction: column; gap: 16px; }
+    .month-block {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .month-head {
+      padding: 10px 16px; background: var(--surface2);
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+    .month-name { font-size: 13px; font-weight: 700; color: var(--text); }
+    .month-theme { font-size: 11px; color: var(--accent); font-weight: 600; }
+    .topic-row {
+      display: grid; grid-template-columns: 1fr auto auto;
+      align-items: center; gap: 12px;
+      padding: 10px 16px; border-bottom: 1px solid var(--border);
+    }
+    .topic-row:last-child { border-bottom: none; }
+    .topic-title-text { font-size: 13px; color: var(--text); font-weight: 500; }
+    .topic-hook { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+    .pillar-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px;
+      border-radius: 20px; white-space: nowrap;
+      background: rgba(5,195,249,0.15); color: var(--accent);
+      border: 1px solid rgba(5,195,249,0.3);
+    }
+    .format-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 8px;
+      border-radius: 20px; white-space: nowrap;
+      background: rgba(0,251,240,0.12); color: var(--accent2);
+      border: 1px solid rgba(0,251,240,0.3);
+    }
+
+    /* ── Email sequence ────────────────────────────────────────────── */
+    .email-list { display: flex; flex-direction: column; gap: 12px; }
+    .email-card {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+    }
+    .email-head {
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .email-num {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--accent); color: var(--bg);
+      font-size: 11px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .email-subject { font-size: 13px; font-weight: 700; color: var(--text); }
+    .email-body-text { padding: 12px 14px; font-size: 12px; line-height: 1.65; color: var(--text); white-space: pre-wrap; }
+
+    /* ── Action row ────────────────────────────────────────────────── */
+    .action-row {
+      display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;
+    }
+    .btn-action {
+      padding: 7px 16px; border-radius: 8px; font-size: 12px; font-weight: 600;
+      cursor: pointer; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text-dim);
+      transition: all .12s;
+    }
+    .btn-action:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-action.primary {
+      background: linear-gradient(135deg, #05C3F9, #00FBF0);
+      border-color: transparent; color: var(--bg);
+    }
+    .btn-action.primary:hover { opacity: 0.9; }
+
+    /* ── Spinner ───────────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(5,195,249,0.3); border-top-color: #05C3F9;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ─────────────────────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 999;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px; padding: 12px 18px;
+      font-size: 13px; color: var(--text);
+      opacity: 0; transform: translateY(8px);
+      transition: opacity .25s, transform .25s;
+      pointer-events: none; max-width: 360px;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.success { border-left-color: var(--green); }
+    .toast.error { border-left-color: var(--coral); }
+
+    /* ── Section generate btn ──────────────────────────────────────── */
+    .btn-section-gen {
+      width: 100%; padding: 10px; margin-top: 0;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 9px; color: var(--text-dim); font-size: 13px;
+      font-weight: 600; cursor: pointer; transition: all .12s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-section-gen:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-section-gen:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Headshot prompt ───────────────────────────────────────────── */
+    .headshot-box {
+      background: linear-gradient(135deg, rgba(255,85,126,0.08), rgba(5,195,249,0.06));
+      border: 1px solid rgba(255,85,126,0.25); border-radius: 10px;
+      padding: 16px;
+    }
+    .headshot-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+      color: var(--coral); text-transform: uppercase; margin-bottom: 8px;
+    }
+    .headshot-prompt-text {
+      font-size: 12px; line-height: 1.6; color: var(--text); font-style: italic;
+    }
+
+    /* ── Onboarding Screen ── */
+    #onboarding-screen { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 48px 24px 80px; background: #030B2C; }
+    .onboard-hero { text-align: center; margin-bottom: 36px; }
+    .onboard-hero h2 { font-size: 28px; font-weight: 700; color: #fff; margin: 0 0 8px; }
+    .onboard-hero p { font-size: 15px; color: #8899cc; margin: 0; }
+    .onboard-cards { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; max-width: 960px; width: 100%; margin-bottom: 28px; }
+    .onboard-card { background: #050E3D; border: 1px solid #1a2c6b; border-radius: 14px; padding: 28px 24px 24px; width: 280px; cursor: pointer; transition: border-color 0.2s, transform 0.15s; display: flex; flex-direction: column; gap: 10px; }
+    .onboard-card:hover { border-color: #05C3F9; transform: translateY(-2px); }
+    .onboard-icon { font-size: 28px; }
+    .onboard-title { font-size: 16px; font-weight: 700; color: #fff; }
+    .onboard-desc { font-size: 13px; color: #8899cc; line-height: 1.5; flex: 1; }
+    .onboard-btn { margin-top: 8px; background: linear-gradient(135deg, #05C3F9, #00FBF0); color: #030B2C; border: none; border-radius: 8px; padding: 10px 16px; font-size: 13px; font-weight: 700; cursor: pointer; text-align: center; pointer-events: none; }
+    .onboard-skip { font-size: 13px; }
+    .onboard-skip a { color: #8899cc; text-decoration: none; }
+    .onboard-skip a:hover { color: #05C3F9; }
+    .onboard-path-panel { width: 100%; max-width: 680px; margin-top: 20px; }
+    .path-panel-inner { background: #050E3D; border: 1px solid #1a2c6b; border-radius: 14px; padding: 28px; }
+    .path-back { background: none; border: 1px solid #1a2c6b; color: #8899cc; border-radius: 6px; padding: 5px 12px; font-size: 12px; cursor: pointer; margin-bottom: 16px; }
+    .path-back:hover { color: #05C3F9; border-color: #05C3F9; }
+    .path-panel-inner h3 { font-size: 18px; font-weight: 700; color: #fff; margin: 0 0 6px; }
+    .path-sub { font-size: 13px; color: #8899cc; margin: 0 0 20px; line-height: 1.5; }
+    .path-field-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .path-field-group label { font-size: 12px; font-weight: 600; color: #8899cc; text-transform: uppercase; letter-spacing: 0.05em; }
+    .path-field-group input, .path-field-group textarea { background: #0a1845; border: 1px solid #1a2c6b; color: #e2e8f0; border-radius: 8px; padding: 10px 12px; font-size: 13px; resize: vertical; width: 100%; box-sizing: border-box; }
+    .path-field-group input:focus, .path-field-group textarea:focus { outline: none; border-color: #05C3F9; }
+    /* Brand Score Card */
+    .brand-score-card { background: #0a1845; border: 1px solid #1a2c6b; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .brand-score-num { font-size: 48px; font-weight: 800; color: #05C3F9; line-height: 1; }
+    .brand-score-label { font-size: 12px; color: #8899cc; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; }
+    .score-axis-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .score-axis-name { font-size: 12px; color: #8899cc; width: 140px; flex-shrink: 0; }
+    .score-axis-bar-wrap { flex: 1; background: #1a2c6b; border-radius: 4px; height: 6px; overflow: hidden; }
+    .score-axis-bar { height: 100%; background: linear-gradient(90deg, #05C3F9, #00FBF0); border-radius: 4px; transition: width 0.6s ease; }
+    .score-axis-val { font-size: 12px; color: #e2e8f0; width: 28px; text-align: right; }
+    .brand-score-sections { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+    .score-section { flex: 1; min-width: 140px; background: #050E3D; border: 1px solid #1a2c6b; border-radius: 8px; padding: 12px; }
+    .score-section h5 { font-size: 11px; font-weight: 700; color: #05C3F9; text-transform: uppercase; margin: 0 0 8px; }
+    .score-section ul { margin: 0; padding: 0 0 0 14px; font-size: 12px; color: #8899cc; line-height: 1.6; }
+    /* Voice Fingerprint Card */
+    .vfp-card { background: #0a1845; border: 1px solid #1a2c6b; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .vfp-card h4 { font-size: 14px; font-weight: 700; color: #00FBF0; margin: 0 0 12px; }
+    .vfp-phrases { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+    .vfp-phrase { background: rgba(5,195,249,0.12); border: 1px solid rgba(5,195,249,0.3); color: #05C3F9; border-radius: 20px; padding: 4px 12px; font-size: 12px; font-style: italic; }
+    .vfp-style { font-size: 13px; color: #8899cc; line-height: 1.5; }
+    /* Voice Capture */
+    .capture-question-box { background: #0a1845; border: 1px solid #1a2c6b; border-radius: 12px; padding: 20px; margin-bottom: 16px; text-align: center; }
+    .capture-q-num { font-size: 11px; color: #8899cc; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+    .capture-q-text { font-size: 18px; font-weight: 600; color: #fff; line-height: 1.4; }
+    .capture-controls { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .capture-record-btn { background: linear-gradient(135deg, #FF557E, #ff7a9a); color: #fff; border: none; border-radius: 50px; padding: 14px 32px; font-size: 15px; font-weight: 700; cursor: pointer; transition: transform 0.1s; }
+    .capture-record-btn:hover { transform: scale(1.03); }
+    .capture-record-btn.recording { background: linear-gradient(135deg, #ef4444, #dc2626); animation: pulse-rec 1.5s infinite; }
+    @keyframes pulse-rec { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
+    .capture-status { font-size: 13px; color: #8899cc; min-height: 20px; }
+    .capture-transcript-display { background: #050E3D; border: 1px solid #1a2c6b; border-radius: 8px; padding: 12px; font-size: 13px; color: #e2e8f0; line-height: 1.6; min-height: 60px; white-space: pre-wrap; }
+    .btn-secondary-sm { background: none; border: 1px solid #1a2c6b; color: #8899cc; border-radius: 6px; padding: 7px 14px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-secondary-sm:hover { border-color: #05C3F9; color: #05C3F9; }
+    /* Continue button */
+    .onboard-continue-btn { width: 100%; margin-top: 20px; background: linear-gradient(135deg, #05C3F9, #00FBF0); color: #030B2C; border: none; border-radius: 10px; padding: 14px; font-size: 15px; font-weight: 800; cursor: pointer; letter-spacing: 0.02em; }
+    .onboard-continue-btn:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <header>
+    <div style="display:flex; align-items:baseline; gap:4px;">
+      <div class="brand">
+        <span class="pc">PodClick</span><span class="ai">AI</span>
+        <span class="sub">Brand Studio</span>
+      </div>
+    </div>
+    <nav class="nav-toggle">
+      <a href="/">Dashboard</a>
+      <a href="/youtube-studio">Click Studio</a>
+      <a href="/studio">Studio</a>
+      <a href="/brand-studio" class="active">Brand Studio</a>
+      <a href="/social-studio">Social Studio</a>
+    </nav>
+  </header>
+
+  <!-- ── Onboarding Screen ───────────────────────────────────────────── -->
+  <div id="onboarding-screen">
+    <div class="onboard-hero">
+      <h2>Let's build your brand.</h2>
+      <p>How do you want to start?</p>
+    </div>
+    <div class="onboard-cards">
+      <!-- Card 1 -->
+      <div class="onboard-card" onclick="showOnboardPath('audit')">
+        <div class="onboard-icon">🔍</div>
+        <div class="onboard-title">Audit My Profile</div>
+        <div class="onboard-desc">Paste a LinkedIn, YouTube, or Instagram URL — we'll score your current brand and show you exactly what to fix.</div>
+        <button class="onboard-btn">Get My Brand Score →</button>
+      </div>
+      <!-- Card 2 -->
+      <div class="onboard-card" onclick="showOnboardPath('brain')">
+        <div class="onboard-icon">🧠</div>
+        <div class="onboard-title">Upload My Content</div>
+        <div class="onboard-desc">Paste links to your videos, podcasts, or blog posts — we'll extract your real voice and communication style.</div>
+        <button class="onboard-btn">Build Voice Fingerprint →</button>
+      </div>
+      <!-- Card 3 -->
+      <div class="onboard-card" onclick="showOnboardPath('capture')">
+        <div class="onboard-icon">🎙️</div>
+        <div class="onboard-title">Speak to Us</div>
+        <div class="onboard-desc">No content yet? Answer 3 quick questions out loud — we'll hear how you talk and build your brand from that.</div>
+        <button class="onboard-btn">Start Voice Interview →</button>
+      </div>
+    </div>
+    <div class="onboard-skip">
+      <a href="#" onclick="skipOnboarding(); return false;">I'll fill out the form manually →</a>
+    </div>
+
+    <!-- ── Audit Path Panel ── -->
+    <div id="onboard-audit" class="onboard-path-panel" style="display:none;">
+      <div class="path-panel-inner">
+        <button class="path-back" onclick="showOnboardPath(null)">← Back</button>
+        <h3>🔍 Profile Audit</h3>
+        <p class="path-sub">Paste your profile URL below. If we can't access it automatically, you can paste your bio text instead.</p>
+        <div class="path-field-group">
+          <label>Profile URL</label>
+          <input type="url" id="audit-url" placeholder="https://linkedin.com/in/yourname or YouTube channel URL" style="width:100%;" />
+        </div>
+        <div class="path-field-group">
+          <label>Or paste your bio / About text directly</label>
+          <textarea id="audit-bio" rows="4" placeholder="Paste your current LinkedIn About, YouTube channel description, or any existing bio here..."></textarea>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <button class="btn-generate" style="flex:1; min-width:160px;" onclick="runProfileAudit()">Analyze My Profile</button>
+        </div>
+        <div id="audit-loading" style="display:none; margin-top:16px; color:#05C3F9; font-size:14px;">⏳ Analyzing your profile...</div>
+        <div id="audit-results" style="display:none; margin-top:20px;"></div>
+      </div>
+    </div>
+
+    <!-- ── Voice Brain Path Panel ── -->
+    <div id="onboard-brain" class="onboard-path-panel" style="display:none;">
+      <div class="path-panel-inner">
+        <button class="path-back" onclick="showOnboardPath(null)">← Back</button>
+        <h3>🧠 Voice Brain</h3>
+        <p class="path-sub">Paste YouTube video URLs (one per line) and/or paste transcript text. The more content, the better your voice fingerprint.</p>
+        <div class="path-field-group">
+          <label>YouTube Video URLs (one per line)</label>
+          <textarea id="brain-urls" rows="3" placeholder="https://youtube.com/watch?v=...&#10;https://youtube.com/watch?v=..."></textarea>
+        </div>
+        <div class="path-field-group">
+          <label>Transcript / Script Text (paste directly)</label>
+          <textarea id="brain-transcripts" rows="5" placeholder="Paste any transcripts, scripts, blog posts, or email copy here..."></textarea>
+        </div>
+        <button class="btn-generate" onclick="runVoiceBrain()">Extract My Voice →</button>
+        <div id="brain-loading" style="display:none; margin-top:16px; color:#05C3F9; font-size:14px;">⏳ Building your voice fingerprint...</div>
+        <div id="brain-results" style="display:none; margin-top:20px;"></div>
+      </div>
+    </div>
+
+    <!-- ── Voice Capture Path Panel ── -->
+    <div id="onboard-capture" class="onboard-path-panel" style="display:none;">
+      <div class="path-panel-inner">
+        <button class="path-back" onclick="showOnboardPath(null)">← Back</button>
+        <h3>🎙️ Voice Interview</h3>
+        <p class="path-sub">Answer 3 short questions out loud. Speak naturally — just like you would with a client. This is how we learn your voice.</p>
+        <div id="capture-question-display" class="capture-question-box">
+          <div class="capture-q-num" id="capture-q-num">Question 1 of 3</div>
+          <div class="capture-q-text" id="capture-q-text">Why did you get into real estate?</div>
+        </div>
+        <div class="capture-controls">
+          <button id="capture-record-btn" class="capture-record-btn" onclick="toggleCaptureRecording()">🎙️ Start Recording</button>
+          <div id="capture-status" class="capture-status"></div>
+        </div>
+        <div id="capture-transcript-box" style="display:none; margin-top:12px;">
+          <div class="path-field-group">
+            <label>Transcript so far</label>
+            <div id="capture-transcript" class="capture-transcript-display"></div>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:12px;">
+            <button class="btn-secondary-sm" onclick="captureNextQuestion()" id="capture-next-btn">Next Question →</button>
+          </div>
+        </div>
+        <div id="capture-loading" style="display:none; margin-top:16px; color:#05C3F9; font-size:14px;">⏳ Analyzing your voice...</div>
+        <div id="capture-results" style="display:none; margin-top:20px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main ────────────────────────────────────────────────────────── -->
+  <main style="display:none;">
+
+    <!-- ══ LEFT: Intake Form ══════════════════════════════════════════ -->
+    <div class="left-pane">
+      <div class="pane-header">Brand Intake</div>
+
+      <div class="step2-label" style="padding:12px 22px 0; font-size:12px; font-weight:700; color:var(--accent); letter-spacing:0.05em;">✦ Step 2 — Refine Your Brief <span style="color:#8899cc; font-weight:400; font-size:12px;">(Optional — already seeded from your content)</span></div>
+
+      <!-- Section 1: About You -->
+      <div class="section">
+        <div class="section-title">
+          <span class="step-num">1</span> About You
+        </div>
+        <label>Full Name</label>
+        <input type="text" id="b-name" placeholder="JP Fluellen" />
+
+        <label>Market / City</label>
+        <input type="text" id="b-market" placeholder="Springfield, MO" />
+
+        <div class="row2">
+          <div>
+            <label>Years Active</label>
+            <select id="b-years">
+              <option value="New (0-1 years)">New (0–1 yr)</option>
+              <option value="Early (2-3 years)">Early (2–3 yrs)</option>
+              <option value="Established (4-7 years)" selected>Established (4–7)</option>
+              <option value="Veteran (8+ years)">Veteran (8+)</option>
+            </select>
+          </div>
+          <div>
+            <label>Price Range</label>
+            <select id="b-price">
+              <option value="Entry ($100K-$250K)">Entry ($100–250K)</option>
+              <option value="Mid ($250K-$500K)" selected>Mid ($250–500K)</option>
+              <option value="Upper ($500K-$1M)">Upper ($500K–1M)</option>
+              <option value="Luxury ($1M+)">Luxury ($1M+)</option>
+            </select>
+          </div>
+        </div>
+
+        <label>Brokerage / Team</label>
+        <input type="text" id="b-brokerage" placeholder="eXp Realty" />
+      </div>
+
+      <!-- Section 2: Your Niche -->
+      <div class="section">
+        <div class="section-title">
+          <span class="step-num">2</span> Your Niche
+        </div>
+        <label>Primary Niche</label>
+        <select id="b-niche">
+          <option value="Relocation Buyers">Relocation Buyers</option>
+          <option value="First-Time Home Buyers">First-Time Home Buyers</option>
+          <option value="Real Estate Investors">Real Estate Investors</option>
+          <option value="Luxury / High-End">Luxury / High-End</option>
+          <option value="Move-Up Buyers">Move-Up Buyers</option>
+          <option value="Downsizers / 55+">Downsizers / 55+</option>
+          <option value="New Construction">New Construction</option>
+          <option value="Land & Ranch">Land &amp; Ranch</option>
+          <option value="Commercial">Commercial</option>
+          <option value="Agent Attraction / Coaching">Agent Attraction / Coaching</option>
+        </select>
+
+        <label>What Makes You Different</label>
+        <textarea id="b-diff" placeholder="e.g. I'm an investor-agent who actually owns rentals in this market. I share real numbers, not just sales talk."></textarea>
+      </div>
+
+      <!-- Section 3: Brand Voice -->
+      <div class="section">
+        <div class="section-title">
+          <span class="step-num">3</span> Brand Voice
+        </div>
+
+        <div class="voice-label">Tone</div>
+        <div class="voice-row" data-group="tone">
+          <button class="voice-btn active" data-val="Authoritative">Authoritative</button>
+          <button class="voice-btn" data-val="Conversational">Conversational</button>
+          <button class="voice-btn" data-val="Inspirational">Inspirational</button>
+          <button class="voice-btn" data-val="Educational">Educational</button>
+        </div>
+
+        <div class="voice-label" style="margin-top:12px;">Personality</div>
+        <div class="voice-row" data-group="personality">
+          <button class="voice-btn active" data-val="Direct">Direct</button>
+          <button class="voice-btn" data-val="Warm">Warm</button>
+          <button class="voice-btn" data-val="Analytical">Analytical</button>
+          <button class="voice-btn" data-val="Entertaining">Entertaining</button>
+        </div>
+
+        <div class="voice-label" style="margin-top:12px;">Style</div>
+        <div class="voice-row" data-group="style">
+          <button class="voice-btn" data-val="Professional">Professional</button>
+          <button class="voice-btn active" data-val="Bold">Bold</button>
+          <button class="voice-btn" data-val="Casual">Casual</button>
+          <button class="voice-btn" data-val="Refined">Refined</button>
+        </div>
+      </div>
+
+      <!-- Section 4: Visual Direction -->
+      <div class="section">
+        <div class="section-title">
+          <span class="step-num">4</span> Visual Direction
+        </div>
+        <div class="mood-grid">
+          <div class="mood-card active" data-mood="Luxury &amp; Authority" onclick="selectMood(this)">
+            <div class="mood-swatch" style="background:linear-gradient(135deg,#050E3D,#C9A84C);"></div>
+            <div class="mood-name">Luxury &amp; Authority</div>
+            <div class="mood-desc">Navy · Gold · Serif</div>
+          </div>
+          <div class="mood-card" data-mood="Bold &amp; Modern" onclick="selectMood(this)">
+            <div class="mood-swatch" style="background:linear-gradient(135deg,#0d0d1a,#05C3F9);"></div>
+            <div class="mood-name">Bold &amp; Modern</div>
+            <div class="mood-desc">Dark · Electric · Sharp</div>
+          </div>
+          <div class="mood-card" data-mood="Warm &amp; Approachable" onclick="selectMood(this)">
+            <div class="mood-swatch" style="background:linear-gradient(135deg,#8B4513,#F5DEB3);"></div>
+            <div class="mood-name">Warm &amp; Approachable</div>
+            <div class="mood-desc">Earth · Cream · Friendly</div>
+          </div>
+          <div class="mood-card" data-mood="Clean &amp; Minimal" onclick="selectMood(this)">
+            <div class="mood-swatch" style="background:linear-gradient(135deg,#ffffff,#e8e8e8); border:1px solid #ddd;"></div>
+            <div class="mood-name">Clean &amp; Minimal</div>
+            <div class="mood-desc">White · Gray · Airy</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 5: Content Direction -->
+      <div class="section">
+        <div class="section-title">
+          <span class="step-num">5</span> Content Direction
+        </div>
+        <div class="row2">
+          <div>
+            <label>Primary Platform</label>
+            <select id="b-platform">
+              <option value="YouTube">YouTube</option>
+              <option value="Instagram">Instagram</option>
+              <option value="TikTok">TikTok</option>
+              <option value="LinkedIn">LinkedIn</option>
+              <option value="Facebook">Facebook</option>
+              <option value="All platforms equally">All Equally</option>
+            </select>
+          </div>
+          <div>
+            <label>Posting Frequency</label>
+            <select id="b-freq">
+              <option value="1x per week">1× week</option>
+              <option value="2x per week" selected>2× week</option>
+              <option value="3x per week">3× week</option>
+              <option value="Daily">Daily</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generate -->
+      <div class="generate-wrap">
+        <button class="btn-generate" id="btn-gen-brief" onclick="generateBrief()">
+          <span id="gen-brief-icon">✦</span>
+          <span id="gen-brief-label">Generate Brand Brief</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ══ RIGHT: Output Tabs ══════════════════════════════════════════ -->
+    <div class="right-pane">
+      <div class="output-tabs">
+        <div class="output-tab active" onclick="switchOutputTab('brief', this)">Brand Brief</div>
+        <div class="output-tab" onclick="switchOutputTab('bio', this)">Bio Pack</div>
+        <div class="output-tab" onclick="switchOutputTab('plan', this)">Content Plan</div>
+        <div class="output-tab" onclick="switchOutputTab('conversion', this)">Conversion Pack</div>
+      </div>
+
+      <div class="output-body">
+
+        <!-- ── Brand Brief ─────────────────────────────────────────── -->
+        <div class="output-panel active" id="panel-brief">
+          <div class="empty-state" id="brief-empty">
+            <div class="empty-icon">✦</div>
+            <div class="empty-title">Your Brand Brief</div>
+            <div class="empty-sub">Fill in the intake form and click Generate Brand Brief. This becomes the foundation for every other output.</div>
+          </div>
+          <div id="brief-content" style="display:none;">
+            <div class="value-prop-box" id="brief-vp"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+              <div class="out-card">
+                <div class="out-card-head">
+                  <div class="out-card-title">Ideal Client Avatar</div>
+                </div>
+                <div class="out-text" id="brief-ica" style="margin-bottom:12px;"></div>
+                <ul class="pain-list" id="brief-pains"></ul>
+              </div>
+              <div class="out-card">
+                <div class="out-card-head">
+                  <div class="out-card-title">Brand Voice Guide</div>
+                </div>
+                <div class="out-text" id="brief-voice"></div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+              <div class="out-card">
+                <div class="out-card-head">
+                  <div class="out-card-title">Visual Direction</div>
+                </div>
+                <div class="out-text" id="brief-color" style="margin-bottom:10px;"></div>
+                <div class="out-text" id="brief-type"></div>
+              </div>
+              <div class="out-card">
+                <div class="out-card-head">
+                  <div class="out-card-title">Thumbnail Formula</div>
+                </div>
+                <div class="out-text" id="brief-thumb"></div>
+              </div>
+            </div>
+            <div class="out-card" style="margin-bottom:16px;">
+              <div class="out-card-head">
+                <div class="out-card-title">Content Pillars</div>
+              </div>
+              <div class="pillar-grid" id="brief-pillars"></div>
+            </div>
+            <div class="out-card">
+              <div class="out-card-head">
+                <div class="out-card-title">Full Brand Brief</div>
+                <button class="btn-copy" onclick="copyEl('brief-markdown', this)">Copy</button>
+              </div>
+              <div class="out-text mono" id="brief-markdown"></div>
+            </div>
+            <div class="action-row">
+              <button class="btn-action primary" onclick="switchOutputTab('bio', document.querySelectorAll('.output-tab')[1])">→ Generate Bio Pack</button>
+              <button class="btn-action primary" onclick="switchOutputTab('plan', document.querySelectorAll('.output-tab')[2])">→ Generate Content Plan</button>
+              <button class="btn-action primary" onclick="switchOutputTab('conversion', document.querySelectorAll('.output-tab')[3])">→ Generate Conversion Pack</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Bio Pack ────────────────────────────────────────────── -->
+        <div class="output-panel" id="panel-bio">
+          <div class="empty-state" id="bio-empty">
+            <div class="empty-icon">📝</div>
+            <div class="empty-title">Bio Pack</div>
+            <div class="empty-sub">Generate your Brand Brief first, then generate platform-optimized bios for Instagram, LinkedIn, YouTube, Facebook, and Google Business.</div>
+          </div>
+          <div id="bio-content" style="display:none;">
+            <button class="btn-section-gen" id="btn-gen-bio" onclick="generateBioPack()" style="margin-bottom:16px;">
+              ✦ Generate Bio Pack
+            </button>
+            <div id="bio-output" style="display:none;">
+              <div class="sub-tabs" id="bio-tabs">
+                <button class="sub-tab active" onclick="switchSubTab('bio','instagram',this)">Instagram</button>
+                <button class="sub-tab" onclick="switchSubTab('bio','linkedin',this)">LinkedIn</button>
+                <button class="sub-tab" onclick="switchSubTab('bio','youtube',this)">YouTube</button>
+                <button class="sub-tab" onclick="switchSubTab('bio','facebook',this)">Facebook</button>
+                <button class="sub-tab" onclick="switchSubTab('bio','google',this)">Google</button>
+                <button class="sub-tab" onclick="switchSubTab('bio','headshot',this)">📸 Headshot</button>
+                <button class="sub-tab" onclick="switchSubTab('bio','checklist',this)">✓ Checklist</button>
+              </div>
+              <div class="sub-panel active" id="bio-instagram">
+                <div class="out-card">
+                  <div class="out-card-head"><div class="out-card-title">Instagram Bio</div><button class="btn-copy" onclick="copyEl('bio-ig-text',this)">Copy</button></div>
+                  <div class="out-text" id="bio-ig-text"></div>
+                </div>
+              </div>
+              <div class="sub-panel" id="bio-linkedin">
+                <div class="out-card">
+                  <div class="out-card-head"><div class="out-card-title">LinkedIn About Section</div><button class="btn-copy" onclick="copyEl('bio-li-text',this)">Copy</button></div>
+                  <div class="out-text" id="bio-li-text"></div>
+                </div>
+              </div>
+              <div class="sub-panel" id="bio-youtube">
+                <div class="out-card">
+                  <div class="out-card-head"><div class="out-card-title">YouTube Channel Description</div><button class="btn-copy" onclick="copyEl('bio-yt-text',this)">Copy</button></div>
+                  <div class="out-text" id="bio-yt-text"></div>
+                </div>
+              </div>
+              <div class="sub-panel" id="bio-facebook">
+                <div class="out-card">
+                  <div class="out-card-head"><div class="out-card-title">Facebook Page About</div><button class="btn-copy" onclick="copyEl('bio-fb-text',this)">Copy</button></div>
+                  <div class="out-text" id="bio-fb-text"></div>
+                </div>
+              </div>
+              <div class="sub-panel" id="bio-google">
+                <div class="out-card">
+                  <div class="out-card-head"><div class="out-card-title">Google Business Description</div><button class="btn-copy" onclick="copyEl('bio-gb-text',this)">Copy</button></div>
+                  <div class="out-text" id="bio-gb-text"></div>
+                </div>
+              </div>
+              <div class="sub-panel" id="bio-headshot">
+                <div class="headshot-box">
+                  <div class="headshot-label">🎨 AI Headshot Generation Prompt</div>
+                  <div class="headshot-prompt-text" id="bio-hs-text"></div>
+                </div>
+                <button class="btn-copy" style="margin-top:10px;" onclick="copyEl('bio-hs-text',this)">Copy Prompt</button>
+                <div class="out-card" style="margin-top:12px;">
+                  <div class="out-card-head"><div class="out-card-title">Use in Cover Forge</div></div>
+                  <div style="font-size:13px;color:var(--text-dim);line-height:1.5;">Paste this prompt into Midjourney, DALL-E 3, or the <a href="/youtube-studio" style="color:var(--accent);">Cover Forge AI Persona →</a> to generate your professional headshots. Use them across all platforms for visual consistency.</div>
+                </div>
+              </div>
+              <div class="sub-panel" id="bio-checklist">
+                <div class="out-card">
+                  <div class="out-card-head"><div class="out-card-title">Brand Consistency Checklist</div></div>
+                  <div id="bio-check-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Content Plan ────────────────────────────────────────── -->
+        <div class="output-panel" id="panel-plan">
+          <div class="empty-state" id="plan-empty">
+            <div class="empty-icon">📅</div>
+            <div class="empty-title">12-Month Content Plan</div>
+            <div class="empty-sub">Generate your Brand Brief first, then get a full year of niche-specific content topics with hooks and platform recommendations.</div>
+          </div>
+          <div id="plan-content" style="display:none;">
+            <button class="btn-section-gen" id="btn-gen-plan" onclick="generateContentPlan()" style="margin-bottom:16px;">
+              ✦ Generate 12-Month Content Plan
+            </button>
+            <div class="month-grid" id="plan-months"></div>
+          </div>
+        </div>
+
+        <!-- ── Conversion Pack ─────────────────────────────────────── -->
+        <div class="output-panel" id="panel-conversion">
+          <div class="empty-state" id="conv-empty">
+            <div class="empty-icon">🎯</div>
+            <div class="empty-title">Conversion Pack</div>
+            <div class="empty-sub">Generate your Brand Brief first, then get your lead magnet copy, video sales letter script, and 5-email nurture sequence.</div>
+          </div>
+          <div id="conv-content" style="display:none;">
+            <button class="btn-section-gen" id="btn-gen-conv" onclick="generateConversionPack()" style="margin-bottom:16px;">
+              ✦ Generate Conversion Pack
+            </button>
+            <div id="conv-output" style="display:none;">
+              <div class="sub-tabs">
+                <button class="sub-tab active" onclick="switchSubTab('conv','leadmag',this)">Lead Magnet</button>
+                <button class="sub-tab" onclick="switchSubTab('conv','vsl',this)">VSL Script</button>
+                <button class="sub-tab" onclick="switchSubTab('conv','emails',this)">Email Sequence</button>
+              </div>
+              <div class="sub-panel active" id="conv-leadmag">
+                <div class="out-card">
+                  <div class="out-card-head">
+                    <div class="out-card-title">Lead Magnet</div>
+                    <button class="btn-copy" onclick="copyEl('conv-lm-content',this)">Copy</button>
+                  </div>
+                  <div style="font-size:18px;font-weight:800;color:var(--accent);margin-bottom:12px;" id="conv-lm-title"></div>
+                  <div class="out-text" id="conv-lm-content"></div>
+                </div>
+              </div>
+              <div class="sub-panel" id="conv-vsl">
+                <div class="out-card">
+                  <div class="out-card-head">
+                    <div class="out-card-title">Video Sales Letter Script</div>
+                    <button class="btn-copy" onclick="copyEl('conv-vsl-text',this)">Copy</button>
+                  </div>
+                  <div class="out-text" id="conv-vsl-text"></div>
+                </div>
+                <div class="action-row">
+                  <button class="btn-action primary" onclick="sendVSLToStudio()">→ Send to Teleprompter</button>
+                </div>
+              </div>
+              <div class="sub-panel" id="conv-emails">
+                <div class="email-list" id="conv-email-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /output-body -->
+    </div><!-- /right-pane -->
+  </main>
+
+  <div class="toast" id="bs-toast"></div>
+
+  <script>
+    // ── State ──────────────────────────────────────────────────────────
+    let _brandData   = null;   // brand brief JSON from /api/brand/intake
+    let _bioData     = null;
+    let _planData    = null;
+    let _convData    = null;
+    let _voiceSelections = { tone: 'Authoritative', personality: 'Direct', style: 'Bold' };
+    let _mood = 'Luxury & Authority';
+    let _toastTimer  = null;
+
+    // ── Onboarding state ───────────────────────────────────────────────
+    let _voiceFingerprint = null;   // populated by any onboarding path
+    let _captureQuestions = [
+      "Why did you get into real estate?",
+      "What do you say to a seller who's skeptical about your offer?",
+      "What makes you different from every other agent in your market?"
+    ];
+    let _captureCurrentQ = 0;
+    let _captureTranscripts = [];    // one per answered question
+    let _captureMediaRecorder = null;
+    let _captureChunks = [];
+    let _captureIsRecording = false;
+
+    // ── Voice pickers ──────────────────────────────────────────────────
+    document.querySelectorAll('.voice-row').forEach(row => {
+      const group = row.dataset.group;
+      row.querySelectorAll('.voice-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          row.querySelectorAll('.voice-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          _voiceSelections[group] = btn.dataset.val;
+        });
+      });
+    });
+
+    function selectMood(card) {
+      document.querySelectorAll('.mood-card').forEach(c => c.classList.remove('active'));
+      card.classList.add('active');
+      _mood = card.dataset.mood;
+    }
+
+    // ── Tab switching ──────────────────────────────────────────────────
+    function switchOutputTab(name, btn) {
+      document.querySelectorAll('.output-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.output-panel').forEach(p => p.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      const panel = document.getElementById('panel-' + name);
+      if (panel) panel.classList.add('active');
+    }
+
+    function switchSubTab(group, name, btn) {
+      const parentPanel = document.getElementById('panel-' + group) ||
+                          document.getElementById('conv-output') ||
+                          document.getElementById('bio-output');
+      // Find all sub-tabs and sub-panels within scope
+      const scope = (group === 'bio') ? document.getElementById('bio-output')
+                  : (group === 'conv') ? document.getElementById('conv-output')
+                  : parentPanel;
+      if (!scope) return;
+      scope.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+      scope.querySelectorAll('.sub-panel').forEach(p => p.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      const panel = document.getElementById(group + '-' + name);
+      if (panel) panel.classList.add('active');
+    }
+
+    // ── Toast ──────────────────────────────────────────────────────────
+    function bsToast(msg, kind) {
+      const el = document.getElementById('bs-toast');
+      el.textContent = msg;
+      el.className = `toast show ${kind || ''}`;
+      clearTimeout(_toastTimer);
+      _toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
+    }
+
+    // ── Copy ───────────────────────────────────────────────────────────
+    function copyEl(elId, btn) {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      navigator.clipboard.writeText(el.textContent).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => btn.textContent = orig, 2000);
+      });
+    }
+
+    // ── Gather intake ──────────────────────────────────────────────────
+    function gatherIntake() {
+      return {
+        name:          document.getElementById('b-name').value.trim()     || 'Agent',
+        market:        document.getElementById('b-market').value.trim()   || 'Your Market',
+        niche:         document.getElementById('b-niche').value,
+        price_range:   document.getElementById('b-price').value,
+        years:         document.getElementById('b-years').value,
+        brokerage:     document.getElementById('b-brokerage').value.trim(),
+        tone:          _voiceSelections.tone,
+        personality:   _voiceSelections.personality,
+        style:         _voiceSelections.style,
+        mood:          _mood,
+        differentiator: document.getElementById('b-diff').value.trim(),
+        platform:      document.getElementById('b-platform').value,
+        frequency:     document.getElementById('b-freq').value,
+      };
+    }
+
+    // ── GENERATE BRAND BRIEF ───────────────────────────────────────────
+    async function generateBrief() {
+      const btn   = document.getElementById('btn-gen-brief');
+      const icon  = document.getElementById('gen-brief-icon');
+      const label = document.getElementById('gen-brief-label');
+      btn.disabled = true;
+      icon.innerHTML = '<span class="spinner"></span>';
+      label.textContent = 'Generating…';
+
+      try {
+        const intake = gatherIntake();
+        const body = _voiceFingerprint ? { ...intake, voice_fingerprint: _voiceFingerprint } : intake;
+        const res    = await fetch('/api/brand/intake', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Generation failed');
+
+        _brandData = { ...intake, ...data };
+        renderBriefPanel(data);
+
+        // Unlock other tabs
+        document.getElementById('bio-content').style.display  = '';
+        document.getElementById('plan-content').style.display = '';
+        document.getElementById('conv-content').style.display = '';
+        document.getElementById('bio-empty').style.display    = 'none';
+        document.getElementById('plan-empty').style.display   = 'none';
+        document.getElementById('conv-empty').style.display   = 'none';
+
+        bsToast('✦ Brand Brief generated!', 'success');
+      } catch(e) {
+        bsToast('Error: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        icon.textContent = '✦';
+        label.textContent = 'Regenerate Brand Brief';
+      }
+    }
+
+    function renderBriefPanel(d) {
+      document.getElementById('brief-empty').style.display = 'none';
+      document.getElementById('brief-content').style.display = '';
+
+      document.getElementById('brief-vp').textContent    = '"' + (d.value_prop || '') + '"';
+      document.getElementById('brief-ica').textContent   = d.ica_description || '';
+      document.getElementById('brief-voice').textContent = d.brand_voice_guide || '';
+      document.getElementById('brief-color').textContent = d.color_direction || '';
+      document.getElementById('brief-type').textContent  = d.typography_direction || '';
+      document.getElementById('brief-thumb').textContent = d.thumbnail_formula || '';
+      document.getElementById('brief-markdown').textContent = d.brand_brief_markdown || '';
+
+      // Pain points
+      const painEl = document.getElementById('brief-pains');
+      painEl.innerHTML = '';
+      (d.pain_points || []).forEach(p => {
+        const li = document.createElement('li');
+        li.textContent = p;
+        painEl.appendChild(li);
+      });
+
+      // Content pillars
+      const pillarsEl = document.getElementById('brief-pillars');
+      pillarsEl.innerHTML = '';
+      (d.content_pillars || []).forEach(p => {
+        const chip = document.createElement('div');
+        chip.className = 'pillar-chip';
+        chip.textContent = p;
+        pillarsEl.appendChild(chip);
+      });
+    }
+
+    // ── GENERATE BIO PACK ──────────────────────────────────────────────
+    async function generateBioPack() {
+      if (!_brandData) { bsToast('Generate Brand Brief first', 'error'); return; }
+      const btn = document.getElementById('btn-gen-bio');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Generating…';
+      try {
+        const res  = await fetch('/api/brand/bio-pack', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brand_data: _brandData }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Generation failed');
+        _bioData = data;
+        renderBioPack(data);
+        bsToast('📝 Bio Pack ready!', 'success');
+      } catch(e) {
+        bsToast('Error: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '✦ Regenerate Bio Pack';
+      }
+    }
+
+    function renderBioPack(d) {
+      document.getElementById('bio-output').style.display = '';
+      document.getElementById('bio-ig-text').textContent  = d.instagram || '';
+      document.getElementById('bio-li-text').textContent  = d.linkedin  || '';
+      document.getElementById('bio-yt-text').textContent  = d.youtube   || '';
+      document.getElementById('bio-fb-text').textContent  = d.facebook  || '';
+      document.getElementById('bio-gb-text').textContent  = d.google_business || '';
+      document.getElementById('bio-hs-text').textContent  = d.headshot_prompt || '';
+
+      const checkEl = document.getElementById('bio-check-list');
+      checkEl.innerHTML = '';
+      (d.consistency_checklist || []).forEach((item, i) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);';
+        row.innerHTML = `<span style="color:var(--green);font-weight:800;flex-shrink:0;">${i+1}.</span>
+          <span style="font-size:13px;color:var(--text);line-height:1.5;">${item}</span>`;
+        checkEl.appendChild(row);
+      });
+    }
+
+    // ── GENERATE CONTENT PLAN ──────────────────────────────────────────
+    async function generateContentPlan() {
+      if (!_brandData) { bsToast('Generate Brand Brief first', 'error'); return; }
+      const btn = document.getElementById('btn-gen-plan');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Generating 12 months…';
+      try {
+        const res  = await fetch('/api/brand/content-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brand_data: _brandData }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Generation failed');
+        _planData = data;
+        renderContentPlan(data);
+        bsToast('📅 12-month plan ready!', 'success');
+      } catch(e) {
+        bsToast('Error: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '✦ Regenerate Content Plan';
+      }
+    }
+
+    function renderContentPlan(d) {
+      const container = document.getElementById('plan-months');
+      container.innerHTML = '';
+      (d.months || []).forEach(month => {
+        const block = document.createElement('div');
+        block.className = 'month-block';
+        let topicsHTML = '';
+        (month.topics || []).forEach(t => {
+          topicsHTML += `
+            <div class="topic-row">
+              <div>
+                <div class="topic-title-text">${escHtml(t.title)}</div>
+                <div class="topic-hook">${escHtml(t.hook)}</div>
+              </div>
+              <span class="pillar-badge">${escHtml(t.pillar)}</span>
+              <span class="format-badge">${escHtml(t.format)}</span>
+            </div>`;
+        });
+        block.innerHTML = `
+          <div class="month-head">
+            <span class="month-name">${escHtml(month.month)}</span>
+            <span class="month-theme">${escHtml(month.theme)}</span>
+          </div>
+          ${topicsHTML}`;
+        container.appendChild(block);
+      });
+    }
+
+    // ── GENERATE CONVERSION PACK ───────────────────────────────────────
+    async function generateConversionPack() {
+      if (!_brandData) { bsToast('Generate Brand Brief first', 'error'); return; }
+      const btn = document.getElementById('btn-gen-conv');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Generating…';
+      try {
+        const res  = await fetch('/api/brand/conversion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brand_data: _brandData }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Generation failed');
+        _convData = data;
+        renderConversionPack(data);
+        bsToast('🎯 Conversion Pack ready!', 'success');
+      } catch(e) {
+        bsToast('Error: ' + e.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '✦ Regenerate Conversion Pack';
+      }
+    }
+
+    function renderConversionPack(d) {
+      document.getElementById('conv-output').style.display = '';
+      document.getElementById('conv-lm-title').textContent   = d.lead_magnet_title || '';
+      // Lead magnet outline
+      const lmContent = (d.lead_magnet_outline || []).map((item, i) => `${i+1}. ${item}`).join('\n');
+      document.getElementById('conv-lm-content').textContent = lmContent;
+      document.getElementById('conv-vsl-text').textContent   = d.vsl_script || '';
+
+      const emailList = document.getElementById('conv-email-list');
+      emailList.innerHTML = '';
+      (d.emails || []).forEach((email, i) => {
+        const card = document.createElement('div');
+        card.className = 'email-card';
+        card.innerHTML = `
+          <div class="email-head">
+            <span class="email-num">${i+1}</span>
+            <span class="email-subject">${escHtml(email.subject)}</span>
+            <button class="btn-copy" style="margin-left:auto;" onclick="copyEmailBody(${i})">Copy</button>
+          </div>
+          <div class="email-body-text" id="email-body-${i}">${escHtml(email.body)}</div>`;
+        emailList.appendChild(card);
+      });
+    }
+
+    function copyEmailBody(i) {
+      const el = document.getElementById('email-body-' + i);
+      if (!el) return;
+      navigator.clipboard.writeText(el.textContent);
+      bsToast('Email copied!', 'success');
+    }
+
+    // ── Send VSL to Studio teleprompter ───────────────────────────────
+    function sendVSLToStudio() {
+      if (!_convData || !_convData.vsl_script) { bsToast('Generate Conversion Pack first', 'error'); return; }
+      localStorage.setItem('podclick_teleprompter_script', _convData.vsl_script);
+      localStorage.setItem('podclick_teleprompter_title', 'VSL Script — ' + (_brandData?.name || 'Brand'));
+      window.open('/studio', '_blank');
+      bsToast('VSL Script sent to Studio teleprompter', 'success');
+    }
+
+    // ── Onboarding ─────────────────────────────────────────────────────
+    function showOnboardPath(path) {
+      // Hide all path panels
+      document.querySelectorAll('.onboard-path-panel').forEach(p => p.style.display = 'none');
+      // Reset card selection
+      document.querySelectorAll('.onboard-card').forEach(c => c.style.borderColor = '');
+      if (!path) return;
+      const panel = document.getElementById('onboard-' + path);
+      if (panel) panel.style.display = 'block';
+      // Highlight active card
+      const cards = document.querySelectorAll('.onboard-card');
+      const idx = ['audit','brain','capture'].indexOf(path);
+      if (idx >= 0 && cards[idx]) cards[idx].style.borderColor = '#05C3F9';
+      panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function skipOnboarding() {
+      document.getElementById('onboarding-screen').style.display = 'none';
+      document.querySelector('main').style.display = '';
+    }
+
+    function _showContinueBtn(panelId) {
+      const panel = document.getElementById(panelId);
+      if (!panel.querySelector('.onboard-continue-btn')) {
+        const btn = document.createElement('button');
+        btn.className = 'onboard-continue-btn';
+        btn.textContent = 'Continue to Brand Brief →';
+        btn.onclick = () => {
+          document.getElementById('onboarding-screen').style.display = 'none';
+          document.querySelector('main').style.display = '';
+          // Pre-fill differentiator with top signature phrase
+          if (_voiceFingerprint && _voiceFingerprint.signature_phrases && _voiceFingerprint.signature_phrases.length) {
+            const diffEl = document.getElementById('b-diff');
+            if (diffEl && !diffEl.value) diffEl.value = _voiceFingerprint.signature_phrases[0];
+          }
+          window.scrollTo(0, 0);
+        };
+        panel.querySelector('.path-panel-inner').appendChild(btn);
+      }
+    }
+
+    async function runProfileAudit() {
+      const url = document.getElementById('audit-url').value.trim();
+      const bioText = document.getElementById('audit-bio').value.trim();
+      if (!url && !bioText) { alert('Please enter a URL or paste your bio text.'); return; }
+      document.getElementById('audit-loading').style.display = 'block';
+      document.getElementById('audit-results').style.display = 'none';
+      try {
+        // Detect platform from URL
+        let platform = 'manual';
+        if (url.includes('linkedin.com')) platform = 'linkedin';
+        else if (url.includes('youtube.com') || url.includes('youtu.be')) platform = 'youtube';
+        else if (url.includes('instagram.com')) platform = 'instagram';
+        const res = await fetch('/api/brand/profile-audit', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ url, platform, bio_text: bioText })
+        });
+        const data = await res.json();
+        if (data.error === 'manual_required') {
+          document.getElementById('audit-loading').style.display = 'none';
+          document.getElementById('audit-bio').placeholder = 'Could not access that URL automatically — please paste your bio/About text here.';
+          document.getElementById('audit-bio').style.borderColor = '#05C3F9';
+          document.getElementById('audit-bio').focus();
+          return;
+        }
+        if (data.error) throw new Error(data.error);
+        document.getElementById('audit-loading').style.display = 'none';
+        _renderAuditResults(data);
+      } catch(e) {
+        document.getElementById('audit-loading').style.display = 'none';
+        document.getElementById('audit-results').innerHTML = '<div style="color:#FF557E; font-size:13px;">Error: ' + e.message + '</div>';
+        document.getElementById('audit-results').style.display = 'block';
+      }
+    }
+
+    function _renderAuditResults(data) {
+      const axes = data.axes || {};
+      const axisKeys = [
+        {key:'clarity', label:'Clarity'},
+        {key:'niche_authority', label:'Niche Authority'},
+        {key:'consistency', label:'Consistency'},
+        {key:'cta_strength', label:'CTA Strength'},
+        {key:'visual_identity', label:'Visual Identity'}
+      ];
+      const axisHTML = axisKeys.map(a => {
+        const val = axes[a.key] || 0;
+        const pct = Math.round((val / 20) * 100);
+        return `<div class="score-axis-row">
+          <div class="score-axis-name">${a.label}</div>
+          <div class="score-axis-bar-wrap"><div class="score-axis-bar" style="width:${pct}%"></div></div>
+          <div class="score-axis-val">${val}/20</div>
+        </div>`;
+      }).join('');
+      const strengths = (data.strengths || []).map(s => `<li>${s}</li>`).join('');
+      const gaps = (data.gaps || []).map(g => `<li>${g}</li>`).join('');
+      const html = `
+        <div class="brand-score-card">
+          <div class="brand-score-num">${data.brand_score || 0}</div>
+          <div class="brand-score-label">Brand Score / 100</div>
+          ${axisHTML}
+          <div class="brand-score-sections">
+            <div class="score-section"><h5>✅ Strengths</h5><ul>${strengths}</ul></div>
+            <div class="score-section"><h5>⚠️ Gaps</h5><ul>${gaps}</ul></div>
+          </div>
+        </div>
+        ${data.bio_rewrite ? `<div class="vfp-card">
+          <h4>✍️ Rewritten Bio</h4>
+          <div class="vfp-style">${data.bio_rewrite.replace(/\n/g,'<br>')}</div>
+          <button class="btn-secondary-sm" style="margin-top:12px;" onclick="document.getElementById('b-diff') && (document.getElementById('b-diff').value = ${JSON.stringify(data.bio_rewrite).replace(/"/g,'&quot;')})">Use This in Brief →</button>
+        </div>` : ''}
+      `;
+      document.getElementById('audit-results').innerHTML = html;
+      document.getElementById('audit-results').style.display = 'block';
+      _showContinueBtn('onboard-audit');
+    }
+
+    async function runVoiceBrain() {
+      const urlsRaw = document.getElementById('brain-urls').value.trim();
+      const transcriptsRaw = document.getElementById('brain-transcripts').value.trim();
+      if (!urlsRaw && !transcriptsRaw) { alert('Please provide URLs or transcript text.'); return; }
+      document.getElementById('brain-loading').style.display = 'block';
+      document.getElementById('brain-results').style.display = 'none';
+      try {
+        const urls = urlsRaw ? urlsRaw.split('\n').map(u=>u.trim()).filter(Boolean) : [];
+        const transcripts = transcriptsRaw ? [transcriptsRaw] : [];
+        const res = await fetch('/api/brand/voice-brain', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ urls, transcripts })
+        });
+        const data = await res.json();
+        if (data.error) throw new Error(data.message || data.error);
+        document.getElementById('brain-loading').style.display = 'none';
+        _voiceFingerprint = data.voice_fingerprint || data;
+        _renderFingerprintCard('brain-results', _voiceFingerprint);
+        _showContinueBtn('onboard-brain');
+      } catch(e) {
+        document.getElementById('brain-loading').style.display = 'none';
+        document.getElementById('brain-results').innerHTML = '<div style="color:#FF557E; font-size:13px;">Error: ' + e.message + '</div>';
+        document.getElementById('brain-results').style.display = 'block';
+      }
+    }
+
+    function _renderFingerprintCard(elId, fp) {
+      if (!fp) return;
+      const phrases = (fp.signature_phrases || []).map(p => `<span class="vfp-phrase">"${p}"</span>`).join('');
+      const topics = (fp.topics || []).join(' · ');
+      const html = `<div class="vfp-card">
+        <h4>🧠 Your Voice Fingerprint</h4>
+        ${phrases ? `<div class="vfp-phrases">${phrases}</div>` : ''}
+        ${fp.communication_style ? `<div class="vfp-style" style="margin-bottom:10px;">${fp.communication_style}</div>` : ''}
+        ${topics ? `<div style="font-size:12px; color:#8899cc;">Topics: ${topics}</div>` : ''}
+        ${fp.energy_level ? `<div style="font-size:12px; color:#8899cc; margin-top:4px;">Energy: ${fp.energy_level}</div>` : ''}
+      </div>`;
+      document.getElementById(elId).innerHTML = html;
+      document.getElementById(elId).style.display = 'block';
+    }
+
+    function toggleCaptureRecording() {
+      if (_captureIsRecording) {
+        _stopCaptureRecording();
+      } else {
+        _startCaptureRecording();
+      }
+    }
+
+    async function _startCaptureRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        _captureChunks = [];
+        _captureMediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        _captureMediaRecorder.ondataavailable = e => { if (e.data.size > 0) _captureChunks.push(e.data); };
+        _captureMediaRecorder.onstop = _onCaptureStop;
+        _captureMediaRecorder.start();
+        _captureIsRecording = true;
+        const btn = document.getElementById('capture-record-btn');
+        btn.textContent = '⏹ Stop Recording';
+        btn.classList.add('recording');
+        document.getElementById('capture-status').textContent = '● Recording...';
+      } catch(e) {
+        alert('Microphone access denied. Please allow mic access and try again.');
+      }
+    }
+
+    function _stopCaptureRecording() {
+      if (_captureMediaRecorder && _captureIsRecording) {
+        _captureMediaRecorder.stop();
+        _captureMediaRecorder.stream.getTracks().forEach(t => t.stop());
+        _captureIsRecording = false;
+        const btn = document.getElementById('capture-record-btn');
+        btn.textContent = '🎙️ Record Again';
+        btn.classList.remove('recording');
+        document.getElementById('capture-status').textContent = 'Processing...';
+      }
+    }
+
+    async function _onCaptureStop() {
+      const blob = new Blob(_captureChunks, { type: 'audio/webm' });
+      const form = new FormData();
+      form.append('audio', blob, 'capture.webm');
+      try {
+        const res = await fetch('/api/brand/voice-capture', { method: 'POST', body: form });
+        const data = await res.json();
+        document.getElementById('capture-status').textContent = '';
+        const transcript = data.transcript || '';
+        _captureTranscripts.push(transcript);
+        const tBox = document.getElementById('capture-transcript');
+        tBox.textContent = _captureTranscripts.map((t, i) => `Q${i+1}: ${t}`).join('\n\n');
+        document.getElementById('capture-transcript-box').style.display = 'block';
+        const nextBtn = document.getElementById('capture-next-btn');
+        if (_captureCurrentQ >= 2) {
+          nextBtn.textContent = 'Build My Voice Profile →';
+          nextBtn.onclick = _finalizeCaptureFingerprint;
+        }
+        if (data.voice_fingerprint) _voiceFingerprint = data.voice_fingerprint;
+      } catch(e) {
+        document.getElementById('capture-status').textContent = 'Error processing audio. Try again.';
+      }
+    }
+
+    function captureNextQuestion() {
+      _captureCurrentQ++;
+      if (_captureCurrentQ >= _captureQuestions.length) {
+        _finalizeCaptureFingerprint();
+        return;
+      }
+      document.getElementById('capture-q-num').textContent = `Question ${_captureCurrentQ + 1} of 3`;
+      document.getElementById('capture-q-text').textContent = _captureQuestions[_captureCurrentQ];
+      document.getElementById('capture-record-btn').textContent = '🎙️ Start Recording';
+      document.getElementById('capture-record-btn').classList.remove('recording');
+      document.getElementById('capture-status').textContent = '';
+    }
+
+    async function _finalizeCaptureFingerprint() {
+      document.getElementById('capture-loading').style.display = 'block';
+      document.getElementById('capture-results').style.display = 'none';
+      try {
+        // If we already have a fingerprint from the last recording, use it;
+        // Otherwise send all transcripts to voice-brain for a combined fingerprint
+        if (!_voiceFingerprint) {
+          const res = await fetch('/api/brand/voice-brain', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ urls: [], transcripts: _captureTranscripts })
+          });
+          const data = await res.json();
+          _voiceFingerprint = data.voice_fingerprint || data;
+        }
+        document.getElementById('capture-loading').style.display = 'none';
+        _renderFingerprintCard('capture-results', _voiceFingerprint);
+        _showContinueBtn('onboard-capture');
+      } catch(e) {
+        document.getElementById('capture-loading').style.display = 'none';
+        document.getElementById('capture-results').innerHTML = '<div style="color:#FF557E; font-size:13px;">Error: ' + e.message + '</div>';
+        document.getElementById('capture-results').style.display = 'block';
+      }
+    }
+
+    // ── Utility ────────────────────────────────────────────────────────
+    function escHtml(str) {
+      return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+<script src="/recorder-widget.js"></script>
+</body>
+</html>

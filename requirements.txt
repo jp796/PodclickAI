@@ -1,0 +1,22 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+websockets==13.0
+
+# Audio processing
+noisereduce==3.0.2
+pyloudnorm==0.1.1
+ffmpeg-python==0.2.0
+soundfile==0.12.1
+numpy==1.26.4
+
+# Transcription (local Whisper)
+faster-whisper==1.0.3
+
+# AI content generation
+openai==1.52.0
+httpx==0.27.2
+
+# Utilities
+python-dotenv==1.0.1
+aiofiles==24.1.0
