@@ -34,6 +34,11 @@ load_dotenv()
 app = FastAPI(title="Podcast Studio")
 
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+
 @app.on_event("startup")
 async def _startup():
     """Start the release scheduler + uploads sweep background loops."""
