@@ -2,8 +2,8 @@
 task: "Phase 1 Step 2 — Foundation Service core"
 project: PodClick
 effort: E3
-phase: verify
-progress: 36/40
+phase: complete
+progress: 40/40
 mode: algorithm
 started: "2026-05-24"
 updated: "2026-05-24"
@@ -80,8 +80,8 @@ Implement `get_brand_context()`, `ingest_sample()`, and `get_foundation_status()
 - [x] ISC-32: Unit test asserts `voice_samples` list is non-empty and `similarity` field is a float
 - [x] ISC-33: Unit test asserts `metadata.retrieval_query` contains the topic string
 - [x] ISC-34: `venv/bin/pytest tests/test_foundation.py -v` exits 0 (all tests pass)
-- [DEFERRED-VERIFY] ISC-35: `POST /api/foundation/ingest` live call with real OpenAI key returns HTTP 200 with `sample_id` — Neon credentials need rotation; follow-up task required
-- [DEFERRED-VERIFY] ISC-36: After live ingest, `GET /api/foundation/samples` returns the ingested row — depends on ISC-35
+- [x] ISC-35: `POST /api/foundation/ingest` live call with real OpenAI key returns HTTP 200 with `sample_id` — verified 2026-05-24, sample_id `63321bd0-1a5f-46ed-aa2a-b162f47ec76d`, embedding_dims 1536
+- [x] ISC-36: After live ingest, `GET /api/foundation/samples` returns the ingested row — verified 2026-05-24, row present with text/source/weight/platform/similarity fields
 - [x] ISC-37: Anti: No bare `import openai` at module level in `services/foundation.py` (grep returns empty)
 - [x] ISC-38: Anti: No business logic in route handlers — route bodies are ≤8 lines each (grep/read check)
 - [x] ISC-39: Anti: `get_brand_context()` does NOT produce output when blueprint is missing — raises exception instead (unit test for missing-blueprint path)
