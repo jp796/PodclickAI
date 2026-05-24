@@ -199,4 +199,28 @@ Decision needed: Upgrade Railway plan before Phase 1 starts, or use Neon (Postgr
 
 ---
 
-*End of Phase 0 inventory. No code was modified.*
+---
+
+## 8. Phase 0 Decisions (locked 2026-05-24)
+
+**Q1 — Tenancy: location_id in schema from day one ✅**
+- Every new table gets `location_id uuid NOT NULL REFERENCES locations(id) ON DELETE CASCADE` with index
+- Hardcode Titan locationId in `config.py` (one line, one place) while auth is pending
+- Build `getCurrentLocationId()` helper now — returns hardcoded value. When auth lands, swap implementation only. Zero query rewrites downstream.
+
+**Q2 — Brand Studio: refactor existing intake, don't build alongside ✅**
+- Audit path → channel auto-pull tier (YouTube captions, blog scrape, LinkedIn paste)
+- Upload path → audio/video + text ingestion into voice_samples (chunking/embedding pipeline)
+- Speak path → 8-question Voice Interview (needs most new work)
+- Existing Brand Brief / Bio Pack / Conversion Pack outputs survive as "Brand Assets" — clearly labeled generated assets, not Foundation training data
+- Output schema changes from Brand Brief dict → `voice_samples` rows in pgvector
+
+**Q3 — Database: Neon (Postgres + pgvector) + Upstash (Redis), Railway stays for app server only ✅**
+- Neon: free tier, pgvector first-class, branching for migration testing
+- Upstash: per-request Redis pricing, effectively free at Phase 1 traffic levels
+- Railway: web server + worker processes only — stateful infra moves to specialists
+- Migration path = connection string change, not a Railway dump-and-restore
+
+---
+
+*Phase 0 complete. Decisions locked. Ready for Phase 1.*
