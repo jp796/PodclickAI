@@ -33,6 +33,11 @@ load_dotenv()
 
 app = FastAPI(title="Podcast Studio")
 
+# ── Phase 1 routers ───────────────────────────────────────────────────────────
+from routers.foundation import router as foundation_router  # noqa: E402
+
+app.include_router(foundation_router, prefix="/api/foundation", tags=["Foundation"])
+
 
 @app.get("/health")
 async def health_check():
