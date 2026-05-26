@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Foundation · PodClickAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #030B2C;
+      --surface:  #050E3D;
+      --surface2: #091660;
+      --surface3: #102078;
+      --border:   #1a2c6b;
+      --accent:   #05C3F9;
+      --accent2:  #00FBF0;
+      --coral:    #FF557E;
+      --text:     #F5F7FA;
+      --text-dim: #8AAFC5;
+      --green:    #2EE49C;
+      --yellow:   #FFB340;
+      --radius:   12px;
+      --font:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Scrollbar ─────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Header ────────────────────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px; border-bottom: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0;
+    }
+    .brand { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; }
+    .brand .pc { color: var(--text); }
+    .brand .ai {
+      background: linear-gradient(135deg, #05C3F9, #00FBF0);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .brand .sub { font-size: 13px; font-weight: 500; color: var(--text-dim); margin-left: 10px; }
+    .nav-toggle {
+      display: flex; align-items: center; gap: 2px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 3px;
+    }
+    .nav-toggle a {
+      padding: 5px 13px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      color: var(--text-dim); text-decoration: none;
+      transition: background .12s, color .12s; white-space: nowrap;
+    }
+    .nav-toggle a:hover { background: var(--surface3); color: var(--text); }
+    .nav-toggle a.active { background: var(--surface3); color: var(--text); }
+
+    /* ── Page body ─────────────────────────────────────────────────── */
+    .page-body {
+      flex: 1; overflow-y: auto;
+      padding: 40px 24px 60px;
+      max-width: 860px; margin: 0 auto; width: 100%;
+    }
+
+    /* ── Hero ──────────────────────────────────────────────────────── */
+    .hero {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 20px; margin-bottom: 36px; flex-wrap: wrap;
+    }
+    .hero-text {}
+    .hero-eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 8px;
+    }
+    .hero-headline {
+      font-size: 28px; font-weight: 800; line-height: 1.2;
+      letter-spacing: -0.5px; margin-bottom: 10px;
+    }
+    .hero-sub {
+      font-size: 14px; color: var(--text-dim); line-height: 1.6;
+      max-width: 480px;
+    }
+    .hero-badge { flex-shrink: 0; }
+
+    /* ── Tier badge ────────────────────────────────────────────────── */
+    .tier-badge {
+      display: flex; flex-direction: column; align-items: center;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 22px; min-width: 140px;
+    }
+    .tier-label {
+      font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px;
+    }
+    .tier-name {
+      font-size: 18px; font-weight: 800; letter-spacing: -0.3px;
+    }
+    .tier-name.not-ready { color: var(--coral); }
+    .tier-name.thin      { color: var(--yellow); }
+    .tier-name.solid     { color: var(--accent); }
+    .tier-name.deep      { color: var(--green); }
+    .tier-count {
+      font-size: 11px; color: var(--text-dim); margin-top: 4px; font-weight: 500;
+    }
+
+    /* ── Progress bar ──────────────────────────────────────────────── */
+    .foundation-progress {
+      margin-bottom: 36px;
+    }
+    .progress-bar-wrap {
+      background: var(--surface2); border-radius: 6px; height: 6px;
+      overflow: hidden; margin-top: 8px;
+    }
+    .progress-bar-fill {
+      height: 100%; border-radius: 6px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width 0.6s ease;
+    }
+    .progress-meta {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--text-dim); margin-top: 6px;
+    }
+
+    /* ── Section title ─────────────────────────────────────────────── */
+    .section-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.4px;
+      text-transform: uppercase; color: var(--text-dim); margin-bottom: 16px;
+    }
+
+    /* ── Intake grid ───────────────────────────────────────────────── */
+    .intake-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    @media (max-width: 600px) {
+      .intake-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── Card base ─────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 22px;
+      display: flex; flex-direction: column; gap: 14px;
+      transition: border-color .15s;
+    }
+    .card.active-card {
+      border-color: var(--accent);
+    }
+    .card.soon {
+      opacity: 0.6;
+    }
+    .card-header {
+      display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+    }
+    .card-icon {
+      width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 17px;
+    }
+    .icon-brick  { background: rgba(5,195,249,.15); }
+    .icon-upload { background: rgba(255,180,64,.15); }
+    .icon-paste  { background: rgba(46,228,156,.15); }
+    .icon-channel{ background: rgba(255,85,126,.15); }
+
+    .card-title-wrap { flex: 1; }
+    .card-title {
+      font-size: 14px; font-weight: 700; margin-bottom: 3px;
+    }
+    .card-desc {
+      font-size: 12px; color: var(--text-dim); line-height: 1.5;
+    }
+    .soon-chip {
+      background: var(--surface3); border: 1px solid var(--border);
+      border-radius: 20px; padding: 2px 9px;
+      font-size: 10px; font-weight: 700; color: var(--text-dim);
+      letter-spacing: 0.5px; white-space: nowrap; flex-shrink: 0;
+    }
+
+    /* ── Card 3 — Paste your writing (active) ──────────────────────── */
+    .paste-area {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      line-height: 1.6;
+      padding: 12px 14px;
+      resize: vertical;
+      min-height: 120px;
+      transition: border-color .15s;
+      outline: none;
+    }
+    .paste-area:focus { border-color: var(--accent); }
+    .paste-area::placeholder { color: var(--text-dim); }
+
+    .paste-meta {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .char-count { font-size: 11px; color: var(--text-dim); }
+
+    .btn-pour {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #030B2C; font-weight: 700; font-size: 13px;
+      border: none; border-radius: 8px; padding: 8px 18px;
+      cursor: pointer; transition: opacity .15s; white-space: nowrap;
+    }
+    .btn-pour:hover { opacity: 0.88; }
+    .btn-pour:disabled { opacity: 0.45; cursor: default; }
+
+    .source-select {
+      background: var(--surface2); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font); font-size: 12px;
+      border-radius: 7px; padding: 5px 10px; outline: none;
+      cursor: pointer;
+    }
+    .source-select:focus { border-color: var(--accent); }
+
+    /* ── Live feed ─────────────────────────────────────────────────── */
+    .feed-section { display: none; }
+    .feed-section.visible { display: block; }
+
+    .feed-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 0; overflow: hidden;
+    }
+    .feed-header {
+      padding: 14px 18px 12px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .feed-title {
+      font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px;
+    }
+    .feed-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.35; }
+    }
+    .feed-count {
+      font-size: 11px; color: var(--text-dim); font-weight: 500;
+    }
+    .feed-list { padding: 8px 0; max-height: 320px; overflow-y: auto; }
+    .feed-item {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 10px 18px; border-bottom: 1px solid var(--border);
+      animation: slideIn 0.3s ease;
+    }
+    .feed-item:last-child { border-bottom: none; }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .feed-check {
+      flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%;
+      background: rgba(46,228,156,.15); border: 1px solid var(--green);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; color: var(--green); margin-top: 1px;
+    }
+    .feed-item-body { flex: 1; min-width: 0; }
+    .feed-item-text {
+      font-size: 12px; color: var(--text); line-height: 1.5;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .feed-item-meta {
+      font-size: 10px; color: var(--text-dim); margin-top: 3px;
+    }
+
+    /* ── Card 1 — Voice interview ──────────────────────────────────── */
+    .interview-q {
+      font-size: 14px; font-weight: 600; line-height: 1.5; color: var(--text);
+    }
+    .interview-counter {
+      font-size: 10px; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 8px;
+    }
+    .interview-controls {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .btn-record {
+      display: flex; align-items: center; gap: 7px;
+      background: var(--coral); color: #fff; font-weight: 700; font-size: 13px;
+      border: none; border-radius: 8px; padding: 8px 16px;
+      cursor: pointer; transition: opacity .15s;
+    }
+    .btn-record:hover { opacity: 0.85; }
+    .btn-record:disabled { opacity: 0.45; cursor: default; }
+    .btn-record.recording { background: var(--surface3); border: 1px solid var(--coral); color: var(--coral); }
+    .rec-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: currentColor;
+      animation: recPulse 1s ease-in-out infinite;
+    }
+    @keyframes recPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    .rec-timer { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+    .interview-done {
+      text-align: center; padding: 12px 0;
+      font-size: 13px; color: var(--green); font-weight: 600;
+    }
+    .interview-start {
+      text-align: center; padding: 6px 0;
+    }
+    .btn-start-interview {
+      background: rgba(5,195,249,.15); border: 1px solid var(--accent);
+      color: var(--accent); font-weight: 700; font-size: 13px;
+      border-radius: 8px; padding: 9px 20px; cursor: pointer;
+      transition: background .15s;
+    }
+    .btn-start-interview:hover { background: rgba(5,195,249,.25); }
+
+    /* ── Card 2 — Upload ───────────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border); border-radius: 10px;
+      padding: 22px 16px; text-align: center; cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .drop-zone:hover, .drop-zone.dragover, .drop-zone.drag-over {
+      border-color: var(--accent); background: rgba(5,195,249,.05);
+    }
+    .drop-zone-icon { font-size: 24px; margin-bottom: 6px; }
+    .drop-zone-label { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+    .drop-zone-sub { font-size: 11px; color: var(--text-dim); }
+    .file-chosen {
+      font-size: 12px; color: var(--accent); font-weight: 600;
+      margin-top: 6px; word-break: break-all;
+    }
+    .upload-options { display: flex; align-items: center; gap: 8px; }
+    .checkbox-label {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: var(--text-dim); cursor: pointer; user-select: none;
+    }
+    .checkbox-label input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; }
+    .multi-warn {
+      background: rgba(255,180,64,.12); border: 1px solid rgba(255,180,64,.3);
+      border-radius: 8px; padding: 8px 12px;
+      font-size: 11px; color: var(--yellow); line-height: 1.5;
+      display: none;
+    }
+    .multi-warn.visible { display: block; }
+    .upload-progress-wrap {
+      background: var(--surface2); border-radius: 6px; height: 5px;
+      overflow: hidden; display: none;
+    }
+    .upload-progress-wrap.visible { display: block; }
+    .upload-progress-fill {
+      height: 100%; border-radius: 6px;
+      background: linear-gradient(90deg, var(--yellow), var(--accent));
+      width: 0%; transition: width 0.2s;
+    }
+    .upload-meta {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+
+    /* ── Toast ─────────────────────────────────────────────────────── */
+    #fn-toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 18px;
+      font-size: 13px; font-weight: 500; color: var(--text);
+      z-index: 9999; pointer-events: none; opacity: 0;
+      transition: opacity .2s; white-space: nowrap;
+      display: flex; align-items: center; gap: 8px;
+    }
+    #fn-toast.show { opacity: 1; }
+    #fn-toast.success { border-color: var(--green); color: var(--green); }
+    #fn-toast.error   { border-color: var(--coral); color: var(--coral); }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────── -->
+<header>
+  <div style="display:flex;align-items:center;gap:6px;">
+    <div class="brand">
+      <span class="pc">PodClick</span><span class="ai">AI</span>
+      <span class="sub">Foundation</span>
+    </div>
+  </div>
+  <nav class="nav-toggle">
+    <a href="/brand-studio">Blueprint</a>
+    <a href="/foundation" class="active">Foundation</a>
+    <a href="/social-studio">Social</a>
+    <a href="/youtube-studio">Click Studio</a>
+  </nav>
+</header>
+
+<!-- ── Page body ────────────────────────────────────────────────────────── -->
+<div class="page-body">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-text">
+      <div class="hero-eyebrow">Phase 1 · Voice Fingerprint</div>
+      <h1 class="hero-headline">Pour your foundation.</h1>
+      <p class="hero-sub">
+        Every post, script, and caption I write for you gets pulled from this.
+        The more you pour, the more I sound like you — not like everyone else.
+      </p>
+    </div>
+    <div class="hero-badge">
+      <div class="tier-badge">
+        <div class="tier-label">Foundation</div>
+        <div class="tier-name not-ready" id="tier-name">Not Ready</div>
+        <div class="tier-count" id="tier-count">0 samples</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="foundation-progress">
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+    </div>
+    <div class="progress-meta">
+      <span id="progress-label">Need 5 samples to go Thin</span>
+      <span id="progress-pct">0%</span>
+    </div>
+  </div>
+
+  <!-- Intake cards -->
+  <div class="section-title">Add material to your foundation</div>
+  <div class="intake-grid">
+
+    <!-- Card 1: Talk to Brick (ACTIVE — voice interview) -->
+    <div class="card active-card" id="card-interview">
+      <div class="card-header">
+        <div class="card-icon icon-brick">🧱</div>
+        <div class="card-title-wrap">
+          <div class="card-title">Talk to Brick</div>
+          <div class="card-desc">8 questions out loud. Each answer gets ingested immediately.</div>
+        </div>
+      </div>
+
+      <!-- State: intro -->
+      <div id="iv-intro" class="interview-start">
+        <button class="btn-start-interview" id="iv-start-btn">Start the interview →</button>
+      </div>
+
+      <!-- State: question (hidden until started) -->
+      <div id="iv-question" style="display:none;">
+        <div class="interview-counter" id="iv-counter">Question 1 of 8</div>
+        <div class="interview-q" id="iv-q-text"></div>
+        <div class="interview-controls" style="margin-top:12px;">
+          <button class="btn-record" id="iv-rec-btn">
+            <span class="rec-dot" style="display:none;" id="iv-rec-dot"></span>
+            <span id="iv-rec-label">Record answer</span>
+          </button>
+          <span class="rec-timer" id="iv-timer" style="display:none;">0:00</span>
+        </div>
+      </div>
+
+      <!-- State: done -->
+      <div id="iv-done" style="display:none;" class="interview-done">
+        ✓ Interview complete — 8 samples added to your foundation.
+      </div>
+    </div>
+
+    <!-- Card 2: Upload audio or video (ACTIVE) -->
+    <div class="card active-card" id="card-upload">
+      <div class="card-header">
+        <div class="card-icon icon-upload">🎙</div>
+        <div class="card-title-wrap">
+          <div class="card-title">Upload audio or video</div>
+          <div class="card-desc">Voice memo, clip, or recording. Max ~25 MB. I'll transcribe and ingest it.</div>
+        </div>
+      </div>
+
+      <input type="file" id="audio-file-input" accept="audio/*,video/*" style="display:none;">
+      <div class="drop-zone" id="drop-zone">
+        <div class="drop-zone-icon">🎵</div>
+        <div class="drop-zone-label">Drop file here or click to browse</div>
+        <div class="drop-zone-sub">MP3 · MP4 · M4A · WAV · WebM · OGG</div>
+        <div class="file-chosen" id="file-chosen" style="display:none;"></div>
+      </div>
+
+      <div class="multi-warn" id="multi-warn">
+        ⚠ Multi-speaker audio mixes voices into Foundation. Only use recordings where you're the only speaker.
+      </div>
+
+      <div class="upload-progress-wrap" id="upload-progress-wrap">
+        <div class="upload-progress-fill" id="upload-progress-fill"></div>
+      </div>
+
+      <div class="upload-meta">
+        <label class="checkbox-label">
+          <input type="checkbox" id="single-speaker-cb" checked>
+          I'm the only voice in this recording
+        </label>
+        <button class="btn-pour" id="upload-btn" disabled>Transcribe &amp; ingest →</button>
+      </div>
+    </div>
+
+    <!-- Card 3: Paste your writing (ACTIVE) -->
+    <div class="card active-card" style="grid-column: 1 / -1;">
+      <div class="card-header">
+        <div class="card-icon icon-paste">✍️</div>
+        <div class="card-title-wrap">
+          <div class="card-title">Paste your writing</div>
+          <div class="card-desc">
+            LinkedIn posts, emails, newsletters, captions — anything you wrote. Each piece is a brick.
+          </div>
+        </div>
+      </div>
+
+      <textarea
+        class="paste-area"
+        id="paste-input"
+        placeholder="Paste a LinkedIn post, social caption, email, or anything you wrote in your own words…"
+        rows="6"
+      ></textarea>
+
+      <div class="paste-meta">
+        <span class="char-count" id="char-count">0 chars</span>
+        <button class="btn-pour" id="pour-btn" disabled>Pour it in →</button>
+      </div>
+    </div>
+
+    <!-- Card 4: Point me at your channels -->
+    <div class="card soon" style="grid-column: 1 / -1;">
+      <div class="card-header">
+        <div class="card-icon icon-channel">📡</div>
+        <div class="card-title-wrap">
+          <div class="card-title">Point me at your channels</div>
+          <div class="card-desc">YouTube channel, RSS feed, or LinkedIn profile URL. I'll pull your recent content automatically.</div>
+        </div>
+        <div class="soon-chip">Coming soon</div>
+      </div>
+    </div>
+
+  </div><!-- /intake-grid -->
+
+  <!-- Live feed -->
+  <div class="feed-section" id="feed-section">
+    <div class="section-title" style="margin-bottom:12px;">Samples in the mix</div>
+    <div class="feed-wrap">
+      <div class="feed-header">
+        <div class="feed-title">
+          <div class="feed-dot"></div>
+          Live feed
+        </div>
+        <div class="feed-count" id="feed-count">0 samples poured</div>
+      </div>
+      <div class="feed-list" id="feed-list"></div>
+    </div>
+  </div>
+
+</div><!-- /page-body -->
+
+<!-- Toast -->
+<div id="fn-toast"></div>
+
+<script>
+  /* ── State ───────────────────────────────────────────────────────────── */
+  let sessionPoured = 0;   // count added this session
+  let totalSamples  = 0;   // from /api/foundation/status
+
+  /* ── Toast ───────────────────────────────────────────────────────────── */
+  function fnToast(msg, kind) {
+    const el = document.getElementById('fn-toast');
+    el.textContent = msg;
+    el.className = 'show' + (kind ? ' ' + kind : '');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => { el.className = ''; }, 3200);
+  }
+
+  /* ── Tier helpers ────────────────────────────────────────────────────── */
+  function tierInfo(count) {
+    if (count >= 50) return { name: 'Deep',      cls: 'deep',      next: null,   target: 50  };
+    if (count >= 15) return { name: 'Solid',     cls: 'solid',     next: 50,     target: 50  };
+    if (count >= 5)  return { name: 'Thin',      cls: 'thin',      next: 15,     target: 15  };
+    return               { name: 'Not Ready',   cls: 'not-ready', next: 5,      target: 5   };
+  }
+
+  function updateBadge(count) {
+    totalSamples = count;
+    const info = tierInfo(count);
+
+    const nameEl  = document.getElementById('tier-name');
+    const countEl = document.getElementById('tier-count');
+    const fillEl  = document.getElementById('progress-fill');
+    const labelEl = document.getElementById('progress-label');
+    const pctEl   = document.getElementById('progress-pct');
+
+    nameEl.textContent = info.name;
+    nameEl.className   = 'tier-name ' + info.cls;
+    countEl.textContent = count + ' sample' + (count !== 1 ? 's' : '');
+
+    let pct = 0;
+    if (info.next === null) {
+      pct = 100;
+    } else {
+      const prev  = info.next === 5 ? 0 : info.next === 15 ? 5 : 15;
+      pct = Math.min(100, Math.round(((count - prev) / (info.next - prev)) * 100));
+    }
+    fillEl.style.width = pct + '%';
+    pctEl.textContent  = pct + '%';
+
+    if (info.next) {
+      const needed = info.next - count;
+      labelEl.textContent = needed + ' more sample' + (needed !== 1 ? 's' : '') + ' to go ' + tierInfo(info.next).name;
+    } else {
+      labelEl.textContent = 'Foundation is deep. Keep adding material.';
+    }
+  }
+
+  /* ── Load status from API ─────────────────────────────────────────────── */
+  async function loadStatus() {
+    try {
+      const res  = await fetch('/api/foundation/status');
+      const data = await res.json();
+      if (typeof data.sample_count === 'number') updateBadge(data.sample_count);
+    } catch (e) {
+      console.warn('[Foundation] status fetch failed:', e);
+    }
+  }
+
+  /* ── Feed UI ──────────────────────────────────────────────────────────── */
+  function addFeedItem(text, source) {
+    sessionPoured += 1;
+    totalSamples  += 1;
+    updateBadge(totalSamples);
+
+    const section = document.getElementById('feed-section');
+    section.classList.add('visible');
+
+    const countEl = document.getElementById('feed-count');
+    countEl.textContent = sessionPoured + ' sample' + (sessionPoured !== 1 ? 's' : '') + ' poured this session';
+
+    const list = document.getElementById('feed-list');
+    const item = document.createElement('div');
+    item.className = 'feed-item';
+
+    const preview = text.trim().slice(0, 120) + (text.trim().length > 120 ? '…' : '');
+
+    item.innerHTML =
+      '<div class="feed-check">✓</div>' +
+      '<div class="feed-item-body">' +
+        '<div class="feed-item-text">' + escHtml(preview) + '</div>' +
+        '<div class="feed-item-meta">just now</div>' +
+      '</div>';
+
+    list.insertBefore(item, list.firstChild);
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /* ── Pour it in ──────────────────────────────────────────────────────── */
+  async function pourIt() {
+    const input  = document.getElementById('paste-input');
+    const source = 'written_from_scratch';
+    const text   = input.value.trim();
+    const btn    = document.getElementById('pour-btn');
+
+    if (!text || text.length < 20) {
+      fnToast('Paste at least a sentence or two — more material means better results.', 'error');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Pouring…';
+
+    try {
+      const res = await fetch('/api/foundation/ingest', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ text, source }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Ingest failed (' + res.status + ')');
+      }
+
+      const data = await res.json();
+      addFeedItem(text, source);
+      input.value = '';
+      document.getElementById('char-count').textContent = '0 chars';
+      fnToast('✓ Brick added that to the mix.', 'success');
+
+    } catch (e) {
+      fnToast('Couldn\'t pour that in — ' + e.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Pour it in →';
+    }
+  }
+
+  /* ── Wire up inputs ───────────────────────────────────────────────────── */
+  const pasteInput = document.getElementById('paste-input');
+  const pourBtn    = document.getElementById('pour-btn');
+  const charCount  = document.getElementById('char-count');
+
+  pasteInput.addEventListener('input', function () {
+    const len  = this.value.trim().length;
+    charCount.textContent = len + ' char' + (len !== 1 ? 's' : '');
+    pourBtn.disabled = len < 20;
+  });
+
+  pourBtn.addEventListener('click', pourIt);
+
+  pasteInput.addEventListener('keydown', function (e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') pourIt();
+  });
+
+  /* ── Card 1: Talk to Brick (Voice Interview) ─────────────────────────── */
+  const INTERVIEW_QUESTIONS = [
+    "Describe what you do and who you help — in your own words.",
+    "Walk me through a client you recently helped. What was their situation?",
+    "What do most people get wrong about your market or your industry?",
+    "What's your honest take on where the market is headed right now?",
+    "How do you actually work with someone — what's the process like?",
+    "What made you get into this business, and what keeps you in it?",
+    "What do you want people to say about working with you?",
+    "Give me your hottest take — something you believe that most in your industry disagree with.",
+  ];
+
+  let ivState         = 'idle';  // idle | asking | recording | submitting | done
+  let ivQuestionIdx   = 0;
+  let ivMediaRecorder = null;
+  let ivChunks        = [];
+  let ivTimerInterval = null;
+  let ivSeconds       = 0;
+
+  function startInterview() {
+    ivQuestionIdx = 0;
+    document.getElementById('iv-intro').style.display    = 'none';
+    document.getElementById('iv-question').style.display = 'block';
+    document.getElementById('iv-done').style.display     = 'none';
+    loadQuestion(0);
+  }
+
+  function loadQuestion(idx) {
+    ivState = 'asking';
+    document.getElementById('iv-counter').textContent  = 'Question ' + (idx + 1) + ' of ' + INTERVIEW_QUESTIONS.length;
+    document.getElementById('iv-q-text').textContent   = INTERVIEW_QUESTIONS[idx];
+    const lbl = document.getElementById('iv-rec-label');
+    if (lbl) lbl.textContent = '● Record answer';
+    const btn = document.getElementById('iv-rec-btn');
+    btn.classList.remove('recording');
+    btn.disabled = false;
+    const dot   = document.getElementById('iv-rec-dot');
+    const timer = document.getElementById('iv-timer');
+    if (dot)   dot.style.display   = 'none';
+    if (timer) { timer.style.display = 'none'; timer.textContent = '0:00'; }
+    clearInterval(ivTimerInterval);
+  }
+
+  function startRecording() {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      ivChunks = [];
+      ivMediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      ivMediaRecorder.ondataavailable = function (e) { if (e.data.size > 0) ivChunks.push(e.data); };
+      ivMediaRecorder.onstop = function () {
+        stream.getTracks().forEach(function (t) { t.stop(); });
+        const blob = new Blob(ivChunks, { type: 'audio/webm' });
+        submitIvBlob(blob, INTERVIEW_QUESTIONS[ivQuestionIdx]);
+      };
+      ivMediaRecorder.start();
+      ivState = 'recording';
+
+      // Timer
+      ivSeconds = 0;
+      clearInterval(ivTimerInterval);
+      const dot   = document.getElementById('iv-rec-dot');
+      const timer = document.getElementById('iv-timer');
+      if (dot)   dot.style.display   = 'inline-block';
+      if (timer) timer.style.display = 'inline';
+      ivTimerInterval = setInterval(function () {
+        ivSeconds++;
+        const m = Math.floor(ivSeconds / 60);
+        const s = ivSeconds % 60;
+        if (timer) timer.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+      }, 1000);
+
+      const lbl = document.getElementById('iv-rec-label');
+      if (lbl) lbl.textContent = '■ Stop & submit';
+      document.getElementById('iv-rec-btn').classList.add('recording');
+    }).catch(function (err) {
+      fnToast('Mic access denied — ' + err.message, 'error');
+    });
+  }
+
+  function stopAndSubmit() {
+    if (ivMediaRecorder && ivMediaRecorder.state === 'recording') {
+      clearInterval(ivTimerInterval);
+      ivMediaRecorder.stop();
+      ivState = 'submitting';
+      const lbl = document.getElementById('iv-rec-label');
+      if (lbl) lbl.textContent = 'Transcribing…';
+      document.getElementById('iv-rec-btn').disabled = true;
+      const dot = document.getElementById('iv-rec-dot');
+      if (dot) dot.style.display = 'none';
+    }
+  }
+
+  async function submitIvBlob(blob, questionText) {
+    const fd = new FormData();
+    fd.append('audio', blob, 'answer.webm');
+    fd.append('single_speaker', 'true');
+
+    try {
+      const res = await fetch('/api/foundation/transcribe-and-ingest', {
+        method: 'POST',
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(function () { return {}; });
+        throw new Error(err.detail || 'Upload failed (' + res.status + ')');
+      }
+      const data = await res.json();
+      addFeedItem(data.transcript_preview || ('Answer to: ' + questionText), 'podcast');
+      fnToast('✓ Answer poured in — ' + (ivQuestionIdx + 1) + '/' + INTERVIEW_QUESTIONS.length, 'success');
+
+      ivQuestionIdx++;
+      if (ivQuestionIdx >= INTERVIEW_QUESTIONS.length) {
+        document.getElementById('iv-question').style.display = 'none';
+        document.getElementById('iv-done').style.display     = 'block';
+        ivState = 'done';
+      } else {
+        loadQuestion(ivQuestionIdx);
+      }
+    } catch (e) {
+      fnToast('Couldn\'t pour that answer in — ' + e.message, 'error');
+      loadQuestion(ivQuestionIdx);
+    }
+  }
+
+  // Wire Card 1 buttons
+  (function () {
+    const startBtn = document.getElementById('iv-start-btn');
+    if (startBtn) startBtn.addEventListener('click', startInterview);
+
+    const recBtn = document.getElementById('iv-rec-btn');
+    if (recBtn) recBtn.addEventListener('click', function () {
+      if (ivState === 'asking')    startRecording();
+      else if (ivState === 'recording') stopAndSubmit();
+    });
+  }());
+
+  /* ── Card 2: Upload Audio or Video ───────────────────────────────────── */
+  let uploadFile = null;
+
+  const fileInput    = document.getElementById('audio-file-input');
+  const dropZone     = document.getElementById('drop-zone');
+  const fileChosenEl = document.getElementById('file-chosen');
+  const multiWarn    = document.getElementById('multi-warn');
+  const singleCb     = document.getElementById('single-speaker-cb');
+  const uploadBtn    = document.getElementById('upload-btn');
+  const progressWrap = document.getElementById('upload-progress-wrap');
+  const progressFill = document.getElementById('upload-progress-fill');
+
+  function setUploadFile(f) {
+    if (!f) return;
+    uploadFile = f;
+    if (fileChosenEl) {
+      fileChosenEl.textContent = f.name + ' (' + (f.size / 1024 / 1024).toFixed(1) + ' MB)';
+      fileChosenEl.style.display = 'block';
+    }
+    if (uploadBtn) uploadBtn.disabled = false;
+  }
+
+  if (dropZone) {
+    dropZone.addEventListener('click', function () { if (fileInput) fileInput.click(); });
+    dropZone.addEventListener('dragover', function (e) {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', function () { dropZone.classList.remove('drag-over'); });
+    dropZone.addEventListener('drop', function (e) {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) setUploadFile(e.dataTransfer.files[0]);
+    });
+  }
+
+  if (fileInput) {
+    fileInput.addEventListener('change', function () {
+      if (fileInput.files && fileInput.files[0]) setUploadFile(fileInput.files[0]);
+    });
+  }
+
+  if (singleCb) {
+    // Start with checkbox checked → multi-warn hidden
+    if (multiWarn) multiWarn.classList.remove('visible');
+    singleCb.addEventListener('change', function () {
+      if (multiWarn) multiWarn.classList.toggle('visible', !singleCb.checked);
+    });
+  }
+
+  if (uploadBtn) {
+    uploadBtn.addEventListener('click', function () {
+      if (!uploadFile) return;
+      const single = singleCb ? singleCb.checked : true;
+      uploadAudio(uploadFile, single);
+    });
+  }
+
+  function uploadAudio(file, single) {
+    if (uploadBtn) { uploadBtn.disabled = true; uploadBtn.textContent = 'Uploading…'; }
+    if (progressWrap) progressWrap.classList.add('visible');
+    if (progressFill) progressFill.style.width = '0%';
+
+    const fd = new FormData();
+    fd.append('audio', file, file.name);
+    fd.append('single_speaker', single ? 'true' : 'false');
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/foundation/transcribe-and-ingest');
+
+    xhr.upload.addEventListener('progress', function (e) {
+      if (e.lengthComputable && progressFill) {
+        const pct = Math.round((e.loaded / e.total) * 50);
+        progressFill.style.width = pct + '%';
+      }
+    });
+
+    xhr.upload.addEventListener('load', function () {
+      if (progressFill) progressFill.style.width = '60%';
+      if (uploadBtn) uploadBtn.textContent = 'Transcribing…';
+    });
+
+    xhr.onload = function () {
+      if (progressFill) progressFill.style.width = '100%';
+      if (xhr.status >= 200 && xhr.status < 300) {
+        let data = {};
+        try { data = JSON.parse(xhr.responseText); } catch (ex) { /* ignore */ }
+        addFeedItem(data.transcript_preview || file.name, 'podcast');
+        if (data.multi_speaker_warning) {
+          fnToast('⚠️ Multiple speakers detected — review the sample.', 'info');
+        } else {
+          fnToast('✓ Audio poured into the mix.', 'success');
+        }
+        // Reset uploader
+        uploadFile = null;
+        if (fileChosenEl) { fileChosenEl.textContent = ''; fileChosenEl.style.display = 'none'; }
+        if (fileInput) fileInput.value = '';
+        if (uploadBtn) { uploadBtn.textContent = 'Transcribe & ingest →'; uploadBtn.disabled = true; }
+        setTimeout(function () {
+          if (progressWrap) progressWrap.classList.remove('visible');
+          if (progressFill) progressFill.style.width = '0%';
+        }, 1200);
+      } else {
+        let msg = 'Upload failed (' + xhr.status + ')';
+        try { msg = JSON.parse(xhr.responseText).detail || msg; } catch (ex) { /* ignore */ }
+        fnToast('Couldn\'t pour that in — ' + msg, 'error');
+        if (uploadBtn) { uploadBtn.textContent = 'Transcribe & ingest →'; uploadBtn.disabled = !uploadFile; }
+        if (progressWrap) progressWrap.classList.remove('visible');
+      }
+    };
+
+    xhr.onerror = function () {
+      fnToast('Network error during upload.', 'error');
+      if (uploadBtn) { uploadBtn.textContent = 'Transcribe & ingest →'; uploadBtn.disabled = !uploadFile; }
+      if (progressWrap) progressWrap.classList.remove('visible');
+    };
+
+    xhr.send(fd);
+  }
+
+  /* ── Init ─────────────────────────────────────────────────────────────── */
+  loadStatus();
+</script>
+
+</body>
+</html>

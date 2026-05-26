@@ -3589,6 +3589,11 @@ async def social_studio_page():
     return FileResponse("frontend/social-studio.html")
 
 
+@app.get("/foundation")
+async def foundation_page():
+    return FileResponse("frontend/foundation.html")
+
+
 # ---------------------------------------------------------------------------
 # Social Studio
 # ---------------------------------------------------------------------------

@@ -262,6 +262,41 @@ Notes:    angles array has 5 items. At least one of url or transcript required.
 
 ---
 
+## Foundation
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/foundation` | Serve foundation.html frontend page |
+| POST | `/api/foundation/ingest` | Ingest a voice sample (text + source) → embed + store in voice_samples |
+| GET | `/api/foundation/status` | Foundation readiness: sample_count, has_blueprint, is_ready, latest_score |
+| GET | `/api/foundation/score` | Latest foundation score + computed_at |
+| GET | `/api/foundation/samples` | Paginated list of voice samples (no vectors, similarity=0.0) |
+
+### POST /api/foundation/ingest
+```json
+Request:  { "text": "...", "source": "social_approved|social_edited|written_from_scratch|historical|brand_studio|podcast", "platform": "linkedin|...", "topic": "...", "bucket": "viral|brand|personal|conversion", "weight": 1.0, "edit_distance": null }
+Response: { "sample_id": "uuid", "chunks_created": 1, "embedding_dims": 1536 }
+Notes:    source is required and must be one of the 6 allowed values. Returns 422 on invalid source.
+```
+
+### GET /api/foundation/status
+```json
+Response: { "location_id": "...", "sample_count": 12, "latest_score": 0.74, "computed_at": "2026-05-24T...", "has_blueprint": true, "is_ready": true }
+Notes:    is_ready = sample_count >= 5 AND has_blueprint. Tier thresholds: not_ready (0-4), thin (5-14), solid (15-49), deep (50+).
+```
+
+### POST /api/foundation/transcribe-and-ingest
+```
+Request:  multipart/form-data — audio (UploadFile, required), single_speaker (str, default "true")
+Response: { "sample_id": "uuid", "chunks_created": 1, "embedding_dims": 1536, "transcript_preview": "First 300 chars...", "multi_speaker_warning": false }
+Notes:    Transcribes via OpenAI Whisper (whisper-1). Ingests transcript as source="podcast", weight=1.2.
+          25 MB hard limit per file. Supported formats: mp3, mp4, m4a, wav, webm, ogg, flac, mov, mpeg.
+          single_speaker="false" (or "0"/"no") sets multi_speaker_warning=true in response (ingest still proceeds).
+          Returns 422 if no speech detected.
+```
+
+---
+
 ## Brand Studio
 
 | Method | Path | Purpose |

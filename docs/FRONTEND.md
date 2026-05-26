@@ -259,6 +259,52 @@ btn.addEventListener('click', () => copyText(btn, btn.dataset.text));
 
 ---
 
+---
+
+## foundation.html — Global State
+
+| Variable | Purpose |
+|----------|---------|
+| `ivState` | Card 1 state machine: `idle` \| `asking` \| `recording` \| `submitting` \| `done` |
+| `ivQuestionIdx` | Current question index (0–7) in voice interview |
+| `ivMediaRecorder` | Active `MediaRecorder` instance for voice interview |
+| `ivChunks` | Recorded audio chunks array (cleared per question) |
+| `ivTimerInterval` | `setInterval` handle for recording timer |
+| `ivSeconds` | Elapsed recording seconds for timer display |
+| `uploadFile` | `File` object selected/dropped for Card 2 upload (null if none) |
+| `totalSamples` | Running total sample count (loaded from status, incremented on ingest) |
+| `sessionPoured` | Samples added this session (resets on reload) |
+
+---
+
+## foundation.html — JS Functions
+
+### Card 1 — Voice Interview
+| Function | Description |
+|----------|-------------|
+| `startInterview()` | Show question panel, hide intro/done; call `loadQuestion(0)` |
+| `loadQuestion(idx)` | Display question text + counter, reset record button state and timer |
+| `startRecording()` | `getUserMedia` → `MediaRecorder.start()`, tick timer, update button |
+| `stopAndSubmit()` | `MediaRecorder.stop()`, triggers `onstop` → `submitIvBlob()` |
+| `submitIvBlob(blob, questionText)` | POST blob to `/api/foundation/transcribe-and-ingest`, call `addFeedItem()`, auto-advance |
+
+### Card 2 — Upload Audio / Video
+| Function | Description |
+|----------|-------------|
+| `setUploadFile(f)` | Store file ref, show filename + size, enable upload button |
+| `uploadAudio(file, single)` | XHR POST to `/api/foundation/transcribe-and-ingest` with progress bar; calls `addFeedItem()` on success |
+
+### Shared — Card 3 & status
+| Function | Description |
+|----------|-------------|
+| `loadStatus()` | GET `/api/foundation/status`, set `totalSamples`, update tier badge |
+| `updateBadge(count)` | Compute tier label (not_ready/thin/solid/deep) + sample count, update `#tier-badge` |
+| `pourIt()` | POST `/api/foundation/ingest` with text + `source='written_from_scratch'`, call `addFeedItem()` |
+| `addFeedItem(text, source)` | Increment counters, update badge, prepend feed item to `#pour-feed` |
+| `fnToast(msg, kind)` | Show notification toast (`info`/`success`/`error`) |
+
+---
+
 ## social-studio.html — Global State
 
 | Variable | Purpose |

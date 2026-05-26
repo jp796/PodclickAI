@@ -6,11 +6,11 @@ All business logic lives in services/foundation.py.
 from __future__ import annotations
 
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import get_current_location_id
+from config import get_current_location_id, settings
 from db.engine import get_db
 from schemas.foundation import (
     BrandContext,
@@ -102,3 +102,80 @@ async def route_samples(
         )
         for row in rows
     ]
+
+
+@router.post("/transcribe-and-ingest", summary="Transcribe audio via Whisper and ingest into Foundation")
+async def route_transcribe_and_ingest(
+    audio: UploadFile = File(...),
+    single_speaker: str = Form(default="true"),
+    session: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    Accept an audio/video file, transcribe via Whisper whisper-1, and ingest
+    the transcript as a Foundation voice sample (source='podcast', weight=1.2).
+
+    Multi-speaker files are allowed but the response includes a warning flag.
+    Whisper hard limit: 25 MB per file.
+    """
+    import os as _os
+    import tempfile as _tmp
+
+    import openai as _openai
+
+    location_id = get_current_location_id()
+    single = single_speaker.strip().lower() not in ("false", "0", "no")
+
+    # Determine file extension for the temp file — Whisper needs it for format detection
+    filename = audio.filename or "audio.webm"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "webm"
+    if ext not in {"mp3", "mp4", "m4a", "wav", "webm", "ogg", "flac", "mov", "mpeg"}:
+        ext = "webm"
+
+    tmp_path = None
+    try:
+        audio_bytes = await audio.read()
+
+        with _tmp.NamedTemporaryFile(delete=False, suffix=f".{ext}") as tf:
+            tf.write(audio_bytes)
+            tmp_path = tf.name
+
+        client = _openai.OpenAI(api_key=settings.openai_api_key)
+        with open(tmp_path, "rb") as af:
+            transcript_obj = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=af,
+                response_format="text",
+            )
+        transcript_text = (
+            transcript_obj if isinstance(transcript_obj, str) else str(transcript_obj)
+        ).strip()
+
+        if not transcript_text:
+            raise HTTPException(status_code=422, detail="No speech detected in the audio.")
+
+        result = await ingest_sample(
+            session=session,
+            location_id=location_id,
+            text_content=transcript_text,
+            source="podcast",
+            weight=1.2,
+        )
+
+        return {
+            "sample_id": result.sample_id,
+            "chunks_created": result.chunks_created,
+            "embedding_dims": result.embedding_dims,
+            "transcript_preview": transcript_text[:300],
+            "multi_speaker_warning": not single,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        if tmp_path:
+            try:
+                _os.unlink(tmp_path)
+            except Exception:
+                pass
