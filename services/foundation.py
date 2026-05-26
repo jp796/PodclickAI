@@ -3,14 +3,19 @@
 The single source of truth for all brand context retrieval and voice sample ingestion.
 Every content generator in PodClick calls get_brand_context() before touching an LLM.
 
-Import openai as _openai — never at top level without alias.
+Import aliases:
+  import openai as _openai       — never bare at module level
+  import anthropic as _anthropic — never bare at module level
 """
 from __future__ import annotations
 
+import json
+import re
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
+import anthropic as _anthropic
 import openai as _openai
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -137,7 +142,7 @@ async def get_brand_context(
             FROM voice_samples
             WHERE location_id = :loc_id
               AND excluded = false
-              AND (:platform IS NULL OR platform IS NULL OR platform = :platform)
+              AND (CAST(:platform AS text) IS NULL OR platform IS NULL OR platform = CAST(:platform AS text))
             ORDER BY (embedding <=> CAST(:emb AS vector)) / GREATEST(weight, 0.001) ASC
             LIMIT 5
         """),
@@ -303,3 +308,180 @@ async def get_foundation_status(
         has_blueprint=has_blueprint,
         is_ready=sample_count >= 5 and has_blueprint,
     )
+
+
+async def assert_foundation_ready(
+    session: AsyncSession,
+    location_id: str,
+) -> None:
+    """Gate helper — raises BrandContextError if Foundation has fewer than 5 samples.
+
+    Call this as the first line of any generator that produces user-attributed content.
+    Tier 'not_ready' (0-4 samples) → blocked.
+    Tier 'thin' (5-14 samples) → allowed but callers should surface a warning.
+    """
+    count_result = await session.execute(
+        text(
+            "SELECT count(*) FROM voice_samples "
+            "WHERE location_id = :loc_id AND excluded = false"
+        ),
+        {"loc_id": location_id},
+    )
+    sample_count = int(count_result.scalar() or 0)
+    if sample_count < 5:
+        raise BrandContextError(
+            "foundation_not_ready: Foundation has fewer than 5 samples. "
+            "Pour foundation before generating content."
+        )
+
+
+def _extract_json(text_content: str) -> str:
+    """Strip markdown code fences and return raw JSON string."""
+    # Remove ```json ... ``` or ``` ... ``` wrappers
+    fenced = re.sub(r"^```(?:json)?\s*", "", text_content.strip(), flags=re.IGNORECASE)
+    fenced = re.sub(r"\s*```$", "", fenced.strip())
+    return fenced.strip()
+
+
+async def auto_generate_blueprint(
+    session: AsyncSession,
+    location_id: str,
+    api_key: str,
+) -> Dict[str, Any]:
+    """Analyse Foundation voice samples and auto-populate the Blueprint.
+
+    Precondition: >= 5 non-excluded samples (raises BrandContextError otherwise).
+    Uses a single claude-sonnet-4-6 call at temperature 0.3, max_tokens 2000.
+    DOES NOT ingest the output into voice_samples — it is a Blueprint, not a sample.
+
+    Returns the parsed draft dict. The caller is responsible for the confirm/save flow;
+    this function writes to the blueprints table immediately on success.
+
+    Raises BrandContextError on insufficient samples.
+    Raises ValueError if the LLM returns unparseable JSON.
+    """
+    # 1. Gate: must have at least 5 samples
+    count_result = await session.execute(
+        text(
+            "SELECT count(*) FROM voice_samples "
+            "WHERE location_id = :loc_id AND excluded = false"
+        ),
+        {"loc_id": location_id},
+    )
+    sample_count = int(count_result.scalar() or 0)
+    if sample_count < 5:
+        raise BrandContextError(
+            "foundation_not_ready: Need at least 5 voice samples to build a Blueprint. "
+            f"Current count: {sample_count}."
+        )
+
+    # 2. Check if blueprint already exists (warn-before-overwrite flag)
+    bp_check = await session.execute(
+        text(
+            "SELECT id, voice_tone, audience_primary FROM blueprints "
+            "WHERE location_id = :loc_id"
+        ),
+        {"loc_id": location_id},
+    )
+    existing = bp_check.mappings().first()
+    already_exists = existing is not None and (
+        existing.get("voice_tone") or existing.get("audience_primary")
+    )
+
+    # 3. Load up to 30 most recent non-excluded samples
+    samples_result = await session.execute(
+        text(
+            "SELECT text FROM voice_samples "
+            "WHERE location_id = :loc_id AND excluded = false "
+            "ORDER BY created_at DESC LIMIT 30"
+        ),
+        {"loc_id": location_id},
+    )
+    sample_texts = [row["text"] for row in samples_result.mappings().all()]
+    all_text = "\n\n---\n\n".join(sample_texts)
+
+    # 4. Single claude-sonnet-4-6 call — verbatim prompt from foundation-intake SKILL
+    client = _anthropic.Anthropic(api_key=api_key)
+    message = client.messages.create(
+        model="claude-sonnet-4-5",
+        max_tokens=2000,
+        temperature=0.3,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    "Analyze the following voice samples from one person and extract "
+                    "their brand profile. Return strict JSON.\n\n"
+                    f"Samples:\n{all_text}\n\n"
+                    "Return JSON with these fields:\n"
+                    '- tone: array of 3-5 adjectives describing tone '
+                    '(e.g., ["direct", "warm", "no-fluff"])\n'
+                    "- cadence: one-sentence description of their speaking/writing rhythm\n"
+                    '- pov: "first-person" or "second-person" or "third-person"\n'
+                    '- humor_level: "none" or "dry, sparingly" or "frequent" or "playful"\n'
+                    "- vocabulary_yes: array of 5-10 phrases or words they use naturally "
+                    "(verbatim from samples)\n"
+                    "- vocabulary_no: empty array (Brick will learn this over time from edits)\n"
+                    "- audience_primary: their main audience as described in samples\n"
+                    "- audience_pain_points: array of pain points they reference\n"
+                    "- pillars: array of 3-5 content pillars detected with "
+                    "{name, weight (0-1), examples} — weights sum to 1.0\n\n"
+                    "Do not invent details not in the samples. "
+                    "If something can't be inferred, leave it null or empty."
+                ),
+            }
+        ],
+    )
+
+    # 5. Parse JSON — strip code fences if present
+    raw = message.content[0].text if message.content else ""
+    try:
+        parsed = json.loads(_extract_json(raw))
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ValueError(
+            f"Blueprint auto-generation returned invalid JSON: {exc}\nRaw: {raw[:400]}"
+        )
+
+    # 6. UPSERT to blueprints — never insert into voice_samples
+    bp_id = str(uuid.uuid4())
+    await session.execute(
+        text("""
+            INSERT INTO blueprints
+                (id, location_id, voice_tone, voice_cadence, pov, humor_level,
+                 vocabulary_yes, vocabulary_no, audience_primary, audience_pain_points,
+                 pillars, updated_at)
+            VALUES
+                (:id, :loc_id, :tone, :cadence, :pov, :humor_level,
+                 :vocab_yes, :vocab_no, :audience, :pain_points,
+                 CAST(:pillars AS jsonb), now())
+            ON CONFLICT (location_id) DO UPDATE SET
+                voice_tone          = EXCLUDED.voice_tone,
+                voice_cadence       = EXCLUDED.voice_cadence,
+                pov                 = EXCLUDED.pov,
+                humor_level         = EXCLUDED.humor_level,
+                vocabulary_yes      = EXCLUDED.vocabulary_yes,
+                vocabulary_no       = EXCLUDED.vocabulary_no,
+                audience_primary    = EXCLUDED.audience_primary,
+                audience_pain_points = EXCLUDED.audience_pain_points,
+                pillars             = EXCLUDED.pillars,
+                updated_at          = now()
+        """),
+        {
+            "id": bp_id,
+            "loc_id": location_id,
+            "tone": parsed.get("tone") or [],
+            "cadence": parsed.get("cadence"),
+            "pov": parsed.get("pov", "first-person"),
+            "humor_level": parsed.get("humor_level"),
+            "vocab_yes": parsed.get("vocabulary_yes") or [],
+            "vocab_no": parsed.get("vocabulary_no") or [],
+            "audience": parsed.get("audience_primary"),
+            "pain_points": parsed.get("audience_pain_points") or [],
+            "pillars": json.dumps(parsed.get("pillars") or []),
+        },
+    )
+    await session.commit()
+
+    parsed["_already_existed"] = already_exists
+    parsed["_sample_count"] = sample_count
+    return parsed

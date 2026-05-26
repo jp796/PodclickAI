@@ -77,6 +77,9 @@ class Settings(BaseSettings):
     # ── OpenAI ───────────────────────────────────────────────────────────────
     openai_api_key: str = Field(default="", description="OpenAI API key")
 
+    # ── Anthropic ────────────────────────────────────────────────────────────
+    anthropic_api_key: str = Field(default="", description="Anthropic API key (Claude)")
+
     # ── Buzzsprout ────────────────────────────────────────────────────────────
     buzzsprout_api_key: str = Field(default="", description="Buzzsprout API token")
     buzzsprout_podcast_id: str = Field(default="", description="Buzzsprout podcast ID")

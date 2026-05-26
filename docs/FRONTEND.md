@@ -1,11 +1,37 @@
 # PodClick Frontend Reference
-> Last updated: 2026-05-22 | Update on new functions or state changes.
+> Last updated: 2026-05-26 | Update on new functions or state changes.
 
 ## Files
 - `frontend/youtube-studio.html` — Click Studio / Market Scout (~2,805 lines, 66 JS functions)
 - `frontend/studio.html` — Recording studio + teleprompter (~1,300 lines)
-- `frontend/social-studio.html` — Social Studio (Post Forge, Calendar, Hashtag Lab, Repurpose Hub) (~1,329 lines)
+- `frontend/social-studio.html` — Social Studio (Post Forge, Calendar, Hashtag Lab, Repurpose Hub) (~1,360 lines)
 - `frontend/brand-studio.html` — Brand Studio (~2,000 lines)
+- `frontend/blueprint.html` — Blueprint auto-generation (Step 5 — Phase 1)
+- `frontend/foundation.html` — Foundation intake (Step 1–4 — Phase 1)
+
+---
+
+## blueprint.html — Global State
+
+| Variable | Purpose |
+|----------|---------|
+| `_draftData` | Raw response from `/api/blueprint/auto-generate` (null until built) |
+| `_alreadyExisted` | `true` when a populated Blueprint was overwritten — drives overwrite warning |
+
+---
+
+## blueprint.html — JS Functions
+
+| Function | Description |
+|----------|-------------|
+| `loadFoundationStatus()` | GET `/api/foundation/status`, update Foundation tier tile; disable build button if not_ready |
+| `computeTier(n)` | Returns `{label, cls}` for sample count n. Tiers: not-ready/thin/solid/deep |
+| `startBuild()` | POST `/api/blueprint/auto-generate`, show spinner, call `populateDraft()` on success |
+| `populateDraft(d)` | Populate tone chips, cadence, POV, humor, vocabulary, audience, pain points, pillars, raw JSON |
+| `confirmBlueprint()` | UX confirmation only — Blueprint already saved by service on auto-generate |
+| `discardDraft()` | Hide draft panel, clear `_draftData`, re-enable build button |
+| `bpToast(msg, kind)` | Show notification toast (info/success/error) |
+| `escHtml(str)` | HTML-encode `& < > "` |
 
 ---
 
@@ -329,8 +355,8 @@ btn.addEventListener('click', () => copyText(btn, btn.dataset.text));
 |----------|-------------|
 | `switchForgeMode(mode)` | Toggle From Idea / From Episode / From Template tabs; sets `_forgeMode` |
 | `switchTemplate(name)` | Set `_activeTemplate`, highlight selected template button |
-| `runForge()` | Collect inputs by mode, POST to `/api/social/forge`, call `renderForgeOutput()` |
-| `renderForgeOutput(data)` | Render LinkedIn/Facebook/Instagram/X output blocks with char counts; auto-appends stored hashtags to Instagram if `_hashtagData` present; sets `copyBtn.dataset.text` + addEventListener for each copy button |
+| `runForge()` | Collect inputs by mode, POST to `/api/social/forge`. On 422 + `foundation_not_ready` → shows `#forge-empty-state` with link to /foundation. On success, shows thin-warning banner if `_foundation_thin`. Calls `renderForgeOutput()`. |
+| `renderForgeOutput(data)` | Render LinkedIn/Facebook/Instagram/X/TikTok output blocks with char counts; auto-appends stored hashtags to Instagram if `_hashtagData` present; sets `copyBtn.dataset.text` + addEventListener for each copy button |
 
 ### Content Calendar
 | Function | Description |

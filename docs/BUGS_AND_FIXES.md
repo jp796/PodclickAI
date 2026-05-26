@@ -400,3 +400,22 @@ When user clicks "Copy Caption" on the IG card, the text is copied and they post
 **Token storage:** `data/social_tokens.json` (never commit — add to .gitignore)
 
 **Files:** `main.py`, `frontend/social-studio.html`, `docs/API.md`
+
+---
+
+## 2026-05-26 — asyncpg AmbiguousParameterError on NULL platform filter
+
+**Symptom:** `POST /api/social/forge` returns 500 Internal Server Error after the Foundation-powered refactor. `get_brand_context()` throws `asyncpg.exceptions.AmbiguousParameterError: could not determine data type of parameter $3`.
+
+**Root Cause:** asyncpg cannot infer the type of a parameter used in `$3 IS NULL OR ... = $3` when the parameter might be NULL. The `IS NULL` predicate gives no type hint, and asyncpg requires an explicit cast.
+
+**Fix:** In `services/foundation.py`, changed:
+```sql
+AND (:platform IS NULL OR platform IS NULL OR platform = :platform)
+```
+to:
+```sql
+AND (CAST(:platform AS text) IS NULL OR platform IS NULL OR platform = CAST(:platform AS text))
+```
+
+**Files:** `services/foundation.py` (get_brand_context SQL query, line ~145)

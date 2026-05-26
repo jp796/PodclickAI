@@ -643,6 +643,34 @@
       <button class="btn-primary" onclick="runForge()">⚡ Generate Posts</button>
     </div>
 
+    <!-- Foundation empty-state (hidden until forge detects not_ready) -->
+    <div id="forge-empty-state" class="hidden" style="
+      background:rgba(255,85,126,.08); border:1px solid rgba(255,85,126,.25);
+      border-radius:10px; padding:20px 24px; margin-top:16px;">
+      <div style="font-size:14px; font-weight:700; color:#FF557E; margin-bottom:6px;">
+        Foundation not set. Brick can't write in your voice until he knows your voice.
+      </div>
+      <div style="font-size:13px; color:#8AAFC5; line-height:1.6; margin-bottom:14px;">
+        Pour at least 5 voice samples — a quick interview, a past post, or a voice memo — and Brick will
+        generate posts that actually sound like you.
+      </div>
+      <a href="/foundation" style="
+        display:inline-block; padding:9px 18px; border-radius:8px;
+        background:linear-gradient(135deg,#05C3F9,#00FBF0);
+        color:#030B2C; font-weight:800; font-size:13px; text-decoration:none;">
+        Pour the foundation →
+      </a>
+    </div>
+
+    <!-- Thin-foundation warning (shown when sample_count is 5–14) -->
+    <div id="forge-thin-warning" class="hidden" style="
+      background:rgba(255,179,64,.08); border:1px solid rgba(255,179,64,.25);
+      border-radius:8px; padding:10px 16px; margin-top:12px;
+      font-size:12px; color:#FFB340; font-weight:600;">
+      ⚠ Foundation is thin — Brick will write in your voice but results sharpen with more samples.
+      <a href="/foundation" style="color:#FFB340; margin-left:6px;">Add more →</a>
+    </div>
+
     <!-- Output area -->
     <div id="forge-output" class="hidden">
       <div id="forge-loading" class="spinner-wrap hidden">
@@ -993,9 +1021,15 @@ async function runForge() {
     return;
   }
 
-  const outputDiv = document.getElementById('forge-output');
-  const loadingDiv = document.getElementById('forge-loading');
-  const resultsDiv = document.getElementById('forge-results');
+  const outputDiv    = document.getElementById('forge-output');
+  const loadingDiv   = document.getElementById('forge-loading');
+  const resultsDiv   = document.getElementById('forge-results');
+  const emptyState   = document.getElementById('forge-empty-state');
+  const thinWarning  = document.getElementById('forge-thin-warning');
+
+  // Hide empty-state / thin warning on new attempt
+  emptyState.classList.add('hidden');
+  thinWarning.classList.add('hidden');
 
   outputDiv.classList.remove('hidden');
   loadingDiv.classList.remove('hidden');
@@ -1007,14 +1041,35 @@ async function runForge() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
     const data = await res.json();
-    _forgeData = data;
     loadingDiv.classList.add('hidden');
+
+    // Foundation gate: not_ready → show empty state
+    if (res.status === 422 && data.foundation_not_ready) {
+      outputDiv.classList.add('hidden');
+      emptyState.classList.remove('hidden');
+      return;
+    }
+
+    if (!res.ok) {
+      ssToast((data.detail || data.error || 'Generation failed.'), 'error');
+      outputDiv.classList.add('hidden');
+      return;
+    }
+
+    _forgeData = data;
     resultsDiv.classList.remove('hidden');
     renderForgeOutput(data);
+
+    // Thin foundation warning (5-14 samples — non-blocking)
+    if (data._foundation_thin) {
+      thinWarning.classList.remove('hidden');
+    }
+
   } catch (err) {
     loadingDiv.classList.add('hidden');
+    outputDiv.classList.add('hidden');
     ssToast('Generation failed: ' + err.message, 'error');
     console.error('[SocialStudio] runForge:', err);
   }

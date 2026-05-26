@@ -235,9 +235,15 @@ Notes:    All fields optional. Provide script to extract real talking points. Re
 
 ### POST /api/social/forge
 ```json
-Request:  { "mode": "idea|episode|template", "topic": "...", "title": "...", "hook_line": "...", "market": "...", "template": "Just Listed|Market Update|Client Win|Hot Take|Tip of the Week", "extra": {}, "brand_data": { ...brand_intake_response... } }
-Response: { "linkedin": "...", "facebook": "...", "instagram": "...", "x": "..." }
-Notes:    brand_data is optional but improves specificity. All content is Fair Housing compliant.
+Request:  { "mode": "idea|episode|template", "topic": "...", "title": "...", "hook_line": "...", "market": "...", "template": "Just Listed|Market Update|Client Win|Hot Take|Tip of the Week", "extra": {} }
+Response: { "linkedin": "...", "facebook": "...", "instagram": "...", "x": "...", "tiktok": "...", "_foundation_thin": false, "_sample_count": 12 }
+Errors:   422 { "error": "foundation_not_ready: ...", "foundation_not_ready": true } — Foundation gate failed (< 5 samples)
+Notes:
+  Foundation-powered — calls assert_foundation_ready() then get_brand_context() before any LLM work.
+  Uses claude-sonnet-4-5 with Foundation voice samples as few-shot examples in system prompt.
+  brand_data field is REMOVED — voice context now comes exclusively from Foundation.
+  All content is Fair Housing compliant.
+  _foundation_thin = true when sample_count is 5–14 (thin tier, non-blocking).
 ```
 
 ### POST /api/social/hashtags
@@ -271,6 +277,40 @@ Notes:    angles array has 5 items. At least one of url or transcript required.
 | GET | `/api/foundation/status` | Foundation readiness: sample_count, has_blueprint, is_ready, latest_score |
 | GET | `/api/foundation/score` | Latest foundation score + computed_at |
 | GET | `/api/foundation/samples` | Paginated list of voice samples (no vectors, similarity=0.0) |
+
+## Blueprint
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/blueprint` | Serve blueprint.html frontend page |
+| POST | `/api/blueprint/auto-generate` | Analyse Foundation samples → UPSERT Blueprint draft |
+
+### POST /api/blueprint/auto-generate
+```json
+Request:  {} (no body — uses TITAN_LOCATION_ID + ANTHROPIC_API_KEY from env)
+Response: {
+  "tone": ["direct","warm","no-fluff"],
+  "cadence": "Short punchy sentences. Pauses for emphasis.",
+  "pov": "first-person",
+  "humor_level": "dry, sparingly",
+  "vocabulary_yes": ["let's get into it","no fluff","here's the deal"],
+  "vocabulary_no": [],
+  "audience_primary": "First-time home sellers in Springfield MO",
+  "audience_pain_points": ["don't know where to start","scared of lowball offers"],
+  "pillars": [{"name":"Education","weight":0.4,"examples":["..."]}, ...],
+  "_already_existed": false,
+  "_sample_count": 12
+}
+Errors:
+  422 — "foundation_not_ready: Need at least 5 voice samples …" (gate failure)
+  500 — "ANTHROPIC_API_KEY not configured" or LLM returned invalid JSON
+Notes:
+  Precondition: >= 5 non-excluded voice samples in Foundation.
+  Uses claude-sonnet-4-5 at temperature=0.3, max_tokens=2000.
+  UPSERTs directly to blueprints table on success — caller reviews draft in UI.
+  Does NOT ingest anything into voice_samples.
+  _already_existed = true means a populated Blueprint was overwritten — frontend shows confirm dialog.
+```
 
 ### POST /api/foundation/ingest
 ```json

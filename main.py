@@ -35,8 +35,10 @@ app = FastAPI(title="Podcast Studio")
 
 # ── Phase 1 routers ───────────────────────────────────────────────────────────
 from routers.foundation import router as foundation_router  # noqa: E402
+from routers.blueprint import router as blueprint_router  # noqa: E402
 
 app.include_router(foundation_router, prefix="/api/foundation", tags=["Foundation"])
+app.include_router(blueprint_router, prefix="/api/blueprint", tags=["Blueprint"])
 
 
 @app.get("/health")
@@ -3594,6 +3596,11 @@ async def foundation_page():
     return FileResponse("frontend/foundation.html")
 
 
+@app.get("/blueprint")
+async def blueprint_page():
+    return FileResponse("frontend/blueprint.html")
+
+
 # ---------------------------------------------------------------------------
 # Social Studio
 # ---------------------------------------------------------------------------
@@ -3674,22 +3681,54 @@ async def social_hashtags_generate(request: Request):
 
 @app.post("/api/social/forge")
 async def social_forge(request: Request):
-    """Generate platform-optimized social posts from idea, episode, or template."""
+    """Generate platform-optimized social posts — Foundation-powered.
+
+    Gate: assert_foundation_ready() → BrandContextError if < 5 samples.
+    Flow: get_brand_context() → voice samples as few-shot → Claude claude-sonnet-4-5 call.
+    Returns foundation_not_ready error when Foundation is not poured.
+    """
     import json as _json
+    import anthropic as _anthropic
+    from db.engine import async_session as _async_session
+    from config import get_current_location_id as _get_loc, settings as _settings
+    from services.foundation import (
+        assert_foundation_ready as _assert_ready,
+        get_brand_context as _get_brand_ctx,
+        BrandContextError as _BrandContextError,
+    )
+    from schemas.foundation import BrandContextTaskType as _TaskType
+
     data = await request.json()
-    mode       = data.get("mode", "idea")
-    topic      = data.get("topic", "")
-    title      = data.get("title", "")
-    hook_line  = data.get("hook_line", "")
-    market     = data.get("market", "")
-    template   = data.get("template", "")
-    brand_data = data.get("brand_data", {})
-    extra      = data.get("extra", {})
+    mode      = data.get("mode", "idea")
+    topic     = data.get("topic", "")
+    title     = data.get("title", "")
+    hook_line = data.get("hook_line", "")
+    market    = data.get("market", "")
+    template  = data.get("template", "")
+    extra     = data.get("extra", {})
 
-    value_prop        = brand_data.get("value_prop", "")
-    brand_voice_guide = brand_data.get("brand_voice_guide", "")
-    niche             = brand_data.get("niche", "")
+    # ── 1. Foundation gate ──────────────────────────────────────────────────
+    location_id = _get_loc()
+    async with _async_session() as session:
+        try:
+            await _assert_ready(session=session, location_id=location_id)
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc), "foundation_not_ready": True}, status_code=422)
 
+        # ── 2. Brand context retrieval ──────────────────────────────────────
+        try:
+            ctx = await _get_brand_ctx(
+                session=session,
+                location_id=location_id,
+                task_type=_TaskType.linkedin_post,
+                topic=topic or title or template or None,
+                platform=None,
+                audience=None,
+            )
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+
+    # ── 3. Build content block ───────────────────────────────────────────────
     if mode == "idea":
         content_block = f"Topic/idea to post about: {topic}\nMarket: {market}"
     elif mode == "episode":
@@ -3700,55 +3739,134 @@ async def social_forge(request: Request):
         tmpl_fields = "\n".join(f"{k}: {v}" for k, v in extra.items() if v)
         content_block = f"Template: {template}\nMarket: {market}\n{tmpl_fields}"
 
+    # ── 4. Build Foundation-powered system prompt ────────────────────────────
+    bp = ctx.brand_profile
+    vp = ctx.voice_profile
+    vocab = ctx.vocabulary
+
     brand_block = ""
-    if value_prop:
-        brand_block += f"\nAgent value prop (weave in naturally): {value_prop}"
-    if brand_voice_guide:
-        brand_block += f"\nBrand voice: {brand_voice_guide}"
-    if niche:
-        brand_block += f"\nAgent niche: {niche}"
+    if bp.one_liner:
+        brand_block += f"\nValue proposition: {bp.one_liner}"
+    if bp.niche_primary:
+        brand_block += f"\nNiche: {bp.niche_primary}"
+    if bp.audience_primary:
+        brand_block += f"\nPrimary audience: {bp.audience_primary}"
+    if bp.differentiators:
+        brand_block += f"\nDifferentiators: {', '.join(bp.differentiators)}"
+
+    tone_str = ""
+    if vp.tone:
+        tones = vp.tone if isinstance(vp.tone, list) else [vp.tone]
+        tone_str = ", ".join(tones)
+    cadence_str = vp.cadence or ""
+    pov_str = vp.pov or "first-person"
+    humor_str = vp.humor_level or "none"
+
+    vocab_yes = ""
+    vocab_no = ""
+    if vocab.use:
+        words = vocab.use if isinstance(vocab.use, list) else [vocab.use]
+        vocab_yes = "Use naturally: " + ", ".join(words)
+    if vocab.avoid:
+        words = vocab.avoid if isinstance(vocab.avoid, list) else [vocab.avoid]
+        vocab_no = "Avoid entirely: " + ", ".join(words)
+
+    # Few-shot voice examples from Foundation
+    voice_examples = ""
+    if ctx.voice_samples:
+        examples = [f'  — "{s.text[:300]}"' for s in ctx.voice_samples[:3]]
+        voice_examples = "Voice samples (match this style):\n" + "\n".join(examples)
+
+    system_prompt = (
+        f"You are a social media copywriter writing in the authentic voice of a specific person.\n\n"
+        f"VOICE PROFILE:\n"
+        f"- Tone: {tone_str or 'direct, genuine'}\n"
+        f"- Cadence: {cadence_str or 'natural, punchy'}\n"
+        f"- POV: {pov_str}\n"
+        f"- Humor: {humor_str}\n"
+    )
+    if vocab_yes:
+        system_prompt += f"- {vocab_yes}\n"
+    if vocab_no:
+        system_prompt += f"- {vocab_no}\n"
+    if voice_examples:
+        system_prompt += f"\n{voice_examples}\n"
+    system_prompt += (
+        f"\n{brand_block}\n\n"
+        "Write posts that sound EXACTLY like these voice samples — same rhythm, same vocabulary, "
+        "same level of directness. Never generic. Never corporate.\n\n"
+        + _SOCIAL_FH_CLAUSE
+    )
 
     user_prompt = (
-        f"Generate social media posts for a real estate agent.\n\n"
-        f"{content_block}{brand_block}\n\n"
+        f"Generate social media posts.\n\n"
+        f"{content_block}\n\n"
         + (f"Use '{market}' specifically by name — never 'your market' or a placeholder.\n" if market else "")
         + "Requirements:\n"
         "- LinkedIn: 150-200 words, professional insight, lead with a bold statement or stat\n"
         "- Facebook: 100-150 words, community/story angle, conversational, end with a question\n"
         "- Instagram: 3 punchy bold lines followed by 5 relevant hashtags on a new line\n"
         "- X (Twitter): under 280 characters, bold hook, no hashtags unless essential\n"
-        "- TikTok: hook line first (pattern-interrupt, 10 words max), then 3-4 short punchy lines, end with 3 trending hashtags. Casual, energetic, spoken-word style.\n\n"
+        "- TikTok: hook line first (pattern-interrupt, 10 words max), then 3-4 short punchy lines, "
+        "end with 3 trending hashtags. Casual, energetic, spoken-word style.\n\n"
         "Return ONLY a JSON object with keys: linkedin, facebook, instagram, x, tiktok"
     )
 
+    # ── 5. Claude call ───────────────────────────────────────────────────────
     try:
-        import openai as _openai
-        client = _openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        response = client.chat.completions.create(
-            model="gpt-4o",
+        anthropic_key = _settings.anthropic_api_key
+        if not anthropic_key:
+            raise ValueError("ANTHROPIC_API_KEY not configured")
+
+        client = _anthropic.Anthropic(api_key=anthropic_key)
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=2000,
             temperature=0.75,
-            response_format={"type": "json_object"},
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a social media copywriter for real estate agents. "
-                        "Write platform-optimized posts that sound like a real person sharing genuine expertise — "
-                        "not a corporate account. Be specific, direct, and valuable. "
-                        "Avoid generic real estate phrases. Every post must reflect the agent's market and voice. "
-                        + _SOCIAL_FH_CLAUSE
-                    ),
-                },
-                {"role": "user", "content": user_prompt},
-            ],
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
         )
-        posts = _json.loads(response.choices[0].message.content)
+        raw = message.content[0].text if message.content else "{}"
+        # Strip code fences if present
+        import re as _re
+        raw = _re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=_re.IGNORECASE)
+        raw = _re.sub(r"\s*```$", "", raw.strip())
+        posts = _json.loads(raw.strip())
+
+        # ── 6. Audit log ─────────────────────────────────────────────────────
+        try:
+            import uuid as _uuid
+            async with _async_session() as audit_session:
+                await audit_session.execute(
+                    __import__("sqlalchemy").text("""
+                        INSERT INTO audit_log
+                            (id, location_id, action, payload, created_at)
+                        VALUES
+                            (:id, :loc_id, 'forge_post', CAST(:payload AS jsonb), now())
+                        ON CONFLICT DO NOTHING
+                    """),
+                    {
+                        "id": str(_uuid.uuid4()),
+                        "loc_id": location_id,
+                        "payload": _json.dumps({
+                            "mode": mode, "topic": topic, "model": "claude-sonnet-4-5",
+                            "sample_count": ctx.metadata.sample_count,
+                            "foundation_score": ctx.foundation_score,
+                        }),
+                    },
+                )
+                await audit_session.commit()
+        except Exception:
+            pass  # audit log failure must never block content delivery
+
         return JSONResponse({
-            "linkedin":  posts.get("linkedin", ""),
-            "facebook":  posts.get("facebook", ""),
-            "instagram": posts.get("instagram", ""),
-            "x":         posts.get("x", ""),
-            "tiktok":    posts.get("tiktok", ""),
+            "linkedin":          posts.get("linkedin", ""),
+            "facebook":          posts.get("facebook", ""),
+            "instagram":         posts.get("instagram", ""),
+            "x":                 posts.get("x", ""),
+            "tiktok":            posts.get("tiktok", ""),
+            "_foundation_thin":  ctx.metadata.sample_count < 15,
+            "_sample_count":     ctx.metadata.sample_count,
         })
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
