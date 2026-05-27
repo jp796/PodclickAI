@@ -73,6 +73,10 @@ class Settings(BaseSettings):
         default="",
         description="GHL location ID (legacy — prefer titan_location_id for new code)",
     )
+    ghl_user_id: str = Field(
+        default="",
+        description="GHL user ID for the location owner — required by social planner POST API",
+    )
 
     # ── OpenAI ───────────────────────────────────────────────────────────────
     openai_api_key: str = Field(default="", description="OpenAI API key")

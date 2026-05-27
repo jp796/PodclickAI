@@ -239,12 +239,20 @@ Decision needed: Upgrade Railway plan before Phase 1 starts, or use Neon (Postgr
 
 ---
 
-## 10. Phase 2A — Known Not-Yet-Exercised (2026-05-27)
+## 10. Phase 2A Carryover — RESOLVED (2026-05-27)
 
-**Success path for `post_attempts.status → published` has not been exercised.**
+**Success path exercised at Phase 2B start.**
 
-- Gate 1 testing used invalid test `account_id` values → all attempts landed as `status=failed` or `status=queued` (worker not running during test).
-- No row in `post_attempts` has ever reached `status=published` in testing.
-- The success path (GHLAdapter returns a real `provider_post_id` → PostAttempt flips to `published` → `verify_attempt` job confirms) is implemented and code-correct but has not been executed against a live GHL account.
+Two bugs found and fixed during Step 0:
+1. GHL requires `userId` in POST body (not in SOW spec). Fixed: `GHL_USER_ID` added to `.env` + `config.py`, injected into `_build_payload()`.
+2. GHL response structure is `results.post._id` (not top-level `id`). Fixed: updated `_post_to_ghl()` extraction chain.
 
-**Action at Phase 2B start:** Before writing any new code, fire one real publish through `/api/social/ghl/publish` with a connected account_id (from `/api/social/ghl/accounts`) and confirm `post_attempts` shows `status=published` with a real `provider_post_id`. This is the first thing on the 2B checklist.
+**Verified post_attempts row:**
+- `attempt_id`: `5d12ceb4-ebfe-474b-8355-bed5ddb04dbb`
+- `platform`: facebook
+- `status`: published ✅
+- `provider_post_id`: `6a16636ab6f9fe3ec368beec` ✅
+- `published_at`: `2026-05-27 03:22:18.422757+00:00` ✅
+- `attempt_count`: 1
+
+The full publish success path is now exercised and confirmed. Phase 2B build can proceed.

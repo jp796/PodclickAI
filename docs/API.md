@@ -497,3 +497,116 @@ Response:
 }
 Notes: emails array has 5 items — Welcome, Value, Story, Objection, CTA sequence.
 ```
+
+---
+
+## Content Board — 30-Day Calendar (Phase 2B)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/calendar` | Serve the 30-Day Content Board page (frontend/calendar.html) |
+| GET | `/api/calendar` | List posts in a date range (default today → +30 days) |
+| POST | `/api/calendar/auto-plan` | Auto-generate posts from Blueprint pillars + Vyral mix |
+| GET | `/api/calendar/posts/{post_id}` | Full post with all variants |
+| PATCH | `/api/calendar/posts/{post_id}` | Update Post.scheduled_at (draft or scheduled only) |
+| POST | `/api/calendar/posts/{post_id}/variants/generate` | Generate platform-specific variants via Foundation |
+| POST | `/api/calendar/posts/{post_id}/publish` | Publish all variants via Arq queue (stagger applied) |
+| DELETE | `/api/calendar/posts/{post_id}` | Delete a draft post (cascades variants + attempts) |
+
+### GET /api/calendar
+```json
+Query:    ?from_date=2026-05-27&to_date=2026-06-26 (both optional)
+Response: {
+  "posts": [
+    {
+      "id": "uuid", "bucket": "viral", "scheduled_at": "2026-05-28T15:00:00+00:00",
+      "status": "draft", "source": "auto_plan",
+      "caption_preview": "First 80 chars...",
+      "platforms_with_variants": ["base", "facebook"],
+      "created_at": "..."
+    }
+  ],
+  "from": "2026-05-27", "to": "2026-06-26"
+}
+```
+
+### POST /api/calendar/auto-plan
+```json
+Request:  { "slot_count": 30, "start_date": "2026-05-27" } (both optional)
+Response: {
+  "ok": true,
+  "posts_created": 30,
+  "mix_actual": { "viral": 12, "brand": 9, "personal": 6, "conversion": 3, "podcast": 0 },
+  "posts": [ { "id", "bucket", "pillar", "scheduled_at", "caption_preview" } ]
+}
+Notes:
+  Loads Blueprint pillars + vyral_mix (or defaults if missing).
+  Anti-clumping bucket sequence — no 3 consecutive same bucket.
+  Generates base captions concurrently via Foundation (semaphore=8, gpt-4o, temp=0.8).
+  Creates Post.status='draft', source='auto_plan', and PostVariant(platform='base').
+  Logs each generation as [auto_plan.generated].
+```
+
+### GET /api/calendar/posts/{post_id}
+```json
+Response: {
+  "id": "...", "bucket": "viral", "scheduled_at": "...",
+  "status": "draft", "source": "auto_plan",
+  "variants": [
+    { "id": "...", "platform": "base", "caption": "...", "first_comment": null,
+      "media_urls": [], "platform_specific": {"pillar": "Market intelligence"} },
+    { "id": "...", "platform": "facebook", "caption": "...", "first_comment": null,
+      "media_urls": [], "platform_specific": {} }
+  ]
+}
+```
+
+### PATCH /api/calendar/posts/{post_id}
+```json
+Request:  { "scheduled_at": "2026-06-01T15:00:00Z" }
+Response: { "id": "...", "bucket": "...", "scheduled_at": "...", "status": "..." }
+Errors:   400 if status not in ('draft', 'scheduled') | 404 if post not found
+```
+
+### POST /api/calendar/posts/{post_id}/variants/generate
+```json
+Request:  { "platforms": ["linkedin", "facebook", "instagram"] } (optional, default same)
+Response: {
+  "ok": true,
+  "generated": [ { "id", "platform", "caption", "first_comment" } ],
+  "skipped":   ["base"]  // platforms already present
+}
+Notes:
+  Loads base PostVariant caption as source content.
+  Per-platform style:
+    linkedin   = professional, 3-4 sentences, no hashtags
+    instagram  = conversational, line breaks, 5-8 sentences + 10-hashtag first_comment
+    facebook   = friendly community, 2-3 sentences, no hashtags
+    x          = under 280 chars, no hashtags
+  Concurrent generation via asyncio (semaphore=3). All calls route through get_brand_context().
+  Logs each as [variant.generated].
+```
+
+### POST /api/calendar/posts/{post_id}/publish
+```json
+Request:  (no body)
+Response: {
+  "ok": true,
+  "enqueued": [ { "platform": "linkedin", "attempt_id": "uuid", "stagger_s": 0 } ],
+  "skipped":  [ { "platform": "tiktok",   "reason": "no_connected_account" } ]
+}
+Notes:
+  Loads all non-base PostVariants for the post.
+  Matches each to a non-expired GHL account from ghl_adapter.list_accounts().
+  Stagger offsets: linkedin=0, x=60, facebook=120, instagram=180, tiktok=240, youtube=300, gmb=360.
+  Creates PostAttempt(status='queued') for each, sets Post.status='publishing'.
+  Enqueues 'publish_variant' jobs in Arq with _defer_by=stagger_s.
+  Worker must be running: venv/bin/python -m arq workers.publish_worker.WorkerSettings
+```
+
+### DELETE /api/calendar/posts/{post_id}
+```json
+Response: { "ok": true, "deleted": "post_id" }
+Errors:   400 if status != 'draft' | 404 if not found
+Notes:    Cascading delete via FK — removes PostVariants and PostAttempts.
+```

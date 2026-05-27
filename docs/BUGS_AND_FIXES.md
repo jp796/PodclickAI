@@ -431,3 +431,23 @@ AND (CAST(:platform AS text) IS NULL OR platform IS NULL OR platform = CAST(:pla
 ```
 
 **Files:** `services/foundation.py` (get_brand_context SQL query, line ~145)
+
+---
+
+## 2026-05-27 — Phase 2B Step 0: GHL userId required + post ID extraction wrong
+
+**Symptom 1:** `POST /api/social/ghl/publish` returned GHL 422 with "userId must be a string / userId should not be empty" after fixing the locationId issue.
+
+**Root Cause:** GHL Social Planner POST API requires a `userId` field in the body — the GHL user ID for the location owner. This is not documented in the SOW spec but is enforced by GHL. Private integration tokens don't auto-resolve userId.
+
+**Fix:** Added `GHL_USER_ID=HC2cVPG5PqLxs0uIUrrg` to `.env` and `config.py` (`ghl_user_id` field). Updated `_build_payload()` in `ghl_adapter.py` to include `"userId": settings.ghl_user_id` when set.
+
+**Symptom 2:** GHL publish returned HTTP 201 success but `provider_post_id` was empty string. Server logged "GHL publish returned no post ID".
+
+**Root Cause:** GHL response structure is `{"results": {"post": {"_id": "..."}}}` but our `_post_to_ghl()` was looking for top-level `id` or `post.id`.
+
+**Fix:** Updated ID extraction chain in `_post_to_ghl()` to: `result.get("results", {}).get("post", {}).get("_id")` with fallback to `result.get("id")` and `result.get("post", {}).get("id")`.
+
+**Files:** `services/ghl_adapter.py` — `_build_payload()` + `_post_to_ghl()`, `config.py`, `.env`
+
+**Verified:** `post_attempts` row `5d12ceb4` — `status=published`, `provider_post_id=6a16636ab6f9fe3ec368beec`, `published_at=2026-05-27 03:22:18`.

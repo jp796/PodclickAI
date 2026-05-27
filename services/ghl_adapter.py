@@ -244,12 +244,16 @@ class GHLAdapter(SocialService):
         platform_specific: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         # locationId goes in the URL path, NOT in the body — GHL rejects it in body
+        # userId is required by GHL social planner API (discovered 2026-05-27)
+        user_id = settings.ghl_user_id
         payload: Dict[str, Any] = {
             "type":       "post",
             "accountIds": [account_id],
             "summary":    caption,
             "status":     status,
         }
+        if user_id:
+            payload["userId"] = user_id
         if scheduled_at:
             payload["scheduledAt"] = scheduled_at
         if media_urls:
@@ -274,8 +278,11 @@ class GHLAdapter(SocialService):
                 resp = await client.post(url, headers=_ghl_headers(token), json=payload)
                 _raise_for_status(resp)
                 result  = resp.json()
+                # GHL social planner returns: {"results": {"post": {"_id": "..."}}, ...}
+                # Fallback chain: results.post._id → id → post.id
                 post_id = (
-                    result.get("id")
+                    (result.get("results") or {}).get("post", {}).get("_id")
+                    or result.get("id")
                     or result.get("post", {}).get("id", "")
                 )
                 if not post_id:

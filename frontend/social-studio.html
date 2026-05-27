@@ -691,9 +691,14 @@
   ═════════════════════════════════════════════════════════════════ -->
   <div id="panel-calendar" class="panel">
     <p class="section-heading">Content Calendar</p>
-    <p class="section-sub">Plan and queue your weekly social posts at a glance.</p>
+    <p class="section-sub">Plan and queue your social posts across 30 days.</p>
+    <div style="margin-top:20px; text-align:center;">
+      <a href="/calendar" class="btn-primary" style="display:inline-block; text-decoration:none; max-width:360px;">Open 30-Day Content Board →</a>
+      <p class="text-muted" style="margin-top:12px; font-size:13px;">Plan your full month, auto-generate posts from your Blueprint, and Ship It directly to GHL.</p>
+    </div>
 
-    <div class="cal-grid" id="cal-grid"></div>
+    <!-- Legacy week-grid still rendered for backward compat with loadCalendar() -->
+    <div class="cal-grid" id="cal-grid" style="margin-top:24px;"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════════

@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Content Board · PodClickAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #030B2C;
+      --surface:  #050E3D;
+      --surface2: #0a1845;
+      --surface3: #102078;
+      --border:   #1a2c6b;
+      --accent:   #05C3F9;
+      --accent2:  #00FBF0;
+      --coral:    #FF557E;
+      --text:     #e2e8f0;
+      --text-muted: #8899cc;
+      --green:    #2EE49C;
+      --yellow:   #FFB340;
+      --radius:   12px;
+      --font:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px; border-bottom: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0;
+    }
+    .brand { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; display: flex; align-items: center; }
+    .brand .pc { color: var(--text); }
+    .brand .ai {
+      background: linear-gradient(135deg, #05C3F9, #00FBF0);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .brand .sub { font-size: 13px; font-weight: 500; color: var(--text-muted); margin-left: 10px; }
+    .nav-toggle {
+      display: flex; align-items: center; gap: 2px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 3px;
+    }
+    .nav-toggle a {
+      padding: 5px 13px; border-radius: 7px; font-size: 12px; font-weight: 600;
+      color: var(--text-muted); text-decoration: none;
+      transition: background .12s, color .12s;
+    }
+    .nav-toggle a:hover { background: var(--surface); color: var(--text); }
+    .nav-toggle a.active { background: var(--surface); color: var(--accent); }
+
+    .content-area {
+      flex: 1; overflow-y: auto; padding: 28px 24px;
+      max-width: 1300px; width: 100%; margin: 0 auto;
+    }
+
+    /* Page header */
+    .page-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+    }
+    .page-head h1 {
+      font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+    }
+    .page-head .sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+    .head-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+    .view-toggle {
+      display: flex; gap: 2px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 9px; padding: 3px;
+    }
+    .view-toggle button {
+      padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
+      border: none; background: none; color: var(--text-muted); cursor: pointer;
+      transition: background .12s, color .12s;
+    }
+    .view-toggle button:hover { color: var(--text); }
+    .view-toggle button.active { background: var(--surface); color: var(--accent); }
+
+    .btn-primary {
+      padding: 10px 18px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border: none; border-radius: 10px; color: var(--bg);
+      font-size: 13px; font-weight: 800; cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    .btn-secondary {
+      padding: 9px 16px; border-radius: 10px; font-size: 13px; font-weight: 600;
+      border: 1px solid var(--accent); background: rgba(5,195,249,0.08);
+      color: var(--accent); cursor: pointer; transition: all .15s;
+    }
+    .btn-secondary:hover { background: rgba(5,195,249,0.18); }
+
+    .btn-ghost {
+      padding: 9px 16px; border-radius: 10px; font-size: 13px; font-weight: 600;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text-muted); cursor: pointer; transition: all .15s;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+
+    .btn-danger-ghost {
+      padding: 9px 16px; border-radius: 10px; font-size: 13px; font-weight: 600;
+      border: 1px solid var(--coral); background: rgba(255,85,126,0.08);
+      color: var(--coral); cursor: pointer; transition: all .15s;
+    }
+    .btn-danger-ghost:hover { background: rgba(255,85,126,0.18); }
+
+    /* Stats strip */
+    .stats-strip {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+      margin-bottom: 22px;
+    }
+    @media (max-width: 800px) { .stats-strip { grid-template-columns: repeat(2, 1fr); } }
+    .stat-cell {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 12px 14px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .stat-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+    }
+    .stat-info { display: flex; flex-direction: column; }
+    .stat-label { font-size: 10px; font-weight: 700; color: var(--text-muted);
+                  text-transform: uppercase; letter-spacing: 0.08em; }
+    .stat-num { font-size: 18px; font-weight: 800; color: var(--text); margin-top: 2px; }
+
+    /* Bucket colors */
+    .bucket-viral { background: #ef4444; }
+    .bucket-brand { background: #6366f1; }
+    .bucket-personal { background: #22c55e; }
+    .bucket-conversion { background: #f59e0b; }
+    .bucket-podcast { background: #a855f7; }
+
+    /* Month grid */
+    .month-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;
+      margin-top: 8px;
+    }
+    .dow-header {
+      padding: 8px 6px; font-size: 11px; font-weight: 700;
+      color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.08em; text-align: center;
+    }
+    .day-cell {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 8px; min-height: 110px;
+      display: flex; flex-direction: column; gap: 5px;
+      transition: border-color .12s;
+    }
+    .day-cell.is-today { border-color: var(--accent); }
+    .day-cell.is-other-month { opacity: 0.4; }
+    .day-cell.drag-over { border-color: var(--accent2); background: rgba(0,251,240,0.05); }
+    .day-num {
+      font-size: 12px; font-weight: 700; color: var(--text);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .day-num .dow { font-size: 9px; color: var(--text-muted); font-weight: 600;
+                    text-transform: uppercase; letter-spacing: 0.06em; }
+    .day-empty { font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic; }
+
+    .post-pill {
+      display: flex; align-items: center; gap: 6px;
+      padding: 4px 7px; border-radius: 6px;
+      background: var(--surface2); border: 1px solid var(--border);
+      cursor: grab; font-size: 11px; line-height: 1.3;
+      transition: transform .1s, border-color .12s;
+    }
+    .post-pill:hover { border-color: var(--accent); }
+    .post-pill:active { cursor: grabbing; }
+    .post-pill .dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+    }
+    .post-pill .pill-text {
+      flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      color: var(--text);
+    }
+    .post-pill.status-published { opacity: 0.65; }
+    .post-pill.status-publishing { border-color: var(--yellow); }
+    .post-pill.status-failed { border-color: var(--coral); }
+
+    /* Week view */
+    .week-controls {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+    }
+    .week-controls button {
+      padding: 6px 14px; border-radius: 7px; background: var(--surface2);
+      border: 1px solid var(--border); color: var(--text); cursor: pointer;
+      font-size: 13px;
+    }
+    .week-controls button:hover { border-color: var(--accent); }
+    .week-label { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+
+    /* List view */
+    .list-table {
+      width: 100%; border-collapse: collapse; margin-top: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .list-table th, .list-table td {
+      padding: 10px 12px; text-align: left;
+      border-bottom: 1px solid var(--border); font-size: 12px;
+    }
+    .list-table th {
+      background: var(--surface2); color: var(--text-muted);
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+      font-size: 10px;
+    }
+    .list-table tr:last-child td { border-bottom: none; }
+    .list-table tr:hover { background: rgba(5,195,249,0.04); }
+
+    /* Modal overlay */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(3,11,44,0.85); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 22px;
+      width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto;
+    }
+    .modal-box.modal-sm { max-width: 460px; }
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+    }
+    .modal-header h3 {
+      font-size: 16px; font-weight: 800; color: var(--text);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .modal-header button {
+      background: none; border: none; color: var(--text-muted);
+      font-size: 22px; cursor: pointer; line-height: 1;
+    }
+    .modal-header button:hover { color: var(--text); }
+    .modal-section { margin-bottom: 18px; }
+    .modal-section label {
+      display: block; font-size: 10px; font-weight: 700;
+      color: var(--text-muted); margin-bottom: 6px;
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .caption-preview {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px; font-size: 13px;
+      line-height: 1.5; color: var(--text); white-space: pre-wrap;
+    }
+    .modal-actions {
+      display: flex; gap: 10px; margin-top: 22px;
+      padding-top: 16px; border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    /* Variant tab bar */
+    .variant-tab-bar {
+      display: flex; gap: 2px; margin-bottom: 12px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 9px; padding: 3px; flex-wrap: wrap;
+    }
+    .variant-tab {
+      padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+      border: none; background: none; color: var(--text-muted); cursor: pointer;
+      transition: background .12s, color .12s;
+    }
+    .variant-tab:hover { color: var(--text); }
+    .variant-tab.active { background: var(--surface); color: var(--accent); }
+
+    textarea {
+      width: 100%; padding: 10px 12px;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 13px;
+      font-family: var(--font); outline: none; resize: vertical;
+      line-height: 1.5;
+    }
+    textarea:focus { border-color: var(--accent); }
+
+    .spinner-wrap {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px; color: var(--text-muted); font-size: 13px;
+    }
+    .spinner {
+      width: 18px; height: 18px; border: 2px solid var(--border);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin 0.7s linear infinite; flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hidden { display: none !important; }
+    .text-muted { color: var(--text-muted); }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 2000;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 18px; max-width: 380px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      font-size: 13px; color: var(--text);
+      opacity: 0; transform: translateY(20px);
+      transition: opacity .2s, transform .2s;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.success { border-color: var(--green); }
+    #toast.error { border-color: var(--coral); }
+
+    /* Empty state */
+    .empty-state {
+      background: var(--surface); border: 2px dashed var(--border);
+      border-radius: var(--radius); padding: 40px; text-align: center;
+      margin-top: 20px;
+    }
+    .empty-state h3 { font-size: 16px; margin-bottom: 8px; }
+    .empty-state p { color: var(--text-muted); font-size: 13px; margin-bottom: 16px; }
+
+    /* Modal result */
+    #modal-result {
+      margin-top: 12px; padding: 12px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; font-size: 12px; line-height: 1.5;
+    }
+    #modal-result.success { border-color: var(--green); }
+    #modal-result.error { border-color: var(--coral); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span class="pc">PodClick</span><span class="ai">AI</span>
+      <span class="sub">· Content Board</span>
+    </div>
+    <nav class="nav-toggle">
+      <a href="/studio">Studio</a>
+      <a href="/social-studio">Social Studio</a>
+      <a href="/calendar" class="active">Calendar</a>
+      <a href="/foundation">Foundation</a>
+      <a href="/blueprint">Blueprint</a>
+    </nav>
+  </header>
+
+  <div class="content-area">
+
+    <div class="page-head">
+      <div>
+        <h1>30-Day Content Board</h1>
+        <p class="sub">Plan the month. Drag to reschedule. Ship It when ready.</p>
+      </div>
+      <div class="head-actions">
+        <div class="view-toggle">
+          <button id="vt-month" class="active" onclick="setViewMode('month')">Month</button>
+          <button id="vt-week" onclick="setViewMode('week')">Week</button>
+          <button id="vt-list" onclick="setViewMode('list')">List</button>
+        </div>
+        <button class="btn-secondary" onclick="openAutoPlanModal()">⚡ Auto-plan 30 Days</button>
+      </div>
+    </div>
+
+    <!-- Stats strip -->
+    <div class="stats-strip" id="stats-strip">
+      <div class="stat-cell">
+        <div class="stat-dot bucket-viral"></div>
+        <div class="stat-info"><div class="stat-label">Viral</div><div class="stat-num" id="stat-viral">0</div></div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-dot bucket-brand"></div>
+        <div class="stat-info"><div class="stat-label">Brand</div><div class="stat-num" id="stat-brand">0</div></div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-dot bucket-personal"></div>
+        <div class="stat-info"><div class="stat-label">Personal</div><div class="stat-num" id="stat-personal">0</div></div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-dot bucket-conversion"></div>
+        <div class="stat-info"><div class="stat-label">Conversion</div><div class="stat-num" id="stat-conversion">0</div></div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-dot bucket-podcast"></div>
+        <div class="stat-info"><div class="stat-label">Podcast</div><div class="stat-num" id="stat-podcast">0</div></div>
+      </div>
+    </div>
+
+    <!-- View containers -->
+    <div id="view-month"></div>
+    <div id="view-week" class="hidden">
+      <div class="week-controls">
+        <button onclick="changeWeek(-1)">‹ Prev</button>
+        <span class="week-label" id="week-label">This week</span>
+        <button onclick="changeWeek(1)">Next ›</button>
+      </div>
+      <div id="week-grid"></div>
+    </div>
+    <div id="view-list" class="hidden"></div>
+
+    <div id="empty-state" class="empty-state hidden">
+      <h3>Board's clear.</h3>
+      <p>Auto-plan 30 days from your Blueprint, or add posts one at a time.</p>
+      <button class="btn-primary" onclick="openAutoPlanModal()">⚡ Auto-plan 30 Days</button>
+    </div>
+
+  </div>
+
+  <!-- Auto-plan modal -->
+  <div id="autoplan-modal" class="modal-overlay hidden">
+    <div class="modal-box modal-sm">
+      <div class="modal-header">
+        <h3>⚡ Auto-plan 30 Days</h3>
+        <button onclick="closeAutoPlanModal()">×</button>
+      </div>
+      <p style="font-size:13px;line-height:1.5;color:var(--text);">
+        Brick will generate 30 posts from your Blueprint and Foundation. This creates drafts — nothing goes live until you Ship It.
+      </p>
+      <p class="text-muted" style="font-size:12px;margin-top:10px;">
+        Mix: 12 viral · 9 brand · 6 personal · 3 conversion
+      </p>
+      <div id="autoplan-loading" class="hidden spinner-wrap">
+        <div class="spinner"></div>
+        <span id="autoplan-status-text">Brick's laying out 30 days from your Foundation...</span>
+      </div>
+      <div id="autoplan-actions" class="modal-actions">
+        <button class="btn-primary" onclick="runAutoPlan()">Generate Plan</button>
+        <button class="btn-ghost" onclick="closeAutoPlanModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Publish/Edit modal -->
+  <div id="publish-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modal-date-bucket">Post</h3>
+        <button onclick="closePostModal()">×</button>
+      </div>
+
+      <div class="modal-section">
+        <label>Base Content</label>
+        <div id="modal-base-caption" class="caption-preview">—</div>
+      </div>
+
+      <div class="modal-section">
+        <label>Platform Variants</label>
+        <div class="variant-tab-bar" id="variant-tab-bar">
+          <button class="variant-tab active" data-platform="linkedin" onclick="switchVariantTab('linkedin')">LinkedIn</button>
+          <button class="variant-tab" data-platform="facebook" onclick="switchVariantTab('facebook')">Facebook</button>
+          <button class="variant-tab" data-platform="instagram" onclick="switchVariantTab('instagram')">Instagram</button>
+        </div>
+        <div id="variant-loading" class="hidden spinner-wrap">
+          <div class="spinner"></div>
+          Brick's pulling from your Foundation...
+        </div>
+        <div id="variant-content">
+          <textarea id="variant-caption" rows="6" placeholder="Generate variants to see platform-specific content"></textarea>
+          <div id="instagram-first-comment" class="hidden" style="margin-top:10px;">
+            <label>First Comment (hashtags)</label>
+            <textarea id="variant-first-comment" rows="2"></textarea>
+          </div>
+        </div>
+        <button id="btn-generate-variants" class="btn-secondary" style="margin-top:10px;" onclick="generateVariants()">⚡ Generate Platform Variants</button>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-primary" id="btn-ship-it" onclick="shipIt()">🚀 Ship It</button>
+        <button class="btn-danger-ghost" id="btn-delete-post" onclick="deletePost()">Delete Draft</button>
+      </div>
+
+      <div id="modal-result" class="hidden"></div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+<script>
+// ── Global state ────────────────────────────────────────────────────────────
+let _posts = [];
+let _viewMode = 'month';
+let _weekOffset = 0;
+let _activePostId = null;
+let _activePost = null;
+let _activeVariants = {};
+let _activePlatform = 'linkedin';
+let _ghlAccounts = [];
+let _draggingPostId = null;
+
+// ── Utilities ───────────────────────────────────────────────────────────────
+function escHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function toast(msg, kind) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = '';
+  if (kind === 'success') el.classList.add('success');
+  else if (kind === 'error') el.classList.add('error');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function fmtDateTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+    ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+function isoDate(d) {
+  return d.toISOString().slice(0, 10);
+}
+function bucketLabel(b) {
+  if (!b) return 'Post';
+  return b.charAt(0).toUpperCase() + b.slice(1);
+}
+
+// ── View mode ───────────────────────────────────────────────────────────────
+function setViewMode(mode) {
+  _viewMode = mode;
+  document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active'));
+  document.getElementById('vt-' + mode).classList.add('active');
+  document.getElementById('view-month').classList.toggle('hidden', mode !== 'month');
+  document.getElementById('view-week').classList.toggle('hidden', mode !== 'week');
+  document.getElementById('view-list').classList.toggle('hidden', mode !== 'list');
+  renderView();
+}
+
+function renderView() {
+  if (_viewMode === 'month') renderMonth();
+  else if (_viewMode === 'week') renderWeek();
+  else renderList();
+}
+
+// ── Initial load ────────────────────────────────────────────────────────────
+async function loadCalendar30() {
+  try {
+    const res = await fetch('/api/calendar');
+    const data = await res.json();
+    if (data.error) { toast(data.error, 'error'); return; }
+    _posts = data.posts || [];
+    updateStatsStrip();
+    renderView();
+    document.getElementById('empty-state').classList.toggle('hidden', _posts.length > 0);
+  } catch (e) {
+    toast('Stalled. ' + e.message, 'error');
+  }
+}
+
+async function loadGHLAccounts() {
+  try {
+    const res = await fetch('/api/social/ghl/accounts');
+    const data = await res.json();
+    _ghlAccounts = data.accounts || [];
+  } catch (e) {
+    console.warn('GHL accounts load failed:', e);
+  }
+}
+
+function updateStatsStrip() {
+  const counts = { viral: 0, brand: 0, personal: 0, conversion: 0, podcast: 0 };
+  for (const p of _posts) {
+    if (p.bucket && counts[p.bucket] !== undefined) counts[p.bucket]++;
+  }
+  document.getElementById('stat-viral').textContent = counts.viral;
+  document.getElementById('stat-brand').textContent = counts.brand;
+  document.getElementById('stat-personal').textContent = counts.personal;
+  document.getElementById('stat-conversion').textContent = counts.conversion;
+  document.getElementById('stat-podcast').textContent = counts.podcast;
+}
+
+// ── Month view ─────────────────────────────────────────────────────────────
+function renderMonth() {
+  const root = document.getElementById('view-month');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  let html = '<div class="month-grid">';
+  for (const d of DOW) html += `<div class="dow-header">${d}</div>`;
+
+  // Group posts by date
+  const postsByDate = {};
+  for (const p of _posts) {
+    if (!p.scheduled_at) continue;
+    const dateKey = p.scheduled_at.slice(0, 10);
+    (postsByDate[dateKey] = postsByDate[dateKey] || []).push(p);
+  }
+
+  // Find start of grid (the Sunday on or before today)
+  const start = new Date(today);
+  start.setDate(start.getDate() - start.getDay());
+
+  // 35 cells (5 weeks)
+  for (let i = 0; i < 35; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const dateKey = isoDate(d);
+    const isToday = d.getTime() === today.getTime();
+    const isOtherMonth = d.getMonth() !== today.getMonth() && i > 7;
+    const slots = (postsByDate[dateKey] || []).sort((a, b) =>
+      (a.scheduled_at || '').localeCompare(b.scheduled_at || '')
+    );
+
+    let cellCls = 'day-cell';
+    if (isToday) cellCls += ' is-today';
+
+    html += `<div class="${cellCls}" data-date="${dateKey}"
+        ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">`;
+    html += `<div class="day-num">${d.getDate()}<span class="dow">${DOW[d.getDay()]}</span></div>`;
+
+    if (slots.length === 0) {
+      html += '<div class="day-empty">—</div>';
+    } else {
+      for (const p of slots) {
+        const text = (p.caption_preview || bucketLabel(p.bucket)).slice(0, 40);
+        html += `<div class="post-pill status-${p.status}" draggable="true"
+              data-post-id="${p.id}"
+              ondragstart="onDragStart(event,'${p.id}')"
+              onclick="openPostModal('${p.id}')">
+            <div class="dot bucket-${p.bucket || 'brand'}"></div>
+            <div class="pill-text" title="${escHtml(p.caption_preview)}">${escHtml(text)}</div>
+          </div>`;
+      }
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  root.innerHTML = html;
+}
+
+// ── Week view ──────────────────────────────────────────────────────────────
+function renderWeek() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setDate(start.getDate() - today.getDay() + (_weekOffset * 7));
+
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  document.getElementById('week-label').textContent =
+    fmtDate(start.toISOString()) + ' – ' + fmtDate(end.toISOString());
+
+  const postsByDate = {};
+  for (const p of _posts) {
+    if (!p.scheduled_at) continue;
+    const dateKey = p.scheduled_at.slice(0, 10);
+    (postsByDate[dateKey] = postsByDate[dateKey] || []).push(p);
+  }
+
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  let html = '<div class="month-grid">';
+  for (const d of DOW) html += `<div class="dow-header">${d}</div>`;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    const dateKey = isoDate(d);
+    const isToday = d.getTime() === today.getTime();
+    const slots = (postsByDate[dateKey] || []).sort((a, b) =>
+      (a.scheduled_at || '').localeCompare(b.scheduled_at || '')
+    );
+    let cellCls = 'day-cell';
+    if (isToday) cellCls += ' is-today';
+    html += `<div class="${cellCls}" data-date="${dateKey}"
+        ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)"
+        style="min-height:180px;">`;
+    html += `<div class="day-num">${d.getDate()}<span class="dow">${DOW[d.getDay()]}</span></div>`;
+    if (slots.length === 0) html += '<div class="day-empty">—</div>';
+    else {
+      for (const p of slots) {
+        const text = (p.caption_preview || bucketLabel(p.bucket)).slice(0, 60);
+        html += `<div class="post-pill status-${p.status}" draggable="true"
+              data-post-id="${p.id}"
+              ondragstart="onDragStart(event,'${p.id}')"
+              onclick="openPostModal('${p.id}')">
+            <div class="dot bucket-${p.bucket || 'brand'}"></div>
+            <div class="pill-text">${escHtml(text)}</div>
+          </div>`;
+      }
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  document.getElementById('week-grid').innerHTML = html;
+}
+
+function changeWeek(delta) {
+  _weekOffset += delta;
+  renderWeek();
+}
+
+// ── List view ──────────────────────────────────────────────────────────────
+function renderList() {
+  const root = document.getElementById('view-list');
+  if (_posts.length === 0) { root.innerHTML = ''; return; }
+  const sorted = [..._posts].sort((a, b) =>
+    (a.scheduled_at || '').localeCompare(b.scheduled_at || '')
+  );
+  let html = '<table class="list-table"><thead><tr>';
+  html += '<th>Date / Time</th><th>Bucket</th><th>Caption</th><th>Platforms</th><th>Status</th><th>Actions</th>';
+  html += '</tr></thead><tbody>';
+  for (const p of sorted) {
+    const platforms = (p.platforms_with_variants || []).filter(x => x !== 'base').join(', ') || '—';
+    html += `<tr>
+      <td>${fmtDateTime(p.scheduled_at)}</td>
+      <td><span class="post-pill" style="display:inline-flex;"><div class="dot bucket-${p.bucket || 'brand'}"></div><div class="pill-text">${bucketLabel(p.bucket)}</div></span></td>
+      <td>${escHtml((p.caption_preview || '').slice(0, 60))}</td>
+      <td>${escHtml(platforms)}</td>
+      <td>${escHtml(p.status)}</td>
+      <td>
+        <button class="btn-ghost" style="padding:5px 10px;font-size:11px;" onclick="openPostModal('${p.id}')">Open</button>
+        ${p.status === 'draft' ? `<button class="btn-danger-ghost" style="padding:5px 10px;font-size:11px;" onclick="quickDelete('${p.id}')">Delete</button>` : ''}
+      </td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  root.innerHTML = html;
+}
+
+async function quickDelete(postId) {
+  if (!confirm('Delete this draft?')) return;
+  try {
+    const res = await fetch('/api/calendar/posts/' + postId, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.error) { toast(data.error, 'error'); return; }
+    toast('Draft removed.', 'success');
+    _posts = _posts.filter(p => p.id !== postId);
+    updateStatsStrip();
+    renderView();
+  } catch (e) {
+    toast('Stalled. ' + e.message, 'error');
+  }
+}
+
+// ── Drag & drop reschedule ─────────────────────────────────────────────────
+function onDragStart(e, postId) {
+  _draggingPostId = postId;
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+}
+function onDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+async function onDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const newDate = e.currentTarget.dataset.date;
+  if (!_draggingPostId || !newDate) return;
+  // Build new datetime — keep time component if existing
+  const post = _posts.find(p => p.id === _draggingPostId);
+  let timeStr = '15:00:00';
+  if (post && post.scheduled_at) {
+    timeStr = post.scheduled_at.slice(11, 19);
+  }
+  const newIso = newDate + 'T' + timeStr + 'Z';
+  try {
+    const res = await fetch('/api/calendar/posts/' + _draggingPostId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scheduled_at: newIso }),
+    });
+    const data = await res.json();
+    if (data.error) { toast(data.error, 'error'); return; }
+    toast('Lined up for ' + fmtDate(newIso) + '.', 'success');
+    await loadCalendar30();
+  } catch (err) {
+    toast('Stalled. ' + err.message, 'error');
+  }
+  _draggingPostId = null;
+}
+
+// ── Auto-plan modal ────────────────────────────────────────────────────────
+function openAutoPlanModal() {
+  document.getElementById('autoplan-modal').classList.remove('hidden');
+  document.getElementById('autoplan-loading').classList.add('hidden');
+  document.getElementById('autoplan-actions').classList.remove('hidden');
+}
+function closeAutoPlanModal() {
+  document.getElementById('autoplan-modal').classList.add('hidden');
+}
+
+async function runAutoPlan() {
+  document.getElementById('autoplan-loading').classList.remove('hidden');
+  document.getElementById('autoplan-actions').classList.add('hidden');
+  try {
+    const today = new Date();
+    const startDate = today.toISOString().slice(0, 10);
+    const res = await fetch('/api/calendar/auto-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slot_count: 30, start_date: startDate }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      toast('Stalled. ' + data.error, 'error');
+      document.getElementById('autoplan-loading').classList.add('hidden');
+      document.getElementById('autoplan-actions').classList.remove('hidden');
+      return;
+    }
+    const mix = data.mix_actual || {};
+    const msg = `${data.posts_created} posts lined up. Mix: ${mix.viral || 0} viral, ${mix.brand || 0} brand, ${mix.personal || 0} personal, ${mix.conversion || 0} conversion.`;
+    toast(msg, 'success');
+    closeAutoPlanModal();
+    await loadCalendar30();
+  } catch (e) {
+    toast('Stalled. ' + e.message, 'error');
+    document.getElementById('autoplan-loading').classList.add('hidden');
+    document.getElementById('autoplan-actions').classList.remove('hidden');
+  }
+}
+
+// ── Post modal ─────────────────────────────────────────────────────────────
+async function openPostModal(postId) {
+  _activePostId = postId;
+  _activePost = null;
+  _activeVariants = {};
+  _activePlatform = 'linkedin';
+
+  document.getElementById('publish-modal').classList.remove('hidden');
+  document.getElementById('modal-base-caption').textContent = 'Loading...';
+  document.getElementById('modal-result').classList.add('hidden');
+  document.getElementById('variant-caption').value = '';
+  document.getElementById('variant-first-comment').value = '';
+  document.getElementById('instagram-first-comment').classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/calendar/posts/' + postId);
+    const data = await res.json();
+    if (data.error) { toast(data.error, 'error'); return; }
+    _activePost = data;
+
+    // Header
+    const dateStr = data.scheduled_at ? fmtDate(data.scheduled_at) : 'No date';
+    document.getElementById('modal-date-bucket').innerHTML =
+      `<div class="dot bucket-${data.bucket || 'brand'}" style="width:14px;height:14px;border-radius:50%;"></div>` +
+      `${dateStr} — ${bucketLabel(data.bucket)}`;
+
+    // Base caption
+    const baseV = (data.variants || []).find(v => v.platform === 'base');
+    document.getElementById('modal-base-caption').textContent =
+      baseV ? baseV.caption : '(no base caption)';
+
+    // Load existing variants into state
+    for (const v of (data.variants || [])) {
+      if (v.platform !== 'base') {
+        _activeVariants[v.platform] = {
+          caption: v.caption || '',
+          first_comment: v.first_comment || '',
+        };
+      }
+    }
+
+    // Toggle delete button — only enabled for drafts
+    document.getElementById('btn-delete-post').style.display =
+      data.status === 'draft' ? '' : 'none';
+
+    switchVariantTab(_activePlatform);
+  } catch (e) {
+    toast('Stalled. ' + e.message, 'error');
+  }
+}
+
+function closePostModal() {
+  document.getElementById('publish-modal').classList.add('hidden');
+  _activePostId = null;
+  _activePost = null;
+}
+
+function switchVariantTab(platform) {
+  _activePlatform = platform;
+  document.querySelectorAll('.variant-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.platform === platform);
+  });
+  const v = _activeVariants[platform];
+  document.getElementById('variant-caption').value = v ? v.caption : '';
+  document.getElementById('variant-first-comment').value = v ? (v.first_comment || '') : '';
+  document.getElementById('instagram-first-comment').classList.toggle('hidden', platform !== 'instagram');
+}
+
+async function generateVariants() {
+  if (!_activePostId) return;
+  document.getElementById('variant-loading').classList.remove('hidden');
+  document.getElementById('btn-generate-variants').disabled = true;
+  try {
+    const res = await fetch('/api/calendar/posts/' + _activePostId + '/variants/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ platforms: ['linkedin', 'facebook', 'instagram'] }),
+    });
+    const data = await res.json();
+    if (data.error) {
+      toast('Stalled. ' + data.error, 'error');
+      return;
+    }
+    for (const g of (data.generated || [])) {
+      _activeVariants[g.platform] = {
+        caption: g.caption,
+        first_comment: g.first_comment || '',
+      };
+    }
+    toast('Platform variants ready.', 'success');
+    switchVariantTab(_activePlatform);
+  } catch (e) {
+    toast('Stalled. ' + e.message, 'error');
+  } finally {
+    document.getElementById('variant-loading').classList.add('hidden');
+    document.getElementById('btn-generate-variants').disabled = false;
+  }
+}
+
+async function shipIt() {
+  if (!_activePostId) return;
+  if (Object.keys(_activeVariants).length === 0) {
+    toast('Generate platform variants first.', 'error');
+    return;
+  }
+  document.getElementById('btn-ship-it').disabled = true;
+  try {
+    const res = await fetch('/api/calendar/posts/' + _activePostId + '/publish', {
+      method: 'POST',
+    });
+    const data = await res.json();
+    if (data.error) {
+      showModalResult(data.error, 'error');
+      toast('Stalled. ' + data.error, 'error');
+      return;
+    }
+    const enq = (data.enqueued || []).length;
+    const skip = (data.skipped || []).length;
+    if (skip > 0) {
+      toast(`Partially lined up — ${enq} queued, ${skip} skipped. Check your Platform Connections.`, 'success');
+      showModalResult(
+        `Queued ${enq} platforms. Skipped ${skip}: ` +
+          (data.skipped || []).map(s => `${s.platform} (${s.reason})`).join(', '),
+        'success'
+      );
+    } else {
+      toast(`Lined up. ${enq} platform${enq === 1 ? '' : 's'} in the queue.`, 'success');
+      showModalResult(`Queued ${enq} platform${enq === 1 ? '' : 's'}. Brick will keep an eye on it.`, 'success');
+    }
+    setTimeout(() => { closePostModal(); loadCalendar30(); }, 1800);
+  } catch (e) {
+    toast('Stalled. ' + e.message, 'error');
+  } finally {
+    document.getElementById('btn-ship-it').disabled = false;
+  }
+}
+
+function showModalResult(msg, kind) {
+  const el = document.getElementById('modal-result');
+  el.textContent = msg;
+  el.className = '';
+  if (kind === 'success') el.classList.add('success');
+  else if (kind === 'error') el.classList.add('error');
+  el.classList.remove('hidden');
+}
+
+async function deletePost() {
+  if (!_activePostId) return;
+  if (!confirm('Delete this draft? This cannot be undone.')) return;
+  try {
+    const res = await fetch('/api/calendar/posts/' + _activePostId, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.error) { toast(data.error, 'error'); return; }
+    toast('Draft removed.', 'success');
+    _posts = _posts.filter(p => p.id !== _activePostId);
+    closePostModal();
+    updateStatsStrip();
+    renderView();
+  } catch (e) {
+    toast('Stalled. ' + e.message, 'error');
+  }
+}
+
+// ── Boot ───────────────────────────────────────────────────────────────────
+loadCalendar30();
+loadGHLAccounts();
+</script>
+
+</body>
+</html>

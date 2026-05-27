@@ -5988,3 +5988,741 @@ Return JSON with:
         return JSONResponse(json.loads(resp.choices[0].message.content))
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# PHASE 2B — 30-Day Calendar (Content Board)
+# ════════════════════════════════════════════════════════════════════════════════
+
+import logging as _cal_logging
+_cal_logger = _cal_logging.getLogger("podclick.calendar")
+
+
+@app.get("/calendar")
+async def serve_calendar():
+    """Serve the 30-Day Content Board page."""
+    from fastapi.responses import FileResponse
+    return FileResponse("frontend/calendar.html")
+
+
+# ── Helper: anti-clumping bucket distribution ────────────────────────────────────
+def _distribute_buckets(vyral_mix: dict, slot_count: int) -> list:
+    """Distribute buckets across slots with anti-clumping (no 3 consecutive same)."""
+    from collections import Counter
+    pool = []
+    for bucket, weight in vyral_mix.items():
+        pool.extend([bucket] * round(slot_count * float(weight)))
+    while len(pool) > slot_count:
+        pool.pop()
+    while len(pool) < slot_count:
+        # pad with the heaviest weighted bucket
+        heaviest = max(vyral_mix, key=lambda k: vyral_mix[k])
+        pool.append(heaviest)
+    result = []
+    counts = Counter(pool)
+    prev1 = None
+    prev2 = None
+    for _ in range(slot_count):
+        avail = {b: c for b, c in counts.items() if c > 0}
+        if not avail:
+            break
+        if prev1 == prev2 and prev1 is not None:
+            filtered = {b: c for b, c in avail.items() if b != prev1}
+            if filtered:
+                avail = filtered
+        chosen = max(avail, key=lambda k: avail[k])
+        result.append(chosen)
+        counts[chosen] -= 1
+        prev2, prev1 = prev1, chosen
+    return result
+
+
+# ── Route: GET /api/calendar ─────────────────────────────────────────────────────
+@app.get("/api/calendar")
+async def calendar_list(from_date: Optional[str] = None, to_date: Optional[str] = None):
+    """Return all posts for the location within the given date range."""
+    import uuid as _uuidmod
+    from datetime import date, datetime, timedelta, timezone
+    from config import get_current_location_id as _gcl
+    from db.engine import async_session as _async_session
+    from db.models import Post as _Post, PostVariant as _PostVariant
+    from sqlalchemy import select, and_
+
+    loc = _gcl()
+    loc_uuid = _uuidmod.UUID(loc)
+
+    today = datetime.now(timezone.utc).date()
+    try:
+        d_from = date.fromisoformat(from_date) if from_date else today
+        d_to = date.fromisoformat(to_date) if to_date else (today + timedelta(days=30))
+    except ValueError:
+        return JSONResponse({"error": "invalid date format (expected YYYY-MM-DD)"}, status_code=400)
+
+    dt_from = datetime.combine(d_from, datetime.min.time(), tzinfo=timezone.utc)
+    dt_to = datetime.combine(d_to, datetime.max.time(), tzinfo=timezone.utc)
+
+    async with _async_session() as session:
+        # Get posts in range (include drafts with no scheduled_at if within window via created_at)
+        stmt = (
+            select(_Post)
+            .where(_Post.location_id == loc_uuid)
+            .where(
+                and_(
+                    (_Post.scheduled_at >= dt_from) | (_Post.scheduled_at.is_(None)),
+                    (_Post.scheduled_at <= dt_to) | (_Post.scheduled_at.is_(None)),
+                )
+            )
+            .order_by(_Post.scheduled_at.asc().nulls_last(), _Post.created_at.desc())
+        )
+        result = await session.execute(stmt)
+        posts = result.scalars().all()
+
+        post_ids = [p.id for p in posts]
+        variants_by_post = {}
+        if post_ids:
+            v_stmt = select(_PostVariant).where(_PostVariant.post_id.in_(post_ids))
+            v_result = await session.execute(v_stmt)
+            for v in v_result.scalars().all():
+                variants_by_post.setdefault(v.post_id, []).append(v)
+
+        out_posts = []
+        for p in posts:
+            variants = variants_by_post.get(p.id, [])
+            # caption preview from base variant first, else first variant
+            base_v = next((v for v in variants if v.platform == "base"), None)
+            preview_src = (base_v.caption if base_v else (variants[0].caption if variants else "")) or ""
+            out_posts.append({
+                "id": str(p.id),
+                "bucket": p.bucket,
+                "scheduled_at": p.scheduled_at.isoformat() if p.scheduled_at else None,
+                "status": p.status,
+                "source": p.source,
+                "caption_preview": preview_src[:80],
+                "platforms_with_variants": [v.platform for v in variants],
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            })
+
+    return JSONResponse({
+        "posts": out_posts,
+        "from": d_from.isoformat(),
+        "to": d_to.isoformat(),
+    })
+
+
+# ── Route: POST /api/calendar/auto-plan ──────────────────────────────────────────
+@app.post("/api/calendar/auto-plan")
+async def calendar_auto_plan(request: Request):
+    """Auto-generate a 30-day plan from the user's Blueprint + Foundation."""
+    import uuid as _uuidmod
+    import asyncio as _asyncio
+    from datetime import date, datetime, timedelta, timezone
+    from config import get_current_location_id as _gcl, settings as _settings
+    from db.engine import async_session as _async_session
+    from db.models import Post as _Post, PostVariant as _PostVariant
+    from sqlalchemy import text as _sql_text
+    from services.foundation import (
+        get_brand_context as _get_brand_ctx,
+        BrandContextError as _BrandCtxErr,
+    )
+    from schemas.foundation import BrandContextTaskType as _TaskType
+    import openai as _openai
+
+    body = await request.json() if (await request.body()) else {}
+    slot_count = int(body.get("slot_count") or 30)
+    start_date_s = body.get("start_date")
+
+    if slot_count < 1 or slot_count > 60:
+        return JSONResponse({"error": "slot_count must be 1-60"}, status_code=400)
+
+    today = datetime.now(timezone.utc).date()
+    try:
+        start_date = date.fromisoformat(start_date_s) if start_date_s else today
+    except ValueError:
+        return JSONResponse({"error": "invalid start_date"}, status_code=400)
+
+    loc = _gcl()
+    loc_uuid = _uuidmod.UUID(loc)
+
+    # 1. Load Blueprint
+    default_pillars = [
+        {"name": "Market intelligence", "weight": 0.3},
+        {"name": "Client wins", "weight": 0.3},
+        {"name": "Local lifestyle", "weight": 0.2},
+        {"name": "Real estate tips", "weight": 0.2},
+    ]
+    default_vyral_mix = {"viral": 0.4, "brand": 0.3, "personal": 0.2, "conversion": 0.1}
+
+    async with _async_session() as session:
+        bp_result = await session.execute(
+            _sql_text("SELECT pillars, vyral_mix FROM blueprints WHERE location_id = :loc_id"),
+            {"loc_id": loc},
+        )
+        bp_row = bp_result.mappings().first()
+        if bp_row is not None:
+            pillars = bp_row.get("pillars") or default_pillars
+            vyral_mix = bp_row.get("vyral_mix") or default_vyral_mix
+        else:
+            pillars = default_pillars
+            vyral_mix = default_vyral_mix
+
+        if not pillars:
+            pillars = default_pillars
+        if not vyral_mix:
+            vyral_mix = default_vyral_mix
+
+    # 2. Bucket distribution (anti-clumping)
+    bucket_sequence = _distribute_buckets(vyral_mix, slot_count)
+
+    # 3. Pillar weighted round-robin assignment
+    sorted_pillars = sorted(pillars, key=lambda p: -float(p.get("weight", 0)))
+    pillar_pool = []
+    for p in sorted_pillars:
+        count = max(1, round(slot_count * float(p.get("weight", 1.0 / len(sorted_pillars)))))
+        pillar_pool.extend([p.get("name", "Content")] * count)
+    while len(pillar_pool) < slot_count:
+        pillar_pool.append(sorted_pillars[0].get("name", "Content"))
+    pillar_pool = pillar_pool[:slot_count]
+
+    # 4. Generate captions concurrently with semaphore (max 8)
+    sem = _asyncio.Semaphore(8)
+    client = _openai.AsyncOpenAI(api_key=_settings.openai_api_key)
+
+    async def _gen_caption(idx: int, bucket: str, pillar: str) -> str:
+        """Generate caption via Foundation + OpenAI."""
+        async with sem:
+            try:
+                async with _async_session() as gen_session:
+                    try:
+                        ctx = await _get_brand_ctx(
+                            session=gen_session,
+                            location_id=loc,
+                            task_type=_TaskType.linkedin_post,
+                            topic=pillar,
+                            platform=None,
+                            audience=None,
+                        )
+                    except _BrandCtxErr:
+                        ctx = None
+
+                bp_obj = ctx.brand_profile if ctx else None
+                vp_obj = ctx.voice_profile if ctx else None
+                vocab = ctx.vocabulary if ctx else None
+
+                full_name = (bp_obj.full_name if bp_obj else None) or "a real estate professional"
+                voice_tone = (vp_obj.tone if vp_obj else None) or []
+                vocab_yes = (vocab.use if vocab else None) or []
+                vocab_no = (vocab.avoid if vocab else None) or []
+
+                voice_samples_block = ""
+                if ctx and ctx.voice_samples:
+                    samples = "\n---\n".join(s.text[:300] for s in ctx.voice_samples[:3])
+                    voice_samples_block = f"\n\nVoice samples for guidance:\n{samples}"
+
+                system_prompt = (
+                    f"You are writing social media content for {full_name}. "
+                    f"Voice tone: {', '.join(voice_tone) if voice_tone else 'direct, professional'}. "
+                    f"Use these words/phrases naturally: {', '.join(vocab_yes[:10]) if vocab_yes else '(none specified)'}. "
+                    f"Avoid: {', '.join(vocab_no[:10]) if vocab_no else '(none specified)'}."
+                    f"{voice_samples_block}"
+                )
+                user_prompt = (
+                    f"Write a {bucket} social media post (2-3 sentences, no hashtags) "
+                    f"about: {pillar}. Use the examples as voice guidance. "
+                    f"Return only the post text, no preamble."
+                )
+
+                resp = await client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.8,
+                    max_tokens=300,
+                )
+                return (resp.choices[0].message.content or "").strip()
+            except Exception as exc:
+                _cal_logger.warning("[auto_plan.gen_error] idx=%d error=%s", idx, exc)
+                return f"({pillar}) — content draft pending."
+
+    tasks = [
+        _gen_caption(i, bucket_sequence[i], pillar_pool[i])
+        for i in range(slot_count)
+    ]
+    captions = await _asyncio.gather(*tasks)
+
+    # 5. Create Post + base PostVariant for each slot
+    posts_created = []
+    mix_actual = {"viral": 0, "brand": 0, "personal": 0, "conversion": 0, "podcast": 0}
+
+    async with _async_session() as session:
+        for i in range(slot_count):
+            slot_date = start_date + timedelta(days=i)
+            # 10am Chicago = 15:00 UTC (CDT approximation)
+            scheduled_at = datetime(
+                slot_date.year, slot_date.month, slot_date.day,
+                15, 0, 0, tzinfo=timezone.utc,
+            )
+            bucket = bucket_sequence[i]
+            pillar = pillar_pool[i]
+            caption = captions[i]
+
+            post_obj = _Post(
+                location_id=loc_uuid,
+                bucket=bucket,
+                scheduled_at=scheduled_at,
+                status="draft",
+                source="auto_plan",
+            )
+            session.add(post_obj)
+            await session.flush()
+
+            variant_obj = _PostVariant(
+                post_id=post_obj.id,
+                platform="base",
+                caption=caption,
+                platform_specific={"pillar": pillar},
+            )
+            session.add(variant_obj)
+            await session.flush()
+
+            mix_actual[bucket] = mix_actual.get(bucket, 0) + 1
+            posts_created.append({
+                "id": str(post_obj.id),
+                "bucket": bucket,
+                "pillar": pillar,
+                "scheduled_at": scheduled_at.isoformat(),
+                "caption_preview": caption[:80],
+            })
+
+            _cal_logger.info(
+                "[auto_plan.generated] post_id=%s bucket=%s pillar=%s",
+                str(post_obj.id), bucket, pillar,
+            )
+
+        await session.commit()
+
+    return JSONResponse({
+        "ok": True,
+        "posts_created": len(posts_created),
+        "mix_actual": mix_actual,
+        "posts": posts_created,
+    })
+
+
+# ── Route: GET /api/calendar/posts/{post_id} ────────────────────────────────────
+@app.get("/api/calendar/posts/{post_id}")
+async def calendar_get_post(post_id: str):
+    """Return a full post with all variants."""
+    import uuid as _uuidmod
+    from db.engine import async_session as _async_session
+    from db.models import Post as _Post, PostVariant as _PostVariant
+    from sqlalchemy import select
+
+    try:
+        pid = _uuidmod.UUID(post_id)
+    except ValueError:
+        return JSONResponse({"error": "invalid post_id"}, status_code=400)
+
+    async with _async_session() as session:
+        post = (await session.execute(select(_Post).where(_Post.id == pid))).scalar_one_or_none()
+        if post is None:
+            return JSONResponse({"error": "post not found"}, status_code=404)
+
+        v_result = await session.execute(
+            select(_PostVariant).where(_PostVariant.post_id == pid)
+        )
+        variants = v_result.scalars().all()
+
+    return JSONResponse({
+        "id": str(post.id),
+        "bucket": post.bucket,
+        "scheduled_at": post.scheduled_at.isoformat() if post.scheduled_at else None,
+        "status": post.status,
+        "source": post.source,
+        "variants": [
+            {
+                "id": str(v.id),
+                "platform": v.platform,
+                "caption": v.caption,
+                "first_comment": v.first_comment,
+                "media_urls": v.media_urls or [],
+                "platform_specific": v.platform_specific or {},
+            }
+            for v in variants
+        ],
+    })
+
+
+# ── Route: PATCH /api/calendar/posts/{post_id} ──────────────────────────────────
+@app.patch("/api/calendar/posts/{post_id}")
+async def calendar_patch_post(post_id: str, request: Request):
+    """Update post scheduled_at. Only allowed if status in (draft, scheduled)."""
+    import uuid as _uuidmod
+    from datetime import datetime
+    from db.engine import async_session as _async_session
+    from db.models import Post as _Post
+    from sqlalchemy import select
+
+    try:
+        pid = _uuidmod.UUID(post_id)
+    except ValueError:
+        return JSONResponse({"error": "invalid post_id"}, status_code=400)
+
+    body = await request.json()
+    new_sched = body.get("scheduled_at")
+    if not new_sched:
+        return JSONResponse({"error": "scheduled_at required"}, status_code=400)
+    try:
+        new_dt = datetime.fromisoformat(new_sched.replace("Z", "+00:00"))
+    except ValueError:
+        return JSONResponse({"error": "invalid scheduled_at"}, status_code=400)
+
+    async with _async_session() as session:
+        post = (await session.execute(select(_Post).where(_Post.id == pid))).scalar_one_or_none()
+        if post is None:
+            return JSONResponse({"error": "post not found"}, status_code=404)
+        if post.status not in ("draft", "scheduled"):
+            return JSONResponse(
+                {"error": f"cannot reschedule post with status '{post.status}'"},
+                status_code=400,
+            )
+        post.scheduled_at = new_dt
+        await session.commit()
+
+        return JSONResponse({
+            "id": str(post.id),
+            "bucket": post.bucket,
+            "scheduled_at": post.scheduled_at.isoformat() if post.scheduled_at else None,
+            "status": post.status,
+        })
+
+
+# ── Route: POST /api/calendar/posts/{post_id}/variants/generate ─────────────────
+@app.post("/api/calendar/posts/{post_id}/variants/generate")
+async def calendar_generate_variants(post_id: str, request: Request):
+    """Generate platform-specific variants for a post."""
+    import uuid as _uuidmod
+    import asyncio as _asyncio
+    from config import get_current_location_id as _gcl, settings as _settings
+    from db.engine import async_session as _async_session
+    from db.models import Post as _Post, PostVariant as _PostVariant
+    from sqlalchemy import select
+    from services.foundation import (
+        get_brand_context as _get_brand_ctx,
+        BrandContextError as _BrandCtxErr,
+    )
+    from schemas.foundation import BrandContextTaskType as _TaskType
+    import openai as _openai
+
+    try:
+        pid = _uuidmod.UUID(post_id)
+    except ValueError:
+        return JSONResponse({"error": "invalid post_id"}, status_code=400)
+
+    body = await request.json() if (await request.body()) else {}
+    platforms = body.get("platforms") or ["linkedin", "facebook", "instagram"]
+
+    loc = _gcl()
+    client = _openai.AsyncOpenAI(api_key=_settings.openai_api_key)
+
+    async with _async_session() as session:
+        post = (await session.execute(select(_Post).where(_Post.id == pid))).scalar_one_or_none()
+        if post is None:
+            return JSONResponse({"error": "post not found"}, status_code=404)
+
+        existing_v = (
+            await session.execute(select(_PostVariant).where(_PostVariant.post_id == pid))
+        ).scalars().all()
+        existing_platforms = {v.platform for v in existing_v}
+        base_v = next((v for v in existing_v if v.platform == "base"), None)
+        base_caption = (base_v.caption if base_v else "") or ""
+
+        if not base_caption:
+            return JSONResponse(
+                {"error": "no base variant found — cannot generate platform variants"},
+                status_code=400,
+            )
+
+        to_generate = [p for p in platforms if p not in existing_platforms]
+        if not to_generate:
+            return JSONResponse({"ok": True, "generated": [], "skipped": list(existing_platforms)})
+
+    task_map = {
+        "linkedin": _TaskType.linkedin_post,
+        "facebook": _TaskType.facebook_post,
+        "instagram": _TaskType.instagram_caption,
+        "x": _TaskType.x_post,
+        "tiktok": _TaskType.tiktok_caption,
+        "youtube": _TaskType.youtube_short_caption,
+    }
+
+    sem = _asyncio.Semaphore(3)
+
+    async def _gen_variant(platform: str):
+        async with sem:
+            task_type = task_map.get(platform, _TaskType.linkedin_post)
+            try:
+                async with _async_session() as gen_session:
+                    try:
+                        ctx = await _get_brand_ctx(
+                            session=gen_session,
+                            location_id=loc,
+                            task_type=task_type,
+                            topic="",
+                            platform=platform,
+                            audience=None,
+                        )
+                    except _BrandCtxErr:
+                        ctx = None
+
+                bp_obj = ctx.brand_profile if ctx else None
+                vp_obj = ctx.voice_profile if ctx else None
+                vocab = ctx.vocabulary if ctx else None
+                full_name = (bp_obj.full_name if bp_obj else None) or "a real estate professional"
+                voice_tone = (vp_obj.tone if vp_obj else None) or []
+                vocab_yes = (vocab.use if vocab else None) or []
+
+                # Platform-specific style guidance
+                if platform == "linkedin":
+                    style = "Professional tone. 3-4 sentences. No hashtags."
+                elif platform == "instagram":
+                    style = "Conversational, with line breaks. 5-8 sentences. No hashtags in caption."
+                elif platform == "facebook":
+                    style = "Friendly, community tone. 2-3 sentences. No hashtags."
+                elif platform == "x":
+                    style = "Under 280 characters. Punchy. No hashtags."
+                else:
+                    style = "Use the base content with minor platform-appropriate tweaks."
+
+                system_prompt = (
+                    f"You rewrite social posts for {full_name}. "
+                    f"Voice tone: {', '.join(voice_tone) if voice_tone else 'direct, professional'}. "
+                    f"Use these words naturally: {', '.join(vocab_yes[:8]) if vocab_yes else '(none specified)'}."
+                )
+                user_prompt = (
+                    f"Rewrite this base post for {platform}. {style}\n\n"
+                    f"Base post:\n{base_caption}\n\n"
+                    "Return only the rewritten post text. No preamble."
+                )
+
+                resp = await client.chat.completions.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.7,
+                    max_tokens=500,
+                )
+                caption = (resp.choices[0].message.content or "").strip()
+
+                first_comment = None
+                if platform == "instagram":
+                    fc_resp = await client.chat.completions.create(
+                        model="gpt-4o",
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": (
+                                f"Generate exactly 10 relevant hashtags for this Instagram post. "
+                                f"Return them as a single line, space-separated, each starting with #. "
+                                f"No other text.\n\nPost:\n{caption}"
+                            )},
+                        ],
+                        temperature=0.7,
+                        max_tokens=200,
+                    )
+                    first_comment = (fc_resp.choices[0].message.content or "").strip()
+
+                return platform, caption, first_comment
+            except Exception as exc:
+                _cal_logger.warning("[variant.gen_error] platform=%s error=%s", platform, exc)
+                return platform, None, None
+
+    results = await _asyncio.gather(*[_gen_variant(p) for p in to_generate])
+
+    generated = []
+    async with _async_session() as session:
+        for platform, caption, first_comment in results:
+            if not caption:
+                continue
+            variant_obj = _PostVariant(
+                post_id=pid,
+                platform=platform,
+                caption=caption,
+                first_comment=first_comment,
+            )
+            session.add(variant_obj)
+            await session.flush()
+            generated.append({
+                "id": str(variant_obj.id),
+                "platform": platform,
+                "caption": caption,
+                "first_comment": first_comment,
+            })
+            _cal_logger.info("[variant.generated] post_id=%s platform=%s", post_id, platform)
+        await session.commit()
+
+    return JSONResponse({
+        "ok": True,
+        "generated": generated,
+        "skipped": list(existing_platforms),
+    })
+
+
+# ── Route: POST /api/calendar/posts/{post_id}/publish ───────────────────────────
+@app.post("/api/calendar/posts/{post_id}/publish")
+async def calendar_publish_post(post_id: str):
+    """Publish all variants of a post immediately via the Arq queue."""
+    import uuid as _uuidmod
+    from datetime import datetime, timedelta, timezone
+    from config import get_current_location_id as _gcl
+    from db.engine import async_session as _async_session
+    from db.models import Post as _Post, PostVariant as _PostVariant, PostAttempt as _PostAttempt
+    from sqlalchemy import select, update as _upd
+    from services.ghl_adapter import ghl_adapter as _ghl
+
+    PLATFORM_STAGGER = {
+        "linkedin": 0,
+        "x": 60,
+        "facebook": 120,
+        "instagram": 180,
+        "tiktok": 240,
+        "youtube": 300,
+        "gmb": 360,
+    }
+
+    try:
+        pid = _uuidmod.UUID(post_id)
+    except ValueError:
+        return JSONResponse({"error": "invalid post_id"}, status_code=400)
+
+    loc = _gcl()
+
+    # 1. Load GHL accounts
+    try:
+        accounts = await _ghl.list_accounts(loc)
+    except Exception as exc:
+        return JSONResponse({"error": f"failed to load GHL accounts: {exc}"}, status_code=500)
+
+    # Map platform → account_id (first non-expired match)
+    platform_to_account = {}
+    for acct in accounts:
+        plat = (acct.get("platform") or "").lower()
+        if acct.get("expired"):
+            continue
+        if plat and plat not in platform_to_account:
+            platform_to_account[plat] = acct.get("id") or acct.get("_id")
+
+    async with _async_session() as session:
+        post = (await session.execute(select(_Post).where(_Post.id == pid))).scalar_one_or_none()
+        if post is None:
+            return JSONResponse({"error": "post not found"}, status_code=404)
+
+        variants = (
+            await session.execute(
+                select(_PostVariant).where(
+                    _PostVariant.post_id == pid,
+                    _PostVariant.platform != "base",
+                )
+            )
+        ).scalars().all()
+
+        if not variants:
+            return JSONResponse(
+                {"error": "no platform variants to publish — generate variants first"},
+                status_code=400,
+            )
+
+        enqueued = []
+        skipped = []
+
+        for v in variants:
+            platform = v.platform
+            account_id = platform_to_account.get(platform)
+            if not account_id:
+                skipped.append({"platform": platform, "reason": "no_connected_account"})
+                continue
+
+            offset_s = PLATFORM_STAGGER.get(platform, 0)
+
+            # Update variant platform_specific with ghl_account_id (preserve existing)
+            ps = dict(v.platform_specific or {})
+            ps["ghl_account_id"] = account_id
+            ps["stagger_offset_s"] = offset_s
+            v.platform_specific = ps
+
+            attempt_obj = _PostAttempt(
+                post_id=pid,
+                variant_id=v.id,
+                platform=platform,
+                provider="ghl",
+                status="queued",
+            )
+            session.add(attempt_obj)
+            await session.flush()
+
+            enqueued.append({
+                "platform": platform,
+                "attempt_id": str(attempt_obj.id),
+                "stagger_s": offset_s,
+            })
+            _ghl_logger.info(
+                "[publish.requested] attempt_id=%s platform=%s stagger_offset_s=%d location=%s",
+                str(attempt_obj.id), platform, offset_s, loc,
+            )
+
+        # Flip post status to publishing
+        post.status = "publishing"
+        await session.commit()
+
+    # 2. Enqueue arq jobs
+    if enqueued:
+        try:
+            from arq import create_pool
+            from workers.publish_worker import WorkerSettings as _WS
+            redis = await create_pool(_WS.redis_settings)
+            for item in enqueued:
+                await redis.enqueue_job(
+                    "publish_variant",
+                    item["attempt_id"],
+                    _defer_by=timedelta(seconds=item["stagger_s"]),
+                )
+            await redis.close()
+        except Exception as exc:
+            _ghl_logger.warning("Failed to enqueue arq jobs: %s — variants queued in DB only", exc)
+
+    return JSONResponse({
+        "ok": True,
+        "enqueued": enqueued,
+        "skipped": skipped,
+    })
+
+
+# ── Route: DELETE /api/calendar/posts/{post_id} ─────────────────────────────────
+@app.delete("/api/calendar/posts/{post_id}")
+async def calendar_delete_post(post_id: str):
+    """Delete a draft post (cascades to variants and attempts)."""
+    import uuid as _uuidmod
+    from db.engine import async_session as _async_session
+    from db.models import Post as _Post
+    from sqlalchemy import select, delete as _del
+
+    try:
+        pid = _uuidmod.UUID(post_id)
+    except ValueError:
+        return JSONResponse({"error": "invalid post_id"}, status_code=400)
+
+    async with _async_session() as session:
+        post = (await session.execute(select(_Post).where(_Post.id == pid))).scalar_one_or_none()
+        if post is None:
+            return JSONResponse({"error": "post not found"}, status_code=404)
+        if post.status != "draft":
+            return JSONResponse(
+                {"error": f"can only delete drafts (status='{post.status}')"},
+                status_code=400,
+            )
+        await session.execute(_del(_Post).where(_Post.id == pid))
+        await session.commit()
+
+    return JSONResponse({"ok": True, "deleted": post_id})
