@@ -383,6 +383,7 @@ class Post(Base):
     # project_id deferred to Phase 5 — no FK constraint yet
     project_id: Column = Column(UUID(as_uuid=True), nullable=True)
     bucket: Column = Column(Text, nullable=True)
+    base_caption: Column = Column(Text, nullable=True)   # base content — replaces PostVariant(platform='base')
     scheduled_at: Column = Column(DateTime(timezone=True), nullable=True)
     status: Column = Column(Text, server_default="draft", nullable=False)
     source: Column = Column(Text, nullable=True)
@@ -405,7 +406,7 @@ class PostVariant(Base):
     __table_args__ = (
         UniqueConstraint("post_id", "platform", name="uq_post_variants_post_platform"),
         CheckConstraint(
-            "platform IN ('base', 'linkedin', 'instagram', 'facebook', 'tiktok', 'youtube', 'x', 'gmb', 'threads')",
+            "platform IN ('linkedin', 'instagram', 'facebook', 'tiktok', 'youtube', 'x', 'gmb', 'threads')",
             name="ck_post_variants_platform",
         ),
     )

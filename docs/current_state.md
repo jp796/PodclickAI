@@ -239,7 +239,23 @@ Decision needed: Upgrade Railway plan before Phase 1 starts, or use Neon (Postgr
 
 ---
 
-## 10. Phase 2A Carryover — RESOLVED (2026-05-27)
+## 10. Auto-Plan Voice Quality — Known Limitation (2026-05-27)
+
+**Gate 3 voice-match NOT claimed as passed.**
+
+Auto-plan captions use Blueprint pillar names (e.g. "Practical Process Guidance") as the `topic` parameter to Foundation retrieval. Pillar names are too abstract for the semantic search — the embedding query matches broadly rather than finding the most on-voice samples. As a result, auto-plan captions are materially weaker than Post Forge captions, which receive concrete topics (e.g. "FHA loan limits").
+
+**Root cause:** `calendar_auto_plan` passes `topic=pillar` to `get_brand_context()`. Pillars are category labels, not specific content topics. The Foundation retrieval query `"linkedin post about Practical Process Guidance"` returns low-signal neighbors compared to `"linkedin post about FHA loan limits and first-time buyers"`.
+
+**Impact:** Auto-plan captions fall back to more generic voice. Brick voice and Foundation vocabulary are still injected, but the few-shot samples are less precisely matched.
+
+**Phase 3 fix:** When Brick proposes posts, it will supply concrete per-post topics derived from content calendar planning (news, local events, pillar sub-topics). The topic passed to Foundation retrieval will be specific, not a pillar label. This resolves the quality gap without any retrieval system changes.
+
+**Not a Phase 2B bug.** Documented here so Gate 3 is not falsely claimed as voice-match passing.
+
+---
+
+## 11. Phase 2A Carryover — RESOLVED (2026-05-27)
 
 **Success path exercised at Phase 2B start.**
 

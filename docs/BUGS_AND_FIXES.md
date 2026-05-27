@@ -451,3 +451,29 @@ AND (CAST(:platform AS text) IS NULL OR platform IS NULL OR platform = CAST(:pla
 **Files:** `services/ghl_adapter.py` — `_build_payload()` + `_post_to_ghl()`, `config.py`, `.env`
 
 **Verified:** `post_attempts` row `5d12ceb4` — `status=published`, `provider_post_id=6a16636ab6f9fe3ec368beec`, `published_at=2026-05-27 03:22:18`.
+
+---
+
+## 2026-05-27 — Calendar modal publish: internal keys leaked into GHL payload (422)
+
+**Symptom:** `POST /api/calendar/posts/{id}/publish` enqueues Arq jobs successfully, but worker receives GHL 422 with `"property ghl_account_id should not exist", "property stagger_offset_s should not exist"`.
+
+**Root Cause:** `calendar_publish_post` writes `ghl_account_id` and `stagger_offset_s` into `PostVariant.platform_specific` for the worker to read. `_build_payload()` in `ghl_adapter.py` did an unconditional `payload.update(platform_specific)`, dumping ALL keys (including internal tracking fields) into the GHL POST body. GHL validates and rejects unknown properties.
+
+**Fix:** Added `_INTERNAL_KEYS = {"ghl_account_id", "stagger_offset_s", "pillar"}` allowlist filter in `_build_payload()`. Only non-internal keys are merged into the GHL payload.
+
+**Files:** `services/ghl_adapter.py` — `_build_payload()` method.
+
+**Verified (Gate 7):** `post_attempts` row `d0513c57` — `status=published`, `provider_post_id=6a1702850049f6b94d57f4b7`, `published_at=2026-05-27 14:41:09`. Worker fired at 120.37s (facebook stagger=120s spec). Modal code path (`/variants/generate` → `/publish`) → Arq queue → worker → GHL confirmed end-to-end.
+
+---
+
+## 2026-05-27 — Arq WorkerSettings staticmethod crash (Python 3.9)
+
+**Symptom:** `venv/bin/python -m arq workers.publish_worker.WorkerSettings` crashed on shutdown: `TypeError: 'staticmethod' object is not callable`.
+
+**Root Cause:** Arq reads `WorkerSettings` via `settings_cls.__dict__` (raw class dictionary). In Python 3.9, `staticmethod` objects stored in `__dict__` are NOT callable directly — only callable via descriptor protocol (`Class.method`). When Arq stored `on_startup`/`on_shutdown` from `__dict__` and tried to call them, it called the raw `staticmethod` object, which fails.
+
+**Fix:** Set `on_startup = None` and `on_shutdown = None` in `WorkerSettings`. Arq guards both with `if self.on_shutdown:` before calling, so `None` is a safe no-op.
+
+**Files:** `workers/publish_worker.py` — `WorkerSettings` class.

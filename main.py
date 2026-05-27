@@ -6088,9 +6088,8 @@ async def calendar_list(from_date: Optional[str] = None, to_date: Optional[str] 
         out_posts = []
         for p in posts:
             variants = variants_by_post.get(p.id, [])
-            # caption preview from base variant first, else first variant
-            base_v = next((v for v in variants if v.platform == "base"), None)
-            preview_src = (base_v.caption if base_v else (variants[0].caption if variants else "")) or ""
+            # caption preview from base_caption on Post first, else first variant
+            preview_src = (p.base_caption or (variants[0].caption if variants else "") or "")
             out_posts.append({
                 "id": str(p.id),
                 "bucket": p.bucket,
@@ -6270,20 +6269,12 @@ async def calendar_auto_plan(request: Request):
             post_obj = _Post(
                 location_id=loc_uuid,
                 bucket=bucket,
+                base_caption=caption,
                 scheduled_at=scheduled_at,
                 status="draft",
                 source="auto_plan",
             )
             session.add(post_obj)
-            await session.flush()
-
-            variant_obj = _PostVariant(
-                post_id=post_obj.id,
-                platform="base",
-                caption=caption,
-                platform_specific={"pillar": pillar},
-            )
-            session.add(variant_obj)
             await session.flush()
 
             mix_actual[bucket] = mix_actual.get(bucket, 0) + 1
@@ -6340,6 +6331,7 @@ async def calendar_get_post(post_id: str):
         "scheduled_at": post.scheduled_at.isoformat() if post.scheduled_at else None,
         "status": post.status,
         "source": post.source,
+        "base_caption": post.base_caption or "",
         "variants": [
             {
                 "id": str(v.id),
@@ -6350,6 +6342,7 @@ async def calendar_get_post(post_id: str):
                 "platform_specific": v.platform_specific or {},
             }
             for v in variants
+            if v.platform != "base"   # base content now lives on Post.base_caption
         ],
     })
 
@@ -6435,12 +6428,11 @@ async def calendar_generate_variants(post_id: str, request: Request):
             await session.execute(select(_PostVariant).where(_PostVariant.post_id == pid))
         ).scalars().all()
         existing_platforms = {v.platform for v in existing_v}
-        base_v = next((v for v in existing_v if v.platform == "base"), None)
-        base_caption = (base_v.caption if base_v else "") or ""
+        base_caption = (post.base_caption or "") or ""
 
         if not base_caption:
             return JSONResponse(
-                {"error": "no base variant found — cannot generate platform variants"},
+                {"error": "no base caption found — cannot generate platform variants"},
                 status_code=400,
             )
 

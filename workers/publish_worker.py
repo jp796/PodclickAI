@@ -65,10 +65,5 @@ class WorkerSettings:
     max_jobs    = 8
     job_timeout = 120   # seconds per job before arq marks it failed
 
-    @staticmethod
-    async def on_startup(ctx: dict) -> None:
-        logger.info("[publish_worker] started — max_jobs=%d", WorkerSettings.max_jobs)
-
-    @staticmethod
-    async def on_shutdown(ctx: dict) -> None:
-        logger.info("[publish_worker] shutdown")
+    on_startup = None
+    on_shutdown = None

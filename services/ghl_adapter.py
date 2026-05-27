@@ -262,7 +262,11 @@ class GHLAdapter(SocialService):
             # Instagram first-comment pattern for hashtags
             payload["firstComment"] = first_comment
         if platform_specific:
-            payload.update(platform_specific)
+            # Strip internal PodClick tracking keys — GHL rejects unknown properties
+            _INTERNAL_KEYS = {"ghl_account_id", "stagger_offset_s", "pillar"}
+            ghl_extras = {k: v for k, v in platform_specific.items() if k not in _INTERNAL_KEYS}
+            if ghl_extras:
+                payload.update(ghl_extras)
         return payload
 
     async def _post_to_ghl(

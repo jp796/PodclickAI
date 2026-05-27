@@ -862,19 +862,16 @@ async function openPostModal(postId) {
       `<div class="dot bucket-${data.bucket || 'brand'}" style="width:14px;height:14px;border-radius:50%;"></div>` +
       `${dateStr} — ${bucketLabel(data.bucket)}`;
 
-    // Base caption
-    const baseV = (data.variants || []).find(v => v.platform === 'base');
+    // Base caption — now lives on Post.base_caption, not in variants
     document.getElementById('modal-base-caption').textContent =
-      baseV ? baseV.caption : '(no base caption)';
+      data.base_caption || '(no base caption)';
 
     // Load existing variants into state
     for (const v of (data.variants || [])) {
-      if (v.platform !== 'base') {
-        _activeVariants[v.platform] = {
-          caption: v.caption || '',
-          first_comment: v.first_comment || '',
-        };
-      }
+      _activeVariants[v.platform] = {
+        caption: v.caption || '',
+        first_comment: v.first_comment || '',
+      };
     }
 
     // Toggle delete button — only enabled for drafts
