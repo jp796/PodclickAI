@@ -100,6 +100,7 @@ class Location(Base):
     voice_samples = relationship("VoiceSample", back_populates="location", cascade="all, delete-orphan")
     foundation_scores = relationship("FoundationScore", back_populates="location", cascade="all, delete-orphan")
     oauth_tokens = relationship("OAuthToken", back_populates="location", cascade="all, delete-orphan")
+    posts = relationship("Post", back_populates="location", cascade="all, delete-orphan")
 
 
 class User(Base):
@@ -343,3 +344,126 @@ class FoundationScore(Base):
     )
 
     location = relationship("Location", back_populates="foundation_scores")
+
+
+# ── 4.7 Calendar & posts (Phase 2A) ──────────────────────────────────────────
+
+class Post(Base):
+    """
+    A single content post (one per piece of content).
+    May have multiple per-platform PostVariants.
+    project_id FK deferred to Phase 5 (projects table doesn't exist yet).
+    """
+
+    __tablename__ = "posts"
+    __table_args__ = (
+        Index("idx_posts_location_status", "location_id", "status", "created_at"),
+        CheckConstraint(
+            "bucket IN ('viral', 'brand', 'personal', 'conversion', 'podcast') OR bucket IS NULL",
+            name="ck_posts_bucket",
+        ),
+        CheckConstraint(
+            "status IN ('draft', 'scheduled', 'publishing', 'published', 'partially_published', 'failed')",
+            name="ck_posts_status",
+        ),
+        CheckConstraint(
+            "source IN ('post_forge', 'auto_plan', 'manual', 'clip_distributor', 'brick_proposed') OR source IS NULL",
+            name="ck_posts_source",
+        ),
+    )
+
+    id: Column = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    location_id: Column = Column(
+        UUID(as_uuid=True),
+        ForeignKey("locations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    # project_id deferred to Phase 5 — no FK constraint yet
+    project_id: Column = Column(UUID(as_uuid=True), nullable=True)
+    bucket: Column = Column(Text, nullable=True)
+    scheduled_at: Column = Column(DateTime(timezone=True), nullable=True)
+    status: Column = Column(Text, server_default="draft", nullable=False)
+    source: Column = Column(Text, nullable=True)
+    created_at: Column = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Column = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    location = relationship("Location", back_populates="posts")
+    variants = relationship("PostVariant", back_populates="post", cascade="all, delete-orphan")
+    attempts = relationship("PostAttempt", back_populates="post", cascade="all, delete-orphan")
+
+
+class PostVariant(Base):
+    """Per-platform variant for one post."""
+
+    __tablename__ = "post_variants"
+    __table_args__ = (
+        UniqueConstraint("post_id", "platform", name="uq_post_variants_post_platform"),
+        CheckConstraint(
+            "platform IN ('linkedin', 'instagram', 'facebook', 'tiktok', 'youtube', 'x', 'gmb', 'threads')",
+            name="ck_post_variants_platform",
+        ),
+    )
+
+    id: Column = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    post_id: Column = Column(
+        UUID(as_uuid=True),
+        ForeignKey("posts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    platform: Column = Column(Text, nullable=False)
+    caption: Column = Column(Text, nullable=True)
+    first_comment: Column = Column(Text, nullable=True)   # Instagram hashtag-in-comment
+    media_urls: Column = Column(ARRAY(Text), nullable=True)
+    platform_specific: Column = Column(JSONB, server_default=text("'{}'"))
+
+    post = relationship("Post", back_populates="variants")
+    attempts = relationship("PostAttempt", back_populates="variant", cascade="all, delete-orphan")
+
+
+class PostAttempt(Base):
+    """Audit record for every publish attempt — one row per platform per try."""
+
+    __tablename__ = "post_attempts"
+    __table_args__ = (
+        Index("idx_post_attempts_post", "post_id"),
+        Index("idx_post_attempts_variant", "variant_id"),
+        CheckConstraint(
+            "status IN ('queued', 'sent_to_provider', 'published', 'failed')",
+            name="ck_post_attempts_status",
+        ),
+    )
+
+    id: Column = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    post_id: Column = Column(
+        UUID(as_uuid=True),
+        ForeignKey("posts.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    variant_id: Column = Column(
+        UUID(as_uuid=True),
+        ForeignKey("post_variants.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    platform: Column = Column(Text, nullable=False)
+    provider: Column = Column(Text, server_default="ghl", nullable=False)
+    provider_post_id: Column = Column(Text, nullable=True)
+    status: Column = Column(Text, nullable=False, server_default="queued")
+    attempt_count: Column = Column(Integer, server_default="0")
+    last_error: Column = Column(Text, nullable=True)
+    attempted_at: Column = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    published_at: Column = Column(DateTime(timezone=True), nullable=True)
+
+    post = relationship("Post", back_populates="attempts")
+    variant = relationship("PostVariant", back_populates="attempts")

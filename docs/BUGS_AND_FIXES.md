@@ -403,6 +403,18 @@ When user clicks "Copy Caption" on the IG card, the text is copied and they post
 
 ---
 
+## 2026-05-26 — Phase 2A: GHL locationId in request body (422 error)
+
+**Symptom:** `POST /api/social/ghl/publish` returned GHL 422 with "property locationId should not exist".
+
+**Root Cause:** The original `ghl_publish_post` included `locationId` in the JSON body. GHL Social Planner API expects `locationId` only in the URL path, not the request body.
+
+**Fix:** Removed `locationId` from `_build_payload()` in `services/ghl_adapter.py`. Also added required `"type": "post"` field to payload (GHL requires it).
+
+**File:** `services/ghl_adapter.py` — `_build_payload()` method
+
+---
+
 ## 2026-05-26 — asyncpg AmbiguousParameterError on NULL platform filter
 
 **Symptom:** `POST /api/social/forge` returns 500 Internal Server Error after the Foundation-powered refactor. `get_brand_context()` throws `asyncpg.exceptions.AmbiguousParameterError: could not determine data type of parameter $3`.

@@ -4398,49 +4398,34 @@ async def social_connections():
     })
 
 
-# ── GHL Social Planner ────────────────────────────────────────────────────────
+# ── GHL Social Planner — delegates to GHLAdapter (the ONLY file that calls GHL) ─
 
-_GHL_API_BASE  = "https://services.leadconnectorhq.com"
-_GHL_API_VER   = "2021-07-28"
+# NOTE: No direct calls to services.leadconnectorhq.com from this file.
+# ALL GHL HTTP calls are in services/ghl_adapter.py.
+# Verify with: rg 'leadconnectorhq' --type py (must return only ghl_adapter.py)
 
-def _ghl_headers():
-    return {
-        "Authorization": f"Bearer {os.getenv('GHL_TOKEN', '')}",
-        "Version": _GHL_API_VER,
-        "Content-Type": "application/json",
-    }
+import logging as _logging
+_ghl_logger = _logging.getLogger("podclick.social")
 
-def _ghl_location():
-    return os.getenv("GHL_LOCATION_ID", "")
+def _current_location_id_str() -> str:
+    """Resolve active location_id string (Phase 2A: TITAN_LOCATION_ID)."""
+    from config import get_current_location_id as _gcl
+    return _gcl()
 
 
 @app.get("/api/social/ghl/accounts")
 async def ghl_social_accounts():
-    """Return all connected GHL social accounts for this location."""
-    loc = _ghl_location()
-    if not loc:
-        return JSONResponse({"error": "GHL_LOCATION_ID not configured"}, status_code=500)
+    """Return all connected GHL social accounts for this location via GHLAdapter."""
+    from services.ghl_adapter import ghl_adapter as _ghl
+    from services.social_service import SocialPublishError, SocialProviderError, SocialAuthError
+    loc = _current_location_id_str()
     try:
-        async with _httpx.AsyncClient(timeout=15) as client:
-            resp = await client.get(
-                f"{_GHL_API_BASE}/social-media-posting/{loc}/accounts",
-                headers=_ghl_headers(),
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            accounts = data.get("results", {}).get("accounts", [])
-            # Return only active (non-expired) accounts
-            active = [
-                {
-                    "id":       a["id"],
-                    "name":     a["name"],
-                    "platform": a["platform"],
-                    "expired":  a.get("isExpired", False),
-                }
-                for a in accounts
-                if not a.get("deleted", False)
-            ]
-            return JSONResponse({"accounts": active})
+        accounts = await _ghl.list_accounts(loc)
+        return JSONResponse({"accounts": accounts})
+    except SocialPublishError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    except SocialAuthError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=401)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 
@@ -4448,45 +4433,289 @@ async def ghl_social_accounts():
 @app.post("/api/social/ghl/publish")
 async def ghl_publish_post(request: Request):
     """
-    Send a post to GHL Social Planner as a draft or scheduled post.
-    Body: { platform: str, content: str, account_id: str, scheduled_at: Optional[str] }
+    Send a post to GHL Social Planner via GHLAdapter.
+
+    Body: { platform: str, content: str, account_id: str,
+            scheduled_at: Optional[str], media_urls: Optional[list] }
+
+    Creates PostAttempt audit record and emits lifecycle log events:
+      [publish.requested]  — on receipt
+      [publish.attempted]  — before the GHL call
+      [publish.completed]  — on success
+      [publish.failed]     — on non-retryable error
     """
-    loc = _ghl_location()
-    if not loc:
-        return JSONResponse({"error": "GHL_LOCATION_ID not configured"}, status_code=500)
+    import uuid as _uuid
+    from datetime import datetime, timezone
+    from config import get_current_location_id as _gcl
+    from db.engine import async_session as _async_session
+    from db.models import Post as _Post, PostVariant as _PostVariant, PostAttempt as _PostAttempt
+    from services.ghl_adapter import ghl_adapter as _ghl
+    from services.social_service import (
+        SocialPublishError as _PubErr,
+        SocialAuthError as _AuthErr,
+        SocialRateLimitError as _RLErr,
+        SocialProviderError as _ProvErr,
+    )
 
     body         = await request.json()
     content      = (body.get("content") or "").strip()
     account_id   = (body.get("account_id") or "").strip()
-    scheduled_at = body.get("scheduled_at")  # ISO string or None
+    platform     = (body.get("platform") or "").strip().lower()
+    scheduled_at = body.get("scheduled_at")   # ISO string or None
+    media_urls   = body.get("media_urls") or []
 
     if not content:
         return JSONResponse({"error": "content required"}, status_code=400)
     if not account_id:
         return JSONResponse({"error": "account_id required"}, status_code=400)
 
-    payload = {
-        "locationId": loc,
-        "accountIds": [account_id],
-        "summary":    content,
-        "status":     "scheduled" if scheduled_at else "draft",
-    }
-    if scheduled_at:
-        payload["scheduledAt"] = scheduled_at
+    loc = _gcl()
 
-    try:
-        async with _httpx.AsyncClient(timeout=20) as client:
-            resp = await client.post(
-                f"{_GHL_API_BASE}/social-media-posting/{loc}/posts",
-                headers=_ghl_headers(),
-                json=payload,
+    # ── Write audit records ────────────────────────────────────────────────────
+    async with _async_session() as session:
+        import uuid as _uuidmod
+        from sqlalchemy.dialects.postgresql import UUID as _PGUUID
+
+        loc_uuid = _uuidmod.UUID(loc)
+
+        post_obj = _Post(
+            location_id=loc_uuid,
+            status="publishing",
+            source="manual",
+        )
+        session.add(post_obj)
+        await session.flush()  # get post_obj.id
+
+        variant_obj = _PostVariant(
+            post_id=post_obj.id,
+            platform=platform or "unknown",
+            caption=content,
+            media_urls=media_urls or None,
+            platform_specific={"ghl_account_id": account_id},
+        )
+        session.add(variant_obj)
+        await session.flush()
+
+        attempt_obj = _PostAttempt(
+            post_id=post_obj.id,
+            variant_id=variant_obj.id,
+            platform=platform or "unknown",
+            provider="ghl",
+            status="queued",
+        )
+        session.add(attempt_obj)
+        await session.commit()
+
+        attempt_id_str = str(attempt_obj.id)
+
+    _ghl_logger.info(
+        "[publish.requested] attempt_id=%s platform=%s location=%s",
+        attempt_id_str, platform, loc,
+    )
+
+    # ── Execute publish via GHLAdapter ─────────────────────────────────────────
+    async with _async_session() as session:
+        from sqlalchemy import update as _upd
+        from db.models import PostAttempt as _PA
+
+        _ghl_logger.info(
+            "[publish.attempted] attempt_id=%s platform=%s",
+            attempt_id_str, platform,
+        )
+
+        try:
+            if scheduled_at:
+                provider_post_id = await _ghl.schedule(
+                    location_id=loc,
+                    platform=platform,
+                    caption=content,
+                    account_id=account_id,
+                    scheduled_at=scheduled_at,
+                    media_urls=media_urls or None,
+                )
+            else:
+                provider_post_id = await _ghl.publish(
+                    location_id=loc,
+                    platform=platform,
+                    caption=content,
+                    account_id=account_id,
+                    media_urls=media_urls or None,
+                )
+
+            now = datetime.now(timezone.utc)
+            await session.execute(
+                _upd(_PA)
+                .where(_PA.id == attempt_obj.id)
+                .values(
+                    status="published",
+                    provider_post_id=provider_post_id,
+                    attempt_count=1,
+                    published_at=now,
+                )
             )
-            resp.raise_for_status()
-            result = resp.json()
-            post_id = result.get("id") or result.get("post", {}).get("id", "")
-            return JSONResponse({"ok": True, "post_id": post_id, "status": payload["status"]})
+            await session.commit()
+
+            _ghl_logger.info(
+                "[publish.completed] attempt_id=%s provider_post_id=%s",
+                attempt_id_str, provider_post_id,
+            )
+            return JSONResponse({
+                "ok":       True,
+                "post_id":  provider_post_id,
+                "status":   "scheduled" if scheduled_at else "published",
+                "attempt_id": attempt_id_str,
+            })
+
+        except _PubErr as exc:
+            await session.execute(
+                _upd(_PA).where(_PA.id == attempt_obj.id)
+                .values(status="failed", last_error=str(exc)[:500], attempt_count=1)
+            )
+            await session.commit()
+            _ghl_logger.error("[publish.failed] attempt_id=%s error=%s", attempt_id_str, exc)
+            return JSONResponse({"error": str(exc)}, status_code=400)
+
+        except _AuthErr as exc:
+            await session.execute(
+                _upd(_PA).where(_PA.id == attempt_obj.id)
+                .values(status="failed", last_error=str(exc)[:500], attempt_count=1)
+            )
+            await session.commit()
+            _ghl_logger.error("[publish.failed] attempt_id=%s auth_error", attempt_id_str)
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        except Exception as exc:
+            await session.execute(
+                _upd(_PA).where(_PA.id == attempt_obj.id)
+                .values(status="failed", last_error=str(exc)[:500], attempt_count=1)
+            )
+            await session.commit()
+            _ghl_logger.error("[publish.failed] attempt_id=%s error=%s", attempt_id_str, exc)
+            return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+@app.post("/api/social/ghl/publish/multi")
+async def ghl_publish_multi(request: Request):
+    """
+    Publish to multiple GHL platforms simultaneously with per-platform stagger offsets.
+
+    Body: {
+      "variants": [
+        { "platform": "linkedin", "content": "...", "account_id": "...", "media_urls": [] },
+        { "platform": "facebook", "content": "...", "account_id": "..." },
+        ...
+      ],
+      "scheduled_at": "2026-05-26T09:00:00Z"  # optional base time
+    }
+
+    Returns: { "enqueued": [ { "platform", "attempt_id", "stagger_offset_s" } ] }
+
+    Stagger offsets (SOW section 8 Layer 1):
+      linkedin +0s | x +60s | facebook +120s | instagram +180s
+      tiktok +240s | youtube +300s | gmb +360s
+
+    Layer 3: deterministic jitter applied when scheduled_at falls on :00/:15/:30/:45.
+    """
+    import uuid as _uuidmod
+    from datetime import datetime, timezone
+    from config import get_current_location_id as _gcl
+    from db.engine import async_session as _async_session
+    from db.models import Post as _Post, PostVariant as _PostVariant, PostAttempt as _PostAttempt
+    from workers.publish_jobs import stagger_offset_seconds as _stagger
+    from sqlalchemy import update as _upd
+
+    body     = await request.json()
+    variants = body.get("variants") or []
+    sched_at = body.get("scheduled_at")  # ISO or None
+
+    if not variants:
+        return JSONResponse({"error": "variants array required"}, status_code=400)
+
+    loc = _gcl()
+    loc_uuid = _uuidmod.UUID(loc)
+
+    # Parse base scheduled_at if provided
+    base_dt = None
+    if sched_at:
+        try:
+            from datetime import datetime as _dt
+            base_dt = _dt.fromisoformat(sched_at.replace("Z", "+00:00"))
+        except ValueError:
+            return JSONResponse({"error": "invalid scheduled_at format"}, status_code=400)
+
+    enqueued = []
+
+    async with _async_session() as session:
+        # One Post record for the whole multi-platform publish
+        post_obj = _Post(
+            location_id=loc_uuid,
+            status="publishing",
+            source="manual",
+            scheduled_at=base_dt,
+        )
+        session.add(post_obj)
+        await session.flush()
+
+        for v in variants:
+            platform   = (v.get("platform") or "").strip().lower()
+            content    = (v.get("content") or "").strip()
+            account_id = (v.get("account_id") or "").strip()
+            media_urls = v.get("media_urls") or []
+
+            if not platform or not content or not account_id:
+                continue
+
+            offset_s = _stagger(platform, loc, base_dt)
+
+            variant_obj = _PostVariant(
+                post_id=post_obj.id,
+                platform=platform,
+                caption=content,
+                media_urls=media_urls or None,
+                platform_specific={"ghl_account_id": account_id, "stagger_offset_s": offset_s},
+            )
+            session.add(variant_obj)
+            await session.flush()
+
+            attempt_obj = _PostAttempt(
+                post_id=post_obj.id,
+                variant_id=variant_obj.id,
+                platform=platform,
+                provider="ghl",
+                status="queued",
+            )
+            session.add(attempt_obj)
+            await session.flush()
+
+            enqueued.append({
+                "platform":        platform,
+                "attempt_id":      str(attempt_obj.id),
+                "stagger_offset_s": offset_s,
+            })
+
+            _ghl_logger.info(
+                "[publish.requested] attempt_id=%s platform=%s stagger_offset_s=%d location=%s",
+                str(attempt_obj.id), platform, offset_s, loc,
+            )
+
+        await session.commit()
+
+    # Enqueue arq jobs with stagger delay
+    try:
+        from arq import create_pool
+        from workers.publish_worker import WorkerSettings as _WS
+        redis = await create_pool(settings.redis_url if hasattr(settings, "redis_url") else None or _WS.redis_settings)
+        for item in enqueued:
+            await redis.enqueue_job(
+                "publish_variant",
+                item["attempt_id"],
+                _defer_by=item["stagger_offset_s"],
+            )
+        await redis.close()
     except Exception as exc:
-        return JSONResponse({"error": str(exc)}, status_code=500)
+        _ghl_logger.warning("Failed to enqueue arq jobs: %s — variants queued in DB only", exc)
+
+    return JSONResponse({"enqueued": enqueued, "post_id": str(post_obj.id) if enqueued else None})
 
 
 # ── End Social Publishing ──────────────────────────────────────────────────────

@@ -268,6 +268,59 @@ Notes:    angles array has 5 items. At least one of url or transcript required.
 
 ---
 
+## Social Publishing — GHL (Phase 2A)
+
+All GHL API calls are exclusively in `services/ghl_adapter.py`. No other file may call `services.leadconnectorhq.com`.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/social/ghl/accounts` | List connected GHL social accounts via GHLAdapter |
+| POST | `/api/social/ghl/publish` | Publish/schedule single-platform post via GHLAdapter — writes PostAttempt audit record |
+| POST | `/api/social/ghl/publish/multi` | Multi-platform publish with stagger via Arq queue |
+
+### POST /api/social/ghl/publish
+```json
+Request:  { "platform": "linkedin", "content": "...", "account_id": "ghl_acct_id", "scheduled_at": "2026-05-26T09:00:00Z", "media_urls": [] }
+Response: { "ok": true, "post_id": "ghl_post_id", "status": "published|scheduled", "attempt_id": "uuid" }
+Errors:   400 — non-retryable GHL error (400/422) | 401 — token expired | 500 — provider/network error
+Notes:    Creates Post + PostVariant + PostAttempt records in DB.
+          Lifecycle events in logs: [publish.requested] [publish.attempted] [publish.completed] [publish.failed]
+```
+
+### POST /api/social/ghl/publish/multi
+```json
+Request:  {
+  "variants": [
+    { "platform": "linkedin", "content": "...", "account_id": "..." },
+    { "platform": "facebook", "content": "...", "account_id": "..." }
+  ],
+  "scheduled_at": "2026-05-26T09:00:00Z"  // optional
+}
+Response: { "enqueued": [ { "platform", "attempt_id", "stagger_offset_s" } ], "post_id": "uuid" }
+Notes:
+  Stagger offsets (SOW section 8 Layer 1):
+    linkedin +0s | x +60s | facebook +120s | instagram +180s | tiktok +240s | youtube +300s | gmb +360s
+  Layer 3: deterministic jitter when scheduled_at is on :00/:15/:30/:45 of the hour.
+  Layer 2: global concurrency cap of 8 enforced by Arq WorkerSettings.max_jobs.
+  Jobs enqueued to Arq worker — start worker with: venv/bin/python -m arq workers.publish_worker.WorkerSettings
+  Retry policy: 401→refresh+retry 1x | 429→exponential 30s 4 retries | 5xx→exponential 30s 4 retries
+               400→no retry (surface as [publish.failed]) | network→10s 4 retries
+```
+
+### Workers
+
+Start the publish worker (separate process):
+
+```bash
+venv/bin/python -m arq workers.publish_worker.WorkerSettings
+```
+
+Worker files:
+- `workers/publish_worker.py` — WorkerSettings, max_jobs=8, Redis TLS (Upstash)
+- `workers/publish_jobs.py` — `publish_variant` job + `verify_attempt` job (runs 5min after publish)
+
+---
+
 ## Foundation
 
 | Method | Path | Purpose |
