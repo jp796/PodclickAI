@@ -224,3 +224,27 @@ Decision needed: Upgrade Railway plan before Phase 1 starts, or use Neon (Postgr
 ---
 
 *Phase 0 complete. Decisions locked. Ready for Phase 1.*
+
+---
+
+## 9. Gate 5 Exception — create_ghl_fields.py (documented 2026-05-27)
+
+**File:** `/Users/jamesfluellen/podcast-studio/create_ghl_fields.py`
+**Purpose:** One-time admin script to bulk-create custom fields in GHL for the Lead Scoring system.
+**Invocation:** `python create_ghl_fields.py` — hand-run only.
+
+**Gate 5 exception:** This script contains a direct `https://services.leadconnectorhq.com` URL. It is NOT invoked by any route handler, cron job, webhook, or any code in the request-handling path. Confirmed via `rg` — zero imports or references to this file from any other `.py` file.
+
+**Rule:** All automated/runtime GHL calls must go through `services/ghl_adapter.py`. This script is exempt because it predates the adapter and is strictly a one-time setup utility. Do NOT restore the pattern for any new code in the request path.
+
+---
+
+## 10. Phase 2A — Known Not-Yet-Exercised (2026-05-27)
+
+**Success path for `post_attempts.status → published` has not been exercised.**
+
+- Gate 1 testing used invalid test `account_id` values → all attempts landed as `status=failed` or `status=queued` (worker not running during test).
+- No row in `post_attempts` has ever reached `status=published` in testing.
+- The success path (GHLAdapter returns a real `provider_post_id` → PostAttempt flips to `published` → `verify_attempt` job confirms) is implemented and code-correct but has not been executed against a live GHL account.
+
+**Action at Phase 2B start:** Before writing any new code, fire one real publish through `/api/social/ghl/publish` with a connected account_id (from `/api/social/ghl/accounts`) and confirm `post_attempts` shows `status=published` with a real `provider_post_id`. This is the first thing on the 2B checklist.
