@@ -107,6 +107,8 @@ class Location(Base):
     brick_actions = relationship("BrickAction", back_populates="location", cascade="all, delete-orphan")
     brick_messages = relationship("BrickMessage", back_populates="location", cascade="all, delete-orphan")
     brick_memories = relationship("BrickMemory", back_populates="location", cascade="all, delete-orphan")
+    # Phase 5 — Projects
+    projects = relationship("Project", back_populates="location", cascade="all, delete-orphan")
 
 
 class User(Base):
@@ -659,3 +661,138 @@ class BrickMemory(Base):
     last_referenced_at: Column = Column(DateTime(timezone=True), nullable=True)
 
     location = relationship("Location", back_populates="brick_memories")
+
+
+# ── Phase 5 — Projects (episode state machine) ───────────────────────────────
+
+class Project(Base):
+    """
+    A Project is the unifying object for one episode's full lifecycle.
+
+    State machine:
+      draft → recording_done → processing → review → scheduled → closing → closed
+      Any state → failed
+
+    The job_id field links to the existing file-based pipeline (data/jobs/<job_id>/).
+    This is the bridge between the existing Studio pipeline and the new Project flow.
+    """
+
+    __tablename__ = "projects"
+    __table_args__ = (
+        Index("idx_projects_location_status", "location_id", "status", "created_at"),
+        CheckConstraint(
+            "status IN ('draft','recording_done','processing','review','scheduled','closing','closed','failed')",
+            name="ck_projects_status",
+        ),
+        CheckConstraint(
+            "type IN ('episode','campaign')",
+            name="ck_projects_type",
+        ),
+    )
+
+    id: Column = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    location_id: Column = Column(
+        UUID(as_uuid=True),
+        ForeignKey("locations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    # Link to the existing file-based pipeline job
+    job_id: Column = Column(Text, nullable=True, unique=True)
+
+    type: Column = Column(Text, nullable=False, server_default="episode")
+    title: Column = Column(Text, nullable=False, server_default="Untitled Episode")
+    description: Column = Column(Text, nullable=True)
+    episode_number: Column = Column(Integer, nullable=True)
+
+    # State machine
+    status: Column = Column(Text, nullable=False, server_default="recording_done")
+
+    # Ship It wizard state — which step the user last reached (1-4)
+    wizard_step: Column = Column(Integer, nullable=True, server_default="1")
+
+    # Pipeline outputs (populated as steps complete)
+    mp3_url: Column = Column(Text, nullable=True)        # path to assembled MP3
+    transcript: Column = Column(Text, nullable=True)     # full transcript text
+    show_notes: Column = Column(Text, nullable=True)     # Foundation-generated show notes
+
+    # Audio assembly metadata — {intro, main, commercial, outro, sponsor_id, sponsor_name}
+    audio_assembly: Column = Column(JSONB, server_default=text("'{}'"))
+
+    # Sponsor placement — {sponsor_id, sponsor_name, position_pct, assigned_at}
+    sponsor_placement: Column = Column(JSONB, nullable=True)
+
+    # Guest IDs (references guests.json by id string)
+    guest_ids: Column = Column(JSONB, server_default=text("'[]'"))
+
+    # Closing (Closing = publish in construction vocabulary)
+    closing_scheduled_at: Column = Column(DateTime(timezone=True), nullable=True)
+    closed_at: Column = Column(DateTime(timezone=True), nullable=True)
+
+    # Guest asset email tracking
+    guest_email_sent_at: Column = Column(DateTime(timezone=True), nullable=True)
+
+    created_at: Column = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Column = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    location = relationship("Location", back_populates="projects")
+    clips = relationship("Clip", back_populates="project", cascade="all, delete-orphan")
+
+
+class Clip(Base):
+    """
+    A short vertical (9:16) clip candidate extracted from a Project's transcript.
+    Each clip is rendered as a 1080×1920 MP4 with burned-in captions.
+    """
+
+    __tablename__ = "clips"
+    __table_args__ = (
+        Index("idx_clips_project", "project_id"),
+        CheckConstraint(
+            "status IN ('pending','rendering','rendered','approved','removed')",
+            name="ck_clips_status",
+        ),
+    )
+
+    id: Column = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    project_id: Column = Column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    location_id: Column = Column(
+        UUID(as_uuid=True),
+        ForeignKey("locations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    # Position in source audio
+    source_start_seconds: Column = Column(Float, nullable=False)
+    source_end_seconds: Column = Column(Float, nullable=False)
+
+    # Content
+    hook_text: Column = Column(Text, nullable=True)      # first sentence / hook
+    clip_caption: Column = Column(Text, nullable=True)   # Foundation-generated social caption
+    virality_score: Column = Column(Float, nullable=True)  # scored 0-10 during detection
+
+    # Rendered output (vertical 9:16 MP4 path)
+    rendered_url: Column = Column(Text, nullable=True)
+
+    # SRT path for captions (used during render, kept for re-render)
+    srt_url: Column = Column(Text, nullable=True)
+
+    status: Column = Column(Text, nullable=False, server_default="pending")
+
+    created_at: Column = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    project = relationship("Project", back_populates="clips")

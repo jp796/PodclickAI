@@ -1,5 +1,5 @@
 # PodClick API Reference
-> Last updated: 2026-05-19 | Server: http://localhost:8765 | Update on new routes.
+> Last updated: 2026-05-28 | Server: http://localhost:8765 | Update on new routes.
 
 ## Core Podcast Pipeline
 
@@ -753,4 +753,68 @@ Notes:    Triggers the same logic as the 4am cron. Useful for manual testing.
           Sends Telegram notification on completion (if configured).
           Active brick_memory rows are injected as STANDING INSTRUCTIONS into the planning prompt.
           last_referenced_at updated for each memory row read.
+```
+
+---
+
+## Phase 5 — Projects (Job Site + Ship It)
+
+### Pages
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/projects` | Serve projects.html — Job Site (project list) |
+| GET | `/project/{project_id}` | Serve project.html — Ship It wizard (4-step review) |
+
+### Project API
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/projects` | List projects (optional `?status=review&limit=50`) |
+| GET | `/api/projects/{id}` | Single project detail |
+| PATCH | `/api/projects/{id}` | Update editable fields |
+| POST | `/api/projects/{id}/transition` | State-machine transition |
+| GET | `/api/projects/{id}/clips` | List clips for project |
+| PATCH | `/api/projects/{id}/clips/{clipId}` | Update clip caption/status/hook_text |
+| POST | `/api/projects/{id}/ship-it` | Hero button — trigger full pipeline |
+| POST | `/api/projects/{id}/schedule-closing` | Step 4 — schedule publish + create posts |
+
+### GET /api/projects
+```json
+Query:    ?status=review&limit=20 (both optional)
+Response: [ { "id", "title", "status", "wizard_step", "episode_number", "mp3_url",
+              "transcript", "show_notes", "sponsor_placement", "guest_ids",
+              "closing_scheduled_at", "closed_at", "created_at", "updated_at" } ]
+```
+
+### POST /api/projects/{id}/ship-it
+```json
+Request:  (no body)
+Response: { "ok": true, "project_id": "uuid", "status": "processing" }
+Errors:   400 — Project not in review or recording_done | 404 — Not found
+Notes:    Transitions project to 'processing', fires background task:
+          a. select_sponsor() round-robin from sponsors.json
+          b. detect_clips_for_project() → clip candidates from transcript
+          c. render_all_clips() → 9:16 MP4s + SRTs in data/project_clips/{id}/
+          d. Foundation show_notes + clip_captions via get_brand_context()
+          e. Persists all to DB, transitions to 'review'
+```
+
+### POST /api/projects/{id}/schedule-closing
+```json
+Request:  { "closing_at": "2026-06-01T08:00:00Z", "platforms": ["linkedin","facebook"] }
+Response: { "ok": true, "project_id": "uuid", "post_id": "uuid", "closing_at": "..." }
+Errors:   400 — Project must be in 'review' | 404 — Not found
+Notes:    Creates Post + PostVariant rows per platform with stagger offsets.
+          Transitions project to 'scheduled'. Guest CRM auto-update in background.
+          Guest asset email queued to Punch List for approval.
+```
+
+### POST /api/projects/{id}/transition
+```json
+Request:  { "new_status": "review" }
+Response: { ...updated project dict... }
+State machine: draft→recording_done | recording_done→processing|review |
+               processing→review|failed | review→scheduled|closing |
+               scheduled→closing | closing→closed|failed | failed→review
 ```

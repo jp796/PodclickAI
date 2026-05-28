@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PodClick — Job Site</title>
+  <link rel="stylesheet" href="/static/podclick-design.css" />
+  <style>
+    html, body { background: var(--bg); color: var(--text-pri); min-height: 100vh; font-family: var(--font-body); margin: 0; }
+    a { color: var(--orange-hi); text-decoration: none; }
+    a:hover { color: var(--orange); }
+
+    .topbar {
+      display: flex; align-items: center; gap: 16px;
+      padding: 14px 24px; border-bottom: 1px solid var(--border);
+      background: var(--bg-raised);
+    }
+    .topbar .brand { font-size: 17px; font-weight: 700; color: var(--text-pri); }
+    .topbar .brand span { color: var(--orange-hi); }
+    .topbar .tagline { font-size: 12px; color: var(--text-dim); }
+    .topbar nav { margin-left: auto; display: flex; gap: 4px; }
+    .topbar nav a {
+      font-size: 12px; color: var(--text-dim); padding: 5px 10px;
+      border-radius: 6px; border: 1px solid transparent;
+      transition: all 0.15s;
+    }
+    .topbar nav a:hover { background: var(--surface); color: var(--text); }
+    .topbar nav a.active { background: var(--surface); color: var(--text); border-color: var(--border); }
+
+    .page-body { max-width: 960px; margin: 0 auto; padding: 28px 24px; }
+
+    .page-head {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .page-title { font-size: 22px; font-weight: 700; }
+    .page-title .sub { font-size: 13px; color: var(--text-dim); font-weight: 400; margin-left: 8px; }
+
+    .filter-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-btn {
+      font-size: 11px; padding: 5px 12px; border-radius: 20px;
+      border: 1px solid var(--border); background: var(--bg-card);
+      color: var(--text-dim); cursor: pointer; transition: all 0.15s;
+    }
+    .filter-btn:hover { border-color: var(--orange-dim); color: var(--text); }
+    .filter-btn.active { border-color: var(--orange-hi); color: var(--orange-hi); background: var(--orange-mist); }
+
+    .projects-grid { display: flex; flex-direction: column; gap: 10px; }
+
+    .project-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 18px;
+      display: grid; grid-template-columns: 1fr auto; gap: 8px;
+      cursor: pointer; transition: border-color 0.15s;
+      text-decoration: none; color: inherit;
+    }
+    .project-card:hover { border-color: var(--orange-dim); }
+    .project-card.has-action { border-left: 3px solid var(--orange); }
+
+    .project-title { font-size: 15px; font-weight: 600; color: var(--text-pri); margin-bottom: 4px; }
+    .project-meta { font-size: 11px; color: var(--text-dim); display: flex; gap: 12px; flex-wrap: wrap; }
+
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 600; letter-spacing: 0.4px;
+      padding: 3px 8px; border-radius: 10px; border: 1px solid;
+      text-transform: uppercase; white-space: nowrap;
+    }
+    .status-recording_done { color: #7ec8e3; border-color: rgba(126,200,227,0.3); background: rgba(126,200,227,0.08); }
+    .status-processing     { color: #f0c040; border-color: rgba(240,192,64,0.3); background: rgba(240,192,64,0.08); }
+    .status-review         { color: var(--orange-hi); border-color: var(--orange-dim); background: var(--orange-mist); }
+    .status-scheduled      { color: #82d9a0; border-color: rgba(130,217,160,0.3); background: rgba(130,217,160,0.08); }
+    .status-closing        { color: #c9a0f5; border-color: rgba(201,160,245,0.3); background: rgba(201,160,245,0.08); }
+    .status-closed         { color: var(--text-dim); border-color: var(--border); background: transparent; }
+    .status-failed         { color: #d97070; border-color: rgba(217,112,112,0.3); background: rgba(217,112,112,0.08); }
+    .status-draft          { color: var(--text-dim); border-color: var(--border); background: transparent; }
+
+    .ship-btn {
+      font-size: 12px; font-weight: 600; padding: 7px 14px;
+      border-radius: 8px; border: none; cursor: pointer;
+      background: linear-gradient(135deg, var(--orange), #e07030);
+      color: #fff; white-space: nowrap; align-self: center;
+      transition: opacity 0.15s;
+    }
+    .ship-btn:hover { opacity: 0.88; }
+
+    .empty-state {
+      text-align: center; padding: 60px 24px;
+      color: var(--text-dim); font-size: 14px;
+    }
+    .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
+    .empty-state .cta { margin-top: 14px; }
+    .empty-state .cta a {
+      padding: 8px 18px; background: var(--orange);
+      color: #fff; border-radius: 8px; font-weight: 600; font-size: 13px;
+    }
+
+    .loading { text-align: center; padding: 40px; color: var(--text-dim); }
+
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--bg-raised); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 16px;
+      font-size: 13px; color: var(--text); display: none; z-index: 9999;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    }
+    #toast.info  { border-left: 3px solid var(--orange-dim); }
+    #toast.ok    { border-left: 3px solid #82d9a0; }
+    #toast.error { border-left: 3px solid #d97070; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="brand">PodClick<span>AI</span></div>
+    <div class="tagline">Job Site — active projects</div>
+  </div>
+  <nav>
+    <a href="/walkthrough">Walk-through</a>
+    <a href="/foundation">Foundation</a>
+    <a href="/permit">Permit</a>
+    <a href="/calendar">Calendar</a>
+    <a href="/studio">Studio</a>
+    <a href="/projects" class="active">Job Site</a>
+    <a href="/youtube-studio">Scout</a>
+    <a href="/blueprint">Blueprint</a>
+  </nav>
+</div>
+
+<div class="page-body">
+  <div class="page-head">
+    <div class="page-title">
+      Job Site
+      <span class="sub" id="project-count"></span>
+    </div>
+    <a href="/studio" style="font-size:12px; padding:7px 14px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; color:var(--text-dim);">
+      + New Recording
+    </a>
+  </div>
+
+  <div class="filter-row">
+    <button class="filter-btn active" onclick="setFilter('', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('review', this)">Needs Review</button>
+    <button class="filter-btn" onclick="setFilter('recording_done', this)">Recording Done</button>
+    <button class="filter-btn" onclick="setFilter('scheduled', this)">Scheduled</button>
+    <button class="filter-btn" onclick="setFilter('closed', this)">Closed</button>
+  </div>
+
+  <div id="projects-list" class="projects-grid">
+    <div class="loading">Loading projects…</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  let _allProjects = [];
+  let _activeFilter = '';
+
+  const STATUS_LABELS = {
+    draft:          'Draft',
+    recording_done: 'Recording Done',
+    processing:     'Processing',
+    review:         'Needs Review',
+    scheduled:      'Scheduled',
+    closing:        'Closing',
+    closed:         'Closed',
+    failed:         'Build Failed',
+  };
+
+  const ACTION_STATUSES = new Set(['recording_done', 'review']);
+
+  function setFilter(status, btn) {
+    _activeFilter = status;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  }
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function relTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+    return Math.floor(diff/86400) + 'd ago';
+  }
+
+  function render() {
+    const list = document.getElementById('projects-list');
+    const filtered = _activeFilter
+      ? _allProjects.filter(p => p.status === _activeFilter)
+      : _allProjects;
+
+    document.getElementById('project-count').textContent =
+      filtered.length === _allProjects.length
+        ? `${_allProjects.length} project${_allProjects.length !== 1 ? 's' : ''}`
+        : `${filtered.length} of ${_allProjects.length}`;
+
+    if (filtered.length === 0) {
+      list.innerHTML = `<div class="empty-state">
+        <div class="icon">🏗️</div>
+        <div>${_allProjects.length === 0 ? 'No projects yet.' : 'No projects match this filter.'}</div>
+        ${_allProjects.length === 0 ? '<div class="cta"><a href="/studio">Record your first episode →</a></div>' : ''}
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = filtered.map(p => {
+      const hasAction = ACTION_STATUSES.has(p.status);
+      const actionLabel = p.status === 'recording_done' ? '⚡ Ship It' : '🔍 Review';
+      const clipCount = p.clip_count ? `${p.clip_count} clips` : '';
+      const epNum = p.episode_number ? `Ep ${p.episode_number}` : '';
+      const created = relTime(p.created_at);
+      const closingAt = p.closing_scheduled_at
+        ? `Closing ${new Date(p.closing_scheduled_at).toLocaleDateString()}`
+        : '';
+
+      return `<a class="project-card${hasAction ? ' has-action' : ''}" href="/project/${escHtml(p.id)}">
+        <div>
+          <div class="project-title">${escHtml(p.title || 'Untitled Episode')}</div>
+          <div class="project-meta">
+            <span class="status-badge status-${escHtml(p.status)}">${escHtml(STATUS_LABELS[p.status] || p.status)}</span>
+            ${epNum ? `<span>${escHtml(epNum)}</span>` : ''}
+            ${clipCount ? `<span>${escHtml(clipCount)}</span>` : ''}
+            ${closingAt ? `<span>${escHtml(closingAt)}</span>` : ''}
+            ${created ? `<span>${created}</span>` : ''}
+          </div>
+        </div>
+        ${hasAction ? `<button class="ship-btn" onclick="event.preventDefault(); window.location='/project/${escHtml(p.id)}';">${actionLabel}</button>` : ''}
+      </a>`;
+    }).join('');
+  }
+
+  async function load() {
+    try {
+      const r = await fetch('/api/projects?limit=50');
+      if (!r.ok) throw new Error(r.statusText);
+      _allProjects = await r.json();
+      render();
+    } catch(e) {
+      document.getElementById('projects-list').innerHTML =
+        `<div class="empty-state"><div class="icon">⚠️</div><div>Could not load projects: ${escHtml(e.message)}</div></div>`;
+    }
+  }
+
+  function toast(msg, kind = 'info') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = kind;
+    el.style.display = 'block';
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.style.display = 'none', 3000);
+  }
+
+  load();
+</script>
+</body>
+</html>

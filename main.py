@@ -576,6 +576,19 @@ async def run_pipeline(
 
         job["status"] = "ready"
         _persist_job(job_id)
+
+        # ── Phase 5: Auto-create Project row on pipeline completion ───────────
+        # Bridge: existing file-based pipeline → Project state machine.
+        # Project status → 'review' means the Ship It wizard is available.
+        try:
+            await _auto_create_project(job_id, job)
+        except Exception as _proj_err:
+            # Non-fatal — pipeline completed fine, Project creation is best-effort
+            import logging
+            logging.getLogger("podclick.projects").warning(
+                "auto_create_project failed for job %s: %s", job_id, _proj_err
+            )
+
         await _send_result(job_id, {"status": "ready"})
 
     except Exception as e:
@@ -604,6 +617,792 @@ async def run_pipeline(
             except: pass
 
 
+# ── Phase 5 — Project state machine helpers ───────────────────────────────────
+
+_PROJECT_STATUS_TRANSITIONS = {
+    "draft":          ["recording_done", "failed"],
+    "recording_done": ["processing", "failed"],
+    "processing":     ["review", "failed"],
+    "review":         ["scheduled", "failed"],
+    "scheduled":      ["closing", "failed"],
+    "closing":        ["closed", "failed"],
+    "closed":         [],
+    "failed":         ["draft"],  # allow reset to retry
+}
+
+
+async def _auto_create_project(job_id: str, job: dict) -> None:
+    """
+    Called by run_pipeline on job completion.
+    Creates a Project row in Postgres if one doesn't already exist for this job_id.
+    Status is set to 'review' — the Ship It wizard becomes available.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+
+    async with _async_session() as session:
+        # Idempotent — skip if already created (e.g., retry scenario)
+        existing = await session.execute(
+            select(Project).where(Project.job_id == job_id)
+        )
+        if existing.scalar_one_or_none():
+            return
+
+        # Resolve default location_id (single-tenant for now)
+        from services.foundation import _get_default_location_id
+        location_id = await _get_default_location_id()
+        if not location_id:
+            return  # no location configured yet — skip gracefully
+
+        project = Project(
+            location_id=location_id,
+            job_id=job_id,
+            type="episode",
+            title=job.get("title") or "Untitled Episode",
+            description=job.get("description"),
+            episode_number=job.get("episode_number"),
+            mp3_url=job.get("mp3_path"),
+            transcript=job.get("transcript"),
+            status="review",
+            wizard_step=1,
+            audio_assembly={
+                "has_intro": job.get("has_intro", False),
+                "has_commercial": job.get("has_commercial", False),
+                "has_outro": job.get("has_outro", False),
+                "commercial_inserted_at": job.get("commercial_inserted_at"),
+            },
+        )
+        session.add(project)
+        await session.commit()
+        await session.refresh(project)
+
+        # Audit log
+        try:
+            import json as _json_audit, uuid as _uuid_audit
+            import sqlalchemy as _sa_audit
+            async with _async_session() as audit_session:
+                await audit_session.execute(
+                    _sa_audit.text("""
+                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
+                        VALUES (:id, :loc_id, 'project.created', CAST(:payload AS jsonb), now())
+                        ON CONFLICT DO NOTHING
+                    """),
+                    {"id": str(_uuid_audit.uuid4()), "loc_id": str(location_id),
+                     "payload": _json_audit.dumps({"job_id": job_id, "project_id": str(project.id)})},
+                )
+                await audit_session.commit()
+        except Exception:
+            pass  # audit log is best-effort
+
+
+def _project_to_dict(project) -> dict:
+    """Serialize a Project ORM row to a JSON-safe dict."""
+    return {
+        "id": str(project.id),
+        "location_id": str(project.location_id),
+        "job_id": project.job_id,
+        "type": project.type,
+        "title": project.title,
+        "description": project.description,
+        "episode_number": project.episode_number,
+        "status": project.status,
+        "wizard_step": project.wizard_step,
+        "mp3_url": project.mp3_url,
+        "transcript": project.transcript,
+        "show_notes": project.show_notes,
+        "audio_assembly": project.audio_assembly or {},
+        "sponsor_placement": project.sponsor_placement,
+        "guest_ids": project.guest_ids or [],
+        "closing_scheduled_at": project.closing_scheduled_at.isoformat() if project.closing_scheduled_at else None,
+        "closed_at": project.closed_at.isoformat() if project.closed_at else None,
+        "guest_email_sent_at": project.guest_email_sent_at.isoformat() if project.guest_email_sent_at else None,
+        "created_at": project.created_at.isoformat() if project.created_at else None,
+        "updated_at": project.updated_at.isoformat() if project.updated_at else None,
+    }
+
+
+# ── Project CRUD routes ────────────────────────────────────────────────────────
+
+@app.get("/api/projects")
+async def list_projects(status: str = "", limit: int = 20):
+    """
+    List Projects in reverse-chronological order.
+    Optional ?status=review filter.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select, desc
+
+    async with _async_session() as session:
+        q = select(Project).order_by(desc(Project.created_at)).limit(limit)
+        if status:
+            q = q.where(Project.status == status)
+        rows = (await session.execute(q)).scalars().all()
+        return JSONResponse([_project_to_dict(p) for p in rows])
+
+
+@app.get("/api/projects/{project_id}")
+async def get_project(project_id: str):
+    """Get a single Project by UUID."""
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    import uuid as _uuid
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        return JSONResponse({"error": "Invalid project ID"}, status_code=400)
+
+    async with _async_session() as session:
+        row = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if not row:
+            return JSONResponse({"error": "Project not found"}, status_code=404)
+        return JSONResponse(_project_to_dict(row))
+
+
+@app.patch("/api/projects/{project_id}")
+async def update_project(project_id: str, request: Request):
+    """
+    Update editable fields on a Project.
+    Allowed fields: title, description, transcript, show_notes, wizard_step,
+                    guest_ids, sponsor_placement.
+    Does NOT allow direct status transitions — use dedicated status endpoints.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    import uuid as _uuid
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        return JSONResponse({"error": "Invalid project ID"}, status_code=400)
+
+    body = await request.json()
+    EDITABLE = {"title", "description", "transcript", "show_notes", "wizard_step",
+                "guest_ids", "sponsor_placement", "episode_number"}
+
+    async with _async_session() as session:
+        row = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if not row:
+            return JSONResponse({"error": "Project not found"}, status_code=404)
+
+        for field in EDITABLE:
+            if field in body:
+                setattr(row, field, body[field])
+
+        await session.commit()
+        await session.refresh(row)
+        return JSONResponse(_project_to_dict(row))
+
+
+@app.post("/api/projects/{project_id}/transition")
+async def transition_project_status(project_id: str, request: Request):
+    """
+    Advance a Project through the state machine.
+    Body: {"status": "review"} — only valid transitions are accepted.
+    Construction vocabulary: status 'closing' = episode being published.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    import uuid as _uuid
+    from datetime import datetime, timezone
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        return JSONResponse({"error": "Invalid project ID"}, status_code=400)
+
+    body = await request.json()
+    new_status = body.get("status", "").strip()
+    if not new_status:
+        return JSONResponse({"error": "status required"}, status_code=400)
+
+    async with _async_session() as session:
+        row = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if not row:
+            return JSONResponse({"error": "Project not found"}, status_code=404)
+
+        allowed = _PROJECT_STATUS_TRANSITIONS.get(row.status, [])
+        if new_status not in allowed:
+            return JSONResponse(
+                {"error": f"Cannot transition {row.status} → {new_status}. Allowed: {allowed}"},
+                status_code=400,
+            )
+
+        row.status = new_status
+        if new_status == "closed":
+            row.closed_at = datetime.now(timezone.utc)
+
+        await session.commit()
+        await session.refresh(row)
+
+        # Audit log
+        try:
+            import json as _json_audit, uuid as _uuid_audit
+            import sqlalchemy as _sa_audit
+            from services.foundation import _get_default_location_id
+            loc_id = await _get_default_location_id()
+            async with _async_session() as audit_session:
+                await audit_session.execute(
+                    _sa_audit.text("""
+                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
+                        VALUES (:id, :loc_id, :action, CAST(:payload AS jsonb), now())
+                        ON CONFLICT DO NOTHING
+                    """),
+                    {"id": str(_uuid_audit.uuid4()), "loc_id": str(loc_id),
+                     "action": f"project.status.{new_status}",
+                     "payload": _json_audit.dumps({"project_id": str(row.id), "new_status": new_status})},
+                )
+                await audit_session.commit()
+        except Exception:
+            pass
+
+        return JSONResponse(_project_to_dict(row))
+
+
+@app.get("/api/projects/{project_id}/clips")
+async def list_project_clips(project_id: str):
+    """List all Clip rows for a Project."""
+    from db.engine import async_session as _async_session
+    from db.models import Clip
+    from sqlalchemy import select
+    import uuid as _uuid
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        return JSONResponse({"error": "Invalid project ID"}, status_code=400)
+
+    async with _async_session() as session:
+        rows = (await session.execute(
+            select(Clip).where(Clip.project_id == pid)
+        )).scalars().all()
+        return JSONResponse([{
+            "id": str(c.id),
+            "project_id": str(c.project_id),
+            "source_start_seconds": c.source_start_seconds,
+            "source_end_seconds": c.source_end_seconds,
+            "hook_text": c.hook_text,
+            "clip_caption": c.clip_caption,
+            "virality_score": c.virality_score,
+            "rendered_url": c.rendered_url,
+            "status": c.status,
+        } for c in rows])
+
+
+@app.patch("/api/projects/{project_id}/clips/{clip_id}")
+async def update_clip(project_id: str, clip_id: str, request: Request):
+    """Update clip caption or status (approve/remove from wizard step 3)."""
+    from db.engine import async_session as _async_session
+    from db.models import Clip
+    from sqlalchemy import select
+    import uuid as _uuid
+
+    try:
+        cid = _uuid.UUID(clip_id)
+    except ValueError:
+        return JSONResponse({"error": "Invalid clip ID"}, status_code=400)
+
+    body = await request.json()
+
+    async with _async_session() as session:
+        row = (await session.execute(select(Clip).where(Clip.id == cid))).scalar_one_or_none()
+        if not row:
+            return JSONResponse({"error": "Clip not found"}, status_code=404)
+
+        for field in ("clip_caption", "status", "hook_text"):
+            if field in body:
+                setattr(row, field, body[field])
+
+        await session.commit()
+        await session.refresh(row)
+        return JSONResponse({"id": str(row.id), "status": row.status, "clip_caption": row.clip_caption})
+
+
+@app.post("/api/projects/{project_id}/ship-it")
+async def ship_it(project_id: str, request: Request):
+    """
+    The hero button — Ship It.
+
+    Triggers the full processing chain for a Project:
+      1. Transition status: recording_done/review → processing
+      2. Run sync Ship It chain (sponsor round-robin, clip detection, render)
+      3. Persist Clip rows to DB
+      4. Generate Foundation-powered show notes
+      5. Generate Foundation-powered clip captions
+      6. Transition status → review (wizard ready)
+
+    Returns immediately with job_id-like response; processing is async.
+    Poll /api/projects/{id} for status='review' to know it's done.
+
+    Construction vocabulary: Ship It = break ground on the distribution pipeline.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project, Clip
+    from sqlalchemy import select
+    from services.foundation import get_brand_context, assert_foundation_ready
+    from schemas.foundation import BrandContextTaskType as _TaskType
+    import uuid as _uuid
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        return JSONResponse({"error": "Invalid project ID"}, status_code=400)
+
+    # Load project
+    async with _async_session() as session:
+        project = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if not project:
+            return JSONResponse({"error": "Project not found"}, status_code=404)
+
+        allowed_entry_states = ("recording_done", "review", "failed")
+        if project.status not in allowed_entry_states:
+            return JSONResponse(
+                {"error": f"Project status '{project.status}' cannot Ship It. Must be one of: {allowed_entry_states}"},
+                status_code=400,
+            )
+
+        # Transition to processing
+        project.status = "processing"
+        await session.commit()
+        job_id = project.job_id
+        transcript = project.transcript or ""
+        mp3_url = project.mp3_url or ""
+        location_id = project.location_id
+        project_uuid = project.id
+
+    # Kick off async processing
+    asyncio.create_task(_run_ship_it_async(
+        project_uuid=project_uuid,
+        project_id=project_id,
+        job_id=job_id,
+        transcript=transcript,
+        mp3_url=mp3_url,
+        location_id=location_id,
+    ))
+
+    return JSONResponse({
+        "status": "processing",
+        "project_id": project_id,
+        "message": "Breaking ground — Ship It pipeline started. Poll /api/projects/{id} for status='review'.",
+    })
+
+
+async def _run_ship_it_async(
+    project_uuid,
+    project_id: str,
+    job_id: Optional[str],
+    transcript: str,
+    mp3_url: str,
+    location_id,
+) -> None:
+    """
+    Async Ship It orchestration — runs after the HTTP response returns.
+    Each step updates the Project row; failures are logged and non-fatal.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project, Clip
+    from sqlalchemy import select
+    from services.foundation import get_brand_context, assert_foundation_ready
+    from schemas.foundation import BrandContextTaskType as _TaskType
+    import anthropic as _anthropic
+    import uuid as _uuid
+    from config import settings as _settings
+
+    loop = asyncio.get_event_loop()
+
+    # Load job data (words + segments) from in-memory jobs dict if available
+    job_data = jobs.get(job_id, {}) if job_id else {}
+
+    # ── a-c: Sponsor, clip detection, clip rendering (sync via executor) ───────
+    try:
+        from pipeline.project_pipeline import run_ship_it as _sync_ship_it
+
+        def _sync():
+            return _sync_ship_it(
+                project_id=project_id,
+                job_data=job_data,
+                progress_cb=lambda msg: None,  # non-blocking; no WS in async task
+            )
+
+        ship_result = await loop.run_in_executor(None, _sync)
+
+        # Persist sponsor placement to Project
+        if ship_result.get("sponsor_placement"):
+            async with _async_session() as session:
+                proj = (await session.execute(select(Project).where(Project.id == project_uuid))).scalar_one_or_none()
+                if proj:
+                    proj.sponsor_placement = ship_result["sponsor_placement"]
+                    await session.commit()
+
+        # Persist Clip rows to DB
+        rendered = ship_result.get("rendered_clips", [])
+        clip_ids = []
+        if rendered:
+            async with _async_session() as session:
+                for idx, r in enumerate(rendered):
+                    clip = Clip(
+                        project_id=project_uuid,
+                        location_id=location_id,
+                        source_start_seconds=r.get("start", 0.0),
+                        source_end_seconds=r.get("end", 0.0),
+                        hook_text=r.get("hook_text"),
+                        virality_score=r.get("score"),
+                        rendered_url=r.get("rendered_url"),
+                        srt_url=r.get("srt_url"),
+                        status=r.get("status", "pending"),
+                    )
+                    session.add(clip)
+                await session.flush()
+                # Collect IDs before commit
+                for clip in session.new:
+                    if isinstance(clip, Clip):
+                        clip_ids.append(clip.id)
+                await session.commit()
+
+    except Exception as _ship_err:
+        import logging
+        logging.getLogger("podclick.projects").error("Ship It sync chain failed: %s", _ship_err)
+        rendered = []
+        clip_ids = []
+
+    # ── d: Foundation-powered show notes ──────────────────────────────────────
+    show_notes_text = None
+    if transcript:
+        try:
+            _anthropic_client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
+            ctx = await get_brand_context(
+                location_id=str(location_id),
+                task_type=_TaskType.show_notes,
+                topic=transcript[:500],  # first 500 chars as topic signal
+            )
+            vp = ctx.get("voice_profile", {})
+            tone_list = vp.get("tone", [])
+            tone_str = ", ".join(tone_list) if isinstance(tone_list, list) else str(tone_list)
+            voice_preamble = (
+                f"Write in the voice of {ctx['brand_profile'].get('full_name','the host')}, "
+                f"a {ctx['brand_profile'].get('niche_primary','real estate professional')} in "
+                f"{ctx['brand_profile'].get('market_city','their market')}.\n"
+                f"Tone: {tone_str}. {vp.get('cadence','')}\n\n"
+                f"Voice examples:\n"
+                + "\n".join(f"- {s['text'][:200]}" for s in ctx.get("voice_samples", [])[:3])
+            )
+
+            response = _anthropic_client.messages.create(
+                model="claude-sonnet-4-5",
+                max_tokens=1500,
+                system=voice_preamble,
+                messages=[{
+                    "role": "user",
+                    "content": (
+                        f"Write engaging show notes for this podcast episode. "
+                        f"Include a 2-3 sentence summary, 3-5 key takeaways, and a call to action. "
+                        f"Use construction vocabulary naturally (Blueprint, Foundation, Closing, etc. where they fit). "
+                        f"Do NOT use banned phrases: AI-powered, leverage, unlock, seamless.\n\n"
+                        f"TRANSCRIPT:\n{transcript[:3000]}"
+                    )
+                }],
+            )
+            show_notes_text = response.content[0].text
+
+            # Persist show notes
+            async with _async_session() as session:
+                proj = (await session.execute(select(Project).where(Project.id == project_uuid))).scalar_one_or_none()
+                if proj:
+                    proj.show_notes = show_notes_text
+                    await session.commit()
+
+            # Audit log for Foundation call
+            try:
+                import json as _j, sqlalchemy as _sa
+                async with _async_session() as audit_s:
+                    await audit_s.execute(
+                        _sa.text("INSERT INTO audit_log (id, location_id, action, payload, created_at) "
+                                 "VALUES (:id, :loc, 'project.show_notes', CAST(:p AS jsonb), now()) ON CONFLICT DO NOTHING"),
+                        {"id": str(_uuid.uuid4()), "loc": str(location_id),
+                         "p": _j.dumps({"project_id": str(project_uuid), "model": "claude-sonnet-4-5",
+                                        "sample_count": ctx.get("metadata", {}).get("sample_count", 0)})}
+                    )
+                    await audit_s.commit()
+            except Exception:
+                pass
+
+        except Exception as _sn_err:
+            import logging
+            logging.getLogger("podclick.projects").warning("show_notes generation failed: %s", _sn_err)
+
+    # ── e: Foundation-powered clip captions (one per rendered clip) ───────────
+    if rendered and transcript:
+        try:
+            async with _async_session() as session:
+                clip_rows = (await session.execute(
+                    select(Clip).where(Clip.project_id == project_uuid)
+                )).scalars().all()
+
+            _anthropic_client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
+
+            for clip_row in clip_rows:
+                try:
+                    clip_topic = clip_row.hook_text or "podcast clip"
+                    ctx = await get_brand_context(
+                        location_id=str(location_id),
+                        task_type=_TaskType.clip_caption,
+                        topic=clip_topic,
+                    )
+                    vp = ctx.get("voice_profile", {})
+                    tone_list = vp.get("tone", [])
+                    tone_str = ", ".join(tone_list) if isinstance(tone_list, list) else str(tone_list)
+                    voice_preamble = (
+                        f"Write in the voice of {ctx['brand_profile'].get('full_name','the host')}, "
+                        f"a {ctx['brand_profile'].get('niche_primary','real estate professional')}.\n"
+                        f"Tone: {tone_str}.\n\n"
+                        f"Voice examples:\n"
+                        + "\n".join(f"- {s['text'][:150]}" for s in ctx.get("voice_samples", [])[:3])
+                    )
+
+                    caption_resp = _anthropic_client.messages.create(
+                        model="claude-sonnet-4-5",
+                        max_tokens=300,
+                        system=voice_preamble,
+                        messages=[{
+                            "role": "user",
+                            "content": (
+                                f"Write a short, punchy social media caption for this podcast clip. "
+                                f"Max 3 sentences. Hook first. No hashtags (they'll be added separately). "
+                                f"Sound like a real person sharing something valuable, not a brand post.\n\n"
+                                f"CLIP HOOK: {clip_row.hook_text}\n"
+                                f"CLIP TRANSCRIPT: {clip_row.virality_score}"
+                            )
+                        }],
+                    )
+                    caption_text = caption_resp.content[0].text
+
+                    async with _async_session() as session:
+                        cr = (await session.execute(select(Clip).where(Clip.id == clip_row.id))).scalar_one_or_none()
+                        if cr:
+                            cr.clip_caption = caption_text
+                            await session.commit()
+
+                except Exception as _cap_err:
+                    import logging
+                    logging.getLogger("podclick.projects").warning(
+                        "clip_caption failed for clip %s: %s", clip_row.id, _cap_err
+                    )
+
+        except Exception as _caps_err:
+            import logging
+            logging.getLogger("podclick.projects").warning("clip captions batch failed: %s", _caps_err)
+
+    # ── Transition to review — Ship It wizard is ready ─────────────────────────
+    try:
+        async with _async_session() as session:
+            proj = (await session.execute(select(Project).where(Project.id == project_uuid))).scalar_one_or_none()
+            if proj and proj.status == "processing":
+                proj.status = "review"
+                await session.commit()
+    except Exception as _trans_err:
+        import logging
+        logging.getLogger("podclick.projects").error("Status transition to 'review' failed: %s", _trans_err)
+
+
+@app.post("/api/projects/{project_id}/schedule-closing")
+async def schedule_closing(project_id: str, request: Request):
+    """
+    Step 4 of the Ship It wizard — set the Closing date.
+
+    Body: {
+      "closing_at": "2026-05-30T08:00:00Z",   // ISO timestamp
+      "platforms": ["linkedin", "facebook"],   // optional, defaults to all connected
+      "guest_ids": ["abc123"]                  // optional, override project guest_ids
+    }
+
+    On call:
+      1. Validate Project is in 'review' status
+      2. Create Post rows for main episode + approved clips
+      3. Set project.closing_scheduled_at
+      4. Transition Project → 'scheduled'
+      5. Guest CRM: update linked guests to 'recorded' status
+
+    The actual publish fires when closing_scheduled_at arrives (handled by
+    the existing APScheduler cron in pipeline/scheduler.py).
+
+    Construction vocabulary: this is "Set the closing date."
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project, Clip
+    from sqlalchemy import select
+    import uuid as _uuid
+    from datetime import datetime, timezone
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        return JSONResponse({"error": "Invalid project ID"}, status_code=400)
+
+    body = await request.json()
+    closing_at_str = body.get("closing_at")
+    platforms = body.get("platforms") or ["linkedin", "facebook", "instagram"]
+    guest_id_overrides = body.get("guest_ids")
+
+    if not closing_at_str:
+        return JSONResponse({"error": "closing_at required (ISO timestamp)"}, status_code=400)
+
+    try:
+        closing_at = datetime.fromisoformat(closing_at_str.replace("Z", "+00:00"))
+    except ValueError:
+        return JSONResponse({"error": "Invalid closing_at format — use ISO 8601"}, status_code=400)
+
+    async with _async_session() as session:
+        project = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if not project:
+            return JSONResponse({"error": "Project not found"}, status_code=404)
+
+        if project.status != "review":
+            return JSONResponse(
+                {"error": f"Project must be in 'review' to schedule closing. Current: {project.status}"},
+                status_code=400,
+            )
+
+        # Update guest_ids if overridden
+        if guest_id_overrides is not None:
+            project.guest_ids = guest_id_overrides
+
+        # Set closing date + transition
+        project.closing_scheduled_at = closing_at
+        project.status = "scheduled"
+        project.wizard_step = 4
+
+        await session.commit()
+        project_data = _project_to_dict(project)
+
+    # Guest CRM: update linked guests → 'recorded' (async, non-fatal)
+    asyncio.create_task(_update_guest_statuses(
+        project_id=project_id,
+        guest_ids=project_data.get("guest_ids", []),
+        new_status="recorded",
+    ))
+
+    # Create Post rows for the episode
+    asyncio.create_task(_create_closing_posts(
+        project_id=project_id,
+        project_uuid=pid,
+        platforms=platforms,
+        closing_at=closing_at,
+        location_id=project_data.get("location_id"),
+        title=project_data.get("title", ""),
+        show_notes=project_data.get("show_notes", ""),
+    ))
+
+    return JSONResponse({
+        **project_data,
+        "message": f"Closing lined up for {closing_at.strftime('%B %d at %-I:%M %p')}. "
+                   f"Posts go up across {len(platforms)} platforms.",
+    })
+
+
+async def _update_guest_statuses(
+    project_id: str,
+    guest_ids: list,
+    new_status: str,
+) -> None:
+    """Update linked guests in guests.json when Project status changes."""
+    if not guest_ids:
+        return
+
+    guests_file = Path(__file__).parent / "data" / "guests.json"
+    if not guests_file.exists():
+        return
+
+    try:
+        with open(guests_file) as f:
+            guests = json.load(f)
+
+        updated = False
+        for g in guests:
+            if g.get("id") in guest_ids:
+                # Only advance status (never go backwards)
+                STATUS_ORDER = ["prospect", "booked", "recorded", "aired"]
+                current_idx = STATUS_ORDER.index(g.get("status", "prospect")) if g.get("status") in STATUS_ORDER else 0
+                new_idx = STATUS_ORDER.index(new_status) if new_status in STATUS_ORDER else 0
+                if new_idx > current_idx:
+                    g["status"] = new_status
+                    g["project_id"] = project_id
+                    updated = True
+
+        if updated:
+            with open(guests_file, "w") as f:
+                json.dump(guests, f, indent=2)
+
+    except Exception as _err:
+        import logging
+        logging.getLogger("podclick.projects").warning("Guest CRM update failed: %s", _err)
+
+
+async def _create_closing_posts(
+    project_id: str,
+    project_uuid,
+    platforms: list,
+    closing_at,
+    location_id: str,
+    title: str,
+    show_notes: str,
+) -> None:
+    """
+    Create Post rows for the episode closing.
+    One Post with per-platform PostVariant entries.
+    Uses existing posts table from Phase 2.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Post, PostVariant
+    from sqlalchemy import insert
+    import uuid as _uuid
+
+    try:
+        base_caption = show_notes[:500] if show_notes else f"New episode: {title}"
+
+        async with _async_session() as session:
+            # Main episode post
+            post_id = _uuid.uuid4()
+            post = Post(
+                id=post_id,
+                location_id=location_id,
+                project_id=project_uuid,
+                bucket="podcast",
+                base_caption=base_caption,
+                scheduled_at=closing_at,
+                status="scheduled",
+                source="clip_distributor",
+            )
+            session.add(post)
+
+            # Per-platform variants
+            PLATFORM_OFFSETS = {
+                "linkedin": 0, "x": 60, "facebook": 120,
+                "instagram": 180, "tiktok": 240, "youtube": 300, "gmb": 360,
+            }
+            from datetime import timedelta
+            for plat in platforms:
+                offset_s = PLATFORM_OFFSETS.get(plat, 0)
+                variant_time = closing_at + timedelta(seconds=offset_s)
+                variant = PostVariant(
+                    post_id=post_id,
+                    platform=plat,
+                    caption=base_caption,
+                    platform_specific={"stagger_offset_s": offset_s},
+                )
+                session.add(variant)
+
+            await session.commit()
+
+    except Exception as _err:
+        import logging
+        logging.getLogger("podclick.projects").warning("Closing post creation failed: %s", _err)
+
+
 # ── Routes ─────────────────────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
@@ -618,6 +1417,18 @@ async def serve_studio():
     the WebM to the existing /api/run pipeline via the Publish button.
     """
     return HTMLResponse((FRONTEND_DIR / "studio.html").read_text())
+
+
+@app.get("/projects", response_class=HTMLResponse)
+async def serve_projects_list():
+    """Phase 5 — Job Site: list all projects."""
+    return HTMLResponse((FRONTEND_DIR / "projects.html").read_text())
+
+
+@app.get("/project/{project_id}", response_class=HTMLResponse)
+async def serve_project_wizard(project_id: str):
+    """Phase 5 — Ship It wizard. 4-step review before Closing."""
+    return HTMLResponse((FRONTEND_DIR / "project.html").read_text())
 
 
 @app.post("/api/process")

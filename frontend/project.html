@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project · PodClick</title>
+  <link rel="stylesheet" href="/static/podclick-design.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: var(--bg); color: var(--text-pri); min-height: 100vh; font-family: var(--font-body); }
+    a { color: var(--orange-hi); text-decoration: none; }
+    a:hover { color: var(--orange); }
+
+    /* Layout */
+    .shell { max-width: 1080px; margin: 0 auto; padding: 24px 22px 80px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+    .topbar .back { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-sec); }
+    .topbar .back:hover { color: var(--orange-hi); }
+    .topbar .crumbs { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); }
+
+    .header-card { background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--orange); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 18px; }
+    .header-eyebrow { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
+    .header-title { font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: 0.04em; color: var(--text-pri); line-height: 1.1; }
+    .header-meta { margin-top: 8px; display: flex; gap: 14px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.10em; text-transform: uppercase; color: var(--text-sec); }
+    .header-meta .status-pill { padding: 3px 9px; border-radius: 3px; border: 1px solid var(--border-lit); }
+    .status-draft         { color: var(--text-dim); border-color: var(--border); }
+    .status-recording_done{ color: #7fb8e8; border-color: var(--blue-dim); background: rgba(58,110,168,0.08); }
+    .status-processing    { color: var(--yellow); border-color: var(--yellow-dim); background: rgba(196,150,28,0.07); }
+    .status-review        { color: var(--orange-hi); border-color: var(--orange-dim); background: var(--orange-mist); }
+    .status-scheduled     { color: #c07ada; border-color: #4a2a5a; background: rgba(192,122,218,0.07); }
+    .status-closing       { color: var(--yellow); border-color: var(--yellow); background: rgba(196,150,28,0.10); }
+    .status-closed        { color: var(--green-hi); border-color: var(--green-dim); background: rgba(61,140,92,0.10); }
+    .status-failed        { color: #d97070; border-color: var(--orange-dim); background: rgba(160,56,56,0.10); }
+
+    /* Wizard breadcrumbs */
+    .wizard-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 22px; }
+    .wstep { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; position: relative; opacity: 0.55; transition: all 0.15s; }
+    .wstep .wnum { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; color: var(--text-dim); }
+    .wstep .wlabel { font-family: var(--font-display); font-weight: 700; font-size: 14px; letter-spacing: 0.04em; color: var(--text-pri); margin-top: 4px; }
+    .wstep.done { opacity: 1; border-left: 3px solid var(--green); }
+    .wstep.done .wnum { color: var(--green-hi); }
+    .wstep.active { opacity: 1; border-left: 3px solid var(--orange); background: var(--bg-raised); }
+    .wstep.active .wnum { color: var(--orange-hi); }
+
+    /* Cards */
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; margin-bottom: 16px; }
+    .card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 14px; }
+    .card-head h2 { font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: 0.05em; }
+    .card-head .meta { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; color: var(--text-dim); text-transform: uppercase; }
+
+    /* Buttons */
+    .btn { font-family: var(--font-display); font-weight: 700; font-size: 13px; letter-spacing: 0.08em; padding: 10px 18px; border-radius: var(--radius); cursor: pointer; border: 1px solid transparent; transition: all 0.12s; text-transform: uppercase; }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--orange-hi); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; border-color: var(--border-lit); color: var(--text-sec); }
+    .btn-ghost:hover { border-color: var(--orange-dim); color: var(--orange-hi); }
+    .btn-approve { background: var(--green-dim); border: 1px solid var(--green); color: var(--green-hi); font-family: var(--font-display); font-weight: 700; font-size: 12px; letter-spacing: 0.08em; padding: 8px 14px; border-radius: var(--radius); cursor: pointer; text-transform: uppercase; }
+    .btn-approve:hover { background: rgba(61,140,92,0.2); }
+    .btn-reject { background: transparent; border: 1px solid var(--border-lit); color: var(--text-dim); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.10em; padding: 8px 14px; border-radius: var(--radius); cursor: pointer; text-transform: uppercase; }
+    .btn-reject:hover { border-color: var(--orange-dim); color: var(--orange-hi); }
+
+    /* Form fields */
+    textarea, input[type="text"], input[type="datetime-local"] {
+      width: 100%; background: var(--bg-inset); border: 1px solid var(--border-lit); border-radius: var(--radius);
+      color: var(--text-pri); padding: 12px 14px; font-family: var(--font-body); font-size: 14px; line-height: 1.55; resize: vertical;
+    }
+    textarea:focus, input:focus { outline: none; border-color: var(--orange-dim); }
+    .field-row { display: flex; gap: 12px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+    .field-row label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-sec); }
+
+    /* Word count */
+    .word-count { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.10em; color: var(--text-dim); text-transform: uppercase; }
+
+    /* Audio */
+    audio { width: 100%; margin-top: 12px; filter: invert(0.85) hue-rotate(180deg); }
+    .assembly-flags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .flag { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; padding: 4px 9px; border-radius: 3px; border: 1px solid var(--border-lit); color: var(--text-dim); }
+    .flag.on { color: var(--green-hi); border-color: var(--green-dim); background: rgba(61,140,92,0.08); }
+    .sponsor-line { margin-top: 14px; padding: 12px 14px; background: var(--bg-raised); border-left: 3px solid var(--orange-dim); border-radius: 5px; font-family: var(--font-body); font-size: 13px; color: var(--text-pri); }
+
+    /* Clip cards */
+    .clip-card { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; }
+    .clip-card.approved { border-left: 3px solid var(--green); }
+    .clip-card.removed { border-left: 3px solid var(--orange-dim); opacity: 0.55; }
+    .clip-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+    .clip-hook { font-family: var(--font-display); font-weight: 700; font-size: 15px; letter-spacing: 0.03em; color: var(--text-pri); flex: 1; min-width: 0; outline: none; padding: 6px 8px; border-radius: 4px; border: 1px solid transparent; }
+    .clip-hook:focus { border-color: var(--orange-dim); background: var(--bg-inset); }
+    .clip-meta { display: flex; gap: 10px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.10em; color: var(--text-sec); text-transform: uppercase; }
+    .virality { padding: 3px 8px; border-radius: 3px; background: var(--orange-glow); color: var(--orange-hi); border: 1px solid var(--orange-dim); }
+    .clip-status { padding: 3px 8px; border-radius: 3px; border: 1px solid var(--border-lit); color: var(--text-dim); }
+    .clip-status.rendered { color: #7fb8e8; border-color: var(--blue-dim); }
+    .clip-status.approved { color: var(--green-hi); border-color: var(--green-dim); }
+    .clip-status.removed { color: #d97070; border-color: var(--orange-dim); }
+    .clip-caption-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); margin-top: 10px; margin-bottom: 4px; }
+    .clip-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .clip-video { margin-top: 10px; width: 100%; max-width: 320px; border-radius: var(--radius); background: #000; }
+
+    /* Schedule */
+    .platforms { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 12px; }
+    .plat-tile { background: var(--bg-inset); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.12s; }
+    .plat-tile:hover { border-color: var(--border-hot); }
+    .plat-tile.on { border-color: var(--orange); background: var(--orange-mist); }
+    .plat-tile input { accent-color: var(--orange); cursor: pointer; }
+    .plat-tile label { font-family: var(--font-display); font-weight: 600; font-size: 12px; letter-spacing: 0.06em; cursor: pointer; text-transform: uppercase; color: var(--text-pri); }
+
+    .guests-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .guest-chip { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.10em; text-transform: uppercase; padding: 4px 9px; border-radius: 3px; background: var(--bg-inset); border: 1px solid var(--border-lit); color: var(--text-sec); }
+
+    /* Processing */
+    .processing-panel { text-align: center; padding: 60px 20px; }
+    .spinner { width: 48px; height: 48px; border: 3px solid var(--border-lit); border-top-color: var(--orange); border-radius: 50%; animation: spin 0.9s linear infinite; margin: 0 auto 20px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .processing-msg { font-family: var(--font-display); font-weight: 700; font-size: 18px; letter-spacing: 0.06em; color: var(--text-pri); }
+    .processing-msg .dots::after { content: ''; animation: dots 1.4s steps(4, end) infinite; }
+    @keyframes dots { 0%,20%{content:'';} 40%{content:'.';} 60%{content:'..';} 80%,100%{content:'...';} }
+
+    /* Failed banner */
+    .failed-banner { background: rgba(160,56,56,0.10); border: 1px solid var(--orange-dim); border-left: 3px solid var(--red); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 16px; }
+    .failed-banner .title { font-family: var(--font-display); font-weight: 700; font-size: 15px; letter-spacing: 0.05em; color: #d97070; text-transform: uppercase; }
+    .failed-banner .msg { margin-top: 6px; font-family: var(--font-body); font-size: 13px; color: var(--text-sec); }
+
+    /* Success banner */
+    .success-banner { background: rgba(61,140,92,0.12); border: 1px solid var(--green); border-left: 3px solid var(--green); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 16px; }
+    .success-banner .title { font-family: var(--font-display); font-weight: 700; font-size: 15px; letter-spacing: 0.05em; color: var(--green-hi); text-transform: uppercase; }
+    .success-banner .msg { margin-top: 6px; font-family: var(--font-body); font-size: 13px; color: var(--text-pri); }
+
+    .empty { padding: 32px 20px; text-align: center; font-family: var(--font-body); color: var(--text-sec); font-size: 14px; }
+    .hidden { display: none !important; }
+
+    /* Toast */
+    #toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg-raised); border: 1px solid var(--border-lit); border-radius: var(--radius); padding: 12px 16px; font-family: var(--font-body); font-size: 13px; color: var(--text-pri); opacity: 0; transform: translateY(8px); transition: all 0.18s; z-index: 200; max-width: 340px; }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.success { border-color: var(--green); }
+    #toast.error { border-color: var(--red); color: #f0c8c8; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <a href="/studio" class="back">&larr; Back to Job Site</a>
+      <div class="crumbs" id="crumbs">Project</div>
+    </div>
+
+    <div id="header-card" class="header-card">
+      <div class="header-eyebrow">Project</div>
+      <div class="header-title" id="header-title">Loading…</div>
+      <div class="header-meta" id="header-meta"></div>
+    </div>
+
+    <div id="failed-banner" class="failed-banner hidden">
+      <div class="title">Pipeline stalled.</div>
+      <div class="msg" id="failed-msg">The last Ship It run did not finish. Restart it when you're ready.</div>
+      <div style="margin-top: 12px;">
+        <button class="btn btn-primary" id="rerun-ship-btn">Re-run Ship It</button>
+      </div>
+    </div>
+
+    <div id="success-banner" class="success-banner hidden">
+      <div class="title">Closed clean.</div>
+      <div class="msg" id="success-msg"></div>
+      <div style="margin-top: 12px;">
+        <a href="/calendar" class="btn btn-ghost" style="display:inline-block;">View Calendar</a>
+      </div>
+    </div>
+
+    <div id="wizard-bar" class="wizard-bar">
+      <div class="wstep" data-step="1"><div class="wnum">Step 01</div><div class="wlabel">Transcript</div></div>
+      <div class="wstep" data-step="2"><div class="wnum">Step 02</div><div class="wlabel">Audio Assembly</div></div>
+      <div class="wstep" data-step="3"><div class="wnum">Step 03</div><div class="wlabel">Clip Review</div></div>
+      <div class="wstep" data-step="4"><div class="wnum">Step 04</div><div class="wlabel">Closing</div></div>
+    </div>
+
+    <!-- Processing -->
+    <div id="processing-panel" class="card processing-panel hidden">
+      <div class="spinner"></div>
+      <div class="processing-msg">Pipeline running<span class="dots"></span></div>
+      <div style="margin-top: 10px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.10em; color: var(--text-dim); text-transform: uppercase;">Transcript, assembly, clips, show notes</div>
+    </div>
+
+    <!-- Step 1 — Transcript Review -->
+    <div id="step1-panel" class="card hidden">
+      <div class="card-head">
+        <h2>Transcript Review</h2>
+        <span class="meta" id="step1-wordcount">0 words</span>
+      </div>
+      <p style="font-family: var(--font-body); font-size: 13px; color: var(--text-sec); margin-bottom: 12px;">Read through, fix anything Whisper missed, then move on.</p>
+      <textarea id="transcript-area" rows="18" placeholder="Transcript will appear here once processing finishes."></textarea>
+      <div class="field-row" style="justify-content: space-between;">
+        <button class="btn btn-ghost" id="save-transcript-btn">Save edits</button>
+        <button class="btn btn-primary" id="step1-next-btn">Next Step &rarr;</button>
+      </div>
+    </div>
+
+    <!-- Step 2 — Audio Assembly Review -->
+    <div id="step2-panel" class="card hidden">
+      <div class="card-head">
+        <h2>Audio Assembly Review</h2>
+        <span class="meta">Intro + Main + Sponsor + Outro</span>
+      </div>
+      <div id="audio-player-wrap">
+        <div class="empty" id="audio-empty">No assembled audio yet.</div>
+      </div>
+      <div id="sponsor-line-wrap"></div>
+      <div class="assembly-flags" id="assembly-flags"></div>
+      <p style="font-family: var(--font-body); font-size: 12px; color: var(--text-dim); margin-top: 14px;">Swap sponsor option lands in a later release. For now, this is what got laid down.</p>
+      <div class="field-row" style="justify-content: flex-end;">
+        <button class="btn btn-primary" id="step2-next-btn">Next Step &rarr;</button>
+      </div>
+    </div>
+
+    <!-- Step 3 — Clip Review -->
+    <div id="step3-panel" class="card hidden">
+      <div class="card-head">
+        <h2>Clip Review</h2>
+        <span class="meta" id="clip-count-meta">0 clips</span>
+      </div>
+      <div id="clips-list">
+        <div class="empty">Loading clips…</div>
+      </div>
+      <div class="field-row" style="justify-content: flex-end;">
+        <button class="btn btn-primary" id="step3-next-btn">Next Step &rarr;</button>
+      </div>
+    </div>
+
+    <!-- Step 4 — Schedule Closing -->
+    <div id="step4-panel" class="card hidden">
+      <div class="card-head">
+        <h2>Schedule Closing</h2>
+        <span class="meta">Set the closing date and pick channels</span>
+      </div>
+      <div class="field-row" style="flex-direction: column; align-items: flex-start; gap: 6px;">
+        <label for="closing-at">Closing date &amp; time</label>
+        <input type="datetime-local" id="closing-at" />
+      </div>
+      <div style="margin-top: 18px;">
+        <label style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-sec);">Channels</label>
+        <div class="platforms" id="platforms"></div>
+      </div>
+      <div style="margin-top: 18px;">
+        <label style="font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-sec);">Guests on this project</label>
+        <div class="guests-list" id="guests-list"><span class="guest-chip">None linked</span></div>
+      </div>
+      <div class="field-row" style="justify-content: flex-end; margin-top: 22px;">
+        <button class="btn btn-primary" id="line-it-up-btn">Line it up</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    // ────── State ─────────────────────────────────────────────────────────
+    const PROJECT_ID = (function () {
+      const parts = window.location.pathname.split('/').filter(Boolean);
+      return parts[parts.length - 1] || '';
+    })();
+
+    const DEFAULT_PLATFORMS = [
+      { key: 'linkedin',  label: 'LinkedIn',  on: true  },
+      { key: 'facebook',  label: 'Facebook',  on: true  },
+      { key: 'instagram', label: 'Instagram', on: true  },
+      { key: 'tiktok',    label: 'TikTok',    on: false },
+      { key: 'youtube',   label: 'YouTube',   on: false },
+      { key: 'x',         label: 'X',         on: false },
+    ];
+
+    const state = {
+      project: null,
+      clips: [],
+      pollTimer: null,
+      platformChecks: DEFAULT_PLATFORMS.map(p => Object.assign({}, p)),
+      transcriptDirty: false,
+      transcriptSaving: false,
+    };
+
+    // ────── Utilities ─────────────────────────────────────────────────────
+    function $(id) { return document.getElementById(id); }
+    function escHtml(s) {
+      if (s === null || s === undefined) return '';
+      return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function wordCount(s) {
+      if (!s) return 0;
+      const m = String(s).trim().match(/\S+/g);
+      return m ? m.length : 0;
+    }
+    function fmtRange(start, end) {
+      const s = (start == null) ? '?' : Number(start).toFixed(1);
+      const e = (end   == null) ? '?' : Number(end).toFixed(1);
+      return s + 's – ' + e + 's';
+    }
+    function fmtDate(iso) {
+      if (!iso) return '';
+      try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return iso;
+        return d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+      } catch (e) { return iso; }
+    }
+    function toLocalInputValue(iso) {
+      if (!iso) return '';
+      try {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        const pad = n => String(n).padStart(2, '0');
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+          + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+      } catch (e) { return ''; }
+    }
+    function defaultClosingTime() {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      d.setHours(8, 0, 0, 0);
+      const pad = n => String(n).padStart(2, '0');
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+    function toast(msg, kind) {
+      const el = $('toast');
+      if (!el) return;
+      el.textContent = msg;
+      el.className = 'show ' + (kind || '');
+      clearTimeout(el._t);
+      el._t = setTimeout(() => { el.className = ''; }, 3000);
+    }
+
+    // ────── API ───────────────────────────────────────────────────────────
+    async function api(method, path, body) {
+      const opts = { method: method, headers: { 'Accept': 'application/json' } };
+      if (body !== undefined) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+      }
+      let resp;
+      try {
+        resp = await fetch(path, opts);
+      } catch (netErr) {
+        throw new Error('Network error: ' + (netErr && netErr.message ? netErr.message : 'unknown'));
+      }
+      let data = null;
+      const ct = resp.headers.get('content-type') || '';
+      if (ct.indexOf('application/json') !== -1) {
+        try { data = await resp.json(); } catch (e) { data = null; }
+      } else {
+        try { data = await resp.text(); } catch (e) { data = null; }
+      }
+      if (!resp.ok) {
+        const detail = (data && typeof data === 'object' && (data.error || data.detail || data.message))
+          ? (data.error || data.detail || data.message)
+          : ('HTTP ' + resp.status);
+        const err = new Error(detail);
+        err.status = resp.status;
+        err.data = data;
+        throw err;
+      }
+      return data;
+    }
+
+    function loadProject() { return api('GET', '/api/projects/' + encodeURIComponent(PROJECT_ID)); }
+    function patchProject(patch) { return api('PATCH', '/api/projects/' + encodeURIComponent(PROJECT_ID), patch); }
+    function loadClips() { return api('GET', '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/clips'); }
+    function patchClip(clipId, patch) {
+      return api('PATCH', '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/clips/' + encodeURIComponent(clipId), patch);
+    }
+    function shipIt() { return api('POST', '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/ship-it'); }
+    function scheduleClosing(payload) {
+      return api('POST', '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/schedule-closing', payload);
+    }
+
+    // ────── Render: header ────────────────────────────────────────────────
+    function renderHeader(p) {
+      const title = p.title || 'Untitled Project';
+      $('header-title').textContent = title;
+      document.title = title + ' · PodClick';
+      $('crumbs').textContent = 'Project · ' + (p.status || 'draft');
+      const parts = [];
+      if (p.episode_number != null && p.episode_number !== '') {
+        parts.push('<span>Ep ' + escHtml(p.episode_number) + '</span>');
+      }
+      parts.push('<span class="status-pill status-' + escHtml(p.status || 'draft') + '">' + escHtml(p.status || 'draft') + '</span>');
+      if (p.wizard_step != null) {
+        parts.push('<span>Step ' + escHtml(p.wizard_step) + ' of 4</span>');
+      }
+      if (p.closed_at) parts.push('<span>Closed ' + escHtml(fmtDate(p.closed_at)) + '</span>');
+      else if (p.closing_scheduled_at) parts.push('<span>Closing ' + escHtml(fmtDate(p.closing_scheduled_at)) + '</span>');
+      $('header-meta').innerHTML = parts.join('');
+    }
+
+    function renderWizardBar(currentStep) {
+      const steps = document.querySelectorAll('#wizard-bar .wstep');
+      steps.forEach(el => {
+        const n = parseInt(el.getAttribute('data-step'), 10);
+        el.classList.remove('done', 'active');
+        if (n < currentStep) el.classList.add('done');
+        else if (n === currentStep) el.classList.add('active');
+      });
+    }
+
+    // ────── Render: panels ────────────────────────────────────────────────
+    function hideAllStepPanels() {
+      ['processing-panel', 'step1-panel', 'step2-panel', 'step3-panel', 'step4-panel']
+        .forEach(id => $(id).classList.add('hidden'));
+    }
+
+    function showStep1() {
+      hideAllStepPanels();
+      $('step1-panel').classList.remove('hidden');
+      const ta = $('transcript-area');
+      const text = (state.project && state.project.transcript) ? state.project.transcript : '';
+      ta.value = text;
+      state.transcriptDirty = false;
+      $('step1-wordcount').textContent = wordCount(text) + ' words';
+    }
+
+    function showStep2() {
+      hideAllStepPanels();
+      $('step2-panel').classList.remove('hidden');
+      const p = state.project || {};
+      const wrap = $('audio-player-wrap');
+      const mp3Url = p.mp3_url || (p.audio_assembly && p.audio_assembly.final_url) || p.final_audio_url;
+      if (mp3Url) {
+        wrap.innerHTML = '<audio controls preload="metadata" src="' + escHtml(mp3Url) + '"></audio>';
+      } else {
+        wrap.innerHTML = '<div class="empty" id="audio-empty">No assembled audio yet.</div>';
+      }
+      const assembly = p.audio_assembly || {};
+      const sponsorName = p.sponsor_name || assembly.sponsor_name;
+      const sponsorPos = (assembly.sponsor_position_pct != null) ? assembly.sponsor_position_pct : 50;
+      const sponsorWrap = $('sponsor-line-wrap');
+      if (sponsorName) {
+        sponsorWrap.innerHTML = '<div class="sponsor-line"><strong>Sponsor:</strong> ' + escHtml(sponsorName) + ' — inserted at ' + escHtml(sponsorPos) + '%</div>';
+      } else {
+        sponsorWrap.innerHTML = '';
+      }
+      const flags = [
+        { key: 'has_intro',      label: 'Intro' },
+        { key: 'has_commercial', label: 'Commercial' },
+        { key: 'has_outro',      label: 'Outro' },
+      ];
+      const flagHtml = flags.map(f => {
+        const on = !!assembly[f.key];
+        return '<span class="flag ' + (on ? 'on' : '') + '">' + escHtml(f.label) + (on ? ' &check;' : ' —') + '</span>';
+      }).join('');
+      $('assembly-flags').innerHTML = flagHtml;
+    }
+
+    function showStep3() {
+      hideAllStepPanels();
+      $('step3-panel').classList.remove('hidden');
+      renderClips();
+    }
+
+    function showStep4() {
+      hideAllStepPanels();
+      $('step4-panel').classList.remove('hidden');
+      const p = state.project || {};
+      const input = $('closing-at');
+      input.value = toLocalInputValue(p.closing_scheduled_at) || defaultClosingTime();
+      renderPlatforms();
+      renderGuests();
+    }
+
+    function showProcessing() {
+      hideAllStepPanels();
+      $('processing-panel').classList.remove('hidden');
+    }
+
+    // ────── Clips ─────────────────────────────────────────────────────────
+    function renderClips() {
+      const wrap = $('clips-list');
+      const clips = Array.isArray(state.clips) ? state.clips : [];
+      $('clip-count-meta').textContent = clips.length + (clips.length === 1 ? ' clip' : ' clips');
+      if (!clips.length) {
+        wrap.innerHTML = '<div class="empty">No clips generated yet. They will appear once processing completes.</div>';
+        return;
+      }
+      const html = clips.map(c => {
+        const status = c.status || 'pending';
+        const cardCls = (status === 'approved' || status === 'removed') ? ('clip-card ' + status) : 'clip-card';
+        const virality = (c.virality_score != null)
+          ? '<span class="virality">Virality ' + escHtml(Number(c.virality_score).toFixed(1)) + '</span>'
+          : '';
+        const range = fmtRange(c.source_start_seconds != null ? c.source_start_seconds : c.start,
+                               c.source_end_seconds   != null ? c.source_end_seconds   : c.end);
+        const hook = c.hook_text || c.hook || '';
+        const caption = c.clip_caption || c.caption || '';
+        const renderedUrl = c.rendered_url ||
+          (c.rendered_urls && (c.rendered_urls.vertical_1080x1920 || c.rendered_urls.square_1080x1080 || c.rendered_urls.horizontal_1920x1080));
+        let videoBlock = '';
+        if (renderedUrl) {
+          const looksVideo = /\.(mp4|webm|mov)(\?|$)/i.test(renderedUrl);
+          if (looksVideo) {
+            videoBlock = '<video class="clip-video" controls preload="metadata" src="' + escHtml(renderedUrl) + '"></video>';
+          } else {
+            videoBlock = '<div style="margin-top:10px;"><a href="' + escHtml(renderedUrl) + '" target="_blank" rel="noopener">Download rendered clip &rarr;</a></div>';
+          }
+        }
+        return ''
+          + '<div class="' + cardCls + '" data-clip-id="' + escHtml(c.id) + '">'
+          +   '<div class="clip-head">'
+          +     '<div class="clip-hook" contenteditable="true" data-field="hook_text" spellcheck="true">' + escHtml(hook) + '</div>'
+          +     '<div class="clip-meta">'
+          +       virality
+          +       '<span>' + escHtml(range) + '</span>'
+          +       '<span class="clip-status ' + escHtml(status) + '">' + escHtml(status) + '</span>'
+          +     '</div>'
+          +   '</div>'
+          +   '<div class="clip-caption-label">Caption</div>'
+          +   '<textarea data-field="clip_caption" rows="3">' + escHtml(caption) + '</textarea>'
+          +   videoBlock
+          +   '<div class="clip-actions">'
+          +     '<button class="btn-approve" data-action="approve">Sign off</button>'
+          +     '<button class="btn-reject"  data-action="remove">Remove</button>'
+          +   '</div>'
+          + '</div>';
+      }).join('');
+      wrap.innerHTML = html;
+
+      // Bind events per clip card
+      wrap.querySelectorAll('.clip-card').forEach(card => {
+        const clipId = card.getAttribute('data-clip-id');
+        const hookEl = card.querySelector('.clip-hook');
+        const captionEl = card.querySelector('textarea[data-field="clip_caption"]');
+        let hookTimer = null, captionTimer = null;
+
+        function debouncedSave(field, value) {
+          patchClip(clipId, { [field]: value })
+            .catch(err => toast('Could not save clip edit — ' + err.message, 'error'));
+        }
+        hookEl.addEventListener('input', () => {
+          clearTimeout(hookTimer);
+          hookTimer = setTimeout(() => debouncedSave('hook_text', hookEl.innerText.trim()), 600);
+        });
+        captionEl.addEventListener('input', () => {
+          clearTimeout(captionTimer);
+          captionTimer = setTimeout(() => debouncedSave('clip_caption', captionEl.value), 600);
+        });
+        card.querySelector('button[data-action="approve"]').addEventListener('click', () => signOffClip(clipId));
+        card.querySelector('button[data-action="remove"]').addEventListener('click', () => removeClip(clipId));
+      });
+    }
+
+    async function signOffClip(clipId) {
+      try {
+        await patchClip(clipId, { status: 'approved' });
+        const c = state.clips.find(x => x.id === clipId);
+        if (c) c.status = 'approved';
+        renderClips();
+        toast('Clip signed off.', 'success');
+      } catch (err) {
+        toast('Sign-off failed — ' + err.message, 'error');
+      }
+    }
+    async function removeClip(clipId) {
+      try {
+        await patchClip(clipId, { status: 'removed' });
+        const c = state.clips.find(x => x.id === clipId);
+        if (c) c.status = 'removed';
+        renderClips();
+        toast('Clip removed.', 'success');
+      } catch (err) {
+        toast('Remove failed — ' + err.message, 'error');
+      }
+    }
+
+    // ────── Platforms / Guests ────────────────────────────────────────────
+    function renderPlatforms() {
+      const html = state.platformChecks.map(p => ''
+        + '<div class="plat-tile ' + (p.on ? 'on' : '') + '" data-key="' + escHtml(p.key) + '">'
+        +   '<input type="checkbox" id="plat-' + escHtml(p.key) + '" ' + (p.on ? 'checked' : '') + ' />'
+        +   '<label for="plat-' + escHtml(p.key) + '">' + escHtml(p.label) + '</label>'
+        + '</div>'
+      ).join('');
+      $('platforms').innerHTML = html;
+      $('platforms').querySelectorAll('.plat-tile').forEach(tile => {
+        const cb = tile.querySelector('input');
+        const key = tile.getAttribute('data-key');
+        tile.addEventListener('click', (e) => {
+          if (e.target.tagName !== 'INPUT') cb.checked = !cb.checked;
+          const rec = state.platformChecks.find(x => x.key === key);
+          if (rec) rec.on = cb.checked;
+          tile.classList.toggle('on', cb.checked);
+        });
+      });
+    }
+
+    function renderGuests() {
+      const p = state.project || {};
+      const ids = Array.isArray(p.guest_ids) ? p.guest_ids : [];
+      const names = Array.isArray(p.guest_names) ? p.guest_names : [];
+      const wrap = $('guests-list');
+      if (!ids.length && !names.length) {
+        wrap.innerHTML = '<span class="guest-chip">None linked</span>';
+        return;
+      }
+      const items = ids.length ? ids : names;
+      wrap.innerHTML = items.map((g, i) => {
+        const label = names[i] || g;
+        return '<span class="guest-chip">' + escHtml(label) + '</span>';
+      }).join('');
+    }
+
+    // ────── Routing — pick which step panel to show ───────────────────────
+    function applyProjectState() {
+      const p = state.project;
+      if (!p) return;
+      renderHeader(p);
+
+      // Failure state
+      if (p.status === 'failed') {
+        hideAllStepPanels();
+        $('failed-banner').classList.remove('hidden');
+        $('success-banner').classList.add('hidden');
+        renderWizardBar(p.wizard_step || 1);
+        return;
+      } else {
+        $('failed-banner').classList.add('hidden');
+      }
+
+      // Closed/scheduled success
+      if (p.status === 'scheduled' || p.status === 'closing' || p.status === 'closed') {
+        const sb = $('success-banner');
+        const when = p.closing_scheduled_at || p.closed_at;
+        $('success-msg').textContent = when
+          ? ('Lined up for ' + fmtDate(when) + '.')
+          : 'Lined up.';
+        sb.classList.remove('hidden');
+      } else {
+        $('success-banner').classList.add('hidden');
+      }
+
+      // Processing
+      if (p.status === 'processing') {
+        renderWizardBar(0);
+        showProcessing();
+        startProcessingPoll();
+        return;
+      }
+      stopProcessingPoll();
+
+      // Pre-review states stay on the wizard at step 1
+      const wizardStep = (p.wizard_step != null && p.wizard_step >= 1 && p.wizard_step <= 4)
+        ? p.wizard_step
+        : (p.status === 'review' ? 1 : 1);
+
+      renderWizardBar(wizardStep);
+
+      if (wizardStep <= 1) {
+        showStep1();
+      } else if (wizardStep === 2) {
+        showStep2();
+      } else if (wizardStep === 3) {
+        showStep3();
+        if (!state.clips.length) reloadClips();
+      } else {
+        showStep4();
+      }
+    }
+
+    // ────── Polling for processing ────────────────────────────────────────
+    function startProcessingPoll() {
+      if (state.pollTimer) return;
+      state.pollTimer = setInterval(async () => {
+        try {
+          const p = await loadProject();
+          state.project = p;
+          if (p.status !== 'processing') {
+            stopProcessingPoll();
+            applyProjectState();
+          }
+        } catch (err) {
+          // Don't kill the poll on a transient error; just surface it.
+          console.error('[project] poll error', err);
+        }
+      }, 3000);
+    }
+    function stopProcessingPoll() {
+      if (state.pollTimer) {
+        clearInterval(state.pollTimer);
+        state.pollTimer = null;
+      }
+    }
+
+    // ────── Actions ───────────────────────────────────────────────────────
+    async function saveTranscript() {
+      if (state.transcriptSaving) return;
+      const text = $('transcript-area').value;
+      state.transcriptSaving = true;
+      try {
+        const updated = await patchProject({ transcript: text });
+        state.project = Object.assign({}, state.project || {}, updated || { transcript: text });
+        state.transcriptDirty = false;
+        toast('Transcript saved.', 'success');
+      } catch (err) {
+        toast('Save failed — ' + err.message, 'error');
+      } finally {
+        state.transcriptSaving = false;
+      }
+    }
+
+    async function advanceStep(targetStep) {
+      try {
+        // Save transcript before leaving step 1 if dirty
+        if (targetStep === 2 && state.transcriptDirty) {
+          await saveTranscript();
+        }
+        const updated = await patchProject({ wizard_step: targetStep });
+        state.project = Object.assign({}, state.project || {}, updated || {});
+        state.project.wizard_step = targetStep;
+        applyProjectState();
+        if (targetStep === 3) reloadClips();
+      } catch (err) {
+        toast('Could not advance — ' + err.message, 'error');
+      }
+    }
+
+    async function reloadClips() {
+      try {
+        const data = await loadClips();
+        const list = Array.isArray(data) ? data : (data && Array.isArray(data.clips) ? data.clips : []);
+        state.clips = list;
+        renderClips();
+      } catch (err) {
+        $('clips-list').innerHTML = '<div class="empty">Could not load clips — ' + escHtml(err.message) + '</div>';
+      }
+    }
+
+    async function rerunShipIt() {
+      try {
+        await shipIt();
+        toast('Ship It running.', 'success');
+        const p = await loadProject();
+        state.project = p;
+        applyProjectState();
+      } catch (err) {
+        toast('Re-run failed — ' + err.message, 'error');
+      }
+    }
+
+    async function lineItUp() {
+      const input = $('closing-at');
+      const local = input.value;
+      if (!local) {
+        toast('Pick a closing date and time first.', 'error');
+        return;
+      }
+      let isoString;
+      try {
+        const d = new Date(local);
+        if (isNaN(d.getTime())) throw new Error('bad date');
+        isoString = d.toISOString();
+      } catch (e) {
+        toast('That date does not parse.', 'error');
+        return;
+      }
+      const platforms = state.platformChecks.filter(p => p.on).map(p => p.key);
+      if (!platforms.length) {
+        toast('Pick at least one channel.', 'error');
+        return;
+      }
+      const guestIds = Array.isArray(state.project && state.project.guest_ids) ? state.project.guest_ids : [];
+      const btn = $('line-it-up-btn');
+      btn.disabled = true;
+      btn.textContent = 'Lining up…';
+      try {
+        await scheduleClosing({ closing_at: isoString, platforms: platforms, guest_ids: guestIds });
+        toast('Closed clean. Lined up.', 'success');
+        const p = await loadProject();
+        state.project = p;
+        applyProjectState();
+      } catch (err) {
+        toast('Closing failed — ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Line it up';
+      }
+    }
+
+    // ────── Bind controls ─────────────────────────────────────────────────
+    function bindControls() {
+      $('transcript-area').addEventListener('input', () => {
+        state.transcriptDirty = true;
+        $('step1-wordcount').textContent = wordCount($('transcript-area').value) + ' words';
+      });
+      $('save-transcript-btn').addEventListener('click', saveTranscript);
+      $('step1-next-btn').addEventListener('click', () => advanceStep(2));
+      $('step2-next-btn').addEventListener('click', () => advanceStep(3));
+      $('step3-next-btn').addEventListener('click', () => advanceStep(4));
+      $('line-it-up-btn').addEventListener('click', lineItUp);
+      $('rerun-ship-btn').addEventListener('click', rerunShipIt);
+
+      // Save transcript on blur if dirty
+      $('transcript-area').addEventListener('blur', () => {
+        if (state.transcriptDirty) saveTranscript();
+      });
+
+      // Warn before leaving with unsaved transcript edits
+      window.addEventListener('beforeunload', (e) => {
+        if (state.transcriptDirty) {
+          e.preventDefault();
+          e.returnValue = '';
+        }
+      });
+    }
+
+    // ────── Boot ──────────────────────────────────────────────────────────
+    async function boot() {
+      if (!PROJECT_ID) {
+        $('header-title').textContent = 'No project id in URL.';
+        $('header-meta').innerHTML = '<span>Open this page from the Job Site.</span>';
+        return;
+      }
+      bindControls();
+      try {
+        const p = await loadProject();
+        state.project = p;
+        applyProjectState();
+      } catch (err) {
+        $('header-title').textContent = 'Could not load project.';
+        $('header-meta').innerHTML = '<span>' + escHtml(err.message) + '</span>';
+        toast('Load failed — ' + err.message, 'error');
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', boot);
+  })();
+  </script>
+</body>
+</html>
