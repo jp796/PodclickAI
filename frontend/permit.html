@@ -83,14 +83,16 @@
       color: var(--orange); -webkit-background-clip: unset; background-clip: unset; background: none;
     }
     .brand .sub { font-family: var(--font-cond); font-size: 11px; font-weight: 500; color: var(--text-dim); }
-    .header-back {
-      display: flex; align-items: center; gap: 6px;
-      color: var(--text-dim); text-decoration: none; font-size: 13px; font-weight: 500;
-      padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
-      transition: background .12s, color .12s, border-color .12s;
+    .nav-toggle {
+      display: flex; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
     }
-    .header-back:hover { background: var(--surface2); color: var(--text); border-color: var(--accent); }
-    .header-back svg { width: 14px; height: 14px; }
+    .nav-toggle a {
+      padding: 6px 13px; font-family: var(--font-cond); font-size: 12px; font-weight: 500;
+      color: var(--text-dim); text-decoration: none; white-space: nowrap;
+      transition: background .12s, color .12s;
+    }
+    .nav-toggle a:hover { background: var(--surface3); color: var(--text); }
+    .nav-toggle a.active { background: var(--surface3); color: var(--text); }
 
     /* ── Page body ──────────────────────────────────────────────────── */
     .page-body {
@@ -309,12 +311,16 @@
     <span><span class="pc">PodClick</span><span class="ai">AI</span></span>
     <span class="sub">Brick's Permit</span>
   </div>
-  <a href="/walkthrough" class="header-back">
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M10 12L6 8l4-4"/>
-    </svg>
-    Walk-through
-  </a>
+  <nav class="nav-toggle">
+    <a href="/walkthrough">Walk-through</a>
+    <a href="/foundation">Foundation</a>
+    <a href="/permit" class="active">Permit</a>
+    <a href="/calendar">Calendar</a>
+    <a href="/studio">Studio</a>
+    <a href="#">Projects</a>
+    <a href="/youtube-studio">Scout</a>
+    <a href="/blueprint">Blueprint</a>
+  </nav>
 </header>
 
 <!-- ── Page body ────────────────────────────────────────────────────── -->

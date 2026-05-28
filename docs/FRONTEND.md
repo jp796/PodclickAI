@@ -76,8 +76,11 @@
 | `buildStepsUI(stepStatuses)` | Renders step rows with pending/running/completed/failed states |
 | `showReport(result)` | Populates report panel quadrants (market_demand, best_format, etc.) |
 | `renderResultTabs(result)` | Renders all result sub-tabs: viral, standards, searches, channels |
-| `renderVideoGrid()` | Renders Top Performers cards sorted by `window.videoSortKey` |
+| `renderVideoGrid()` | Renders Top Performers cards — orange score badge, Popular flag, clickable thumbnail/title/channel links, Remix in my voice button. Card shape: score (float, views/subs from API), popular (bool, score>=1.5) |
 | `sortVideos(key)` | Re-sorts `window.allVideos` by 'views'\|'viral'\|'likes', re-renders grid |
+| `openScoutRemix(title, channel, views, score, popular, market)` | Opens Scout remix modal — "Remix in my voice". POSTs to `/api/yt/scout-remix`. Only LLM call in Scout. |
+| `runScoutRemix()` | Executes Foundation-powered remix via `/api/yt/scout-remix`. Shows foundation_not_ready error if < 5 samples. |
+| `copyScoutRemix()` | Copies hook/concept/angle/cta to clipboard from Scout remix modal |
 | `openThumbRemix(title, thumbnail, url, city)` | Opens thumbnail remix modal with competitor analysis |
 | `timeAgo(iso)` | Converts ISO date string to "3mo ago" format |
 

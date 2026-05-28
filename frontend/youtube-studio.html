@@ -304,11 +304,14 @@
         <!-- Mobile menu toggle -->
         <button class="md:hidden btn-secondary" onclick="document.getElementById('sidebar').classList.toggle('open')">Menu</button>
         <nav class="nav-toggle">
-          <a href="/">Dashboard</a>
-          <a href="/youtube-studio" class="active">Click Studio</a>
+          <a href="/walkthrough">Walk-through</a>
+          <a href="/foundation">Foundation</a>
+          <a href="/permit">Permit</a>
+          <a href="/calendar">Calendar</a>
           <a href="/studio">Studio</a>
-          <a href="/brand-studio">Brand Studio</a>
-          <a href="/social-studio">Social Studio</a>
+          <a href="#">Projects</a>
+          <a href="/youtube-studio" class="active">Scout</a>
+          <a href="/blueprint">Blueprint</a>
         </nav>
       </div>
     </header>
@@ -2298,12 +2301,22 @@ function renderResultTabs(result) {
   // ── CompetitorCard normalizer ─────────────────────────────────────────────
   // Canonical shape: video_id, title, thumbnail, url, views, likes, comments,
   //   published_at, duration, channel_id, channel_name, channel_thumbnail,
-  //   channel_url, subs, viral_multiplier
+  //   channel_url, subs, viral_multiplier, score, popular
+  // score = views / subs from YouTube Data API (deterministic, zero LLM)
+  // popular = score >= VIRALITY_POPULAR_THRESHOLD (1.5) — computed server-side
   window.allVideos = mergedRaw.map(v => {
     const vid      = v.video_id || '';
     const chId     = v.channel_id || '';
     const thumb    = v.thumbnail || (vid ? `https://i.ytimg.com/vi/${vid}/hqdefault.jpg` : '');
     const chUrl    = v.channel_url || (chId ? `https://www.youtube.com/channel/${chId}` : '');
+    const subs     = parseInt(v.subs) || 0;
+    const views    = parseInt(v.views) || 0;
+    // score: prefer server value; fall back to client math only when subs > 0
+    const score    = v.score != null ? parseFloat(v.score)
+                   : v.viral_multiplier != null ? parseFloat(v.viral_multiplier)
+                   : (subs > 0 ? views / subs : null);
+    const popular  = v.popular != null ? Boolean(v.popular)
+                   : (score != null ? score >= 1.5 : false);
     return {
       // Video identity
       video_id:         vid,
@@ -2311,7 +2324,7 @@ function renderResultTabs(result) {
       thumbnail:        thumb,
       url:              v.url || (vid ? `https://www.youtube.com/watch?v=${vid}` : ''),
       // Video metrics
-      views:            parseInt(v.views)    || 0,
+      views:            views,
       likes:            parseInt(v.likes)    || 0,
       comments:         parseInt(v.comments) || 0,
       published_at:     v.published_at || '',
@@ -2321,9 +2334,11 @@ function renderResultTabs(result) {
       channel_name:     (v.channel && v.channel !== 'N/A' ? v.channel : null) || (v.channel_name && v.channel_name !== 'N/A' ? v.channel_name : null) || (v.snippet && v.snippet.channelTitle) || '',
       channel_thumbnail:v.channel_thumbnail || '',
       channel_url:      chUrl,
-      subs:             parseInt(v.subs) || 0,
-      // Ranking
-      viral_multiplier: v.viral_multiplier != null ? parseFloat(v.viral_multiplier) : (v.subs > 0 ? v.views / v.subs : 0),
+      subs:             subs,
+      // Ranking / virality (real YouTube Data API math)
+      viral_multiplier: v.viral_multiplier != null ? parseFloat(v.viral_multiplier) : score,
+      score:            score,
+      popular:          popular,
     };
   });
   window.videoSortKey = 'views';
@@ -2522,7 +2537,9 @@ function renderVideoGrid() {
   }
 
   grid.innerHTML = vids.map((v, i) => {
-    const mult      = v.viral_multiplier > 1 ? v.viral_multiplier.toFixed(1) + 'x' : null;
+    const score     = v.score != null ? parseFloat(v.score) : null;
+    const scoreFmt  = score != null ? score.toFixed(1) + 'x' : null;
+    const popular   = Boolean(v.popular);
     const viewsFmt  = v.views  ? fmtNum(v.views)  : '';
     const likesFmt  = v.likes  ? fmtNum(v.likes)  : '';
     const subsFmt   = v.subs   ? fmtNum(v.subs)   : '';
@@ -2532,60 +2549,86 @@ function renderVideoGrid() {
     const isTop     = i < 3;
 
     // Safely encode for single-quoted onclick attrs (handles apostrophes in titles)
-    const safeTitle = safeAttr(v.title);
-    const safeThumb = safeAttr(v.thumbnail);
-    const safeUrl   = safeAttr(v.url);
-    const safeCity  = safeAttr(city);
+    const safeTitle    = safeAttr(v.title);
+    const safeChannel  = safeAttr(v.channel_name);
+    const safeThumb    = safeAttr(v.thumbnail);
+    const safeUrl      = safeAttr(v.url);
+    const safeCity     = safeAttr(city);
+    const safeViews    = JSON.stringify(v.views);
+    const safeScore    = JSON.stringify(score);
+    const safePopular  = JSON.stringify(popular);
 
     // Thumbnail: use API thumb → yt CDN fallback → placeholder (for AI-generated w/ no video_id)
     const thumbSrc = v.thumbnail || (v.video_id ? `https://i.ytimg.com/vi/${escHtml(v.video_id)}/hqdefault.jpg` : '');
-    const thumbHtml = thumbSrc
+    const thumbImg = thumbSrc
       ? `<img src="${escHtml(thumbSrc)}" alt="" loading="lazy"
              onerror="this.style.display='none';this.nextSibling.style.display='flex';this.onerror=null;" />
          <div style="display:none;width:100%;height:100%;background:linear-gradient(135deg,#1a1a2e,#16213e);align-items:center;justify-content:center;font-size:28px;">📹</div>`
       : `<div style="width:100%;height:100%;background:linear-gradient(135deg,#1a1a2e,#16213e);display:flex;align-items:center;justify-content:center;font-size:28px;">📹</div>`;
+
+    // Wrap thumbnail in a link when URL is available
+    const thumbHtml = v.url
+      ? `<a href="${escHtml(v.url)}" target="_blank" rel="noopener" title="Watch on YouTube" style="display:block;width:100%;height:100%;">${thumbImg}</a>`
+      : thumbImg;
+
     return `<div class="video-card">
       <!-- Thumbnail -->
       <div class="video-thumb-wrap">
         ${thumbHtml}
-        <div class="thumb-overlay"></div>
+        <div class="thumb-overlay" style="pointer-events:none;"></div>
 
         ${isTop ? `<div class="thumb-viral"><span class="viral-badge">#${i+1} TOP</span></div>` : ''}
-        ${mult ? `<div style="position:absolute;top:${isTop?'36':'10'}px;left:10px;"><span class="viral-badge" style="background:linear-gradient(135deg,#05C3F9,#00FBF0);color:#fff;">${escHtml(mult)} VIRAL</span></div>` : ''}
+
+        <!-- Score badge — orange, top-left, deterministic math from YouTube API -->
+        ${scoreFmt ? `<div style="position:absolute;top:${isTop?'36':'10'}px;left:10px;z-index:4;">
+          <span style="background:#F97316;color:#fff;font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.02em;">${escHtml(scoreFmt)}</span>
+          ${popular ? `<span style="background:#EF4444;color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:4px;letter-spacing:.02em;">🔥 POPULAR</span>` : ''}
+        </div>` : ''}
 
         ${v.duration ? `<div class="thumb-duration">${escHtml(v.duration)}</div>` : ''}
         ${viewsFmt ? `<div class="thumb-views">👁 ${escHtml(viewsFmt)}</div>` : ''}
-
-        ${v.url ? `<a href="${escHtml(v.url)}" target="_blank" rel="noopener" class="thumb-watch" title="Watch on YouTube">▶</a>` : ''}
       </div>
 
       <!-- Meta -->
       <div class="video-meta">
-        <div class="video-title" title="${escHtml(v.title)}">${escHtml(v.title)}</div>
+        <!-- Clickable title → YouTube video -->
+        ${v.url
+          ? `<a href="${escHtml(v.url)}" target="_blank" rel="noopener" class="video-title" title="${escHtml(v.title)}" style="text-decoration:none;color:inherit;">${escHtml(v.title)}</a>`
+          : `<div class="video-title" title="${escHtml(v.title)}">${escHtml(v.title)}</div>`
+        }
 
-        <!-- Channel row -->
+        <!-- Channel row — clickable → channel page -->
         <div class="video-channel">
-          <div class="channel-avatar">${escHtml(initial)}</div>
-          <div>
-            <div style="font-size:12px;font-weight:600;color:#c0c0d8;">${escHtml(v.channel_name)}</div>
-            ${subsFmt ? `<div style="font-size:11px;color:#5a5a7a;">${escHtml(subsFmt)} subs</div>` : ''}
-          </div>
+          ${v.channel_url
+            ? `<a href="${escHtml(v.channel_url)}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;text-decoration:none;">
+                <div class="channel-avatar">${escHtml(initial)}</div>
+                <div>
+                  <div style="font-size:12px;font-weight:600;color:#c0c0d8;">${escHtml(v.channel_name)}</div>
+                  ${subsFmt ? `<div style="font-size:11px;color:#5a5a7a;">${escHtml(subsFmt)} subs</div>` : ''}
+                </div>
+               </a>`
+            : `<div class="channel-avatar">${escHtml(initial)}</div>
+               <div>
+                 <div style="font-size:12px;font-weight:600;color:#c0c0d8;">${escHtml(v.channel_name)}</div>
+                 ${subsFmt ? `<div style="font-size:11px;color:#5a5a7a;">${escHtml(subsFmt)} subs</div>` : ''}
+               </div>`
+          }
           ${ago ? `<div style="margin-left:auto;font-size:11px;color:#5a5a7a;flex-shrink:0;">${escHtml(ago)}</div>` : ''}
         </div>
 
         <!-- Stats row -->
         <div class="video-stats-row">
-          ${viewsFmt  ? `<div class="stat-pill">👁 <strong>${escHtml(viewsFmt)}</strong></div>` : ''}
-          ${likesFmt  ? `<div class="stat-pill">❤ <strong>${escHtml(likesFmt)}</strong></div>` : ''}
+          ${viewsFmt    ? `<div class="stat-pill">👁 <strong>${escHtml(viewsFmt)}</strong></div>` : ''}
+          ${likesFmt    ? `<div class="stat-pill">❤ <strong>${escHtml(likesFmt)}</strong></div>` : ''}
           ${commentsFmt ? `<div class="stat-pill">💬 <strong>${escHtml(commentsFmt)}</strong></div>` : ''}
-          ${mult ? `<div class="stat-pill" style="color:#05C3F9;"><strong style="color:#05C3F9;">${escHtml(mult)}</strong> viral</div>` : ''}
+          ${scoreFmt    ? `<div class="stat-pill" style="color:#F97316;"><strong style="color:#F97316;">${escHtml(scoreFmt)}</strong> score</div>` : ''}
         </div>
 
         <!-- Actions -->
         <div class="video-actions">
-          <button class="btn-primary text-xs" style="flex:1;padding:9px 0;" onclick='openAdaptModal(${safeTitle}, ${safeCity})'>✦ Remix Concept</button>
-          <button class="btn-secondary text-xs" style="padding:9px 14px;" title="Remix thumbnail" onclick='openThumbRemix(${safeTitle}, ${safeThumb}, ${safeUrl}, ${safeCity})'>🖼 Thumb</button>
-          ${v.url ? `<a href="${escHtml(v.url)}" target="_blank" rel="noopener" class="btn-secondary text-xs" style="padding:9px 12px;display:flex;align-items:center;text-decoration:none;">▶</a>` : ''}
+          <button class="btn-primary text-xs" style="flex:1;padding:9px 0;" onclick='openScoutRemix(${safeTitle}, ${safeChannel}, ${safeViews}, ${safeScore}, ${safePopular}, ${safeCity})'>🎙 Remix in my voice</button>
+          <button class="btn-secondary text-xs" style="padding:9px 10px;" title="Remix concept angle" onclick='openAdaptModal(${safeTitle}, ${safeCity})'>✦</button>
+          <button class="btn-secondary text-xs" style="padding:9px 10px;" title="Remix thumbnail" onclick='openThumbRemix(${safeTitle}, ${safeThumb}, ${safeUrl}, ${safeCity})'>🖼</button>
         </div>
       </div>
     </div>`;
@@ -2639,6 +2682,122 @@ function adaptedScriptIt() {
     const topicInput = document.getElementById('cs-topic');
     if (topicInput && window.adaptedTitle) topicInput.value = window.adaptedTitle;
   }, 100);
+}
+
+// ── Scout Remix Modal — "Remix in my voice" ───────────────────────────────────
+// The ONLY LLM call in Scout. Wires through get_brand_context(task_type='scout_remix_script').
+// views/score/popular are real YouTube Data API numbers — never LLM-generated.
+function openScoutRemix(title, channel, views, score, popular, market) {
+  let modal = document.getElementById('modal-scout-remix');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'modal-scout-remix';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div style="background:#050E3D;border:1px solid #2a2a3a;border-radius:20px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:28px;">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-white" style="font-size:18px;">🎙 Remix in My Voice</h3>
+          <button onclick="closeModalById('modal-scout-remix')" style="color:#5a5a7a;font-size:22px;background:none;border:none;cursor:pointer;line-height:1;">✕</button>
+        </div>
+        <!-- Context strip -->
+        <div id="sr-context" style="background:#030B2C;border:1px solid #2a2a3a;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:13px;color:#c0c0d8;line-height:1.6;"></div>
+        <!-- Generate button -->
+        <button id="sr-run-btn" onclick="runScoutRemix()" class="btn-primary w-full" style="padding:11px 0;font-size:14px;margin-bottom:20px;">Generate My Version</button>
+        <!-- Result -->
+        <div id="sr-result" class="hidden">
+          <div style="margin-bottom:14px;">
+            <div class="text-xs font-bold mb-1" style="color:#F97316;letter-spacing:.08em;">HOOK</div>
+            <div id="sr-hook" style="color:#fff;font-size:15px;font-weight:600;line-height:1.5;"></div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <div class="text-xs font-bold mb-1" style="color:#05C3F9;letter-spacing:.08em;">CONCEPT</div>
+            <div id="sr-concept" style="color:#c0c0d8;font-size:13px;line-height:1.7;"></div>
+          </div>
+          <div style="margin-bottom:14px;">
+            <div class="text-xs font-bold mb-1" style="color:#05C3F9;letter-spacing:.08em;">MY ANGLE</div>
+            <div id="sr-angle" style="color:#c0c0d8;font-size:13px;line-height:1.7;"></div>
+          </div>
+          <div style="margin-bottom:18px;">
+            <div class="text-xs font-bold mb-1" style="color:#05C3F9;letter-spacing:.08em;">CTA</div>
+            <div id="sr-cta" style="color:#c0c0d8;font-size:13px;line-height:1.7;"></div>
+          </div>
+          <button onclick="copyScoutRemix()" class="btn-secondary w-full" style="padding:9px 0;font-size:13px;">Copy All</button>
+        </div>
+        <div id="sr-error" class="hidden" style="color:#EF4444;font-size:13px;margin-top:8px;"></div>
+      </div>`;
+    document.body.appendChild(modal);
+  }
+
+  // Store data on the modal for runScoutRemix() to read
+  modal._scoutData = { title, channel, views, score, popular, market };
+
+  // Populate context strip
+  const scoreLine = score != null ? ` · ${parseFloat(score).toFixed(1)}x score` : '';
+  const popLine   = popular ? ' · 🔥 POPULAR' : '';
+  document.getElementById('sr-context').innerHTML =
+    `<strong style="color:#fff;">${escHtml(title)}</strong><br>` +
+    `<span style="color:#5a5a7a;">${escHtml(channel || 'Competitor')}${scoreLine}${popLine}</span>`;
+
+  // Reset state
+  document.getElementById('sr-result').classList.add('hidden');
+  document.getElementById('sr-error').classList.add('hidden');
+  const btn = document.getElementById('sr-run-btn');
+  btn.disabled = false;
+  btn.textContent = 'Generate My Version';
+
+  modal.classList.remove('hidden');
+}
+
+async function runScoutRemix() {
+  const modal = document.getElementById('modal-scout-remix');
+  if (!modal || !modal._scoutData) return;
+  const { title, channel, views, score, popular, market } = modal._scoutData;
+
+  const btn = document.getElementById('sr-run-btn');
+  btn.disabled = true;
+  btn.textContent = 'Building your remix...';
+  document.getElementById('sr-error').classList.add('hidden');
+  document.getElementById('sr-result').classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/yt/scout-remix', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, channel, views, score, popular, market }),
+    });
+    const data = await res.json();
+
+    if (data.foundation_not_ready) {
+      document.getElementById('sr-error').textContent = '⚠️ Foundation not ready — pour at least 5 voice samples first.';
+      document.getElementById('sr-error').classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Generate My Version';
+      return;
+    }
+    if (data.error) throw new Error(data.error);
+
+    document.getElementById('sr-hook').textContent    = data.hook    || '';
+    document.getElementById('sr-concept').textContent = data.concept || '';
+    document.getElementById('sr-angle').textContent   = data.angle   || '';
+    document.getElementById('sr-cta').textContent     = data.cta     || '';
+    document.getElementById('sr-result').classList.remove('hidden');
+    btn.textContent = 'Regenerate';
+    btn.disabled = false;
+  } catch (err) {
+    document.getElementById('sr-error').textContent = '❌ ' + (err.message || 'Something went wrong');
+    document.getElementById('sr-error').classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Generate My Version';
+  }
+}
+
+function copyScoutRemix() {
+  const hook    = document.getElementById('sr-hook')?.textContent    || '';
+  const concept = document.getElementById('sr-concept')?.textContent || '';
+  const angle   = document.getElementById('sr-angle')?.textContent   || '';
+  const cta     = document.getElementById('sr-cta')?.textContent     || '';
+  const text    = `HOOK\n${hook}\n\nCONCEPT\n${concept}\n\nANGLE\n${angle}\n\nCTA\n${cta}`;
+  navigator.clipboard.writeText(text).catch(() => {});
 }
 
 // ── Thumbnail Remix Modal ─────────────────────────────────────────────────────

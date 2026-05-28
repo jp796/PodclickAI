@@ -102,6 +102,7 @@
 |--------|------|---------|
 | POST | `/api/yt/competitor-spy` | Start Market Scout analysis job |
 | GET | `/api/yt/competitor-spy/{job_id}` | Poll Market Scout job |
+| POST | `/api/yt/scout-remix` | Rewrite Scout video concept in user's voice (Foundation-powered — ONLY LLM call in Scout) |
 | POST | `/api/yt/script` | Generate YouTube video script |
 | POST | `/api/yt/script-formula` | **Script Lab** — hook/CTA/outline/end/ideas |
 | POST | `/api/yt/seo-package` | Generate title/description/tags |
@@ -150,10 +151,28 @@ Poll response includes: status, step, step_statuses{}, result{}
   "result": {
     "market_demand": "...", "best_format": "...", "opportunity_gap": "...",
     "content_ideas": [...], "viral_outliers": [...],
-    "top_videos_ranked": [{ "title","channel","views","likes","comments","thumbnail","url","video_id","duration","published_at","viral_multiplier" }],
+    "top_videos_ranked": [{
+      "title","channel","views","likes","comments","thumbnail","url","video_id","duration","published_at",
+      "channel_id","channel_url","channel_thumbnail","subs",
+      "viral_multiplier",
+      "score",    // float: views / subs — YouTube Data API deterministic math, zero LLM
+      "popular"   // bool: score >= VIRALITY_POPULAR_THRESHOLD (1.5)
+    }],
     "top_channels": [...], "hot_searches": [...], "market_standards": [...]
   }
 }
+```
+
+### POST /api/yt/scout-remix
+```json
+Request:  { "title": "...", "channel": "...", "views": 123456, "score": 4.2, "popular": true, "market": "Springfield MO" }
+Response: { "hook": "...", "concept": "...", "angle": "...", "cta": "..." }
+Errors:   422 { "error": "...", "foundation_not_ready": true } — Foundation gate failed (< 5 samples)
+Notes:
+  The ONLY LLM call in Scout. All virality numbers in the request come from YouTube Data API
+  deterministic math — no LLM ever generates a view count, sub count, or score.
+  Routes through get_brand_context(task_type='scout_remix_script') → Foundation voice samples.
+  Uses claude-sonnet-4-5. Returns structured JSON with hook/concept/angle/cta.
 ```
 
 ### POST /api/yt/script-formula (Script Lab)

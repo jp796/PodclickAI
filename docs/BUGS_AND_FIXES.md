@@ -501,3 +501,17 @@ AND (CAST(:platform AS text) IS NULL OR platform IS NULL OR platform = CAST(:pla
 **Fix:** Updated `_token()` and `_chat_id()` in `pipeline/telegram.py` to import and read from `config.settings` instead of `os.getenv()`.
 
 **Files:** `pipeline/telegram.py` — `_token()` and `_chat_id()` helpers.
+
+---
+
+## 2026-05-28 — YouTube Data API 403 Referer Blocked (Scout Silent Failure)
+
+**Symptom:** Market Scout job completes immediately with empty video grid. All API steps succeed in <1 second with no data. `_yt_get()` returns `{}` silently.
+
+**Root Cause:** The YouTube Data API key has HTTP Referer restrictions in Google Cloud Console. `httpx.AsyncClient()` sends no `Referer` header by default, so every request returns `403 PERMISSION_DENIED — Requests from referer <empty> are blocked`. The `_yt_get()` helper silently swallows the error, returning `{}`.
+
+**Fix:** Added `YT_API_REFERER = "http://localhost:8765/"` constant at module level. All `_httpx.AsyncClient()` instances that call YouTube Data API now pass `headers={"Referer": YT_API_REFERER}`.
+
+**Files:** `main.py` — `YT_API_REFERER` constant, `_run_competitor_spy()` AsyncClient, video analyzer AsyncClient.
+
+**Verified:** Live API test — Rick Astley video returned 1,777,073,707 views, 4,500,000 subs, score 394.9x, popular=True.

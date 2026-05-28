@@ -80,6 +80,16 @@ async def _startup():
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR     = Path(__file__).parent
+# ── Scout / virality constants ────────────────────────────────────────────────
+# score = video_views / channel_subscriber_count (both from YouTube Data API).
+# A score >= threshold means the video over-performed relative to the channel's
+# install base — strong signal it punched above weight.
+VIRALITY_POPULAR_THRESHOLD: float = 1.5
+
+# Referer accepted by the YouTube Data API key (key has HTTP referer restriction).
+# Must be present on every httpx call to googleapis.com/youtube/v3.
+YT_API_REFERER = "http://localhost:8765/"
+
 DATA_DIR     = BASE_DIR / "data"
 JOBS_DIR     = DATA_DIR / "jobs"
 EPISODES_FILE = DATA_DIR / "episodes.json"
@@ -4790,6 +4800,122 @@ async def get_competitor_spy_status(job_id: str):
     return JSONResponse(job)
 
 
+@app.post("/api/yt/scout-remix")
+async def scout_remix(request: Request):
+    """Rewrite a Scout video concept in the user's own voice via Foundation.
+
+    The ONLY LLM call in Scout. All virality numbers are deterministic math
+    from the YouTube Data API — no LLM-generated numbers ever enter this route.
+
+    Request:  { "title": "...", "channel": "...", "views": 123456, "score": 4.2,
+                "popular": true, "market": "Springfield MO" }
+    Response: { "script": "...", "hook": "...", "cta": "..." }
+    Error 422: { "error": "...", "foundation_not_ready": true }
+    """
+    import anthropic as _anthropic
+    from db.engine import async_session as _async_session
+    from config import get_current_location_id as _get_loc, settings as _settings
+    from services.foundation import (
+        assert_foundation_ready as _assert_ready,
+        get_brand_context as _get_brand_ctx,
+        BrandContextError as _BrandContextError,
+    )
+    from schemas.foundation import BrandContextTaskType as _TaskType
+
+    body    = await request.json()
+    title   = (body.get("title") or "").strip()
+    channel = (body.get("channel") or "").strip()
+    views   = body.get("views", 0)
+    score   = body.get("score")
+    popular = body.get("popular", False)
+    market  = (body.get("market") or "").strip()
+
+    if not title:
+        return JSONResponse({"error": "title is required"}, status_code=400)
+
+    location_id = _get_loc()
+    async with _async_session() as session:
+        try:
+            await _assert_ready(session=session, location_id=location_id)
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc), "foundation_not_ready": True}, status_code=422)
+
+        try:
+            ctx = await _get_brand_ctx(
+                session=session,
+                location_id=location_id,
+                task_type=_TaskType.scout_remix_script,
+                topic=title,
+                platform=None,
+                audience=None,
+            )
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+
+    # Build context block from real API numbers (no LLM-generated figures)
+    perf_notes = []
+    if views:
+        perf_notes.append(f"Views: {int(views):,}")
+    if score is not None:
+        perf_notes.append(f"Virality score: {score:.1f}x (views ÷ channel subs)")
+    if popular:
+        perf_notes.append("Marked POPULAR — over-performed vs channel average")
+    perf_line = " | ".join(perf_notes) if perf_notes else ""
+
+    bp  = ctx.brand_profile
+    vp  = ctx.voice_profile
+    vocab = ctx.vocabulary
+
+    tone_block  = ", ".join(vp.tones[:3]) if vp.tones else "direct and conversational"
+    niche_block = bp.niche_primary or "real estate"
+    market_line = f" in {market}" if market else ""
+
+    samples_block = ""
+    if ctx.voice_samples:
+        excerpts = [s.text[:120] for s in ctx.voice_samples[:3]]
+        samples_block = "\n\nVoice samples from my actual content:\n" + "\n---\n".join(excerpts)
+
+    sys_prompt = (
+        f"You write video concepts in my voice. My tone: {tone_block}. "
+        f"My niche: {niche_block}{market_line}. "
+        f"I never sound corporate or generic — I'm direct, relatable, no fluff."
+        f"{samples_block}"
+    )
+
+    user_prompt = (
+        f"I found a competitor video I want to remix in my own voice.\n\n"
+        f"Original video: \"{title}\" by {channel or 'a competitor'}\n"
+        f"{f'Performance: {perf_line}' if perf_line else ''}\n\n"
+        f"Rewrite this concept for my market{market_line}. Give me:\n"
+        f"1. HOOK: A punchy opening line (under 15 words) that hooks my specific audience\n"
+        f"2. CONCEPT: A 2-3 sentence pitch for this video idea in my voice\n"
+        f"3. ANGLE: What makes my take different from the competitor\n"
+        f"4. CTA: One strong call-to-action line\n\n"
+        f"Return JSON with keys: hook, concept, angle, cta"
+    )
+
+    try:
+        ai = _anthropic.AsyncAnthropic(api_key=_settings.ANTHROPIC_API_KEY)
+        msg = await ai.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=600,
+            system=sys_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        raw = msg.content[0].text.strip()
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+            raw = raw.strip()
+        import json as _json
+        result = _json.loads(raw)
+        return JSONResponse(result)
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
 @app.post("/api/yt/script")
 async def generate_yt_script(request: Request):
     """Generate a full YouTube video script with Hook, Early CTA, Main Content, End CTA."""
@@ -5027,7 +5153,7 @@ async def _run_competitor_spy(
     categories:   dict       = {}
     hot_data:     list[dict] = []
 
-    async with _httpx.AsyncClient(timeout=30) as client:
+    async with _httpx.AsyncClient(headers={"Referer": YT_API_REFERER}, timeout=30) as client:
 
         # ── Step 1: Scan YouTube Market ───────────────────────────────────────
         _start_step(job_id, "scanning_market")
@@ -5179,8 +5305,10 @@ async def _run_competitor_spy(
                     "channel_thumbnail": ch_thumb,
                     "channel_url":       f"https://www.youtube.com/channel/{channel_id}" if channel_id else "",
                     "subs":              subs,
-                    # Ranking
+                    # Ranking / virality (deterministic math — zero LLM)
                     "viral_multiplier":  round(views / max(subs, 1), 1) if subs > 0 else None,
+                    "score":             round(views / max(subs, 1), 2) if subs > 0 else None,
+                    "popular":           (views / max(subs, 1)) >= VIRALITY_POPULAR_THRESHOLD if subs > 0 else False,
                 })
             gathered["top_videos_ranked"] = top_videos_list
             _mark_step(job_id, "finding_outliers")
@@ -5391,7 +5519,7 @@ async def yt_video_advisor(req: Request):
     if yt_key:
         # Fetch video metadata via the YouTube Data API (httpx already available)
         try:
-            async with _httpx.AsyncClient(timeout=10) as hx:
+            async with _httpx.AsyncClient(headers={"Referer": YT_API_REFERER}, timeout=10) as hx:
                 r = await hx.get(
                     "https://www.googleapis.com/youtube/v3/videos",
                     params={"part": "snippet,statistics", "id": video_id, "key": yt_key},
