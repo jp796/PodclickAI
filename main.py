@@ -1507,7 +1507,18 @@ async def log_sponsor_episode(sponsor_id: str, request: Request):
 
 @app.get("/api/sponsors/{sponsor_id}/outreach")
 async def generate_outreach(sponsor_id: str):
-    """Generate a personalized cold-pitch email using GPT-4o."""
+    """Generate a personalized cold-pitch email — Foundation-powered."""
+    import json as _json
+    import anthropic as _anthropic
+    from db.engine import async_session as _async_session
+    from config import get_current_location_id as _get_loc, settings as _settings
+    from services.foundation import (
+        assert_foundation_ready as _assert_ready,
+        get_brand_context as _get_brand_ctx,
+        BrandContextError as _BrandContextError,
+    )
+    from schemas.foundation import BrandContextTaskType as _TaskType
+
     items   = _load_sponsors()
     sponsor = next((i for i in items if i["id"] == sponsor_id), None)
     if not sponsor:
@@ -1516,6 +1527,45 @@ async def generate_outreach(sponsor_id: str):
     profile      = _get_active_profile() or {}
     podcast_name = profile.get("name") or "the podcast"
     apple_url    = profile.get("apple_podcasts_url", "")
+
+    # ── Foundation gate ──────────────────────────────────────────────────────
+    location_id = _get_loc()
+    topic_str = f"{sponsor['company']} sponsorship pitch"
+    async with _async_session() as session:
+        try:
+            await _assert_ready(session=session, location_id=location_id)
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc), "foundation_not_ready": True}, status_code=422)
+        try:
+            ctx = await _get_brand_ctx(
+                session=session,
+                location_id=location_id,
+                task_type=_TaskType.sponsor_pitch,
+                topic=topic_str,
+                platform=None,
+                audience=None,
+            )
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+
+    # ── Foundation voice preamble ────────────────────────────────────────────
+    bp = ctx.brand_profile
+    vp = ctx.voice_profile
+    vocab = ctx.vocabulary
+    tone_str = ", ".join(vp.tone if isinstance(vp.tone, list) else [vp.tone]) if vp.tone else "direct, genuine"
+    cadence_str = vp.cadence or "natural, punchy"
+    vocab_yes = "Use naturally: " + ", ".join(vocab.use if isinstance(vocab.use, list) else [vocab.use]) if vocab.use else ""
+    vocab_no  = "Avoid entirely: " + ", ".join(vocab.avoid if isinstance(vocab.avoid, list) else [vocab.avoid]) if vocab.avoid else ""
+    voice_examples = ""
+    if ctx.voice_samples:
+        examples = [f'  — "{s.text[:300]}"' for s in ctx.voice_samples[:3]]
+        voice_examples = "Voice samples (match this style):\n" + "\n".join(examples)
+    voice_preamble = (
+        f"VOICE PROFILE:\n- Tone: {tone_str}\n- Cadence: {cadence_str}\n- POV: {vp.pov or 'first-person'}\n"
+    )
+    if vocab_yes:      voice_preamble += f"- {vocab_yes}\n"
+    if vocab_no:       voice_preamble += f"- {vocab_no}\n"
+    if voice_examples: voice_preamble += f"\n{voice_examples}\n"
 
     prompt = f"""Write a short, professional podcast sponsorship pitch email from a host to a potential sponsor.
 
@@ -1534,19 +1584,45 @@ Rules:
 - Sign off with the podcast name
 - Do NOT use placeholder brackets like [Name] — write it as if sending to their team
 """
+    system_prompt = voice_preamble + "\nYou write podcast sponsorship pitches in the host's authentic voice."
+
     try:
-        from pipeline.content import _get_client
-        client   = _get_client()
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=450,
+        client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=500,
             temperature=0.75,
+            system=system_prompt,
+            messages=[{"role": "user", "content": prompt}],
         )
-        text = response.choices[0].message.content.strip()
-        return JSONResponse({"outreach": text, "gpt": True})
+        text = (message.content[0].text if message.content else "").strip()
+
+        # Audit log (non-blocking)
+        try:
+            import uuid as _uuid
+            async with _async_session() as _audit:
+                await _audit.execute(
+                    __import__("sqlalchemy").text("""
+                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
+                        VALUES (:id, :loc_id, 'sponsor_pitch', CAST(:payload AS jsonb), now())
+                        ON CONFLICT DO NOTHING
+                    """),
+                    {"id": str(_uuid.uuid4()), "loc_id": location_id,
+                     "payload": _json.dumps({"topic": topic_str, "model": "claude-sonnet-4-5",
+                                             "sample_count": ctx.metadata.sample_count})},
+                )
+                await _audit.commit()
+        except Exception:
+            pass
+
+        return JSONResponse({
+            "outreach": text,
+            "foundation": True,
+            "_foundation_thin": ctx.metadata.sample_count < 15,
+            "_sample_count": ctx.metadata.sample_count,
+        })
     except Exception:
-        # Fallback template
+        # Fallback template (LLM call failure only — Foundation gate already passed)
         text = (
             f"Subject: Sponsorship Opportunity — {podcast_name} × {sponsor['company']}\n\n"
             f"Hi {sponsor['company']} team,\n\n"
@@ -1560,7 +1636,7 @@ Rules:
             + (f"\n\nWe also offer an affiliate structure at {sponsor['commission']} per conversion if that works better for your team." if sponsor.get("commission") else "")
             + f"\n\nWould you be open to a 15-minute call this week to see if we're a good fit?\n\nBest,\n{podcast_name}"
         )
-        return JSONResponse({"outreach": text, "gpt": False})
+        return JSONResponse({"outreach": text, "foundation": False})
 
 
 # ── Google Drive ──────────────────────────────────────────────────────────────
@@ -1819,9 +1895,7 @@ async def generate_asset_email(guest_id: str):
     ep_title     = guest.get("episode_title", "")
     instagram    = guest.get("instagram", "")
 
-    prompt = f"""You are a podcast host writing a warm, professional follow-up email to a podcast guest after their episode aired.
-
-Podcast: {podcast_name}
+    prompt = f"""Podcast: {podcast_name}
 Guest name: {guest['name']}
 Episode: {"EP. " + str(ep_num) + " — " + ep_title if ep_num else ep_title or "recent episode"}
 {"Spotify: " + spotify_url if spotify_url else ""}
@@ -1842,17 +1916,97 @@ Write a warm, friendly email from the host to the guest with:
 
 Keep it short and warm — 4-6 paragraphs max. Do NOT use placeholder brackets [like this] — write it ready to send."""
 
+    # ── Foundation gate (after 404 check above) ─────────────────────────────
+    import json as _json
+    import re as _re
+    import anthropic as _anthropic
+    from db.engine import async_session as _async_session
+    from config import get_current_location_id as _get_loc, settings as _settings
+    from services.foundation import (
+        assert_foundation_ready as _assert_ready,
+        get_brand_context as _get_brand_ctx,
+        BrandContextError as _BrandContextError,
+    )
+    from schemas.foundation import BrandContextTaskType as _TaskType
+
+    location_id = _get_loc()
+    async with _async_session() as session:
+        try:
+            await _assert_ready(session=session, location_id=location_id)
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc), "foundation_not_ready": True}, status_code=422)
+        try:
+            ctx = await _get_brand_ctx(
+                session=session,
+                location_id=location_id,
+                task_type=_TaskType.guest_asset_email,
+                topic=f"guest asset email for {guest['name']}",
+                platform=None,
+                audience=None,
+            )
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+
+    bp = ctx.brand_profile
+    vp = ctx.voice_profile
+    vocab = ctx.vocabulary
+    tone_str = ", ".join(vp.tone if isinstance(vp.tone, list) else [vp.tone]) if vp.tone else "direct, genuine"
+    cadence_str = vp.cadence or "natural, punchy"
+    vocab_yes = "Use naturally: " + ", ".join(vocab.use if isinstance(vocab.use, list) else [vocab.use]) if vocab.use else ""
+    vocab_no  = "Avoid entirely: " + ", ".join(vocab.avoid if isinstance(vocab.avoid, list) else [vocab.avoid]) if vocab.avoid else ""
+    voice_examples = ""
+    if ctx.voice_samples:
+        examples = [f'  — "{s.text[:300]}"' for s in ctx.voice_samples[:3]]
+        voice_examples = "Voice samples (match this style):\n" + "\n".join(examples)
+    voice_preamble = f"VOICE PROFILE:\n- Tone: {tone_str}\n- Cadence: {cadence_str}\n- POV: {vp.pov or 'first-person'}\n"
+    if vocab_yes: voice_preamble += f"- {vocab_yes}\n"
+    if vocab_no:  voice_preamble += f"- {vocab_no}\n"
+    if voice_examples: voice_preamble += f"\n{voice_examples}\n"
+
+    system_prompt = voice_preamble + "\nYou are a podcast host writing warm, professional follow-up emails to podcast guests after their episodes air. Write in first person in the host's authentic voice."
+
     try:
-        from pipeline.content import _get_client
-        client   = _get_client()
-        response = client.chat.completions.create(
-            model="gpt-4o",
+        client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=600,
+            temperature=0.75,
+            system=system_prompt,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=500,
-            temperature=0.7,
         )
-        text = response.choices[0].message.content.strip()
-        return JSONResponse({"email": text, "gpt": True, "guest_email": guest.get("email", "")})
+        text = (message.content[0].text if message.content else "").strip()
+
+        # Audit log (non-blocking)
+        try:
+            import uuid as _uuid
+            async with _async_session() as _audit:
+                await _audit.execute(
+                    __import__("sqlalchemy").text("""
+                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
+                        VALUES (:id, :loc_id, 'guest_asset_email', CAST(:payload AS jsonb), now())
+                        ON CONFLICT DO NOTHING
+                    """),
+                    {
+                        "id": str(_uuid.uuid4()),
+                        "loc_id": location_id,
+                        "payload": _json.dumps({
+                            "topic": f"guest asset email for {guest['name']}",
+                            "model": "claude-sonnet-4-5",
+                            "sample_count": ctx.metadata.sample_count,
+                        }),
+                    },
+                )
+                await _audit.commit()
+        except Exception:
+            pass
+
+        return JSONResponse({
+            "email": text,
+            "foundation": True,
+            "guest_email": guest.get("email", ""),
+            "_foundation_thin": ctx.metadata.sample_count < 15,
+            "_sample_count": ctx.metadata.sample_count,
+        })
     except Exception:
         # Fallback template
         lines = [
@@ -2826,6 +2980,18 @@ async def studio_show_notes(request: Request):
       market    str — target market / city
       script    str — episode script (optional, used to extract real talking points)
     """
+    import json as _json
+    import re as _re
+    import anthropic as _anthropic
+    from db.engine import async_session as _async_session
+    from config import get_current_location_id as _get_loc, settings as _settings
+    from services.foundation import (
+        assert_foundation_ready as _assert_ready,
+        get_brand_context as _get_brand_ctx,
+        BrandContextError as _BrandContextError,
+    )
+    from schemas.foundation import BrandContextTaskType as _TaskType
+
     data      = await request.json()
     title     = data.get("title", "")
     hook_line = data.get("hook_line", "")
@@ -2833,6 +2999,44 @@ async def studio_show_notes(request: Request):
     pillar    = data.get("pillar", "")
     market    = data.get("market", "")
     script    = data.get("script", "")
+
+    # ── Foundation gate ──────────────────────────────────────────────────────
+    location_id = _get_loc()
+    async with _async_session() as session:
+        try:
+            await _assert_ready(session=session, location_id=location_id)
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc), "foundation_not_ready": True}, status_code=422)
+        try:
+            ctx = await _get_brand_ctx(
+                session=session,
+                location_id=location_id,
+                task_type=_TaskType.show_notes,
+                topic=(topic or title) or None,
+                platform=None,
+                audience=None,
+            )
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+
+    # ── Foundation voice preamble ────────────────────────────────────────────
+    bp = ctx.brand_profile
+    vp = ctx.voice_profile
+    vocab = ctx.vocabulary
+    tone_str = ", ".join(vp.tone if isinstance(vp.tone, list) else [vp.tone]) if vp.tone else "direct, genuine"
+    cadence_str = vp.cadence or "natural, punchy"
+    vocab_yes = "Use naturally: " + ", ".join(vocab.use if isinstance(vocab.use, list) else [vocab.use]) if vocab.use else ""
+    vocab_no  = "Avoid entirely: " + ", ".join(vocab.avoid if isinstance(vocab.avoid, list) else [vocab.avoid]) if vocab.avoid else ""
+    voice_examples = ""
+    if ctx.voice_samples:
+        examples = [f'  — "{s.text[:300]}"' for s in ctx.voice_samples[:3]]
+        voice_examples = "Voice samples (match this style):\n" + "\n".join(examples)
+    voice_preamble = (
+        f"VOICE PROFILE:\n- Tone: {tone_str}\n- Cadence: {cadence_str}\n- POV: {vp.pov or 'first-person'}\n"
+    )
+    if vocab_yes:      voice_preamble += f"- {vocab_yes}\n"
+    if vocab_no:       voice_preamble += f"- {vocab_no}\n"
+    if voice_examples: voice_preamble += f"\n{voice_examples}\n"
 
     user_lines = []
     if title:     user_lines.append(f"Episode title: {title}")
@@ -2855,28 +3059,51 @@ async def studio_show_notes(request: Request):
         "Format in clean markdown. Do not include a title heading — Buzzsprout adds that separately."
     )
 
-    import openai as _openai
-    client = _openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "You are a podcast producer writing show notes for a real estate podcast. "
-                    "Be concise, value-focused, and SEO-aware. "
-                    "All content must comply with the Fair Housing Act. Never reference protected classes, "
-                    "neighborhood demographics, school quality, or any language that implies who should or "
-                    "should not live somewhere. Focus only on property features, agent expertise, market "
-                    "conditions, and client goals."
-                ),
-            },
-            {"role": "user", "content": user_prompt},
-        ],
+    system_prompt = voice_preamble + "\n" + (
+        "You are a podcast producer writing show notes for a real estate podcast. "
+        "Be concise, value-focused, and SEO-aware. "
+        "All content must comply with the Fair Housing Act. Never reference protected classes, "
+        "neighborhood demographics, school quality, or any language that implies who should or "
+        "should not live somewhere. Focus only on property features, agent expertise, market "
+        "conditions, and client goals."
     )
 
-    show_notes = response.choices[0].message.content.strip()
-    return JSONResponse({"show_notes": show_notes})
+    try:
+        client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=1200,
+            temperature=0.75,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+        )
+        show_notes = (message.content[0].text if message.content else "").strip()
+
+        # Audit log (non-blocking)
+        try:
+            import uuid as _uuid
+            async with _async_session() as _audit:
+                await _audit.execute(
+                    __import__("sqlalchemy").text("""
+                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
+                        VALUES (:id, :loc_id, 'show_notes', CAST(:payload AS jsonb), now())
+                        ON CONFLICT DO NOTHING
+                    """),
+                    {"id": str(_uuid.uuid4()), "loc_id": location_id,
+                     "payload": _json.dumps({"topic": (topic or title), "model": "claude-sonnet-4-5",
+                                             "sample_count": ctx.metadata.sample_count})},
+                )
+                await _audit.commit()
+        except Exception:
+            pass
+
+        return JSONResponse({
+            "show_notes": show_notes,
+            "_foundation_thin": ctx.metadata.sample_count < 15,
+            "_sample_count": ctx.metadata.sample_count,
+        })
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
 
 
 # ---------------------------------------------------------------------------
@@ -3665,9 +3892,58 @@ async def social_hashtags_load():
 async def social_hashtags_generate(request: Request):
     """Generate 4 hashtag sets for a market+niche and persist to disk."""
     import json as _json
+    import re as _re
+    import anthropic as _anthropic
+    from db.engine import async_session as _async_session
+    from config import get_current_location_id as _get_loc, settings as _settings
+    from services.foundation import (
+        assert_foundation_ready as _assert_ready,
+        get_brand_context as _get_brand_ctx,
+        BrandContextError as _BrandContextError,
+    )
+    from schemas.foundation import BrandContextTaskType as _TaskType
+
     data = await request.json()
     market = data.get("market", "")
     niche_input = data.get("niche_input", "")
+
+    # ── Foundation gate ──────────────────────────────────────────────────────
+    location_id = _get_loc()
+    async with _async_session() as session:
+        try:
+            await _assert_ready(session=session, location_id=location_id)
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc), "foundation_not_ready": True}, status_code=422)
+        try:
+            ctx = await _get_brand_ctx(
+                session=session,
+                location_id=location_id,
+                task_type=_TaskType.hashtag_set,
+                topic=(niche_input or market) or None,
+                platform=None,
+                audience=None,
+            )
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+
+    # ── Foundation voice preamble ────────────────────────────────────────────
+    bp = ctx.brand_profile
+    vp = ctx.voice_profile
+    vocab = ctx.vocabulary
+    tone_str = ", ".join(vp.tone if isinstance(vp.tone, list) else [vp.tone]) if vp.tone else "direct, genuine"
+    cadence_str = vp.cadence or "natural, punchy"
+    vocab_yes = "Use naturally: " + ", ".join(vocab.use if isinstance(vocab.use, list) else [vocab.use]) if vocab.use else ""
+    vocab_no  = "Avoid entirely: " + ", ".join(vocab.avoid if isinstance(vocab.avoid, list) else [vocab.avoid]) if vocab.avoid else ""
+    voice_examples = ""
+    if ctx.voice_samples:
+        examples = [f'  — "{s.text[:300]}"' for s in ctx.voice_samples[:3]]
+        voice_examples = "Voice samples (match this style):\n" + "\n".join(examples)
+    voice_preamble = (
+        f"VOICE PROFILE:\n- Tone: {tone_str}\n- Cadence: {cadence_str}\n- POV: {vp.pov or 'first-person'}\n"
+    )
+    if vocab_yes:      voice_preamble += f"- {vocab_yes}\n"
+    if vocab_no:       voice_preamble += f"- {vocab_no}\n"
+    if voice_examples: voice_preamble += f"\n{voice_examples}\n"
 
     user_prompt = (
         f"Generate optimized hashtag sets for a real estate agent.\n"
@@ -3681,31 +3957,51 @@ async def social_hashtags_generate(request: Request):
         "Each hashtag must include the # prefix. No duplicates across sets. Mix popularity levels."
     )
 
+    system_prompt = voice_preamble + "\n" + (
+        "You are a social media strategist specializing in real estate agent content. "
+        "Generate hashtag sets that maximize reach and niche authority. "
+        + _SOCIAL_FH_CLAUSE
+    )
+
     try:
-        import openai as _openai
-        client = _openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            temperature=0.7,
-            response_format={"type": "json_object"},
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a social media strategist specializing in real estate agent content. "
-                        "Generate hashtag sets that maximize reach and niche authority. "
-                        + _SOCIAL_FH_CLAUSE
-                    ),
-                },
-                {"role": "user", "content": user_prompt},
-            ],
+        client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=800,
+            temperature=0.75,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
         )
-        result = _json.loads(response.choices[0].message.content)
+        raw = message.content[0].text if message.content else "{}"
+        raw = _re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=_re.IGNORECASE)
+        raw = _re.sub(r"\s*```$", "", raw.strip())
+        result = _json.loads(raw.strip())
         result["market"] = market
         result["niche_input"] = niche_input
         os.makedirs("data", exist_ok=True)
         with open(_SOCIAL_HASHTAGS_PATH, "w") as f:
             _json.dump(result, f, indent=2)
+
+        # Audit log (non-blocking)
+        try:
+            import uuid as _uuid
+            async with _async_session() as _audit:
+                await _audit.execute(
+                    __import__("sqlalchemy").text("""
+                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
+                        VALUES (:id, :loc_id, 'hashtag_set', CAST(:payload AS jsonb), now())
+                        ON CONFLICT DO NOTHING
+                    """),
+                    {"id": str(_uuid.uuid4()), "loc_id": location_id,
+                     "payload": _json.dumps({"topic": (niche_input or market), "model": "claude-sonnet-4-5",
+                                             "sample_count": ctx.metadata.sample_count})},
+                )
+                await _audit.commit()
+        except Exception:
+            pass
+
+        result["_foundation_thin"] = ctx.metadata.sample_count < 15
+        result["_sample_count"] = ctx.metadata.sample_count
         return JSONResponse(result)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
@@ -3967,11 +4263,21 @@ async def social_calendar_delete(entry_id: str):
 async def social_repurpose(request: Request):
     """Extract 5 social post angles from a URL or transcript."""
     import json as _json
+    import re as _re
+    import anthropic as _anthropic
+    from db.engine import async_session as _async_session
+    from config import get_current_location_id as _get_loc, settings as _settings
+    from services.foundation import (
+        assert_foundation_ready as _assert_ready,
+        get_brand_context as _get_brand_ctx,
+        BrandContextError as _BrandContextError,
+    )
+    from schemas.foundation import BrandContextTaskType as _TaskType
+
     data       = await request.json()
     url        = data.get("url", "")
     transcript = data.get("transcript", "")
     market     = data.get("market", "")
-    brand_data = data.get("brand_data", {})
 
     content_summary = ""
     if url:
@@ -3988,15 +4294,46 @@ async def social_repurpose(request: Request):
     if not content_summary:
         content_summary = f"URL: {url}"
 
-    brand_voice = brand_data.get("brand_voice_guide", "")
-    value_prop  = brand_data.get("value_prop", "")
+    # ── Foundation gate ─────────────────────────────────────────────────────
+    topic_for_ctx = url or (transcript[:80] if transcript else None)
+    location_id = _get_loc()
+    async with _async_session() as session:
+        try:
+            await _assert_ready(session=session, location_id=location_id)
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc), "foundation_not_ready": True}, status_code=422)
+        try:
+            ctx = await _get_brand_ctx(
+                session=session,
+                location_id=location_id,
+                task_type=_TaskType.clip_caption,
+                topic=topic_for_ctx,
+                platform=None,
+                audience=None,
+            )
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+
+    bp = ctx.brand_profile
+    vp = ctx.voice_profile
+    vocab = ctx.vocabulary
+    tone_str = ", ".join(vp.tone if isinstance(vp.tone, list) else [vp.tone]) if vp.tone else "direct, genuine"
+    cadence_str = vp.cadence or "natural, punchy"
+    vocab_yes = "Use naturally: " + ", ".join(vocab.use if isinstance(vocab.use, list) else [vocab.use]) if vocab.use else ""
+    vocab_no  = "Avoid entirely: " + ", ".join(vocab.avoid if isinstance(vocab.avoid, list) else [vocab.avoid]) if vocab.avoid else ""
+    voice_examples = ""
+    if ctx.voice_samples:
+        examples = [f'  — "{s.text[:300]}"' for s in ctx.voice_samples[:3]]
+        voice_examples = "Voice samples (match this style):\n" + "\n".join(examples)
+    voice_preamble = f"VOICE PROFILE:\n- Tone: {tone_str}\n- Cadence: {cadence_str}\n- POV: {vp.pov or 'first-person'}\n"
+    if vocab_yes: voice_preamble += f"- {vocab_yes}\n"
+    if vocab_no:  voice_preamble += f"- {vocab_no}\n"
+    if voice_examples: voice_preamble += f"\n{voice_examples}\n"
 
     user_prompt = (
         f"Extract 5 distinct social post angles from this content for a real estate agent.\n\n"
         f"Content:\n{content_summary}\n\n"
         f"Market: {market}\n"
-        + (f"Agent value prop: {value_prop}\n" if value_prop else "")
-        + (f"Brand voice: {brand_voice}\n" if brand_voice else "")
         + "\nEach angle should target a different platform or perspective. "
         "Mix educational, inspirational, conversational, and CTA-driven angles.\n\n"
         "Return JSON with:\n"
@@ -4006,28 +4343,56 @@ async def social_repurpose(request: Request):
         '  - "post" (string): The complete post text ready to publish (respects platform length)\n'
     )
 
+    existing_system_content = (
+        "You are a content repurposing strategist for real estate agents. "
+        "Extract maximum social value from existing content, creating platform-native posts "
+        "that feel fresh and specific — not recycled summaries. "
+        + _SOCIAL_FH_CLAUSE
+    )
+    system_prompt = voice_preamble + "\n" + existing_system_content
+
     try:
-        import openai as _openai
-        client = _openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        response = client.chat.completions.create(
-            model="gpt-4o",
+        client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=1500,
             temperature=0.75,
-            response_format={"type": "json_object"},
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a content repurposing strategist for real estate agents. "
-                        "Extract maximum social value from existing content, creating platform-native posts "
-                        "that feel fresh and specific — not recycled summaries. "
-                        + _SOCIAL_FH_CLAUSE
-                    ),
-                },
-                {"role": "user", "content": user_prompt},
-            ],
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
         )
-        result = _json.loads(response.choices[0].message.content)
-        return JSONResponse(result)
+        raw = message.content[0].text if message.content else "{}"
+        raw = _re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=_re.IGNORECASE)
+        raw = _re.sub(r"\s*```$", "", raw.strip())
+        result = _json.loads(raw.strip())
+
+        # Audit log (non-blocking)
+        try:
+            import uuid as _uuid
+            async with _async_session() as _audit:
+                await _audit.execute(
+                    __import__("sqlalchemy").text("""
+                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
+                        VALUES (:id, :loc_id, 'repurpose_social', CAST(:payload AS jsonb), now())
+                        ON CONFLICT DO NOTHING
+                    """),
+                    {
+                        "id": str(_uuid.uuid4()),
+                        "loc_id": location_id,
+                        "payload": _json.dumps({
+                            "topic": topic_for_ctx, "model": "claude-sonnet-4-5",
+                            "sample_count": ctx.metadata.sample_count,
+                        }),
+                    },
+                )
+                await _audit.commit()
+        except Exception:
+            pass
+
+        return JSONResponse({
+            "angles": result.get("angles", []),
+            "_foundation_thin": ctx.metadata.sample_count < 15,
+            "_sample_count": ctx.metadata.sample_count,
+        })
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 
@@ -4895,7 +5260,7 @@ async def scout_remix(request: Request):
     )
 
     try:
-        ai = _anthropic.AsyncAnthropic(api_key=_settings.ANTHROPIC_API_KEY)
+        ai = _anthropic.AsyncAnthropic(api_key=_settings.anthropic_api_key)
         msg = await ai.messages.create(
             model="claude-sonnet-4-5",
             max_tokens=600,
@@ -5593,7 +5958,17 @@ async def yt_script_formula(req: Request):
     Generate a 4-part proven YouTube script formula:
     hook, early CTA, full teleprompter script, body outline, end screen + next video ideas.
     """
-    import openai as _openai
+    import json as _json
+    import re as _re
+    import anthropic as _anthropic
+    from db.engine import async_session as _async_session
+    from config import get_current_location_id as _get_loc, settings as _settings
+    from services.foundation import (
+        assert_foundation_ready as _assert_ready,
+        get_brand_context as _get_brand_ctx,
+        BrandContextError as _BrandContextError,
+    )
+    from schemas.foundation import BrandContextTaskType as _TaskType
 
     body        = await req.json()
     topic       = body.get("topic", "")
@@ -5603,6 +5978,44 @@ async def yt_script_formula(req: Request):
     agent_name  = body.get("agent_name", "")
     contact_cta = body.get("contact_cta", "reach out to me")
     angle       = body.get("angle", "")
+
+    # ── Foundation gate ──────────────────────────────────────────────────────
+    location_id = _get_loc()
+    async with _async_session() as session:
+        try:
+            await _assert_ready(session=session, location_id=location_id)
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc), "foundation_not_ready": True}, status_code=422)
+        try:
+            ctx = await _get_brand_ctx(
+                session=session,
+                location_id=location_id,
+                task_type=_TaskType.podcast_script_outline,
+                topic=topic or None,
+                platform=None,
+                audience=None,
+            )
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+
+    # ── Foundation voice preamble ────────────────────────────────────────────
+    bp = ctx.brand_profile
+    vp = ctx.voice_profile
+    vocab = ctx.vocabulary
+    tone_str = ", ".join(vp.tone if isinstance(vp.tone, list) else [vp.tone]) if vp.tone else "direct, genuine"
+    cadence_str = vp.cadence or "natural, punchy"
+    vocab_yes = "Use naturally: " + ", ".join(vocab.use if isinstance(vocab.use, list) else [vocab.use]) if vocab.use else ""
+    vocab_no  = "Avoid entirely: " + ", ".join(vocab.avoid if isinstance(vocab.avoid, list) else [vocab.avoid]) if vocab.avoid else ""
+    voice_examples = ""
+    if ctx.voice_samples:
+        examples = [f'  — "{s.text[:300]}"' for s in ctx.voice_samples[:3]]
+        voice_examples = "Voice samples (match this style):\n" + "\n".join(examples)
+    voice_preamble = (
+        f"VOICE PROFILE:\n- Tone: {tone_str}\n- Cadence: {cadence_str}\n- POV: {vp.pov or 'first-person'}\n"
+    )
+    if vocab_yes:      voice_preamble += f"- {vocab_yes}\n"
+    if vocab_no:       voice_preamble += f"- {vocab_no}\n"
+    if voice_examples: voice_preamble += f"\n{voice_examples}\n"
 
     # Pillar-specific body structure guidance
     pillar_structures = {
@@ -5654,7 +6067,7 @@ async def yt_script_formula(req: Request):
 
     body_structure = pillar_structures.get(pillar, pillar_structures["Relocation"])
 
-    system_prompt = (
+    system_prompt = voice_preamble + "\n" + (
         "You are an expert YouTube content strategist for real estate agents who generate leads through video.\n\n"
         "YOUTUBE ALGORITHM PRINCIPLES (apply these to every section you write):\n"
         "- The hook (first 30 seconds) determines 80% of watch time. Weak hooks = dead videos.\n"
@@ -5710,18 +6123,41 @@ async def yt_script_formula(req: Request):
         "- next_video_ideas (list[str]): Exactly 2 related video titles to tease from the end screen\n"
     )
 
-    client = _openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     try:
-        resp = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user",   "content": user_prompt},
-            ],
-            response_format={"type": "json_object"},
+        client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=4000,
             temperature=0.75,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
         )
-        return JSONResponse(json.loads(resp.choices[0].message.content))
+        raw = message.content[0].text if message.content else "{}"
+        raw = _re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=_re.IGNORECASE)
+        raw = _re.sub(r"\s*```$", "", raw.strip())
+        result = _json.loads(raw.strip())
+
+        # Audit log (non-blocking)
+        try:
+            import uuid as _uuid
+            async with _async_session() as _audit:
+                await _audit.execute(
+                    __import__("sqlalchemy").text("""
+                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
+                        VALUES (:id, :loc_id, 'script_formula', CAST(:payload AS jsonb), now())
+                        ON CONFLICT DO NOTHING
+                    """),
+                    {"id": str(_uuid.uuid4()), "loc_id": location_id,
+                     "payload": _json.dumps({"topic": topic, "model": "claude-sonnet-4-5",
+                                             "sample_count": ctx.metadata.sample_count})},
+                )
+                await _audit.commit()
+        except Exception:
+            pass
+
+        result["_foundation_thin"] = ctx.metadata.sample_count < 15
+        result["_sample_count"] = ctx.metadata.sample_count
+        return JSONResponse(result)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 
@@ -5812,7 +6248,18 @@ async def yt_pillar_plan(req: Request):
 @app.post("/api/yt/cover-forge")
 async def yt_cover_forge(req: Request):
     """Generate 3 thumbnail concept variants + optimized title options."""
-    import openai as _openai
+    import json as _json
+    import re as _re
+    import anthropic as _anthropic
+    from db.engine import async_session as _async_session
+    from config import get_current_location_id as _get_loc, settings as _settings
+    from services.foundation import (
+        assert_foundation_ready as _assert_ready,
+        get_brand_context as _get_brand_ctx,
+        BrandContextError as _BrandContextError,
+    )
+    from schemas.foundation import BrandContextTaskType as _TaskType
+
     body = await req.json()
     topic   = body.get("topic", "")
     market  = body.get("market", "")
@@ -5823,11 +6270,46 @@ async def yt_cover_forge(req: Request):
     persona_photos = body.get("persona_photos") or []
     selected_persona_photo_id = body.get("selected_persona_photo_id", "")
 
-    client = _openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    # ── Foundation gate ─────────────────────────────────────────────────────
+    location_id = _get_loc()
+    async with _async_session() as session:
+        try:
+            await _assert_ready(session=session, location_id=location_id)
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc), "foundation_not_ready": True}, status_code=422)
+        try:
+            ctx = await _get_brand_ctx(
+                session=session,
+                location_id=location_id,
+                task_type=_TaskType.thumbnail_text,
+                topic=topic,
+                platform=None,
+                audience=None,
+            )
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
 
-    prompt = f"""You are a YouTube thumbnail strategist for real estate agents. Generate 3 thumbnail concept variants and optimized title options.
+    # ── Build voice preamble from Foundation ────────────────────────────────
+    bp = ctx.brand_profile
+    vp = ctx.voice_profile
+    vocab = ctx.vocabulary
+    tone_str = ", ".join(vp.tone if isinstance(vp.tone, list) else [vp.tone]) if vp.tone else "direct, genuine"
+    cadence_str = vp.cadence or "natural, punchy"
+    vocab_yes = "Use naturally: " + ", ".join(vocab.use if isinstance(vocab.use, list) else [vocab.use]) if vocab.use else ""
+    vocab_no  = "Avoid entirely: " + ", ".join(vocab.avoid if isinstance(vocab.avoid, list) else [vocab.avoid]) if vocab.avoid else ""
+    voice_examples = ""
+    if ctx.voice_samples:
+        examples = [f'  — "{s.text[:300]}"' for s in ctx.voice_samples[:3]]
+        voice_examples = "Voice samples (match this style):\n" + "\n".join(examples)
+    voice_preamble = f"VOICE PROFILE:\n- Tone: {tone_str}\n- Cadence: {cadence_str}\n- POV: {vp.pov or 'first-person'}\n"
+    if vocab_yes: voice_preamble += f"- {vocab_yes}\n"
+    if vocab_no:  voice_preamble += f"- {vocab_no}\n"
+    if voice_examples: voice_preamble += f"\n{voice_examples}\n"
 
-THUMBNAIL RULES (non-negotiable):
+    # ── Prompts ──────────────────────────────────────────────────────────────
+    system_prompt = voice_preamble + "\nYou are a YouTube thumbnail strategist for real estate agents. Generate 3 thumbnail concept variants and optimized title options."
+
+    user_prompt = f"""THUMBNAIL RULES (non-negotiable):
 - Thumbnail text: 3-5 words MAX, high contrast, mobile-readable, DIFFERENT from the title
 - Face takes up 33% of the frame (agent face is prominent)
 - Text must be BOLD, UPPERCASE or title case, easy to read on mobile
@@ -5871,13 +6353,45 @@ Return ONLY valid JSON:
 }}"""
 
     try:
-        resp = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"},
-            temperature=0.8
+        client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=2000,
+            temperature=0.75,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
         )
-        return JSONResponse(json.loads(resp.choices[0].message.content))
+        raw = message.content[0].text if message.content else "{}"
+        raw = _re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=_re.IGNORECASE)
+        raw = _re.sub(r"\s*```$", "", raw.strip())
+        result = _json.loads(raw.strip())
+
+        # Audit log (non-blocking)
+        try:
+            import uuid as _uuid
+            async with _async_session() as _audit:
+                await _audit.execute(
+                    __import__("sqlalchemy").text("""
+                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
+                        VALUES (:id, :loc_id, 'cover_forge', CAST(:payload AS jsonb), now())
+                        ON CONFLICT DO NOTHING
+                    """),
+                    {
+                        "id": str(_uuid.uuid4()),
+                        "loc_id": location_id,
+                        "payload": _json.dumps({
+                            "topic": topic, "model": "claude-sonnet-4-5",
+                            "sample_count": ctx.metadata.sample_count,
+                        }),
+                    },
+                )
+                await _audit.commit()
+        except Exception:
+            pass
+
+        result["_foundation_thin"] = ctx.metadata.sample_count < 15
+        result["_sample_count"] = ctx.metadata.sample_count
+        return JSONResponse(result)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 
@@ -5887,16 +6401,62 @@ Return ONLY valid JSON:
 @app.post("/api/yt/repurpose")
 async def yt_repurpose(req: Request):
     """Repurpose a video script into Shorts, social captions, and blog outline."""
-    import openai as _openai
+    import json as _json
+    import re as _re
+    import anthropic as _anthropic
+    from db.engine import async_session as _async_session
+    from config import get_current_location_id as _get_loc, settings as _settings
+    from services.foundation import (
+        assert_foundation_ready as _assert_ready,
+        get_brand_context as _get_brand_ctx,
+        BrandContextError as _BrandContextError,
+    )
+    from schemas.foundation import BrandContextTaskType as _TaskType
+
     body = await req.json()
     script  = body.get("script", "")[:4000]  # cap at 4000 chars
     topic   = body.get("topic", "")
     market  = body.get("market", "")
     outputs = body.get("outputs", ["shorts", "instagram", "tiktok", "blog"])
 
-    client = _openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    # ── Foundation gate ─────────────────────────────────────────────────────
+    location_id = _get_loc()
+    async with _async_session() as session:
+        try:
+            await _assert_ready(session=session, location_id=location_id)
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc), "foundation_not_ready": True}, status_code=422)
+        try:
+            ctx = await _get_brand_ctx(
+                session=session,
+                location_id=location_id,
+                task_type=_TaskType.clip_caption,
+                topic=topic,
+                platform=None,
+                audience=None,
+            )
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
 
-    prompt = f"""You are a social media content strategist for a real estate agent. Repurpose the following video script into multiple content formats.
+    bp = ctx.brand_profile
+    vp = ctx.voice_profile
+    vocab = ctx.vocabulary
+    tone_str = ", ".join(vp.tone if isinstance(vp.tone, list) else [vp.tone]) if vp.tone else "direct, genuine"
+    cadence_str = vp.cadence or "natural, punchy"
+    vocab_yes = "Use naturally: " + ", ".join(vocab.use if isinstance(vocab.use, list) else [vocab.use]) if vocab.use else ""
+    vocab_no  = "Avoid entirely: " + ", ".join(vocab.avoid if isinstance(vocab.avoid, list) else [vocab.avoid]) if vocab.avoid else ""
+    voice_examples = ""
+    if ctx.voice_samples:
+        examples = [f'  — "{s.text[:300]}"' for s in ctx.voice_samples[:3]]
+        voice_examples = "Voice samples (match this style):\n" + "\n".join(examples)
+    voice_preamble = f"VOICE PROFILE:\n- Tone: {tone_str}\n- Cadence: {cadence_str}\n- POV: {vp.pov or 'first-person'}\n"
+    if vocab_yes: voice_preamble += f"- {vocab_yes}\n"
+    if vocab_no:  voice_preamble += f"- {vocab_no}\n"
+    if voice_examples: voice_preamble += f"\n{voice_examples}\n"
+
+    system_prompt = voice_preamble + "\nYou are a social media content strategist for a real estate agent. Repurpose video scripts into multiple content formats that sound authentic to the creator's voice."
+
+    user_prompt = f"""Repurpose the following video script into multiple content formats.
 
 Video topic: {topic}
 Market: {market}
@@ -5915,14 +6475,45 @@ Return JSON with these keys (only include requested outputs):
 Return ONLY valid JSON."""
 
     try:
-        resp = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"},
-            temperature=0.7,
+        client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
             max_tokens=3000,
+            temperature=0.75,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
         )
-        return JSONResponse(json.loads(resp.choices[0].message.content))
+        raw = message.content[0].text if message.content else "{}"
+        raw = _re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=_re.IGNORECASE)
+        raw = _re.sub(r"\s*```$", "", raw.strip())
+        result = _json.loads(raw.strip())
+
+        # Audit log (non-blocking)
+        try:
+            import uuid as _uuid
+            async with _async_session() as _audit:
+                await _audit.execute(
+                    __import__("sqlalchemy").text("""
+                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
+                        VALUES (:id, :loc_id, 'repurpose_yt', CAST(:payload AS jsonb), now())
+                        ON CONFLICT DO NOTHING
+                    """),
+                    {
+                        "id": str(_uuid.uuid4()),
+                        "loc_id": location_id,
+                        "payload": _json.dumps({
+                            "topic": topic, "model": "claude-sonnet-4-5",
+                            "sample_count": ctx.metadata.sample_count,
+                        }),
+                    },
+                )
+                await _audit.commit()
+        except Exception:
+            pass
+
+        result["_foundation_thin"] = ctx.metadata.sample_count < 15
+        result["_sample_count"] = ctx.metadata.sample_count
+        return JSONResponse(result)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 

@@ -537,7 +537,7 @@
 
 <!-- ── Tab bar ────────────────────────────────────────────────────── -->
 <div class="tab-bar">
-  <button class="active" data-tab="forge" onclick="switchPanel('forge')">✍️ Post Forge</button>
+  <button class="active" data-tab="forge" onclick="switchPanel('forge')">✍️ Draftsman</button>
   <button data-tab="calendar" onclick="switchPanel('calendar')">📅 Content Calendar</button>
   <button data-tab="hashtags" onclick="switchPanel('hashtags')">🏷️ Hashtag Lab</button>
   <button data-tab="repurpose" onclick="switchPanel('repurpose')">♻️ Repurpose Hub</button>
@@ -549,10 +549,10 @@
 <div class="content-area">
 
   <!-- ════════════════════════════════════════════════════════════════
-       PANEL 1 — Post Forge
+       PANEL 1 — Draftsman
   ═════════════════════════════════════════════════════════════════ -->
   <div id="panel-forge" class="panel active">
-    <p class="section-heading">Post Forge</p>
+    <p class="section-heading">Draftsman</p>
     <p class="section-sub">Generate platform-ready posts for LinkedIn, Facebook, Instagram, and X.</p>
 
     <!-- Entry mode tabs -->
@@ -768,7 +768,7 @@
   ═════════════════════════════════════════════════════════════════ -->
   <div id="panel-connections" class="panel">
     <p class="section-heading">Platform Connections</p>
-    <p class="section-sub">Connect your social profiles to publish directly from Post Forge.</p>
+    <p class="section-sub">Connect your social profiles to publish directly from Draftsman.</p>
 
     <div class="conn-grid" id="conn-grid">
       <!-- rendered by renderConnections() -->
@@ -1714,7 +1714,7 @@ function renderConnections() {
     if (plat.key === 'tiktok' && connected) {
       const note = document.createElement('div');
       note.className = 'conn-note-box';
-      note.innerHTML = 'TikTok is video-only. Go to <strong>Clip Studio</strong> to publish clips directly. Use Post Forge to generate your caption, then copy it here.';
+      note.innerHTML = 'TikTok is video-only. Go to <strong>Clip Studio</strong> to publish clips directly. Use Draftsman to generate your caption, then copy it here.';
       card.appendChild(note);
     }
 

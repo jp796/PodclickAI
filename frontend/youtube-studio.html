@@ -605,7 +605,7 @@
               </div>
               <div class="flex items-start justify-between">
                 <div>
-                  <h3 class="font-semibold text-white mb-1">Script Lab</h3>
+                  <h3 class="font-semibold text-white mb-1">Framer</h3>
                   <p class="text-sm" style="color:#5a5a7a;">Write scripts with titles, tags &amp; descriptions</p>
                 </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a3a5a" stroke-width="2" class="mt-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -624,7 +624,7 @@
               </div>
               <div class="flex items-start justify-between">
                 <div>
-                  <h3 class="font-semibold text-white mb-1">Cover Forge</h3>
+                  <h3 class="font-semibold text-white mb-1">Painter</h3>
                   <p class="text-sm" style="color:#5a5a7a;">AI-powered thumbnail design</p>
                 </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a3a5a" stroke-width="2" class="mt-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -639,7 +639,7 @@
           <!-- Inline Script Builder -->
           <div id="create-script-panel" class="hidden mt-6">
             <div style="background:#050E3D; border:1px solid #1a2c6b; border-radius:16px; padding:28px;">
-              <h3 class="font-bold text-white mb-5">Script Lab</h3>
+              <h3 class="font-bold text-white mb-5">Framer</h3>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label class="block text-xs font-semibold mb-2" style="color:#7a7a9a;">VIDEO TOPIC</label>
@@ -931,7 +931,7 @@
               </div>
               <div class="flex items-start justify-between">
                 <div>
-                  <h3 class="font-semibold text-white mb-1">Channel Advisor</h3>
+                  <h3 class="font-semibold text-white mb-1">Inspector</h3>
                   <p class="text-sm" style="color:#5a5a7a;">AI analysis of any YouTube video</p>
                 </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a3a5a" stroke-width="2" class="mt-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -943,7 +943,7 @@
               </div>
               <div class="flex items-start justify-between">
                 <div>
-                  <h3 class="font-semibold text-white mb-1">Repurpose Engine</h3>
+                  <h3 class="font-semibold text-white mb-1">Dispatcher</h3>
                   <p class="text-sm" style="color:#5a5a7a;">Turn one long video into 5+ pieces of content</p>
                 </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a3a5a" stroke-width="2" class="mt-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -970,7 +970,7 @@
           </div>
           <!-- Video Advisor panel -->
           <div id="advisor-panel" class="hidden mt-4" style="background:#050E3D; border:1px solid #1a2c6b; border-radius:16px; padding:28px;">
-            <h3 class="font-bold text-white mb-5">Channel Advisor</h3>
+            <h3 class="font-bold text-white mb-5">Inspector</h3>
             <div class="flex gap-2 mb-5">
               <button id="advisor-btn-video" class="tab-btn active" onclick="setAdvisorMode('video')">Analyze Video</button>
               <button id="advisor-btn-channel" class="tab-btn" onclick="setAdvisorMode('channel')">Analyze Channel</button>
@@ -990,7 +990,7 @@
           <!-- Repurpose Engine panel -->
           <div id="repurpose-panel" class="hidden mt-4" style="background:#050E3D; border:1px solid #1a2c6b; border-radius:16px; padding:28px;">
             <div class="mb-5">
-              <h3 class="font-bold text-white mb-1">Repurpose Engine</h3>
+              <h3 class="font-bold text-white mb-1">Dispatcher</h3>
               <p class="text-sm" style="color:#5a5a7a;">Turn one long video into 5+ pieces of content</p>
             </div>
 
@@ -2831,7 +2831,7 @@ function openThumbRemix(title, thumbnail, videoUrl, city) {
           <ul id="remix-analysis" style="color:#c0c0d8;font-size:13px;line-height:1.8;padding-left:18px;"></ul>
         </div>
         <div style="display:flex;gap:10px;">
-          <button class="btn-primary" style="flex:1;" onclick="goToCoverForge()">✦ Build My Version in Cover Forge →</button>
+          <button class="btn-primary" style="flex:1;" onclick="goToCoverForge()">✦ Build My Version in Painter →</button>
           ${videoUrl ? `<a href="${escHtml(videoUrl)}" target="_blank" rel="noopener" class="btn-secondary text-sm" style="display:flex;align-items:center;padding:10px 16px;">▶ Watch</a>` : ''}
         </div>
       </div>`;
@@ -3596,7 +3596,7 @@ async function runCoverForge() {
     if (market) saveMarket(market);
   } catch(e) {
     stopCoverForgeProgress();
-    alert('Cover Forge failed: ' + e.message);
+    alert('Painter failed: ' + e.message);
   } finally {
     stopCoverForgeProgress();
     btn.disabled = false; btn.textContent = '✦ Generate Thumbnails';
