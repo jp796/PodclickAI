@@ -7084,3 +7084,111 @@ async def brick_run_planning():
 
     result = await run_planning_for_default_location()
     return JSONResponse({"ok": True, **result})
+
+
+# ── Brick chat — Phase 3B ─────────────────────────────────────────────────────
+
+@app.get("/brick-chat.js")
+async def brick_chat_js():
+    """Serve the Brick floating chat widget."""
+    from fastapi.responses import FileResponse
+    return FileResponse(BASE_DIR / "frontend" / "brick-chat.js", media_type="application/javascript")
+
+
+@app.get("/api/brick/messages")
+async def brick_get_messages(limit: int = 50):
+    """Return recent conversation messages, oldest first."""
+    from config import get_current_location_id
+    from services.brick_agent import BrickAgent as _BA
+
+    location_id = get_current_location_id()
+    agent = _BA()
+    messages = await agent.list_messages(location_id, limit=limit)
+    return JSONResponse({"messages": messages})
+
+
+@app.post("/api/brick/chat")
+async def brick_chat(request: Request):
+    """
+    SSE streaming endpoint for Brick's conversational chat.
+
+    Accepts JSON: {message, context_screen, context_data?}
+    Yields SSE:
+      data: {"t": "token"}\\n\\n   — text token
+      data: {"tool": "desc"}\\n\\n — tool call notification
+      data: [DONE]\\n\\n           — stream complete
+    """
+    from fastapi.responses import StreamingResponse
+    from config import get_current_location_id
+    from services.brick_agent import BrickAgent as _BA
+    import json as _json
+
+    body = await request.json()
+    message = (body.get("message") or "").strip()
+    context_screen = body.get("context_screen") or "unknown"
+    context_data = body.get("context_data") or {}
+
+    if not message:
+        return JSONResponse({"error": "message required"}, status_code=400)
+
+    location_id = get_current_location_id()
+
+    # Enrich context_data with live DB lookups
+    try:
+        from db.engine import async_session as _async_session
+        from db.models import BrickAction as _BAct, Post as _Post
+        from sqlalchemy import select as _sel, and_ as _and, func as _func
+        from datetime import datetime as _dt, timedelta as _td
+        import uuid as _uuid
+
+        loc_uuid = _uuid.UUID(location_id)
+        async with _async_session() as session:
+            # Pending punch list
+            pending = (await session.execute(
+                _sel(_BAct)
+                .where(_and(_BAct.location_id == loc_uuid, _BAct.status == "pending"))
+                .limit(5)
+            )).scalars().all()
+            context_data["pending_actions"] = [
+                {"action_type": a.action_type, "rationale": a.rationale or ""}
+                for a in pending
+            ]
+
+            # Foundation sample count
+            from sqlalchemy import text as _txt
+            row = (await session.execute(
+                _txt("SELECT COUNT(*) FROM voice_samples WHERE location_id = :loc"),
+                {"loc": str(location_id)},
+            )).one_or_none()
+            context_data["foundation_samples"] = row[0] if row else 0
+
+        context_data["screen"] = context_screen
+    except Exception as _ctx_err:
+        import logging as _log
+        _log.getLogger("brick.chat").warning("Context load failed: %s", _ctx_err)
+
+    agent = _BA()
+
+    async def event_gen():
+        try:
+            async for chunk in agent.chat_stream(
+                message=message,
+                location_id=location_id,
+                context_screen=context_screen,
+                context_data=context_data,
+            ):
+                yield chunk
+        except Exception as exc:
+            import logging as _log
+            _log.getLogger("brick.chat").error("SSE generator error: %s", exc)
+            yield f"data: {_json.dumps({'t': 'Signal lost. Try again.'})}\n\n"
+            yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )

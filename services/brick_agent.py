@@ -93,6 +93,124 @@ VOCABULARY:
 - "Foundation" = the voice fingerprint
 - "Blueprint" = the brand profile"""
 
+# ── Chat tool definitions ─────────────────────────────────────────────────────
+
+BRICK_TOOLS: List[Dict[str, Any]] = [
+    {
+        "name": "propose_action",
+        "description": (
+            "Propose or execute a content action on behalf of the user. "
+            "Creates a BrickAction row. If the action is within the current permit tier, "
+            "it executes immediately and returns the result. If it requires a higher tier, "
+            "it is queued to the punch list for user approval. "
+            "Use when user asks you to draft, suggest, publish, or perform any content task."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "action_type": {
+                    "type": "string",
+                    "enum": [
+                        "draft_post", "suggest_post_idea", "queue_draft",
+                        "publish_post", "cut_clip", "write_show_notes",
+                        "adjust_calendar", "send_guest_email",
+                        "pitch_sponsor", "adjust_vyral_mix", "replan_calendar",
+                    ],
+                    "description": "The type of action to propose.",
+                },
+                "payload": {
+                    "type": "object",
+                    "description": (
+                        "Action-specific parameters. For draft_post: "
+                        "{topic: str, pillar: str, bucket: str, platform: str}. "
+                        "All fields optional."
+                    ),
+                },
+                "rationale": {
+                    "type": "string",
+                    "description": "1-2 sentence Brick-voice explanation of why this action now.",
+                },
+            },
+            "required": ["action_type", "payload", "rationale"],
+        },
+    },
+    {
+        "name": "remember",
+        "description": (
+            "Save a standing instruction to Brick's permanent memory. "
+            "These instructions are injected into every future planning prompt. "
+            "Use when user says 'remember', 'never', 'always', 'from now on', "
+            "or any phrasing that indicates a persistent preference or rule."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "description": "The exact instruction to remember, verbatim.",
+                },
+                "category": {
+                    "type": "string",
+                    "description": "Category tag. One of: rule, preference, schedule, tone, topic.",
+                    "default": "rule",
+                },
+            },
+            "required": ["content"],
+        },
+    },
+    {
+        "name": "forget",
+        "description": (
+            "Remove a standing instruction from Brick's memory. "
+            "Use when user says to forget, ignore, or remove a previous instruction. "
+            "Requires the memory_id — ask user to confirm which one if ambiguous."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "memory_id": {
+                    "type": "string",
+                    "description": "UUID string of the brick_memory row to soft-delete.",
+                },
+            },
+            "required": ["memory_id"],
+        },
+    },
+]
+
+# Banned phrases from brick-voice skill — checked after each response
+_BANNED_PHRASES: List[str] = [
+    "I'm happy to",
+    "I'd be glad to",
+    "Great question",
+    "That's a great",
+    "Absolutely!",
+    "Certainly!",
+    "Of course!",
+    "As an AI",
+    "as a language model",
+    "I apologize for",
+    "I hope this helps",
+    "Please let me know if",
+    "Feel free to",
+    "I've gone ahead and",
+    "Just a heads-up",
+    "Quick note that",
+    "Unfortunately",
+    "Moving forward",
+    "At the end of the day",
+    "Diving into",
+    "Circling back",
+    "Touching base",
+    "Leverage",
+    "Synergy",
+    "Unlock",
+    "Empower",
+    "Cutting-edge",
+    "State-of-the-art",
+    "Best-in-class",
+]
+
 
 def _tier_rank(tier: str) -> int:
     """Return numeric rank for tier comparison. Higher = more autonomy."""
@@ -306,6 +424,454 @@ class BrickAgent:
             await session.commit()
 
         return {"ok": True, "action_id": action_id, "status": "rejected"}
+
+    # ── Conversational chat ───────────────────────────────────────────────────
+
+    async def chat_stream(
+        self,
+        message: str,
+        location_id: str,
+        context_screen: str,
+        context_data: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Async generator — yields SSE-formatted strings.
+
+        Format:
+          data: {"t": "token text"}\\n\\n   — text token
+          data: {"tool": "description"}\\n\\n — tool call result summary
+          data: [DONE]\\n\\n                  — stream complete
+
+        Saves user message + full Brick response to brick_messages.
+        Checks response for banned phrases (non-blocking warning).
+        """
+        import json as _json
+
+        if context_data is None:
+            context_data = {}
+
+        # 1 — Save user message
+        await self._save_message("user", message, location_id, context_screen)
+
+        # 2 — Load recent history (last 20 messages, oldest first)
+        history = await self.list_messages(location_id, limit=20)
+
+        # 3 — Load active memories
+        memories = await self.get_active_memories(location_id)
+
+        # 4 — Get current permit tier
+        async with async_session() as session:
+            permit = await self._get_or_create_permit(session, location_id)
+            current_tier = permit.current_tier
+
+        # 5 — Build system prompt
+        system_prompt = self._build_chat_system_prompt(memories, context_data, current_tier)
+
+        # 6 — Build message list for Claude (normalize to alternating roles)
+        msgs = self._normalize_history(history)
+        msgs.append({"role": "user", "content": message})
+
+        if not settings.anthropic_api_key:
+            fallback = "Walk-through's up. What do you need?"
+            await self._save_message("brick", fallback, location_id, context_screen)
+            yield f"data: {_json.dumps({'t': fallback})}\n\n"
+            yield "data: [DONE]\n\n"
+            return
+
+        async_client = _anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
+        collected_text: List[str] = []
+
+        try:
+            # Pass 1 — stream with tool capability
+            async with async_client.messages.stream(
+                model="claude-sonnet-4-5",
+                max_tokens=1024,
+                system=system_prompt,
+                messages=msgs,
+                tools=BRICK_TOOLS,
+            ) as stream:
+                async for text_token in stream.text_stream:
+                    collected_text.append(text_token)
+                    yield f"data: {_json.dumps({'t': text_token})}\n\n"
+
+                final_msg = await stream.get_final_message()
+
+            # Check for tool calls in the final message
+            tool_use_blocks = [
+                block for block in final_msg.content
+                if hasattr(block, "type") and block.type == "tool_use"
+            ]
+
+            if tool_use_blocks:
+                tool_results = []
+                for tc in tool_use_blocks:
+                    result = await self._execute_chat_tool(
+                        tc.name, tc.input, location_id
+                    )
+                    summary = result.get("summary", tc.name)
+                    yield f"data: {_json.dumps({'tool': summary})}\n\n"
+                    tool_results.append(
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": tc.id,
+                            "content": _json.dumps(result),
+                        }
+                    )
+
+                # Pass 2 — follow-up with tool results (no tools this round)
+                follow_msgs = msgs + [
+                    {"role": "assistant", "content": final_msg.content},
+                    {"role": "user", "content": tool_results},
+                ]
+                async with async_client.messages.stream(
+                    model="claude-sonnet-4-5",
+                    max_tokens=512,
+                    system=system_prompt,
+                    messages=follow_msgs,
+                ) as stream2:
+                    async for text_token in stream2.text_stream:
+                        collected_text.append(text_token)
+                        yield f"data: {_json.dumps({'t': text_token})}\n\n"
+
+        except Exception as exc:
+            logger.error("[brick.chat] Stream error: %s", exc)
+            err_msg = "Lost the signal for a second. Try again."
+            collected_text.append(err_msg)
+            yield f"data: {_json.dumps({'t': err_msg})}\n\n"
+
+        full_response = "".join(collected_text)
+
+        # 7 — Save Brick response
+        await self._save_message("brick", full_response, location_id, context_screen)
+
+        # 8 — Non-blocking voice quality check
+        self._check_voice_quality(full_response)
+
+        yield "data: [DONE]\n\n"
+
+    async def list_messages(
+        self, location_id: str, limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """Return last N messages for location, oldest first."""
+        async with async_session() as session:
+            rows = await session.execute(
+                sa_text(
+                    "SELECT id, role, content, context_screen, created_at "
+                    "FROM brick_messages "
+                    "WHERE location_id = :loc "
+                    "ORDER BY created_at DESC "
+                    "LIMIT :lim"
+                ),
+                {"loc": location_id, "lim": limit},
+            )
+            msgs = [
+                {
+                    "id": str(r[0]),
+                    "role": r[1],
+                    "content": r[2],
+                    "context_screen": r[3],
+                    "created_at": r[4].isoformat() if r[4] else None,
+                }
+                for r in rows.fetchall()
+            ]
+        msgs.reverse()  # Oldest first for display
+        return msgs
+
+    def _build_chat_system_prompt(
+        self,
+        memories: List[Dict[str, Any]],
+        context_data: Dict[str, Any],
+        current_tier: str,
+    ) -> str:
+        """Compose the full system prompt for a chat turn."""
+        lines = [_BRICK_SYSTEM_PROMPT]
+
+        lines.append(f"\nCURRENT PERMIT TIER: {current_tier}")
+        lines.append(
+            "ACTIONS YOU CAN EXECUTE IMMEDIATELY (within tier): "
+            + ", ".join(
+                k for k, v in ACTION_TIER_MAP.items()
+                if _tier_allows(current_tier, v)
+            )
+        )
+        lines.append(
+            "ACTIONS THAT GO TO PUNCH LIST (above tier): "
+            + ", ".join(
+                k for k, v in ACTION_TIER_MAP.items()
+                if not _tier_allows(current_tier, v)
+            )
+        )
+
+        if memories:
+            lines.append("\nSTANDING INSTRUCTIONS (always honor these):")
+            for m in memories:
+                lines.append(f"- {m['content']}")
+
+        screen = context_data.get("screen", "")
+        if screen:
+            lines.append(f"\nUSER IS ON SCREEN: {screen}")
+
+        if context_data.get("this_week_posts"):
+            lines.append("\nTHIS WEEK'S CALENDAR:")
+            for p in context_data["this_week_posts"]:
+                lines.append(
+                    f"- {p.get('bucket','?')} post — {p.get('status','?')} — "
+                    f"{p.get('scheduled_at', '?')}"
+                )
+
+        if context_data.get("pending_actions"):
+            lines.append("\nOPEN PUNCH LIST:")
+            for a in context_data["pending_actions"]:
+                lines.append(f"- {a.get('action_type','?')}: {a.get('rationale','')}")
+
+        if context_data.get("track_record"):
+            tr = context_data["track_record"]
+            lines.append(
+                f"\nTRACK RECORD: {tr.get('total_actions',0)} actions, "
+                f"{tr.get('completed',0)} completed, {tr.get('approvals',0)} approvals"
+            )
+
+        if context_data.get("foundation_samples") is not None:
+            lines.append(
+                f"\nFOUNDATION: {context_data['foundation_samples']} samples"
+            )
+
+        lines.append(
+            "\nWhen user asks you to perform a content action, use the propose_action tool. "
+            "When user says 'remember', 'never', 'always', or 'from now on', use the remember tool. "
+            "Keep replies 1-3 sentences. Lead with the action or answer, not with preamble."
+        )
+
+        return "\n".join(lines)
+
+    def _normalize_history(
+        self, messages: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
+        """
+        Convert brick_messages rows to Claude API format.
+        Merges consecutive same-role messages to satisfy Claude's alternating requirement.
+        Maps role 'brick' -> 'assistant'.
+        """
+        if not messages:
+            return []
+
+        normalized: List[Dict[str, Any]] = []
+        for msg in messages:
+            role = "assistant" if msg["role"] == "brick" else "user"
+            content = msg.get("content", "")
+            if normalized and normalized[-1]["role"] == role:
+                # Merge into previous
+                normalized[-1]["content"] += "\n\n" + content
+            else:
+                normalized.append({"role": role, "content": content})
+
+        # Claude requires first message to be from user
+        if normalized and normalized[0]["role"] == "assistant":
+            normalized = normalized[1:]
+
+        return normalized
+
+    async def _execute_chat_tool(
+        self, tool_name: str, tool_input: Dict[str, Any], location_id: str
+    ) -> Dict[str, Any]:
+        """Route a tool call to the appropriate handler."""
+        if tool_name == "propose_action":
+            return await self._tool_propose_action(tool_input, location_id)
+        if tool_name == "remember":
+            return await self._tool_remember(tool_input, location_id)
+        if tool_name == "forget":
+            return await self._tool_forget(tool_input, location_id)
+        return {"error": f"Unknown tool: {tool_name}", "summary": f"Unknown: {tool_name}"}
+
+    async def _tool_propose_action(
+        self, tool_input: Dict[str, Any], location_id: str
+    ) -> Dict[str, Any]:
+        """
+        Tool handler: propose_action.
+        Creates BrickAction, executes if within tier, queues if above tier.
+        For draft_post: generates real content via Foundation when available.
+        """
+        action_type = tool_input.get("action_type", "draft_post")
+        payload = tool_input.get("payload", {})
+        rationale = tool_input.get("rationale", "")
+        required_tier = ACTION_TIER_MAP.get(action_type, "draftsman")
+
+        # Create the action row
+        async with async_session() as session:
+            permit = await self._get_or_create_permit(session, location_id)
+            action = BrickAction(
+                location_id=uuid.UUID(location_id),
+                action_type=action_type,
+                status="pending",
+                payload=payload,
+                rationale=rationale,
+                actor_type="brick",
+                expires_at=datetime.utcnow() + timedelta(days=7),
+            )
+            session.add(action)
+            await session.commit()
+            action_id = str(action.id)
+            current_tier = permit.current_tier
+
+        if _tier_allows(current_tier, required_tier):
+            # Execute immediately — within tier
+            try:
+                result = await self.execute_action(action_id)
+                return {
+                    "status": "executed",
+                    "action_id": action_id,
+                    "result": result,
+                    "summary": (
+                        f"Drafted post on '{payload.get('topic', action_type)}' — "
+                        "on the punch list for your review."
+                    ),
+                }
+            except Exception as exc:
+                logger.error("[brick.tool.propose] Execute failed: %s", exc)
+                return {
+                    "status": "failed",
+                    "action_id": action_id,
+                    "error": str(exc),
+                    "summary": f"Action failed: {exc}",
+                }
+        else:
+            # Above tier — queued to punch list
+            return {
+                "status": "queued",
+                "action_id": action_id,
+                "required_tier": required_tier,
+                "current_tier": current_tier,
+                "summary": (
+                    f"Queued {action_type} to punch list — "
+                    f"needs {required_tier} permit (you're at {current_tier})."
+                ),
+            }
+
+    async def _tool_remember(
+        self, tool_input: Dict[str, Any], location_id: str
+    ) -> Dict[str, Any]:
+        """Tool handler: remember — save a standing instruction."""
+        content = (tool_input.get("content") or "").strip()
+        category = (tool_input.get("category") or "rule").strip()
+
+        if not content:
+            return {"error": "No content provided", "summary": "Nothing to remember."}
+
+        memory_id = await self.remember(location_id, content, category)
+        return {
+            "status": "saved",
+            "memory_id": memory_id,
+            "content": content,
+            "category": category,
+            "summary": f"Saved to standing instructions: '{content[:60]}'",
+        }
+
+    async def _tool_forget(
+        self, tool_input: Dict[str, Any], location_id: str
+    ) -> Dict[str, Any]:
+        """Tool handler: forget — soft-delete a standing instruction."""
+        memory_id = (tool_input.get("memory_id") or "").strip()
+        if not memory_id:
+            return {"error": "memory_id required", "summary": "No memory ID provided."}
+        try:
+            found = await self.forget(memory_id)
+            if found:
+                return {"status": "forgotten", "memory_id": memory_id, "summary": "Instruction removed."}
+            return {"status": "not_found", "memory_id": memory_id, "summary": "Instruction not found."}
+        except Exception as exc:
+            return {"error": str(exc), "summary": f"Couldn't remove: {exc}"}
+
+    async def _generate_draft_caption(
+        self,
+        topic: str,
+        platform: str,
+        brand_ctx: Any,
+    ) -> str:
+        """
+        Generate a post caption in the user's voice using Foundation samples.
+        Called by _dispatch_action for draft_post when Foundation is ready.
+        brand_ctx is a BrandContext Pydantic model from get_brand_context().
+        """
+        voice_samples = getattr(brand_ctx, "voice_samples", []) or []
+        samples_text = "\n\n---\n\n".join(
+            s.text for s in voice_samples[:3] if getattr(s, "text", None)
+        )
+
+        vocabulary = getattr(brand_ctx, "vocabulary", None)
+        vocab_yes_list = getattr(vocabulary, "use", None) or []
+        vocab_no_list = getattr(vocabulary, "avoid", None) or []
+        vocab_yes = ", ".join(vocab_yes_list[:6])
+        vocab_no = ", ".join(vocab_no_list[:6])
+
+        bp = getattr(brand_ctx, "brand_profile", None)
+        market = getattr(bp, "market_city", "") or ""
+        niche = getattr(bp, "niche_primary", "real estate") or "real estate"
+
+        system = (
+            "You write social media posts for a real estate professional. "
+            "Match their authentic voice exactly from the examples below. "
+            "No AI-speak, no corporate-speak, no excessive enthusiasm.\n\n"
+        )
+        if samples_text:
+            system += f"VOICE EXAMPLES:\n\n{samples_text}\n\n"
+        if vocab_yes:
+            system += f"VOCABULARY TO USE: {vocab_yes}\n"
+        if vocab_no:
+            system += f"VOCABULARY TO AVOID: {vocab_no}\n"
+        if market:
+            system += f"MARKET: {market}\n"
+
+        user_msg = (
+            f"Write a {platform} post about: {topic}. "
+            f"Niche: {niche}. "
+            "Match the voice examples. Keep it 2-4 short paragraphs or punchy lines. "
+            "No hashtags unless it's Instagram."
+        )
+
+        try:
+            client = _anthropic.Anthropic(api_key=settings.anthropic_api_key)
+            response = client.messages.create(
+                model="claude-sonnet-4-5",
+                max_tokens=400,
+                system=system,
+                messages=[{"role": "user", "content": user_msg}],
+            )
+            return response.content[0].text.strip()
+        except Exception as exc:
+            logger.warning("[brick.draft] Caption generation failed: %s", exc)
+            return f"[Draft needed — {topic}]"
+
+    def _check_voice_quality(self, text: str) -> None:
+        """
+        Non-blocking check for banned phrases in a Brick response.
+        Logs a warning for each hit — does not block or modify the response.
+        """
+        lower = text.lower()
+        for phrase in _BANNED_PHRASES:
+            if phrase.lower() in lower:
+                logger.warning(
+                    "[brick.voice.quality] Banned phrase detected: %r in response: %r",
+                    phrase,
+                    text[:100],
+                )
+
+    async def _save_message(
+        self,
+        role: str,
+        content: str,
+        location_id: str,
+        context_screen: str,
+    ) -> None:
+        """Persist a chat message to brick_messages."""
+        async with async_session() as session:
+            msg = BrickMessage(
+                location_id=uuid.UUID(location_id),
+                role=role,
+                content=content,
+                context_screen=context_screen,
+            )
+            session.add(msg)
+            await session.commit()
 
     # ── Memory CRUD ───────────────────────────────────────────────────────────
 
@@ -622,15 +1188,33 @@ class BrickAgent:
         payload = action.payload or {}
 
         if action_type in ("draft_post", "suggest_post_idea"):
-            # Phase 3A: create a draft Post with the proposed topic
             topic = payload.get("topic", "content post")
             bucket = payload.get("bucket", "brand")
-            pillar = payload.get("pillar", "")
+            platform = payload.get("platform", "linkedin")
+
+            # Attempt Foundation-powered caption generation
+            caption = f"[Brick draft — {topic}]"
+            try:
+                from services.foundation import get_brand_context
+                from schemas.foundation import BrandContextTaskType as _BrandTaskType
+                async with async_session() as ctx_session:
+                    brand_ctx = await get_brand_context(
+                        ctx_session,
+                        str(action.location_id),
+                        _BrandTaskType.linkedin_post,
+                        topic=topic,
+                    )
+                caption = await self._generate_draft_caption(topic, platform, brand_ctx)
+                logger.info("[brick.action] Foundation caption generated for topic=%r", topic)
+            except Exception as fnd_err:
+                logger.warning(
+                    "[brick.action] Foundation not ready, using placeholder: %s", fnd_err
+                )
 
             post = Post(
                 location_id=action.location_id,
                 bucket=bucket,
-                base_caption=f"[Brick draft — {topic}]",
+                base_caption=caption,
                 status="draft",
                 source="brick_proposed",
             )
@@ -641,7 +1225,7 @@ class BrickAgent:
                 "[brick.action] Created draft post %s for topic=%r",
                 post.id, topic,
             )
-            return {"post_id": str(post.id), "topic": topic, "status": "draft"}
+            return {"post_id": str(post.id), "topic": topic, "status": "draft", "caption": caption}
 
         logger.warning("[brick.action] Unknown action_type %r — no-op", action_type)
         return {"action_type": action_type, "status": "no_op"}
