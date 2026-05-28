@@ -1,0 +1,410 @@
+/**
+ * podclick-design.css — PodClick Design System
+ * Phase 3.5 design application pass
+ *
+ * Strategy: remap all existing CSS variable names to new values so
+ * existing HTML references (var(--bg), var(--accent), etc.) pick up
+ * the new palette without touching any event handlers or logic.
+ * New canonical variable names are added alongside for new components.
+ */
+
+/* ── Google Fonts ──────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@400;600;700;900&family=Azeret+Mono:wght@300;400;500;600&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@400;500;600;700&display=swap');
+
+/* ── Design token definitions ─────────────────────────────────────────────── */
+:root {
+  /* ── Backgrounds ── */
+  --bg:          #0b0a08;
+  --bg-panel:    #111009;
+  --bg-card:     #161410;
+  --bg-raised:   #1e1b16;
+  --bg-inset:    #0d0c0a;
+
+  /* Legacy surface aliases → new values */
+  --surface:     #111009;   /* was: #050E3D */
+  --surface2:    #161410;   /* was: #0a1845 */
+  --surface3:    #1e1b16;   /* was: #102078 */
+
+  /* ── Borders ── */
+  --border:      #272420;   /* was: #1a2c6b */
+  --border-lit:  #352f28;
+  --border-hot:  #4a3820;
+
+  /* ── Orange — single accent ── */
+  --orange:      #d95f1e;
+  --orange-hi:   #f07030;
+  --orange-dim:  #6b2e0e;
+  --orange-glow: rgba(217,95,30,0.10);
+  --orange-mist: rgba(217,95,30,0.05);
+
+  /* Legacy accent aliases → orange */
+  --accent:      #d95f1e;   /* was: #05C3F9 */
+  --accent2:     #f07030;   /* was: #00FBF0 */
+
+  /* ── Status ── */
+  --green:       #3d8c5c;
+  --green-hi:    #52c47a;
+  --green-dim:   #1a3d28;
+  --yellow:      #c4961c;
+  --yellow-dim:  #5a4008;
+  --red:         #a03838;
+  --blue:        #3a6ea8;
+  --blue-dim:    #1a3050;
+  --purple:      #7a4aa8;
+  --coral:       #a03838;   /* was a different pink/coral */
+
+  /* ── Text ── */
+  --text:        #ede8e0;   /* was: #e2e8f0 */
+  --text-pri:    #ede8e0;
+  --text-sec:    #847d74;
+  --text-dim:    #4a4540;
+  --text-muted:  #847d74;   /* alias for legacy usage */
+  --text-acc:    #d95f1e;
+
+  /* ── Typography ── */
+  --font:         'Barlow', sans-serif;
+  --font-display: 'Big Shoulders Display', sans-serif;
+  --font-mono:    'Azeret Mono', monospace;
+  --font-body:    'Barlow', sans-serif;
+  --font-cond:    'Barlow Condensed', sans-serif;
+
+  /* ── Geometry ── */
+  --radius: 7px;            /* was: 12px — design system max is 8px */
+}
+
+/* ── Base typography ──────────────────────────────────────────────────────── */
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text-pri);
+}
+
+/* ── Global header / nav restyle ─────────────────────────────────────────── */
+
+/* Brand name: Big Shoulders Display */
+.brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+}
+.brand .pc { color: var(--text-pri); }
+.brand .ai { color: var(--orange); background: none; -webkit-background-clip: unset; background-clip: unset; }
+.brand .sub {
+  font-family: var(--font-cond);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  margin-left: 10px;
+}
+
+/* Nav toggle items: Barlow Condensed */
+.nav-toggle a {
+  font-family: var(--font-cond);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.nav-toggle a.active { color: var(--orange); }
+
+/* ── Stat blocks ─────────────────────────────────────────────────────────── */
+.stat-num,
+.posts-mtd-big,
+.foundation-pct,
+.stat-val,
+.big-num {
+  font-family: var(--font-display);
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--text-pri);
+}
+
+.stat-label,
+.stat-sub,
+.card-eyebrow,
+.section-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* ── Card headers ────────────────────────────────────────────────────────── */
+.card-header,
+.card-title,
+.panel-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* Card body title text */
+.punch-action-badge,
+.action-type,
+.recent-action-type {
+  font-family: var(--font-cond);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+/* ── Permit badge ────────────────────────────────────────────────────────── */
+.permit-badge {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 5px;
+  padding: 4px 10px;
+}
+
+/* Tier colors — orange for active, rest muted */
+.tier-owner_builder, .tier-owner-builder { background: rgba(74,69,64,0.3); color: var(--text-dim); border: 1px solid var(--border); }
+.tier-draftsman     { background: rgba(58,110,168,0.2); color: #7fb8e8; border: 1px solid var(--blue-dim); }
+.tier-bricklayer    { background: rgba(217,95,30,0.15); color: var(--orange-hi); border: 1px solid var(--orange-dim); }
+.tier-foreman       { background: rgba(196,150,28,0.2); color: var(--yellow); border: 1px solid var(--yellow-dim); }
+.tier-gc            { background: rgba(196,150,28,0.25); color: #f5c842; border: 1px solid var(--yellow); }
+
+/* ── Primary button ──────────────────────────────────────────────────────── */
+button.primary-btn,
+.btn-primary,
+.btn-approve,
+input[type="submit"] {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-size: 14px;
+}
+
+/* Approve / sign-off button */
+.btn-approve {
+  background: var(--green-dim);
+  border: 1px solid var(--green);
+  color: var(--green-hi);
+  border-radius: var(--radius);
+}
+.btn-approve:hover { background: rgba(61,140,92,0.2); }
+
+/* Reject / send-back button */
+.btn-reject {
+  background: transparent;
+  border: 1px solid var(--border-lit);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  border-radius: var(--radius);
+}
+.btn-reject:hover { border-color: var(--orange-dim); color: var(--orange-hi); }
+
+/* ── Greeting card (Walk-through banner) ─────────────────────────────────── */
+.greeting-card {
+  border-left: 3px solid var(--orange);
+  background: var(--bg-card);
+}
+.greeting-icon {
+  background: var(--orange);
+  color: #fff;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+.greeting-from {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.greeting-msg {
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-pri);
+}
+
+/* ── Punch list items ────────────────────────────────────────────────────── */
+.punch-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color 0.12s ease;
+}
+.punch-item:hover { border-color: var(--border-hot); }
+
+.punch-rationale {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.5;
+  color: var(--text-pri);
+}
+
+/* ── Foundation bar ──────────────────────────────────────────────────────── */
+.stat-bar, .foundation-bar-track {
+  background: var(--border-lit);
+  border-radius: 3px;
+}
+.stat-bar-fill, .foundation-bar-fill {
+  background: linear-gradient(90deg, #2a6640, var(--green-hi));
+  border-radius: 3px;
+}
+
+/* ── Cards / panels ──────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* Remove old blue shimmer skeleton loader */
+.loading-shimmer, .skeleton-block {
+  background: var(--bg-raised);
+  animation: none; /* kill blue shimmer */
+}
+.skeleton-pulse {
+  animation: podclick-pulse 1.8s ease-in-out infinite;
+}
+@keyframes podclick-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+/* ── Calendar cells ──────────────────────────────────────────────────────── */
+.day-num {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+}
+
+/* Content bucket pills */
+.bucket-viral      { background: rgba(91,155,213,0.15); color: #7fb8e8; }
+.bucket-brand      { background: rgba(217,95,30,0.12);  color: var(--orange-hi); }
+.bucket-personal   { background: rgba(192,122,218,0.12); color: #c07ada; }
+.bucket-conversion { background: rgba(61,140,92,0.12);  color: var(--green-hi); }
+.bucket-podcast    { background: rgba(196,150,28,0.15); color: var(--yellow); border: 1px solid var(--yellow-dim); }
+
+/* ── Permit tier rows ────────────────────────────────────────────────────── */
+.tier-row {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color 0.12s ease;
+}
+.tier-row.current  { border-left-color: var(--orange); background: var(--bg-raised); }
+.tier-row.eligible { border-left-color: var(--green); cursor: pointer; }
+.tier-row.eligible:hover { border-color: var(--green); }
+.tier-row.locked   { opacity: 0.5; }
+.tier-row.past     { opacity: 0.45; }
+
+.tier-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.03em;
+}
+.tier-desc {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--text-sec);
+}
+.cap-tag {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  color: var(--text-dim);
+  border: 1px solid var(--border-lit);
+  background: transparent;
+}
+.cap-tag.active {
+  color: var(--orange-hi);
+  border-color: var(--orange-dim);
+  background: var(--orange-mist);
+}
+
+/* ── Page head / title ───────────────────────────────────────────────────── */
+.page-head h1,
+.page-title,
+h1.big {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: 0.06em;
+  color: var(--text-pri);
+}
+
+/* Section eyebrows above headings */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+/* ── Source tags (Foundation voice samples) ──────────────────────────────── */
+.source-tag {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.source-podcast       { color: #7fb8e8; border: 1px solid #2a405a; background: rgba(127,184,232,0.07); }
+.source-social        { color: var(--green-hi); border: 1px solid var(--green-dim); background: rgba(61,140,92,0.07); }
+.source-written       { color: var(--orange-hi); border: 1px solid var(--orange-dim); background: var(--orange-mist); }
+.source-interview     { color: #c07ada; border: 1px solid #4a2a5a; background: rgba(192,122,218,0.07); }
+.source-edited        { color: var(--yellow); border: 1px solid var(--yellow-dim); background: rgba(196,150,28,0.07); }
+.source-historical    { color: var(--text-dim); border: 1px solid var(--border); background: transparent; }
+
+/* ── Brick chat bubble (in walkthrough/chat panel) ───────────────────────── */
+.brick-msg-brick {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-lit);
+  border-bottom-left-radius: 2px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.brick-msg-user {
+  background: var(--orange-glow);
+  border: 1px solid var(--orange-dim);
+  border-bottom-right-radius: 2px;
+  color: var(--text-pri);
+}
+
+/* ── Brick bubble button ─────────────────────────────────────────────────── */
+#brick-bubble {
+  background: var(--bg-card);
+  border: 1px solid var(--border-lit);
+  box-shadow: 0 0 12px var(--orange-glow);
+}
+#brick-bubble:hover { background: var(--bg-raised); border-color: var(--border-hot); }
+#brick-panel { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); }
+#brick-panel-header { border-bottom: 1px solid var(--border); }
+#brick-input { background: var(--bg-raised); border: 1px solid var(--border); color: var(--text-pri); font-family: var(--font-body); }
+#brick-input:focus { border-color: var(--orange-dim); }
+#brick-send-btn { background: var(--orange); font-family: var(--font-display); font-weight: 700; letter-spacing: 0.08em; border-radius: 5px; }
+#brick-send-btn:hover:not(:disabled) { background: var(--orange-hi); opacity: 1; }
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border-lit); }

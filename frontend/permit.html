@@ -1,38 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="stylesheet" href="/podclick-design.css">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Brick's Permit · PodClickAI</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:       #030B2C;
-      --surface:  #050E3D;
-      --surface2: #091660;
-      --surface3: #102078;
-      --border:   #1a2c6b;
-      --accent:   #05C3F9;
-      --accent2:  #00FBF0;
-      --coral:    #FF557E;
-      --text:     #F5F7FA;
-      --text-dim: #8AAFC5;
-      --green:    #2EE49C;
-      --yellow:   #FFB340;
-      --radius:   12px;
-      --font:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-
-      /* Tier colors */
-      --tier-owner-builder: #6B7280;
-      --tier-draftsman:     #3B82F6;
-      --tier-bricklayer:    #F97316;
-      --tier-foreman:       #A855F7;
-      --tier-gc:            #EAB308;
-    }
+  --bg:          #0b0a08;
+  --bg-panel:    #111009;
+  --bg-card:     #161410;
+  --bg-raised:   #1e1b16;
+  --bg-inset:    #0d0c0a;
+  --surface:     #111009;
+  --surface2:    #161410;
+  --surface3:    #1e1b16;
+  --border:      #272420;
+  --border-lit:  #352f28;
+  --border-hot:  #4a3820;
+  --orange:      #d95f1e;
+  --orange-hi:   #f07030;
+  --orange-dim:  #6b2e0e;
+  --orange-glow: rgba(217,95,30,0.10);
+  --orange-mist: rgba(217,95,30,0.05);
+  --accent:      #d95f1e;
+  --accent2:     #f07030;
+  --green:       #3d8c5c;
+  --green-hi:    #52c47a;
+  --green-dim:   #1a3d28;
+  --yellow:      #c4961c;
+  --yellow-dim:  #5a4008;
+  --red:         #a03838;
+  --blue:        #3a6ea8;
+  --blue-dim:    #1a3050;
+  --purple:      #7a4aa8;
+  --coral:       #a03838;
+  --text:        #ede8e0;
+  --text-pri:    #ede8e0;
+  --text-sec:    #847d74;
+  --text-dim:    #4a4540;
+  --text-muted:  #847d74;
+  --text-acc:    #d95f1e;
+  --font:         'Barlow', sans-serif;
+  --font-display: 'Big Shoulders Display', sans-serif;
+  --font-mono:    'Azeret Mono', monospace;
+  --font-body:    'Barlow', sans-serif;
+  --font-cond:    'Barlow Condensed', sans-serif;
+  --radius: 7px;
+  /* Tier accent colors */
+  --tier-owner-builder: #847d74;
+  --tier-draftsman:     #60a5fa;
+  --tier-bricklayer:    #f07030;
+  --tier-foreman:       #c084fc;
+  --tier-gc:            #c4961c;
+}
 
     html, body { height: 100%; }
     body {
@@ -54,13 +77,12 @@
       padding: 14px 24px; border-bottom: 1px solid var(--border);
       background: var(--surface); flex-shrink: 0;
     }
-    .brand { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px; }
+    .brand { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: 0.04em; display: flex; align-items: center; gap: 10px; }
     .brand .pc { color: var(--text); }
     .brand .ai {
-      background: linear-gradient(135deg, #05C3F9, #00FBF0);
-      -webkit-background-clip: text; background-clip: text; color: transparent;
+      color: var(--orange); -webkit-background-clip: unset; background-clip: unset; background: none;
     }
-    .brand .sub { font-size: 13px; font-weight: 500; color: var(--text-dim); }
+    .brand .sub { font-family: var(--font-cond); font-size: 11px; font-weight: 500; color: var(--text-dim); }
     .header-back {
       display: flex; align-items: center; gap: 6px;
       color: var(--text-dim); text-decoration: none; font-size: 13px; font-weight: 500;
@@ -84,7 +106,7 @@
       text-transform: uppercase; color: var(--accent); margin-bottom: 8px;
     }
     .page-title {
-      font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px;
+      font-family: var(--font-display); font-weight: 700; font-size: 28px; letter-spacing: -0.5px; margin-bottom: 8px;
     }
     .page-sub { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
 
@@ -121,7 +143,7 @@
     .tier-icon-wrap[data-tier="gc"]            { background: rgba(234,179,8,.15);   border-color: var(--tier-gc);            box-shadow: 0 0 24px rgba(234,179,8,.30); }
 
     .tier-name-large {
-      font-size: 26px; font-weight: 800; letter-spacing: -0.5px;
+      font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: -0.5px;
     }
     .tier-name-large[data-tier="owner_builder"] { color: var(--tier-owner-builder); }
     .tier-name-large[data-tier="draftsman"]     { color: var(--tier-draftsman); }
@@ -139,12 +161,10 @@
       border-radius: var(--radius); padding: 20px 16px; text-align: center;
     }
     .stat-value {
-      font-size: 28px; font-weight: 800; letter-spacing: -1px;
-      background: linear-gradient(135deg, #05C3F9, #00FBF0);
-      -webkit-background-clip: text; background-clip: text; color: transparent;
-      margin-bottom: 4px;
+      font-family: var(--font-display); font-weight: 900; font-size: 28px;
+      letter-spacing: -1px; color: var(--orange); margin-bottom: 4px;
     }
-    .stat-label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px; }
+    .stat-label { font-family: var(--font-mono); font-size: 9px; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-dim); }
 
     /* ── Tier ladder ────────────────────────────────────────────────── */
     .section-label {
@@ -193,7 +213,7 @@
     .ladder-current-tag {
       display: inline-block; font-size: 10px; font-weight: 700;
       letter-spacing: 0.8px; text-transform: uppercase;
-      padding: 2px 8px; border-radius: 20px; margin-left: 8px;
+      padding: 2px 8px; border-radius: 5px; margin-left: 8px;
       background: rgba(255,255,255,.10); color: var(--text);
       vertical-align: middle;
     }
@@ -203,7 +223,7 @@
     /* ── Action buttons ─────────────────────────────────────────────── */
     .actions-section { display: flex; gap: 12px; flex-wrap: wrap; }
     .btn {
-      padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 700;
+      padding: 12px 24px; border-radius: 7px; font-size: 14px; font-weight: 700;
       cursor: pointer; border: none; transition: opacity .15s, transform .08s;
       display: flex; align-items: center; gap: 8px; letter-spacing: 0.2px;
     }
@@ -211,8 +231,9 @@
     .btn:not(:disabled):hover { opacity: 0.88; }
     .btn:not(:disabled):active { transform: scale(0.98); }
     .btn-promote {
-      background: linear-gradient(135deg, #16a34a, #22c55e);
-      color: #fff;
+      background: var(--green-dim);
+      border: 1px solid var(--green);
+      color: var(--green-hi);
     }
     .btn-demote {
       background: transparent;
@@ -224,14 +245,14 @@
     /* ── Modal / overlay ────────────────────────────────────────────── */
     .modal-overlay {
       position: fixed; inset: 0; z-index: 1000;
-      background: rgba(3,11,44,.82); backdrop-filter: blur(4px);
+      background: rgba(11,10,8,0.85); backdrop-filter: blur(4px);
       display: flex; align-items: center; justify-content: center;
       opacity: 0; pointer-events: none; transition: opacity .2s;
     }
     .modal-overlay.open { opacity: 1; pointer-events: all; }
     .modal-box {
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: 16px; padding: 36px 32px; max-width: 500px; width: 90%;
+      border-radius: 7px; padding: 36px 32px; max-width: 500px; width: 90%;
       position: relative;
     }
     .modal-icon { font-size: 36px; margin-bottom: 16px; }
@@ -250,7 +271,7 @@
     /* ── Toast ──────────────────────────────────────────────────────── */
     #pm-toast {
       position: fixed; bottom: 28px; right: 28px; z-index: 2000;
-      padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight: 600;
+      padding: 12px 20px; border-radius: 7px; font-size: 13px; font-weight: 600;
       max-width: 340px; pointer-events: none;
       transform: translateY(12px); opacity: 0;
       transition: opacity .2s, transform .2s;

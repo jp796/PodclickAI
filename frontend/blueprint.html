@@ -1,31 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="stylesheet" href="/podclick-design.css">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Blueprint · PodClickAI</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:       #030B2C;
-      --surface:  #050E3D;
-      --surface2: #091660;
-      --surface3: #102078;
-      --border:   #1a2c6b;
-      --accent:   #05C3F9;
-      --accent2:  #00FBF0;
-      --coral:    #FF557E;
-      --text:     #F5F7FA;
-      --text-dim: #8AAFC5;
-      --green:    #2EE49C;
-      --yellow:   #FFB340;
-      --radius:   12px;
-      --font:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
+  --bg:          #0b0a08;
+  --bg-panel:    #111009;
+  --bg-card:     #161410;
+  --bg-raised:   #1e1b16;
+  --bg-inset:    #0d0c0a;
+  --surface:     #111009;
+  --surface2:    #161410;
+  --surface3:    #1e1b16;
+  --border:      #272420;
+  --border-lit:  #352f28;
+  --border-hot:  #4a3820;
+  --orange:      #d95f1e;
+  --orange-hi:   #f07030;
+  --orange-dim:  #6b2e0e;
+  --orange-glow: rgba(217,95,30,0.10);
+  --orange-mist: rgba(217,95,30,0.05);
+  --accent:      #d95f1e;
+  --accent2:     #f07030;
+  --green:       #3d8c5c;
+  --green-hi:    #52c47a;
+  --green-dim:   #1a3d28;
+  --yellow:      #c4961c;
+  --yellow-dim:  #5a4008;
+  --red:         #a03838;
+  --blue:        #3a6ea8;
+  --blue-dim:    #1a3050;
+  --purple:      #7a4aa8;
+  --coral:       #a03838;
+  --text:        #ede8e0;
+  --text-pri:    #ede8e0;
+  --text-sec:    #847d74;
+  --text-dim:    #4a4540;
+  --text-muted:  #847d74;
+  --text-acc:    #d95f1e;
+  --font:         'Barlow', sans-serif;
+  --font-display: 'Big Shoulders Display', sans-serif;
+  --font-mono:    'Azeret Mono', monospace;
+  --font-body:    'Barlow', sans-serif;
+  --font-cond:    'Barlow Condensed', sans-serif;
+  --radius: 7px;
+}
 
     html, body { height: 100%; }
     body {
@@ -47,19 +71,19 @@
       padding: 14px 24px; border-bottom: 1px solid var(--border);
       background: var(--surface); flex-shrink: 0;
     }
-    .brand { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; }
+    .brand { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: 0.04em; }
     .brand .pc { color: var(--text); }
     .brand .ai {
-      background: linear-gradient(135deg, #05C3F9, #00FBF0);
-      -webkit-background-clip: text; background-clip: text; color: transparent;
+      color: var(--orange); -webkit-background-clip: unset; background-clip: unset; background: none;
     }
-    .brand .sub { font-size: 13px; font-weight: 500; color: var(--text-dim); margin-left: 10px; }
+    .brand .sub { font-family: var(--font-cond); font-size: 11px; font-weight: 500; color: var(--text-dim); margin-left: 10px; }
     .nav-toggle {
       display: flex; align-items: center; gap: 2px;
       background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 10px; padding: 3px;
+      border-radius: 7px; padding: 3px;
     }
     .nav-toggle a {
+      font-family: var(--font-cond);
       padding: 5px 13px; border-radius: 7px; font-size: 12px; font-weight: 600;
       color: var(--text-dim); text-decoration: none;
       transition: background .12s, color .12s; white-space: nowrap;
@@ -142,9 +166,9 @@
     .cta-desc  { font-size: 13px; color: var(--text-dim); line-height: 1.5; max-width: 420px; }
 
     .btn-build {
-      padding: 11px 22px; border-radius: 9px;
-      background: linear-gradient(135deg, #05C3F9, #00FBF0);
-      color: #030B2C; font-weight: 800; font-size: 14px;
+      padding: 11px 22px; border-radius: 7px;
+      background: linear-gradient(135deg, var(--orange), var(--orange-hi));
+      color: var(--bg); font-weight: 800; font-size: 14px;
       border: none; cursor: pointer; white-space: nowrap;
       transition: opacity .15s; flex-shrink: 0;
     }
@@ -152,7 +176,7 @@
     .btn-build:disabled { opacity: 0.45; cursor: default; }
 
     .btn-secondary {
-      padding: 10px 20px; border-radius: 9px;
+      padding: 10px 20px; border-radius: 7px;
       background: var(--surface2); border: 1px solid var(--border);
       color: var(--text); font-weight: 600; font-size: 13px;
       cursor: pointer; transition: background .12s;
@@ -180,7 +204,7 @@
     .chips { display: flex; flex-wrap: wrap; gap: 8px; }
     .chip {
       padding: 5px 12px; background: var(--surface2);
-      border: 1px solid var(--border); border-radius: 20px;
+      border: 1px solid var(--border); border-radius: 5px;
       font-size: 12px; font-weight: 600; color: var(--accent);
     }
     .chip.vocab { color: var(--green); border-color: #1a4a30; background: #0a1e14; }
@@ -234,8 +258,8 @@
     .confirm-actions { display: flex; gap: 10px; flex-shrink: 0; }
 
     .btn-confirm {
-      padding: 10px 20px; border-radius: 9px;
-      background: var(--green); color: #030B2C;
+      padding: 10px 20px; border-radius: 7px;
+      background: var(--green); color: var(--bg);
       font-weight: 800; font-size: 14px; border: none; cursor: pointer;
       transition: opacity .15s;
     }
@@ -276,7 +300,7 @@
     /* ── Toast ──────────────────────────────────────────────────────── */
     #bp-toast {
       position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-      padding: 10px 20px; border-radius: 9px;
+      padding: 10px 20px; border-radius: 7px;
       background: var(--surface2); border: 1px solid var(--border);
       font-size: 13px; font-weight: 600; color: var(--text);
       opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 999;
@@ -297,7 +321,8 @@
   <!-- ── Header ──────────────────────────────────────────────────────── -->
   <header>
     <div class="brand">
-      <span class="pc">Pod</span><span class="ai">Click</span><span class="sub">AI</span>
+      <span class="pc">PodClick</span><span class="ai">AI</span>
+      <span class="sub">Blueprint</span>
     </div>
     <nav class="nav-toggle">
       <a href="/brand-studio">Blueprint</a>

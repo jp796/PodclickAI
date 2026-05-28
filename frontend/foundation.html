@@ -1,31 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="stylesheet" href="/podclick-design.css">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Foundation · PodClickAI</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:       #030B2C;
-      --surface:  #050E3D;
-      --surface2: #091660;
-      --surface3: #102078;
-      --border:   #1a2c6b;
-      --accent:   #05C3F9;
-      --accent2:  #00FBF0;
-      --coral:    #FF557E;
-      --text:     #F5F7FA;
-      --text-dim: #8AAFC5;
-      --green:    #2EE49C;
-      --yellow:   #FFB340;
-      --radius:   12px;
-      --font:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
+  --bg:          #0b0a08;
+  --bg-panel:    #111009;
+  --bg-card:     #161410;
+  --bg-raised:   #1e1b16;
+  --bg-inset:    #0d0c0a;
+  --surface:     #111009;
+  --surface2:    #161410;
+  --surface3:    #1e1b16;
+  --border:      #272420;
+  --border-lit:  #352f28;
+  --border-hot:  #4a3820;
+  --orange:      #d95f1e;
+  --orange-hi:   #f07030;
+  --orange-dim:  #6b2e0e;
+  --orange-glow: rgba(217,95,30,0.10);
+  --orange-mist: rgba(217,95,30,0.05);
+  --accent:      #d95f1e;
+  --accent2:     #f07030;
+  --green:       #3d8c5c;
+  --green-hi:    #52c47a;
+  --green-dim:   #1a3d28;
+  --yellow:      #c4961c;
+  --yellow-dim:  #5a4008;
+  --red:         #a03838;
+  --blue:        #3a6ea8;
+  --blue-dim:    #1a3050;
+  --purple:      #7a4aa8;
+  --coral:       #a03838;
+  --text:        #ede8e0;
+  --text-pri:    #ede8e0;
+  --text-sec:    #847d74;
+  --text-dim:    #4a4540;
+  --text-muted:  #847d74;
+  --text-acc:    #d95f1e;
+  --font:         'Barlow', sans-serif;
+  --font-display: 'Big Shoulders Display', sans-serif;
+  --font-mono:    'Azeret Mono', monospace;
+  --font-body:    'Barlow', sans-serif;
+  --font-cond:    'Barlow Condensed', sans-serif;
+  --radius: 7px;
+}
 
     html, body { height: 100%; }
     body {
@@ -48,19 +72,19 @@
       padding: 14px 24px; border-bottom: 1px solid var(--border);
       background: var(--surface); flex-shrink: 0;
     }
-    .brand { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; }
+    .brand { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: 0.04em; }
     .brand .pc { color: var(--text); }
     .brand .ai {
-      background: linear-gradient(135deg, #05C3F9, #00FBF0);
-      -webkit-background-clip: text; background-clip: text; color: transparent;
+      color: var(--orange); -webkit-background-clip: unset; background-clip: unset; background: none;
     }
-    .brand .sub { font-size: 13px; font-weight: 500; color: var(--text-dim); margin-left: 10px; }
+    .brand .sub { font-family: var(--font-cond); font-size: 11px; font-weight: 500; color: var(--text-dim); margin-left: 10px; }
     .nav-toggle {
       display: flex; align-items: center; gap: 2px;
       background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 10px; padding: 3px;
+      border-radius: 7px; padding: 3px;
     }
     .nav-toggle a {
+      font-family: var(--font-cond);
       padding: 5px 13px; border-radius: 7px; font-size: 12px; font-weight: 600;
       color: var(--text-dim); text-decoration: none;
       transition: background .12s, color .12s; white-space: nowrap;
@@ -171,7 +195,7 @@
       width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center; font-size: 17px;
     }
-    .icon-brick  { background: rgba(5,195,249,.15); }
+    .icon-brick  { background: rgba(217,95,30,.15); }
     .icon-upload { background: rgba(255,180,64,.15); }
     .icon-paste  { background: rgba(46,228,156,.15); }
     .icon-channel{ background: rgba(255,85,126,.15); }
@@ -185,7 +209,7 @@
     }
     .soon-chip {
       background: var(--surface3); border: 1px solid var(--border);
-      border-radius: 20px; padding: 2px 9px;
+      border-radius: 5px; padding: 2px 9px;
       font-size: 10px; font-weight: 700; color: var(--text-dim);
       letter-spacing: 0.5px; white-space: nowrap; flex-shrink: 0;
     }
@@ -216,7 +240,7 @@
 
     .btn-pour {
       background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: #030B2C; font-weight: 700; font-size: 13px;
+      color: var(--bg); font-weight: 700; font-size: 13px;
       border: none; border-radius: 8px; padding: 8px 18px;
       cursor: pointer; transition: opacity .15s; white-space: nowrap;
     }
@@ -316,21 +340,21 @@
       text-align: center; padding: 6px 0;
     }
     .btn-start-interview {
-      background: rgba(5,195,249,.15); border: 1px solid var(--accent);
+      background: rgba(217,95,30,.15); border: 1px solid var(--accent);
       color: var(--accent); font-weight: 700; font-size: 13px;
       border-radius: 8px; padding: 9px 20px; cursor: pointer;
       transition: background .15s;
     }
-    .btn-start-interview:hover { background: rgba(5,195,249,.25); }
+    .btn-start-interview:hover { background: rgba(217,95,30,.25); }
 
     /* ── Card 2 — Upload ───────────────────────────────────────────── */
     .drop-zone {
-      border: 2px dashed var(--border); border-radius: 10px;
+      border: 2px dashed var(--border); border-radius: 7px;
       padding: 22px 16px; text-align: center; cursor: pointer;
       transition: border-color .15s, background .15s;
     }
     .drop-zone:hover, .drop-zone.dragover, .drop-zone.drag-over {
-      border-color: var(--accent); background: rgba(5,195,249,.05);
+      border-color: var(--accent); background: rgba(217,95,30,.05);
     }
     .drop-zone-icon { font-size: 24px; margin-bottom: 6px; }
     .drop-zone-label { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
@@ -370,7 +394,7 @@
     #fn-toast {
       position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
       background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 10px; padding: 10px 18px;
+      border-radius: 7px; padding: 10px 18px;
       font-size: 13px; font-weight: 500; color: var(--text);
       z-index: 9999; pointer-events: none; opacity: 0;
       transition: opacity .2s; white-space: nowrap;

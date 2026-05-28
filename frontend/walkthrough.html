@@ -1,31 +1,55 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="stylesheet" href="/podclick-design.css">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Walk-through · PodClickAI</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:       #030B2C;
-      --surface:  #050E3D;
-      --surface2: #0a1845;
-      --surface3: #102078;
-      --border:   #1a2c6b;
-      --accent:   #05C3F9;
-      --accent2:  #00FBF0;
-      --coral:    #FF557E;
-      --text:     #e2e8f0;
-      --text-muted: #8899cc;
-      --green:    #2EE49C;
-      --yellow:   #FFB340;
-      --radius:   12px;
-      --font:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
+  --bg:          #0b0a08;
+  --bg-panel:    #111009;
+  --bg-card:     #161410;
+  --bg-raised:   #1e1b16;
+  --bg-inset:    #0d0c0a;
+  --surface:     #111009;
+  --surface2:    #161410;
+  --surface3:    #1e1b16;
+  --border:      #272420;
+  --border-lit:  #352f28;
+  --border-hot:  #4a3820;
+  --orange:      #d95f1e;
+  --orange-hi:   #f07030;
+  --orange-dim:  #6b2e0e;
+  --orange-glow: rgba(217,95,30,0.10);
+  --orange-mist: rgba(217,95,30,0.05);
+  --accent:      #d95f1e;
+  --accent2:     #f07030;
+  --green:       #3d8c5c;
+  --green-hi:    #52c47a;
+  --green-dim:   #1a3d28;
+  --yellow:      #c4961c;
+  --yellow-dim:  #5a4008;
+  --red:         #a03838;
+  --blue:        #3a6ea8;
+  --blue-dim:    #1a3050;
+  --purple:      #7a4aa8;
+  --coral:       #a03838;
+  --text:        #ede8e0;
+  --text-pri:    #ede8e0;
+  --text-sec:    #847d74;
+  --text-dim:    #4a4540;
+  --text-muted:  #847d74;
+  --text-acc:    #d95f1e;
+  --font:         'Barlow', sans-serif;
+  --font-display: 'Big Shoulders Display', sans-serif;
+  --font-mono:    'Azeret Mono', monospace;
+  --font-body:    'Barlow', sans-serif;
+  --font-cond:    'Barlow Condensed', sans-serif;
+  --radius: 7px;
+}
 
     html, body { height: 100%; }
     body {
@@ -47,17 +71,14 @@
       padding: 14px 24px; border-bottom: 1px solid var(--border);
       background: var(--surface); flex-shrink: 0;
     }
-    .brand {
-      font-weight: 800; font-size: 18px; letter-spacing: -0.5px;
+    .brand { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: 0.04em;
       display: flex; align-items: center;
     }
     .brand .pc { color: var(--text); }
     .brand .ai {
-      background: linear-gradient(135deg, #05C3F9, #00FBF0);
-      -webkit-background-clip: text; background-clip: text; color: transparent;
+      color: var(--orange); -webkit-background-clip: unset; background-clip: unset; background: none;
     }
-    .brand .sub {
-      font-size: 13px; font-weight: 500; color: var(--text-muted); margin-left: 10px;
+    .brand .sub { font-family: var(--font-cond); font-size: 11px; font-weight: 500; color: var(--text-muted); margin-left: 10px;
     }
     .header-right {
       display: flex; align-items: center; gap: 14px;
@@ -65,9 +86,10 @@
     .nav-toggle {
       display: flex; align-items: center; gap: 2px;
       background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 10px; padding: 3px;
+      border-radius: 7px; padding: 3px;
     }
     .nav-toggle a {
+      font-family: var(--font-cond);
       padding: 5px 13px; border-radius: 7px; font-size: 12px; font-weight: 600;
       color: var(--text-muted); text-decoration: none;
       transition: background .12s, color .12s; white-space: nowrap;
@@ -78,7 +100,7 @@
     /* ── Permit badge ─────────────────────────────────────────── */
     .permit-badge {
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 800;
+      padding: 5px 12px; border-radius: 5px; font-size: 11px; font-weight: 800;
       letter-spacing: 0.06em; text-transform: uppercase; text-decoration: none;
       transition: opacity .15s;
     }
@@ -95,8 +117,8 @@
     .tier-bricklayer .badge-dot { background: #fb923c; }
     .tier-foreman { background: rgba(168,85,247,0.12); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
     .tier-foreman .badge-dot { background: #c084fc; }
-    .tier-gc { background: rgba(255,179,64,0.12); color: #FFB340; border: 1px solid rgba(255,179,64,0.3); }
-    .tier-gc .badge-dot { background: #FFB340; }
+    .tier-gc { background: rgba(255,179,64,0.12); color: var(--yellow); border: 1px solid rgba(255,179,64,0.3); }
+    .tier-gc .badge-dot { background: var(--yellow); }
 
     .brick-label {
       font-size: 11px; font-weight: 600; color: var(--text-muted);
@@ -114,7 +136,7 @@
       gap: 16px; margin-bottom: 24px;
     }
     .page-head h1 {
-      font-size: 24px; font-weight: 800; letter-spacing: -0.5px;
+      font-family: var(--font-display); font-weight: 700; font-size: 24px; letter-spacing: -0.5px;
     }
     .page-head .sub {
       font-size: 13px; color: var(--text-muted); margin-top: 4px;
@@ -130,7 +152,7 @@
     .greeting-icon {
       font-size: 36px; flex-shrink: 0;
       background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 14px; width: 64px; height: 64px;
+      border-radius: 7px; width: 64px; height: 64px;
       display: flex; align-items: center; justify-content: center;
     }
     .greeting-text {
@@ -156,12 +178,10 @@
       border-radius: var(--radius); padding: 14px 16px;
       display: flex; flex-direction: column; gap: 4px;
     }
-    .stat-label {
-      font-size: 10px; font-weight: 700; color: var(--text-muted);
+    .stat-label { font-family: var(--font-mono); font-size: 9px; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted);
       text-transform: uppercase; letter-spacing: 0.08em;
     }
-    .stat-num {
-      font-size: 28px; font-weight: 800; color: var(--text); letter-spacing: -1px;
+    .stat-num { font-family: var(--font-display); font-weight: 900; font-size: 28px; color: var(--text); letter-spacing: -1px;
     }
     .stat-sub {
       font-size: 11px; color: var(--text-muted);
@@ -173,7 +193,7 @@
     }
     .stat-bar-fill {
       height: 100%; border-radius: 2px;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      background: linear-gradient(90deg, #2a6640, var(--green-hi));
       transition: width .6s ease;
     }
 
@@ -184,8 +204,8 @@
       display: flex; align-items: center; gap: 8px;
     }
     .section-head .count-badge {
-      background: rgba(5,195,249,0.15); color: var(--accent);
-      border-radius: 20px; padding: 1px 8px; font-size: 10px; font-weight: 800;
+      background: rgba(217,95,30,0.15); color: var(--accent);
+      border-radius: 5px; padding: 1px 8px; font-size: 10px; font-weight: 800;
     }
 
     /* ── Card ─────────────────────────────────────────────────── */
@@ -206,10 +226,10 @@
     /* ── Punch list ───────────────────────────────────────────── */
     .punch-item {
       background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 10px; padding: 16px;
+      border-radius: 7px; padding: 16px;
       margin-bottom: 10px; transition: opacity .3s, transform .3s, border-color .15s;
     }
-    .punch-item:hover { border-color: rgba(5,195,249,0.3); }
+    .punch-item:hover { border-color: rgba(217,95,30,0.3); }
     .punch-item.fading {
       opacity: 0; transform: translateX(20px);
     }
@@ -222,8 +242,8 @@
     .punch-action-badge {
       display: inline-block; padding: 3px 9px; border-radius: 8px;
       font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
-      background: rgba(5,195,249,0.1); color: var(--accent);
-      border: 1px solid rgba(5,195,249,0.2); white-space: nowrap; flex-shrink: 0;
+      background: rgba(217,95,30,0.1); color: var(--accent);
+      border: 1px solid rgba(217,95,30,0.2); white-space: nowrap; flex-shrink: 0;
     }
     .punch-actions {
       display: flex; align-items: center; gap: 8px; margin-top: 12px;
@@ -341,7 +361,7 @@
       position: fixed; bottom: 28px; right: 28px; z-index: 9999;
       min-width: 220px; max-width: 380px;
       background: var(--surface); border: 1px solid var(--border);
-      border-radius: 12px; padding: 12px 18px;
+      border-radius: 7px; padding: 12px 18px;
       font-size: 13px; font-weight: 600; color: var(--text);
       box-shadow: 0 8px 32px rgba(0,0,0,0.5);
       opacity: 0; transform: translateY(10px);
@@ -457,7 +477,7 @@
         <div class="card-title">
           📋 Today's Punch List
           <span class="count-badge" id="punch-count-badge" style="
-            background:rgba(5,195,249,0.15); color:var(--accent);
+            background:rgba(217,95,30,0.15); color:var(--accent);
             border-radius:20px; padding:1px 8px; font-size:10px; font-weight:800;
           ">0</span>
         </div>
