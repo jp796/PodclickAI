@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brick's Permit · PodClickAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #030B2C;
+      --surface:  #050E3D;
+      --surface2: #091660;
+      --surface3: #102078;
+      --border:   #1a2c6b;
+      --accent:   #05C3F9;
+      --accent2:  #00FBF0;
+      --coral:    #FF557E;
+      --text:     #F5F7FA;
+      --text-dim: #8AAFC5;
+      --green:    #2EE49C;
+      --yellow:   #FFB340;
+      --radius:   12px;
+      --font:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+      /* Tier colors */
+      --tier-owner-builder: #6B7280;
+      --tier-draftsman:     #3B82F6;
+      --tier-bricklayer:    #F97316;
+      --tier-foreman:       #A855F7;
+      --tier-gc:            #EAB308;
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px; border-bottom: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0;
+    }
+    .brand { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px; }
+    .brand .pc { color: var(--text); }
+    .brand .ai {
+      background: linear-gradient(135deg, #05C3F9, #00FBF0);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .brand .sub { font-size: 13px; font-weight: 500; color: var(--text-dim); }
+    .header-back {
+      display: flex; align-items: center; gap: 6px;
+      color: var(--text-dim); text-decoration: none; font-size: 13px; font-weight: 500;
+      padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+      transition: background .12s, color .12s, border-color .12s;
+    }
+    .header-back:hover { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+    .header-back svg { width: 14px; height: 14px; }
+
+    /* ── Page body ──────────────────────────────────────────────────── */
+    .page-body {
+      flex: 1; overflow-y: auto;
+      padding: 40px 24px 80px;
+      max-width: 820px; margin: 0 auto; width: 100%;
+    }
+
+    /* ── Page header ────────────────────────────────────────────────── */
+    .page-header { margin-bottom: 36px; }
+    .page-eyebrow {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 8px;
+    }
+    .page-title {
+      font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px;
+    }
+    .page-sub { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+
+    /* ── Current tier badge ─────────────────────────────────────────── */
+    .tier-badge-section {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 36px 24px; background: var(--surface);
+      border: 1px solid var(--border); border-radius: var(--radius);
+      margin-bottom: 20px; position: relative; overflow: hidden;
+    }
+    .tier-badge-section::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    }
+    .tier-badge-section[data-tier="owner_builder"]::before { background: var(--tier-owner-builder); }
+    .tier-badge-section[data-tier="draftsman"]::before     { background: var(--tier-draftsman); }
+    .tier-badge-section[data-tier="bricklayer"]::before    { background: var(--tier-bricklayer); }
+    .tier-badge-section[data-tier="foreman"]::before       { background: var(--tier-foreman); }
+    .tier-badge-section[data-tier="gc"]::before            { background: var(--tier-gc); }
+
+    .tier-label-sm {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px;
+    }
+    .tier-icon-wrap {
+      width: 80px; height: 80px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 38px; margin-bottom: 14px;
+      border: 3px solid transparent;
+    }
+    .tier-icon-wrap[data-tier="owner_builder"] { background: rgba(107,114,128,.15); border-color: var(--tier-owner-builder); box-shadow: 0 0 24px rgba(107,114,128,.20); }
+    .tier-icon-wrap[data-tier="draftsman"]     { background: rgba(59,130,246,.15);  border-color: var(--tier-draftsman);     box-shadow: 0 0 24px rgba(59,130,246,.25); }
+    .tier-icon-wrap[data-tier="bricklayer"]    { background: rgba(249,115,22,.15);  border-color: var(--tier-bricklayer);    box-shadow: 0 0 24px rgba(249,115,22,.25); }
+    .tier-icon-wrap[data-tier="foreman"]       { background: rgba(168,85,247,.15);  border-color: var(--tier-foreman);       box-shadow: 0 0 24px rgba(168,85,247,.25); }
+    .tier-icon-wrap[data-tier="gc"]            { background: rgba(234,179,8,.15);   border-color: var(--tier-gc);            box-shadow: 0 0 24px rgba(234,179,8,.30); }
+
+    .tier-name-large {
+      font-size: 26px; font-weight: 800; letter-spacing: -0.5px;
+    }
+    .tier-name-large[data-tier="owner_builder"] { color: var(--tier-owner-builder); }
+    .tier-name-large[data-tier="draftsman"]     { color: var(--tier-draftsman); }
+    .tier-name-large[data-tier="bricklayer"]    { color: var(--tier-bricklayer); }
+    .tier-name-large[data-tier="foreman"]       { color: var(--tier-foreman); }
+    .tier-name-large[data-tier="gc"]            { color: var(--tier-gc); }
+
+    /* ── Stats strip ────────────────────────────────────────────────── */
+    .stats-strip {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px; margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px 16px; text-align: center;
+    }
+    .stat-value {
+      font-size: 28px; font-weight: 800; letter-spacing: -1px;
+      background: linear-gradient(135deg, #05C3F9, #00FBF0);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      margin-bottom: 4px;
+    }
+    .stat-label { font-size: 11px; font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px; }
+
+    /* ── Tier ladder ────────────────────────────────────────────────── */
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--text-dim); margin-bottom: 14px;
+    }
+    .ladder { display: flex; flex-direction: column; gap: 8px; margin-bottom: 28px; }
+    .ladder-row {
+      display: flex; align-items: flex-start; gap: 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 20px;
+      transition: border-color .15s;
+    }
+    .ladder-row.is-current {
+      border-color: transparent;
+      box-shadow: 0 0 0 2px currentColor;
+    }
+    .ladder-row[data-tier="owner_builder"].is-current { box-shadow: 0 0 0 2px var(--tier-owner-builder); background: rgba(107,114,128,.06); }
+    .ladder-row[data-tier="draftsman"].is-current     { box-shadow: 0 0 0 2px var(--tier-draftsman);     background: rgba(59,130,246,.06); }
+    .ladder-row[data-tier="bricklayer"].is-current    { box-shadow: 0 0 0 2px var(--tier-bricklayer);    background: rgba(249,115,22,.06); }
+    .ladder-row[data-tier="foreman"].is-current       { box-shadow: 0 0 0 2px var(--tier-foreman);       background: rgba(168,85,247,.06); }
+    .ladder-row[data-tier="gc"].is-current            { box-shadow: 0 0 0 2px var(--tier-gc);            background: rgba(234,179,8,.06); }
+
+    .ladder-row.is-locked { opacity: 0.55; }
+
+    .ladder-color-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 6px;
+    }
+    .ladder-row[data-tier="owner_builder"] .ladder-color-dot { background: var(--tier-owner-builder); }
+    .ladder-row[data-tier="draftsman"]     .ladder-color-dot { background: var(--tier-draftsman); }
+    .ladder-row[data-tier="bricklayer"]    .ladder-color-dot { background: var(--tier-bricklayer); }
+    .ladder-row[data-tier="foreman"]       .ladder-color-dot { background: var(--tier-foreman); }
+    .ladder-row[data-tier="gc"]            .ladder-color-dot { background: var(--tier-gc); }
+
+    .ladder-body { flex: 1; min-width: 0; }
+    .ladder-tier-name {
+      font-size: 14px; font-weight: 700; margin-bottom: 4px;
+    }
+    .ladder-row[data-tier="owner_builder"] .ladder-tier-name { color: var(--tier-owner-builder); }
+    .ladder-row[data-tier="draftsman"]     .ladder-tier-name { color: var(--tier-draftsman); }
+    .ladder-row[data-tier="bricklayer"]    .ladder-tier-name { color: var(--tier-bricklayer); }
+    .ladder-row[data-tier="foreman"]       .ladder-tier-name { color: var(--tier-foreman); }
+    .ladder-row[data-tier="gc"]            .ladder-tier-name { color: var(--tier-gc); }
+
+    .ladder-desc { font-size: 13px; color: var(--text-dim); line-height: 1.55; }
+    .ladder-current-tag {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      letter-spacing: 0.8px; text-transform: uppercase;
+      padding: 2px 8px; border-radius: 20px; margin-left: 8px;
+      background: rgba(255,255,255,.10); color: var(--text);
+      vertical-align: middle;
+    }
+
+    .ladder-status { flex-shrink: 0; font-size: 18px; margin-top: 2px; }
+
+    /* ── Action buttons ─────────────────────────────────────────────── */
+    .actions-section { display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn {
+      padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 700;
+      cursor: pointer; border: none; transition: opacity .15s, transform .08s;
+      display: flex; align-items: center; gap: 8px; letter-spacing: 0.2px;
+    }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn:not(:disabled):hover { opacity: 0.88; }
+    .btn:not(:disabled):active { transform: scale(0.98); }
+    .btn-promote {
+      background: linear-gradient(135deg, #16a34a, #22c55e);
+      color: #fff;
+    }
+    .btn-demote {
+      background: transparent;
+      border: 2px solid var(--coral);
+      color: var(--coral);
+    }
+    .btn-demote:not(:disabled):hover { background: rgba(255,85,126,.08); }
+
+    /* ── Modal / overlay ────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(3,11,44,.82); backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal-box {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 36px 32px; max-width: 500px; width: 90%;
+      position: relative;
+    }
+    .modal-icon { font-size: 36px; margin-bottom: 16px; }
+    .modal-title {
+      font-size: 18px; font-weight: 800; letter-spacing: -0.3px; margin-bottom: 12px;
+    }
+    .modal-body {
+      font-size: 15px; color: var(--text-dim); line-height: 1.7;
+      border-left: 3px solid var(--accent); padding-left: 16px;
+      margin-bottom: 20px; font-style: italic;
+    }
+    .modal-sub {
+      font-size: 12px; color: var(--text-dim); text-align: center;
+    }
+
+    /* ── Toast ──────────────────────────────────────────────────────── */
+    #pm-toast {
+      position: fixed; bottom: 28px; right: 28px; z-index: 2000;
+      padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight: 600;
+      max-width: 340px; pointer-events: none;
+      transform: translateY(12px); opacity: 0;
+      transition: opacity .2s, transform .2s;
+      box-shadow: 0 4px 20px rgba(0,0,0,.4);
+    }
+    #pm-toast.show { opacity: 1; transform: translateY(0); }
+    #pm-toast.info    { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    #pm-toast.success { background: rgba(46,228,156,.12); color: var(--green); border: 1px solid rgba(46,228,156,.3); }
+    #pm-toast.error   { background: rgba(255,85,126,.12); color: var(--coral); border: 1px solid rgba(255,85,126,.3); }
+
+    /* ── Loading skeleton ───────────────────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface2) 25%, var(--surface3) 50%, var(--surface2) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    /* ── Responsive ─────────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .stats-strip { grid-template-columns: 1fr 1fr; }
+      .stats-strip .stat-card:last-child { grid-column: 1 / -1; }
+      .page-body { padding: 24px 16px 60px; }
+      .actions-section { flex-direction: column; }
+      .btn { width: 100%; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────── -->
+<header>
+  <div class="brand">
+    <span><span class="pc">PodClick</span><span class="ai">AI</span></span>
+    <span class="sub">Brick's Permit</span>
+  </div>
+  <a href="/walkthrough" class="header-back">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M10 12L6 8l4-4"/>
+    </svg>
+    Walk-through
+  </a>
+</header>
+
+<!-- ── Page body ────────────────────────────────────────────────────── -->
+<div class="page-body">
+
+  <!-- Page header -->
+  <div class="page-header">
+    <div class="page-eyebrow">Autonomy Control</div>
+    <h1 class="page-title">Brick's Permit</h1>
+    <p class="page-sub">You control how much rope Brick gets. Promote to unlock more autonomy. Demote if something went sideways. The track record below is how Brick earns the next rung.</p>
+  </div>
+
+  <!-- Current tier badge -->
+  <div class="tier-badge-section" id="tier-badge-section" data-tier="draftsman">
+    <div class="tier-label-sm">Current clearance</div>
+    <div class="tier-icon-wrap" id="tier-icon-wrap" data-tier="draftsman">
+      <span id="tier-icon">📐</span>
+    </div>
+    <div class="tier-name-large" id="tier-name-large" data-tier="draftsman">Draftsman</div>
+  </div>
+
+  <!-- Stats strip -->
+  <div class="stats-strip">
+    <div class="stat-card">
+      <div class="stat-value" id="stat-total">—</div>
+      <div class="stat-label">Total Actions</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-rate">—</div>
+      <div class="stat-label">Success Rate</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-since">—</div>
+      <div class="stat-label">Promoted Since</div>
+    </div>
+  </div>
+
+  <!-- Tier ladder -->
+  <div class="section-label">The Ladder</div>
+  <div class="ladder" id="tier-ladder">
+
+    <div class="ladder-row" data-tier="owner_builder" id="row-owner_builder">
+      <div class="ladder-color-dot"></div>
+      <div class="ladder-body">
+        <div class="ladder-tier-name">Owner-Builder</div>
+        <div class="ladder-desc">Brick watches and reports. No actions without your approval.</div>
+      </div>
+      <div class="ladder-status" id="status-owner_builder">🔒</div>
+    </div>
+
+    <div class="ladder-row" data-tier="draftsman" id="row-draftsman">
+      <div class="ladder-color-dot"></div>
+      <div class="ladder-body">
+        <div class="ladder-tier-name">Draftsman</div>
+        <div class="ladder-desc">Brick drafts posts and suggests topics. You approve before anything goes out.</div>
+      </div>
+      <div class="ladder-status" id="status-draftsman">🔒</div>
+    </div>
+
+    <div class="ladder-row" data-tier="bricklayer" id="row-bricklayer">
+      <div class="ladder-color-dot"></div>
+      <div class="ladder-body">
+        <div class="ladder-tier-name">Bricklayer</div>
+        <div class="ladder-desc">Brick queues approved drafts for scheduling. You still control the calendar.</div>
+      </div>
+      <div class="ladder-status" id="status-bricklayer">🔒</div>
+    </div>
+
+    <div class="ladder-row" data-tier="foreman" id="row-foreman">
+      <div class="ladder-color-dot"></div>
+      <div class="ladder-body">
+        <div class="ladder-tier-name">Foreman</div>
+        <div class="ladder-desc">Brick publishes posts, cuts clips, writes show notes, and adjusts the calendar. Walk-throughs replace approval for routine work.</div>
+      </div>
+      <div class="ladder-status" id="status-foreman">🔒</div>
+    </div>
+
+    <div class="ladder-row" data-tier="gc" id="row-gc">
+      <div class="ladder-color-dot"></div>
+      <div class="ladder-body">
+        <div class="ladder-tier-name">GC (General Contractor)</div>
+        <div class="ladder-desc">Full autonomy. Brick sends guest emails, pitches sponsors, and replans when posts underperform. Daily digest replaces walk-throughs.</div>
+      </div>
+      <div class="ladder-status" id="status-gc">🔒</div>
+    </div>
+
+  </div>
+
+  <!-- Action buttons -->
+  <div class="section-label">Change Clearance</div>
+  <div class="actions-section">
+    <button class="btn btn-promote" id="btn-promote">
+      ▲ Promote Brick
+    </button>
+    <button class="btn btn-demote" id="btn-demote">
+      ▼ Demote Brick
+    </button>
+  </div>
+
+</div><!-- /page-body -->
+
+<!-- ── Ceremony modal ───────────────────────────────────────────────── -->
+<div class="modal-overlay" id="ceremony-modal">
+  <div class="modal-box">
+    <div class="modal-icon" id="ceremony-icon">🔑</div>
+    <div class="modal-title" id="ceremony-title">Brick says…</div>
+    <div class="modal-body" id="ceremony-body"></div>
+    <div class="modal-sub">Reloading in a moment…</div>
+  </div>
+</div>
+
+<!-- ── Toast ─────────────────────────────────────────────────────────── -->
+<div id="pm-toast"></div>
+
+<script>
+  /* ── Helpers ───────────────────────────────────────────────────────── */
+  function escHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  let _toastTimer = null;
+  function pmToast(msg, kind) {
+    kind = kind || 'info';
+    const el = document.getElementById('pm-toast');
+    el.textContent = msg;
+    el.className = 'show ' + kind;
+    if (_toastTimer) clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => { el.className = kind; }, 3500);
+  }
+
+  /* ── Tier config ───────────────────────────────────────────────────── */
+  const TIERS = ['owner_builder', 'draftsman', 'bricklayer', 'foreman', 'gc'];
+
+  const TIER_META = {
+    owner_builder: { label: 'Owner-Builder', icon: '👀' },
+    draftsman:     { label: 'Draftsman',     icon: '📐' },
+    bricklayer:    { label: 'Bricklayer',    icon: '🧱' },
+    foreman:       { label: 'Foreman',       icon: '📋' },
+    gc:            { label: 'GC',            icon: '🏗️' },
+  };
+
+  const CEREMONY = {
+    promote: "You're handing me the keys. I'll send guest emails, pitch sponsors, and replan when posts underperform — all in your voice, inside your blueprint. Daily digests instead of walk-throughs. I'll wake you only if something blows up. We solid?",
+    demote: (tier) => `Heard. Back to ${TIER_META[tier]?.label || tier}. What happened — I want to fix it before next week.`,
+  };
+
+  /* ── State ─────────────────────────────────────────────────────────── */
+  let currentTier = 'draftsman';
+
+  /* ── Render ────────────────────────────────────────────────────────── */
+  function applyPermitData(data) {
+    currentTier = data.current_tier;
+
+    // Badge section
+    const badgeSection = document.getElementById('tier-badge-section');
+    const iconWrap     = document.getElementById('tier-icon-wrap');
+    const iconEl       = document.getElementById('tier-icon');
+    const nameEl       = document.getElementById('tier-name-large');
+    const meta         = TIER_META[currentTier] || { label: currentTier, icon: '🔧' };
+
+    badgeSection.dataset.tier = currentTier;
+    iconWrap.dataset.tier     = currentTier;
+    nameEl.dataset.tier       = currentTier;
+    iconEl.textContent        = meta.icon;
+    nameEl.textContent        = meta.label;
+
+    // Stats
+    const tr = data.track_record || {};
+    document.getElementById('stat-total').textContent = tr.total_actions ?? '0';
+    document.getElementById('stat-rate').textContent  = tr.success_rate != null
+      ? tr.success_rate.toFixed(1) + '%' : '—';
+    document.getElementById('stat-since').textContent = data.promoted_at
+      ? formatDate(data.promoted_at) : '—';
+
+    // Ladder
+    const currentIdx = TIERS.indexOf(currentTier);
+    TIERS.forEach((tier, idx) => {
+      const row = document.getElementById('row-' + tier);
+      const statusEl = document.getElementById('status-' + tier);
+      if (!row) return;
+
+      // Reset classes
+      row.classList.remove('is-current', 'is-locked');
+
+      // Remove any existing current tag
+      const existingTag = row.querySelector('.ladder-current-tag');
+      if (existingTag) existingTag.remove();
+
+      if (idx === currentIdx) {
+        row.classList.add('is-current');
+        statusEl.textContent = '✅';
+        // Add "Current" tag after tier name
+        const nameSpan = row.querySelector('.ladder-tier-name');
+        const tag = document.createElement('span');
+        tag.className = 'ladder-current-tag';
+        tag.textContent = 'Current';
+        nameSpan.appendChild(tag);
+      } else if (idx < currentIdx) {
+        // Below current — unlocked
+        statusEl.textContent = '✅';
+      } else {
+        // Above current — locked
+        row.classList.add('is-locked');
+        statusEl.textContent = '🔒';
+      }
+    });
+
+    // Buttons
+    const atTop    = currentIdx >= TIERS.length - 1;
+    const atBottom = currentIdx <= 0;
+    document.getElementById('btn-promote').disabled = atTop;
+    document.getElementById('btn-demote').disabled  = atBottom;
+  }
+
+  function formatDate(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch (e) {
+      return iso;
+    }
+  }
+
+  /* ── API ───────────────────────────────────────────────────────────── */
+  function loadPermit() {
+    fetch('/api/brick/permit')
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(data => applyPermitData(data))
+      .catch(err => {
+        console.error('[permit] load failed', err);
+        pmToast('Could not load permit data. Is the server running?', 'error');
+      });
+  }
+
+  function doAction(action) {
+    const url = action === 'promote'
+      ? '/api/brick/permit/promote'
+      : '/api/brick/permit/demote';
+
+    fetch(url, { method: 'POST' })
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(data => {
+        showCeremony(action, data.tier || currentTier);
+      })
+      .catch(err => {
+        console.error('[permit] action failed', err);
+        pmToast('Something went wrong. Try again.', 'error');
+      });
+  }
+
+  /* ── Ceremony modal ────────────────────────────────────────────────── */
+  function showCeremony(action, newTier) {
+    const modal = document.getElementById('ceremony-modal');
+    const iconEl  = document.getElementById('ceremony-icon');
+    const titleEl = document.getElementById('ceremony-title');
+    const bodyEl  = document.getElementById('ceremony-body');
+
+    if (action === 'promote') {
+      const meta = TIER_META[newTier] || { label: newTier, icon: '🔑' };
+      iconEl.textContent  = meta.icon;
+      titleEl.textContent = 'Promoted to ' + meta.label;
+      bodyEl.textContent  = CEREMONY.promote;
+    } else {
+      const meta = TIER_META[newTier] || { label: newTier, icon: '📋' };
+      iconEl.textContent  = meta.icon;
+      titleEl.textContent = 'Demoted to ' + meta.label;
+      bodyEl.textContent  = CEREMONY.demote(newTier);
+    }
+
+    modal.classList.add('open');
+
+    setTimeout(() => {
+      modal.classList.remove('open');
+      window.location.reload();
+    }, 3000);
+  }
+
+  /* ── Event listeners ───────────────────────────────────────────────── */
+  document.getElementById('btn-promote').addEventListener('click', () => {
+    doAction('promote');
+  });
+
+  document.getElementById('btn-demote').addEventListener('click', () => {
+    doAction('demote');
+  });
+
+  /* ── Init ──────────────────────────────────────────────────────────── */
+  document.addEventListener('DOMContentLoaded', () => {
+    loadPermit();
+  });
+</script>
+</body>
+</html>

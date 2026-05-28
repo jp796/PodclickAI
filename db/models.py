@@ -101,6 +101,12 @@ class Location(Base):
     foundation_scores = relationship("FoundationScore", back_populates="location", cascade="all, delete-orphan")
     oauth_tokens = relationship("OAuthToken", back_populates="location", cascade="all, delete-orphan")
     posts = relationship("Post", back_populates="location", cascade="all, delete-orphan")
+    # Phase 3A — Brick
+    brick_permit = relationship("BrickPermit", back_populates="location", uselist=False, cascade="all, delete-orphan")
+    brick_track_records = relationship("BrickTrackRecord", back_populates="location", cascade="all, delete-orphan")
+    brick_actions = relationship("BrickAction", back_populates="location", cascade="all, delete-orphan")
+    brick_messages = relationship("BrickMessage", back_populates="location", cascade="all, delete-orphan")
+    brick_memories = relationship("BrickMemory", back_populates="location", cascade="all, delete-orphan")
 
 
 class User(Base):
@@ -468,3 +474,188 @@ class PostAttempt(Base):
 
     post = relationship("Post", back_populates="attempts")
     variant = relationship("PostVariant", back_populates="attempts")
+
+
+# ── Phase 3A — Brick the Foreman ─────────────────────────────────────────────
+
+# Add timezone to User (column added via Alembic migration f7c2a9b1e305)
+User.timezone = Column(Text, nullable=True, server_default="America/Chicago")
+
+
+class BrickPermit(Base):
+    """
+    One row per location — tracks Brick's current autonomy tier.
+    Tier ladder: owner_builder → draftsman → bricklayer → foreman → gc
+    """
+
+    __tablename__ = "brick_permits"
+
+    id: Column = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    location_id: Column = Column(
+        UUID(as_uuid=True),
+        ForeignKey("locations.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    current_tier: Column = Column(
+        Text,
+        CheckConstraint(
+            "current_tier IN ('owner_builder','draftsman','bricklayer','foreman','gc')",
+            name="ck_brick_permits_tier",
+        ),
+        nullable=False,
+        server_default="owner_builder",
+    )
+    promoted_at: Column = Column(DateTime(timezone=True), nullable=True)
+    promoted_by: Column = Column(UUID(as_uuid=True), nullable=True)
+    notes: Column = Column(Text, nullable=True)
+    created_at: Column = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Column = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    location = relationship("Location", back_populates="brick_permit")
+
+
+class BrickTrackRecord(Base):
+    """Outcome history — one row per action Brick attempted or was rejected for."""
+
+    __tablename__ = "brick_track_record"
+
+    id: Column = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    location_id: Column = Column(
+        UUID(as_uuid=True),
+        ForeignKey("locations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    action_type: Column = Column(Text, nullable=False)
+    outcome: Column = Column(
+        Text,
+        CheckConstraint(
+            "outcome IN ('success','failure','rejected')",
+            name="ck_brick_track_outcome",
+        ),
+        nullable=False,
+    )
+    executed_at: Column = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    action_metadata: Column = Column("metadata", JSONB, server_default=text("'{}'"))
+
+    location = relationship("Location", back_populates="brick_track_records")
+
+
+class BrickAction(Base):
+    """
+    A single proposed or executed action — the punch list item.
+    Pending items await JP's approve/reject. Expires after 7 days.
+    """
+
+    __tablename__ = "brick_actions"
+
+    id: Column = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    location_id: Column = Column(
+        UUID(as_uuid=True),
+        ForeignKey("locations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    action_type: Column = Column(Text, nullable=False)
+    status: Column = Column(
+        Text,
+        CheckConstraint(
+            "status IN ('pending','approved','rejected','executed','expired')",
+            name="ck_brick_actions_status",
+        ),
+        nullable=False,
+        server_default="pending",
+    )
+    payload: Column = Column(JSONB, server_default=text("'{}'"))
+    rationale: Column = Column(Text, nullable=True)
+    requested_at: Column = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    reviewed_at: Column = Column(DateTime(timezone=True), nullable=True)
+    reviewed_by: Column = Column(UUID(as_uuid=True), nullable=True)
+    review_note: Column = Column(Text, nullable=True)
+    expires_at: Column = Column(DateTime(timezone=True), nullable=True)
+    actor_type: Column = Column(
+        Text,
+        CheckConstraint(
+            "actor_type IN ('brick','user')",
+            name="ck_brick_actions_actor_type",
+        ),
+        nullable=False,
+        server_default="brick",
+    )
+
+    location = relationship("Location", back_populates="brick_actions")
+
+
+class BrickMessage(Base):
+    """
+    Seeded greeting + walk-through copy attributed to Brick.
+    role='brick' rows are Brick's words; role='user' rows are JP's replies (future).
+    context_screen identifies which screen the message belongs to.
+    """
+
+    __tablename__ = "brick_messages"
+
+    id: Column = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    location_id: Column = Column(
+        UUID(as_uuid=True),
+        ForeignKey("locations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    role: Column = Column(
+        Text,
+        CheckConstraint(
+            "role IN ('brick','user')",
+            name="ck_brick_messages_role",
+        ),
+        nullable=False,
+    )
+    context_screen: Column = Column(Text, nullable=True)
+    content: Column = Column(Text, nullable=False)
+    created_at: Column = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    location = relationship("Location", back_populates="brick_messages")
+
+
+class BrickMemory(Base):
+    """
+    Persistent standing instructions from the user, injected into every
+    planning prompt. Soft-deleted via active=False (never hard-deleted).
+    last_referenced_at updated each time the row is read during planning.
+    """
+
+    __tablename__ = "brick_memory"
+
+    id: Column = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    location_id: Column = Column(
+        UUID(as_uuid=True),
+        ForeignKey("locations.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    content: Column = Column(Text, nullable=False)
+    category: Column = Column(Text, nullable=True)
+    active: Column = Column(Boolean, nullable=False, server_default=text("true"))
+    created_at: Column = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    last_referenced_at: Column = Column(DateTime(timezone=True), nullable=True)
+
+    location = relationship("Location", back_populates="brick_memories")

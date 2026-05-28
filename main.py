@@ -56,6 +56,28 @@ async def _startup():
     # recent failed jobs that a user might still retry.
     asyncio.ensure_future(_uploads_sweep_loop())
 
+    # ── Brick daily planning cron (Phase 3A) ──────────────────────────────────
+    # Fires at 04:00 America/Chicago every day (user.timezone default).
+    # Uses AsyncIOScheduler so async jobs run on the existing event loop.
+    try:
+        import pytz
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        from services.brick_agent import run_planning_for_default_location
+
+        _brick_scheduler = AsyncIOScheduler()
+        _brick_scheduler.add_job(
+            run_planning_for_default_location,
+            CronTrigger(hour=4, minute=0, timezone=pytz.timezone("America/Chicago")),
+            id="brick_daily_planning",
+            replace_existing=True,
+            misfire_grace_time=600,  # tolerate up to 10-min delay on cold start
+        )
+        _brick_scheduler.start()
+        print("[brick.cron] Daily planning cron registered — fires 04:00 America/Chicago")
+    except Exception as _brick_cron_err:
+        print(f"[brick.cron] WARNING: Could not register cron — {_brick_cron_err}")
+
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR     = Path(__file__).parent
 DATA_DIR     = BASE_DIR / "data"
@@ -6718,3 +6740,347 @@ async def calendar_delete_post(post_id: str):
         await session.commit()
 
     return JSONResponse({"ok": True, "deleted": post_id})
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ── BRICK THE FOREMAN (Phase 3A) ──────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Page routes ───────────────────────────────────────────────────────────────
+
+@app.get("/walkthrough")
+async def walkthrough_page():
+    """Serve Brick's morning walk-through dashboard."""
+    from fastapi.responses import FileResponse
+    return FileResponse(BASE_DIR / "frontend" / "walkthrough.html")
+
+
+@app.get("/permit")
+async def permit_page():
+    """Serve Brick's permit tier screen."""
+    from fastapi.responses import FileResponse
+    return FileResponse(BASE_DIR / "frontend" / "permit.html")
+
+
+# ── Walk-through data ─────────────────────────────────────────────────────────
+
+@app.get("/api/brick/walkthrough")
+async def brick_walkthrough():
+    """
+    Return walk-through data: greeting, stats, pending punch list, recent actions.
+    Upserts permit row if first visit.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import (
+        BrickAction as _BA, BrickMessage as _BM,
+        BrickPermit as _BP, BrickTrackRecord as _BTR,
+    )
+    from config import get_current_location_id
+    from sqlalchemy import select as _select, and_ as _and, text as _sa_text
+    import uuid as _uuid
+    from datetime import datetime as _dt
+
+    location_id = get_current_location_id()
+    loc_uuid = _uuid.UUID(location_id)
+
+    async with _async_session() as session:
+        # Upsert permit
+        from services.brick_agent import BrickAgent as _BA_cls
+        _agent = _BA_cls()
+        permit = await _agent._get_or_create_permit(session, location_id)
+        await session.commit()
+
+        # Latest greeting from brick_messages
+        greeting_row = (await session.execute(
+            _select(_BM)
+            .where(_and(_BM.location_id == loc_uuid, _BM.context_screen == "walkthrough"))
+            .order_by(_BM.created_at.desc())
+            .limit(1)
+        )).scalar_one_or_none()
+        greeting = greeting_row.content if greeting_row else "Morning. Walk-through ready."
+
+        # Pending punch list
+        pending_rows = (await session.execute(
+            _select(_BA)
+            .where(_and(_BA.location_id == loc_uuid, _BA.status == "pending"))
+            .order_by(_BA.requested_at.desc())
+            .limit(20)
+        )).scalars().all()
+
+        pending_actions = [
+            {
+                "id": str(a.id),
+                "action_type": a.action_type,
+                "rationale": a.rationale or "",
+                "payload": a.payload or {},
+                "requested_at": a.requested_at.isoformat() if a.requested_at else None,
+            }
+            for a in pending_rows
+        ]
+
+        # Recent actions (last 7 days)
+        recent_rows = (await session.execute(
+            _select(_BTR)
+            .where(_BTR.location_id == loc_uuid)
+            .order_by(_BTR.executed_at.desc())
+            .limit(10)
+        )).scalars().all()
+
+        recent_actions = [
+            {
+                "action_type": r.action_type,
+                "outcome": r.outcome,
+                "executed_at": r.executed_at.isoformat() if r.executed_at else None,
+            }
+            for r in recent_rows
+        ]
+
+        # Stats
+        now = _dt.utcnow()
+        posts_mtd_r = await session.execute(_sa_text(
+            "SELECT COUNT(*) FROM posts WHERE location_id = :loc "
+            "AND created_at >= date_trunc('month', now())"
+        ).bindparams(loc=loc_uuid))
+        posts_mtd = posts_mtd_r.scalar() or 0
+
+        upcoming_r = await session.execute(_sa_text(
+            "SELECT COUNT(*) FROM posts WHERE location_id = :loc "
+            "AND status = 'scheduled' AND scheduled_at > now()"
+        ).bindparams(loc=loc_uuid))
+        upcoming = upcoming_r.scalar() or 0
+
+        score_r = await session.execute(_sa_text(
+            "SELECT score FROM foundation_scores WHERE location_id = :loc "
+            "ORDER BY computed_at DESC LIMIT 1"
+        ).bindparams(loc=loc_uuid))
+        score_row = score_r.fetchone()
+        foundation_score = round((score_row[0] or 0) * 100, 1) if score_row else 0.0
+
+        samples_r = await session.execute(_sa_text(
+            "SELECT COUNT(*) FROM voice_samples WHERE location_id = :loc AND excluded = false"
+        ).bindparams(loc=loc_uuid))
+        foundation_samples = samples_r.scalar() or 0
+
+    return JSONResponse({
+        "greeting": greeting,
+        "permit_tier": permit.current_tier,
+        "posts_mtd": posts_mtd,
+        "upcoming_posts": upcoming,
+        "foundation_score": foundation_score,
+        "foundation_samples": foundation_samples,
+        "pending_actions": pending_actions,
+        "recent_actions": recent_actions,
+    })
+
+
+# ── Punch list approve / reject ───────────────────────────────────────────────
+
+@app.post("/api/brick/actions/{action_id}/approve")
+async def brick_approve_action(action_id: str):
+    """Approve a punch list item and execute it."""
+    from services.brick_agent import BrickAgent as _BA_cls
+    from config import get_current_location_id
+    import uuid as _uuid
+
+    # Phase 3A: single-tenant — use a sentinel user_id from location_id
+    location_id = get_current_location_id()
+    agent = _BA_cls()
+    try:
+        result = await agent.approve_action(action_id, location_id)
+        return JSONResponse({"ok": True, "result": result})
+    except PermissionError as e:
+        return JSONResponse({"error": str(e)}, status_code=403)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.post("/api/brick/actions/{action_id}/reject")
+async def brick_reject_action(action_id: str, request: Request):
+    """Reject a punch list item with optional reason."""
+    from services.brick_agent import BrickAgent as _BA_cls
+    from config import get_current_location_id
+
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+
+    location_id = get_current_location_id()
+    reason = body.get("reason") or None
+    agent = _BA_cls()
+    try:
+        result = await agent.reject_action(action_id, location_id, reason=reason)
+        return JSONResponse(result)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+# ── Brick actions list ────────────────────────────────────────────────────────
+
+@app.get("/api/brick/actions")
+async def brick_list_actions():
+    """List pending punch list actions for the current location."""
+    from db.engine import async_session as _async_session
+    from db.models import BrickAction as _BA
+    from config import get_current_location_id
+    from sqlalchemy import select as _select, and_ as _and
+    import uuid as _uuid
+
+    loc_uuid = _uuid.UUID(get_current_location_id())
+    async with _async_session() as session:
+        rows = (await session.execute(
+            _select(_BA)
+            .where(_and(_BA.location_id == loc_uuid, _BA.status == "pending"))
+            .order_by(_BA.requested_at.desc())
+        )).scalars().all()
+
+    return JSONResponse({
+        "actions": [
+            {
+                "id": str(a.id),
+                "action_type": a.action_type,
+                "rationale": a.rationale or "",
+                "payload": a.payload or {},
+                "requested_at": a.requested_at.isoformat() if a.requested_at else None,
+                "expires_at": a.expires_at.isoformat() if a.expires_at else None,
+            }
+            for a in rows
+        ]
+    })
+
+
+# ── Permit ────────────────────────────────────────────────────────────────────
+
+@app.get("/api/brick/permit")
+async def brick_get_permit():
+    """Return current permit tier + track record stats."""
+    from db.engine import async_session as _async_session
+    from db.models import BrickTrackRecord as _BTR
+    from services.brick_agent import BrickAgent as _BA_cls
+    from config import get_current_location_id
+    from sqlalchemy import select as _select, func as _func, and_ as _and
+    import uuid as _uuid
+
+    location_id = get_current_location_id()
+    loc_uuid = _uuid.UUID(location_id)
+    agent = _BA_cls()
+
+    async with _async_session() as session:
+        permit = await agent._get_or_create_permit(session, location_id)
+        await session.commit()
+
+        # Track record stats
+        total_r = await session.execute(
+            _select(_func.count()).select_from(_BTR)
+            .where(_BTR.location_id == loc_uuid)
+        )
+        total = total_r.scalar() or 0
+
+        success_r = await session.execute(
+            _select(_func.count()).select_from(_BTR)
+            .where(_and(_BTR.location_id == loc_uuid, _BTR.outcome == "success"))
+        )
+        success_count = success_r.scalar() or 0
+
+        rejected_r = await session.execute(
+            _select(_func.count()).select_from(_BTR)
+            .where(_and(_BTR.location_id == loc_uuid, _BTR.outcome == "rejected"))
+        )
+        rejected_count = rejected_r.scalar() or 0
+
+    success_rate = round((success_count / total * 100), 1) if total > 0 else 0.0
+
+    return JSONResponse({
+        "current_tier": permit.current_tier,
+        "promoted_at": permit.promoted_at.isoformat() if permit.promoted_at else None,
+        "track_record": {
+            "total_actions": total,
+            "success_count": success_count,
+            "rejected_count": rejected_count,
+            "success_rate": success_rate,
+        },
+    })
+
+
+@app.post("/api/brick/permit/promote")
+async def brick_promote():
+    """Advance Brick's permit tier one step."""
+    from services.brick_agent import BrickAgent as _BA_cls
+    from config import get_current_location_id
+
+    location_id = get_current_location_id()
+    agent = _BA_cls()
+    result = await agent.promote(location_id, location_id)
+    return JSONResponse(result)
+
+
+@app.post("/api/brick/permit/demote")
+async def brick_demote():
+    """Reduce Brick's permit tier one step."""
+    from services.brick_agent import BrickAgent as _BA_cls
+    from config import get_current_location_id
+
+    location_id = get_current_location_id()
+    agent = _BA_cls()
+    result = await agent.demote(location_id, location_id)
+    return JSONResponse(result)
+
+
+# ── Memory CRUD ───────────────────────────────────────────────────────────────
+
+@app.post("/api/brick/memory")
+async def brick_create_memory(request: Request):
+    """Create a standing instruction (brick_memory row)."""
+    from services.brick_agent import BrickAgent as _BA_cls
+    from config import get_current_location_id
+
+    body = await request.json()
+    content = body.get("content", "").strip()
+    if not content:
+        return JSONResponse({"error": "content is required"}, status_code=422)
+
+    category = body.get("category") or None
+    location_id = get_current_location_id()
+    agent = _BA_cls()
+    memory_id = await agent.remember(location_id, content, category=category)
+    return JSONResponse({"id": memory_id, "ok": True})
+
+
+@app.get("/api/brick/memory")
+async def brick_list_memory():
+    """List all active standing instructions for the current location."""
+    from services.brick_agent import BrickAgent as _BA_cls
+    from config import get_current_location_id
+
+    location_id = get_current_location_id()
+    agent = _BA_cls()
+    memories = await agent.get_active_memories(location_id)
+    return JSONResponse({"memories": memories})
+
+
+@app.delete("/api/brick/memory/{memory_id}")
+async def brick_delete_memory(memory_id: str):
+    """Soft-delete a standing instruction (sets active=False)."""
+    from services.brick_agent import BrickAgent as _BA_cls
+
+    agent = _BA_cls()
+    found = await agent.forget(memory_id)
+    if not found:
+        return JSONResponse({"error": "memory not found"}, status_code=404)
+    return JSONResponse({"ok": True, "memory_id": memory_id})
+
+
+# ── Manual planning trigger (Gate 9 verification + debugging) ─────────────────
+
+@app.post("/api/brick/run-planning")
+async def brick_run_planning():
+    """
+    Manually trigger Brick's daily planning run.
+    Used for Gate 9 verification and debugging — not called by the cron.
+    Returns summary of what was planned.
+    """
+    from services.brick_agent import run_planning_for_default_location
+
+    result = await run_planning_for_default_location()
+    return JSONResponse({"ok": True, **result})

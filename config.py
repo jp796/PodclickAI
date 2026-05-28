@@ -23,6 +23,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",          # don't error on extra .env keys
+        env_ignore_empty=True,   # .env file wins over empty shell env vars
     )
 
     # ── Database ──────────────────────────────────────────────────────────────

@@ -477,3 +477,27 @@ AND (CAST(:platform AS text) IS NULL OR platform IS NULL OR platform = CAST(:pla
 **Fix:** Set `on_startup = None` and `on_shutdown = None` in `WorkerSettings`. Arq guards both with `if self.on_shutdown:` before calling, so `None` is a safe no-op.
 
 **Files:** `workers/publish_worker.py` — `WorkerSettings` class.
+
+---
+
+## 2026-05-28 — Brick planning loop hit fallback (empty shell ANTHROPIC_API_KEY)
+
+**Symptom:** `POST /api/brick/run-planning` always returned fallback plan ("Morning. Walk-through ready." + single hardcoded rationale) instead of calling Claude.
+
+**Root Cause:** Shell environment had `ANTHROPIC_API_KEY=""` (set to empty string, e.g., from a prior export). Pydantic-settings treats an empty string env var as a valid value (overrides .env file), so `settings.anthropic_api_key` was empty even though `.env` had the real key.
+
+**Fix:** Added `env_ignore_empty=True` to `SettingsConfigDict` in `config.py`. Pydantic-settings now treats empty-string env vars as unset and falls back to the `.env` value.
+
+**Files:** `config.py` — `Settings.model_config`
+
+---
+
+## 2026-05-28 — pipeline/telegram.py used os.getenv() bypassing config.py
+
+**Symptom:** Brick planning loop ran successfully but Telegram notification was not delivered (`send()` returned False). `is_configured()` returned False even though `.env` had both `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`.
+
+**Root Cause:** `pipeline/telegram.py` used `os.getenv()` directly instead of reading from `config.py` settings. Pydantic-settings reads `.env` internally but does NOT inject values into `os.environ`. Since the env vars weren't exported to the shell, `os.getenv()` returned empty strings.
+
+**Fix:** Updated `_token()` and `_chat_id()` in `pipeline/telegram.py` to import and read from `config.settings` instead of `os.getenv()`.
+
+**Files:** `pipeline/telegram.py` — `_token()` and `_chat_id()` helpers.

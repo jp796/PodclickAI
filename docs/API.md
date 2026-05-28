@@ -610,3 +610,128 @@ Response: { "ok": true, "deleted": "post_id" }
 Errors:   400 if status != 'draft' | 404 if not found
 Notes:    Cascading delete via FK — removes PostVariants and PostAttempts.
 ```
+
+---
+
+## Brick the Foreman (Phase 3A)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/walkthrough` | Serve walk-through dashboard (frontend/walkthrough.html) |
+| GET | `/permit` | Serve Brick's permit screen (frontend/permit.html) |
+| GET | `/api/brick/walkthrough` | Today's walk-through data (greeting, punch list, recent actions, stats) |
+| GET | `/api/brick/actions` | List pending punch list actions for location |
+| POST | `/api/brick/actions/{id}/approve` | Approve + execute a punch list item |
+| POST | `/api/brick/actions/{id}/reject` | Reject punch list item with optional reason |
+| GET | `/api/brick/permit` | Current tier + track record stats |
+| POST | `/api/brick/permit/promote` | Advance permit tier one step |
+| POST | `/api/brick/permit/demote` | Reduce permit tier one step |
+| POST | `/api/brick/memory` | Add a standing instruction to brick_memory |
+| GET | `/api/brick/memory` | List active brick_memory rows |
+| DELETE | `/api/brick/memory/{id}` | Soft-delete a brick_memory row (active=False) |
+| POST | `/api/brick/run-planning` | Manually trigger daily planning loop |
+
+### GET /api/brick/walkthrough
+```json
+Response: {
+  "greeting": "Thursday morning. 36 posts closed, nothing queued ahead.",
+  "permit_tier": "draftsman",
+  "posts_mtd": 36,
+  "upcoming_posts": 0,
+  "foundation_score": 0.0,
+  "foundation_samples": 197,
+  "pending_actions": [
+    {
+      "id": "uuid",
+      "action_type": "draft_post",
+      "rationale": "36 posts this month means you're closing strong — let's bank one for next week.",
+      "payload": { "topic": "...", "bucket": "brand" },
+      "requested_at": "ISO timestamp"
+    }
+  ],
+  "recent_actions": [
+    { "action_type": "draft_post", "outcome": "success|failure|rejected", "executed_at": "ISO timestamp" }
+  ]
+}
+```
+
+### POST /api/brick/actions/{id}/approve
+```json
+Response: { "ok": true, "result": { "post_id": "uuid", "topic": "...", "status": "draft" } }
+Errors:   403 — tier gate: "Brick's current permit (draftsman) cannot execute send_guest_email (requires gc)"
+          400 — action not found or not pending
+Notes:    Executes the action after approval. Phase 3A supports draft_post and suggest_post_idea.
+          Tier gate checked in execute_action — PermissionError → 403.
+```
+
+### POST /api/brick/actions/{id}/reject
+```json
+Request:  { "reason": "Topic not relevant this week" }   (optional)
+Response: { "ok": true, "action_id": "uuid", "status": "rejected" }
+Notes:    Sets status=rejected, records reason in review_note.
+```
+
+### GET /api/brick/permit
+```json
+Response: {
+  "current_tier": "draftsman",
+  "promoted_at": "ISO timestamp",
+  "track_record": {
+    "total_actions": 2,
+    "completed": 1,
+    "failed": 0,
+    "approvals": 1,
+    "rejections": 1
+  }
+}
+```
+
+### POST /api/brick/permit/promote
+```json
+Request:  {} (no body)
+Response: { "ok": true, "previous_tier": "draftsman", "new_tier": "bricklayer" }
+Errors:   400 if already at GC tier
+```
+
+### POST /api/brick/permit/demote
+```json
+Request:  {} (no body)
+Response: { "ok": true, "previous_tier": "draftsman", "new_tier": "owner_builder" }
+Errors:   400 if already at owner_builder tier
+```
+
+### POST /api/brick/memory
+```json
+Request:  { "content": "Never pitch DealCheck on Mondays", "category": "scheduling" }
+Response: { "ok": true, "id": "uuid", "content": "...", "category": "..." }
+Notes:    Content injected as STANDING INSTRUCTIONS into every planning prompt.
+          category is optional free text (defaults to "general").
+```
+
+### GET /api/brick/memory
+```json
+Response: { "memories": [ { "id": "uuid", "content": "...", "category": "...", "active": true, "created_at": "...", "last_referenced_at": "..." } ] }
+Notes:    Returns only active (soft-not-deleted) rows.
+```
+
+### DELETE /api/brick/memory/{id}
+```json
+Response: { "ok": true }
+Notes:    Soft delete — sets active=False. Row preserved for audit trail.
+```
+
+### POST /api/brick/run-planning
+```json
+Response: {
+  "ok": true,
+  "greeting": "Thursday morning. 36 posts closed, nothing queued ahead.",
+  "actions_created": ["draft_post", "draft_post", "suggest_post_idea"],
+  "walk_through_items": [
+    { "action_type": "draft_post", "rationale": "...", "payload": {"topic":"...","bucket":"..."} }
+  ]
+}
+Notes:    Triggers the same logic as the 4am cron. Useful for manual testing.
+          Sends Telegram notification on completion (if configured).
+          Active brick_memory rows are injected as STANDING INSTRUCTIONS into the planning prompt.
+          last_referenced_at updated for each memory row read.
+```

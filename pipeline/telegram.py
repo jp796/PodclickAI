@@ -3,17 +3,18 @@ PodclickBot — Telegram notification sender.
 Used by the pipeline to push status messages to JP's Telegram.
 """
 
-import os
 import httpx
 
 TG_API = "https://api.telegram.org"
 
 
 def _token() -> str:
-    return os.getenv("TELEGRAM_BOT_TOKEN", "")
+    from config import settings
+    return settings.telegram_bot_token
 
 def _chat_id() -> str:
-    return os.getenv("TELEGRAM_CHAT_ID", "")
+    from config import settings
+    return settings.telegram_chat_id
 
 def is_configured() -> bool:
     return bool(_token() and _chat_id())

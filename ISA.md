@@ -1,119 +1,139 @@
 ---
-task: "Phase 1 Step 2 — Foundation Service core"
+task: "Phase 3A — Brick the Foreman: Trust Model, Permit Ladder, Walk-Through, Punch List, Daily Cron, Memory"
 project: PodClick
 effort: E3
-phase: complete
-progress: 40/40
+phase: PLAN
+progress: 0/9
 mode: algorithm
-started: "2026-05-24"
-updated: "2026-05-24"
+started: "2026-05-27"
+updated: "2026-05-27"
 ---
 
 ## Problem
 
-PodClick has a Neon Postgres schema with the `voice_samples`, `blueprints`, and `foundation_scores` tables but zero application code to read from or write to them. Any content generator that fires right now would call OpenAI directly with no user voice context — producing the generic boilerplate failure mode that Foundation was built to prevent. Phase 1 is not complete until `get_brand_context()` exists and can be called by every downstream generator.
+PodClick generates content and schedules posts, but every action still requires JP to initiate and approve each step individually. There is no autonomous agent watching the job site overnight, planning tomorrow's work, surfacing what needs approval, or remembering standing instructions across sessions. Without Brick, the platform is a set of tools — not a foreman.
 
 ## Vision
 
-A developer (or curl) POSTs a text sample to `/api/foundation/ingest`, sees a `sample_id` returned in under 2 seconds, then immediately GETs `/api/foundation/samples` and finds that row back — vector populated, source set, weight correct. When `get_brand_context()` is called for the same location, it returns a typed `BrandContext` that includes that sample as a few-shot example alongside the blueprint fields, ready to drop directly into a generation prompt. The Foundation contract is live and proven.
+JP opens the app at 7am and the walk-through is already built. Brick ran the job site at 4am, reviewed calendar performance, and drafted a punch list of 3 actions waiting for approval. JP taps Approve on two items in under 30 seconds, taps Reject on the third with a note. By 7:05am, two posts are queued and scheduled — without JP having written a word. The Permit screen shows Brick at Draftsman tier; JP can see what Brick can and can't do, and promote him when ready. A memory set 3 weeks ago ("Never pitch DealCheck on Mondays") still shows up in Brick's planning context every day, silently honored.
 
 ## Out of Scope
 
-This step does not build the generation layer that *consumes* `get_brand_context()` — that's the Content Crew (Phase 5). It does not implement the score calculation cron (weekly background job) — the score endpoint returns the latest stored score, not a live recalculation. It does not build Blueprint intake (that's also Phase 1 but a separate step). It does not implement the chunking pipeline for long transcripts (podcast ingestion, Phase 5) — ingest accepts single text units only. It does not include authentication or multi-tenant JWT routing — TITAN_LOCATION_ID is used for all queries.
+- Phase 3A does not implement auto-promotion/demotion based on track record thresholds — tier changes are manual (Promote/Demote buttons only)
+- No mobile push notifications in 3A — Telegram channel message is the notification channel
+- No Brick-to-Brick conversation history or multi-turn chat UI in 3A (brick_messages table seeds content only)
+- No email digest via Postmark (not configured) — Telegram only
+- No Brick actions above Draftsman tier in 3A planning loop (suggest/draft only — no queue, no publish)
+- No UI for memory management in 3A — backend CRUD endpoints only
+- No Foundation calls for Brick's own speech — Brick voice uses brick-voice skill prompt, not getBrandContext()
+- No auto-generation of walk-through content for past dates — only current day forward
 
 ## Principles
 
-- Service functions are the authority; routes are thin wrappers — zero business logic in route handlers.
-- The embedding call is the only async I/O that doesn't touch the DB; isolate it so it's mockable in tests.
-- Every ingested sample must immediately be queryable — no delayed writes, no background jobs for the ingest path.
-- The `BrandContextError` exception is the canonical signal for missing-blueprint state; callers must handle it.
-- Python 3.9 everywhere: `Optional[T]` not `T | None`, `List[T]` not `list[T]` in type hints.
+- Brick speaks in construction vocabulary — Walk-through, Punch list, Permit, Job Site, Project, Closing; never "leverage," "unlock," or "as an AI"
+- Permit tier gates are enforced server-side before any action executes — the UI cannot override the gate
+- Memory is injected into every planning run — standing instructions are always honored, never forgotten
+- Audit trail is immutable — every approve/reject writes actor_type + actor_id; Brick actions write actor_type='brick'
+- `timezone` is data, not config — user.timezone drives the 4am cron, never a hardcoded string
+- The brick_memory table is the user's voice inside Brick's head — treat writes with the same care as Foundation samples
 
 ## Constraints
 
-- Python 3.9 — no `str | None` union syntax; use `Optional[str]` from `typing`.
-- OpenAI import pattern: `import openai as _openai` — never bare `import openai` at module level.
-- All DB queries use the async SQLAlchemy session from `db.engine.get_db()`.
-- Vector similarity queries use raw `text()` SQL with `::vector` cast — pgvector ORM operators are not available in this SQLAlchemy version without the `pgvector.sqlalchemy` operator overloads; use string embedding format `[x1,x2,...,x1536]`.
-- `TITAN_LOCATION_ID` from `config.get_current_location_id()` scopes all Phase 1 queries.
-- No new pip packages beyond what's already in `requirements.txt` — numpy not allowed; manual float-list serialization for vectors.
-- Route prefix: `/api/foundation` — consistent with existing routes in `main.py`.
-- Test file uses `pytest` + `pytest-asyncio` + `unittest.mock` — no additional test frameworks.
+- Python 3.9: `Optional[str]` not `str | None`, `List[T]` not `list[T]`
+- `import anthropic as _anthropic` (never at module level — lazy import pattern)
+- All secrets via `config.py` Pydantic Settings — never `os.getenv()` in route handlers
+- Alembic migration chains from `a1f3c8d2e094` — no live-DB ALTER TABLE
+- APScheduler 3.10.4 integrated with FastAPI lifespan event
+- Brick actions above Draftsman tier (bricklayer, foreman, gc) must check brick_permits.current_tier before executing
+- No direct `social_service.publish()` calls from planning loop in 3A — max action is 'draft_post' (Draftsman tier)
+- All social publishes still go through SocialService abstraction — Brick is no exception when/if he publishes
+- Construction vocabulary enforced in all user-facing strings on /walkthrough and /permit pages
 
 ## Goal
 
-Implement `get_brand_context()`, `ingest_sample()`, and `get_foundation_status()` as async service functions in `services/foundation.py`, backed by Pydantic schemas in `schemas/foundation.py`, exposed via a FastAPI router at `/api/foundation`, and covered by a unit test that mocks the embedding call and DB session and asserts the returned `BrandContext` has the correct shape. The implementation is done when `POST /api/foundation/ingest` stores a real OpenAI embedding in `voice_samples` and `GET /api/foundation/samples` returns that row.
+Build the Brick the Foreman subsystem: 5 new DB tables + User.timezone field, BrickAgent service with daily 4am planning cron, walk-through dashboard, punch list approve/reject UI, permit tier screen, and memory CRUD backend — all verified against 9 gates before phase is closed.
 
 ## Criteria
 
-- [x] ISC-1: `schemas/foundation.py` exists at `podcast-studio/schemas/foundation.py`
-- [x] ISC-2: `BrandContextTaskType` enum in schemas has all 21 task types from the skill contract
-- [x] ISC-3: `BrandContext` Pydantic model has `brand_profile`, `voice_profile`, `vocabulary`, `voice_samples`, `foundation_score`, `metadata` fields
-- [x] ISC-4: `VoiceSampleOut` has `text`, `source`, `weight`, `platform`, `similarity` fields
-- [x] ISC-5: `BrandProfileOut` has `full_name`, `market_city`, `niche_primary`, `audience_primary`, `one_liner`, `differentiators`, `pillars`
-- [x] ISC-6: `VoiceProfileOut` has `tone`, `cadence`, `pov`, `humor_level`
-- [x] ISC-7: `VocabularyOut` has `use` and `avoid` fields
-- [x] ISC-8: `IngestRequest` has `text`, `source`, `platform`, `topic`, `bucket`, `weight`, `edit_distance`
-- [x] ISC-9: `IngestResponse` has `sample_id`, `chunks_created`, `embedding_dims`
-- [x] ISC-10: `FoundationStatusResponse` has `location_id`, `sample_count`, `latest_score`, `computed_at`, `has_blueprint`, `is_ready`
-- [x] ISC-11: `services/foundation.py` exists at `podcast-studio/services/foundation.py`
-- [x] ISC-12: `get_brand_context()` accepts `session`, `location_id`, `task_type`, `topic`, `platform`, `audience`, `additional_context` params
-- [x] ISC-13: `get_brand_context()` raises `BrandContextError` when no blueprint found for location
-- [x] ISC-14: `get_brand_context()` calls `_embed_text()` exactly once per invocation (verified by mock assert)
-- [x] ISC-15: `get_brand_context()` executes vector similarity SQL with `ORDER BY (embedding <=> ...) / weight ASC LIMIT 5`
-- [x] ISC-16: `get_brand_context()` returns `BrandContext` instance (isinstance check passes)
-- [x] ISC-17: `get_brand_context()` sets `metadata.retrieval_query` containing the task_type string
-- [x] ISC-18: `ingest_sample()` accepts `session`, `location_id`, `text`, `source`, `platform`, `topic`, `bucket`, `weight`, `edit_distance`
-- [x] ISC-19: `ingest_sample()` calls `_embed_text()` and stores result in `voice_samples.embedding`
-- [x] ISC-20: `ingest_sample()` returns `IngestResponse` with correct `embedding_dims=1536`
-- [x] ISC-21: `ingest_sample()` validates `source` is one of the 6 allowed values; raises `ValueError` on invalid
-- [x] ISC-22: `get_foundation_status()` returns `FoundationStatusResponse` with correct `is_ready` logic
-- [x] ISC-23: `_embed_text()` uses `import openai as _openai` pattern (grep confirms no bare `import openai`)
-- [x] ISC-24: `routers/foundation.py` exists with a FastAPI `APIRouter`
-- [x] ISC-25: `POST /api/foundation/ingest` route exists and calls `ingest_sample()`
-- [x] ISC-26: `GET /api/foundation/score` route exists and returns latest foundation score
-- [x] ISC-27: `GET /api/foundation/samples` route exists and returns paginated voice samples list
-- [x] ISC-28: `GET /api/foundation/status` route exists and returns `FoundationStatusResponse`
-- [x] ISC-29: Foundation router is wired into `main.py` via `app.include_router`
-- [x] ISC-30: `tests/test_foundation.py` exists with at least one `@pytest.mark.asyncio` test
-- [x] ISC-31: Unit test mocks `_embed_text` and DB session; assert `get_brand_context()` returns `BrandContext`
-- [x] ISC-32: Unit test asserts `voice_samples` list is non-empty and `similarity` field is a float
-- [x] ISC-33: Unit test asserts `metadata.retrieval_query` contains the topic string
-- [x] ISC-34: `venv/bin/pytest tests/test_foundation.py -v` exits 0 (all tests pass)
-- [x] ISC-35: `POST /api/foundation/ingest` live call with real OpenAI key returns HTTP 200 with `sample_id` — verified 2026-05-24, sample_id `63321bd0-1a5f-46ed-aa2a-b162f47ec76d`, embedding_dims 1536
-- [x] ISC-36: After live ingest, `GET /api/foundation/samples` returns the ingested row — verified 2026-05-24, row present with text/source/weight/platform/similarity fields
-- [x] ISC-37: Anti: No bare `import openai` at module level in `services/foundation.py` (grep returns empty)
-- [x] ISC-38: Anti: No business logic in route handlers — route bodies are ≤8 lines each (grep/read check)
-- [x] ISC-39: Anti: `get_brand_context()` does NOT produce output when blueprint is missing — raises exception instead (unit test for missing-blueprint path)
-- [x] ISC-40: Anti: `str | None` union syntax does not appear in any new Python file (grep returns empty)
+- [ ] ISC-1: `brick_permits` table exists with columns: id, location_id, current_tier, promoted_at, promoted_by, notes, created_at, updated_at — confirmed via `\d brick_permits`
+- [ ] ISC-2: `brick_track_record` table exists with columns: id, location_id, action_type, outcome (success/failure/rejected), executed_at, metadata — confirmed via `\d brick_track_record`
+- [ ] ISC-3: `brick_actions` table exists with columns: id, location_id, action_type, status (pending/approved/rejected/executed/expired), payload (JSONB), rationale, requested_at, reviewed_at, reviewed_by, review_note, expires_at — confirmed via `\d brick_actions`
+- [ ] ISC-4: `brick_messages` table exists with columns: id, location_id, role, context_screen, content, created_at — confirmed via `\d brick_messages`
+- [ ] ISC-5: `brick_memory` table exists with columns: id, location_id, content, category, active, created_at, last_referenced_at — confirmed via `\d brick_memory`
+- [ ] ISC-6: `users` table has `timezone` column (Text, nullable, default 'America/Chicago') — confirmed via `\d users`
+- [ ] ISC-7: Alembic migration `phase3a_brick_tables` applies cleanly (`alembic upgrade head` exits 0, `alembic current` shows new revision)
+- [ ] ISC-8: `services/brick_agent.py` exists with class `BrickAgent` and methods: `run_daily_planning`, `execute_action`, `approve_action`, `reject_action`, `remember`, `forget`, `get_active_memories`
+- [ ] ISC-9: `BrickAgent.run_daily_planning(location_id)` calls `_anthropic.Anthropic()` (Claude claude-sonnet-4-5) with brick-voice system prompt — confirmed by reading the method body
+- [ ] ISC-10: Daily planning prompt includes `STANDING INSTRUCTIONS FROM USER` block populated from active `brick_memory` rows — confirmed by reading `_build_planning_prompt()` method
+- [ ] ISC-11: `last_referenced_at` on `brick_memory` rows is updated when memories are read during planning — confirmed by reading the update query in `run_daily_planning`
+- [ ] ISC-12: APScheduler job registered in FastAPI lifespan fires `run_daily_planning` at 04:00 America/Chicago (or user.timezone) daily — confirmed by reading lifespan setup
+- [ ] ISC-13: `GET /walkthrough` returns FileResponse for `frontend/walkthrough.html` — confirmed via `curl -s -o /dev/null -w "%{http_code}" localhost:8765/walkthrough`
+- [ ] ISC-14: `frontend/walkthrough.html` renders: Brick greeting (from brick_messages), "Built overnight" list, today's site plan, punch list, stats panel (Foundation %, posts MTD, foundation score trend), active projects with progress bars — confirmed by Interceptor screenshot
+- [ ] ISC-15: Permit badge visible upper-right on walk-through page — confirmed by Interceptor screenshot
+- [ ] ISC-16: `GET /permit` returns FileResponse for `frontend/permit.html` — confirmed via curl 200
+- [ ] ISC-17: `frontend/permit.html` renders: current tier badge, track record stats, tier ladder (all 5 tiers), per-tier descriptions, Promote/Demote buttons — confirmed by Interceptor screenshot
+- [ ] ISC-18: `POST /api/brick/actions/:id/approve` returns 200 and sets `brick_actions.status='approved'` + `reviewed_by=user_id` + `reviewed_at=now()` — confirmed by DB query
+- [ ] ISC-19: After approve, the approved action's `status` flips to `'executed'` and disappears from punch list — confirmed by Interceptor: item gone from UI after approve click
+- [ ] ISC-20: `POST /api/brick/actions/:id/reject` with `{"reason": "..."}` returns 200 and sets `brick_actions.status='rejected'` + `review_note=reason` — confirmed by DB query
+- [ ] ISC-21: After reject, the item disappears from punch list — confirmed by Interceptor screenshot
+- [ ] ISC-22: `POST /api/brick/actions/:id/approve` returns 403 if action requires a tier above current `brick_permits.current_tier` — confirmed by curl
+- [ ] ISC-23: Actions older than 7 days are expired (status='expired') by daily cron — confirmed by reading cron body / manual trigger
+- [ ] ISC-24: `POST /api/brick/permit/promote` advances `current_tier` one step (owner_builder→draftsman→bricklayer→foreman→gc) and writes `promoted_by`, `promoted_at` — confirmed by DB query after button click
+- [ ] ISC-25: `POST /api/brick/permit/demote` reduces `current_tier` one step and records the change — confirmed by DB query
+- [ ] ISC-26: `POST /api/brick/memory` creates a `brick_memory` row with `active=true`, returns `{"id": "uuid"}` — confirmed by curl
+- [ ] ISC-27: `GET /api/brick/memory` returns all active `brick_memory` rows for location_id — confirmed by curl
+- [ ] ISC-28: `DELETE /api/brick/memory/:id` sets `active=false` (soft delete), returns 200 — confirmed by curl; row still exists in DB with `active=false`
+- [ ] ISC-29: Planning cron fires manually via `POST /api/brick/run-planning` and builds `brick_actions` rows + `brick_messages` greeting — confirmed by DB row count before/after
+- [ ] ISC-30: Telegram notification sent when walk-through is ready — confirmed by message appearing in Telegram
+- [ ] ISC-31: `anthropic` added to `requirements.txt` — confirmed by `grep anthropic requirements.txt`
+- [ ] ISC-32: `apscheduler==3.10.4` added to `requirements.txt` — confirmed by `grep apscheduler requirements.txt`
+- [ ] ISC-33: Brick planning loop creates zero `social_service.publish()` calls when `current_tier` is Draftsman — confirmed by log grep after manual run
+- [ ] Anti: `POST /api/brick/actions/:id/approve` returns 403 when action_type requires foreman tier and current_tier is draftsman
+- [ ] Anti: No `os.getenv()` calls in any new route handler (config.py settings only) — confirmed by `grep -n os.getenv services/brick_agent.py`
+- [ ] Anti: No `str | None` Python 3.10+ syntax in any new file — confirmed by `grep -rn "str | None\|list\[" services/brick_agent.py`
 
 ## Test Strategy
 
-| ISC | type | check | threshold | tool |
+| ISC | Type | Check | Threshold | Tool |
 |-----|------|-------|-----------|------|
-| ISC-1 | file-exists | `fd foundation.py schemas/` | present | Bash |
-| ISC-2 | content | `grep -c "= " schemas/foundation.py` on enum | ≥21 lines | Grep |
-| ISC-3 | content | `grep "brand_profile\|voice_samples\|foundation_score" schemas/foundation.py` | all 6 fields present | Grep |
-| ISC-4..10 | content | `grep` for each field name in schemas file | each field present | Grep |
-| ISC-11 | file-exists | `fd foundation.py services/` | present | Bash |
-| ISC-12 | content | `grep "def get_brand_context" services/foundation.py` | signature present | Grep |
-| ISC-13..17 | unit-test | pytest mock test for missing blueprint path | raises BrandContextError | Bash |
-| ISC-18..22 | content+unit | grep + pytest ingest mock test | pass | Grep/Bash |
-| ISC-23 | grep | `grep "import openai as _openai" services/foundation.py` | 1 match | Grep |
-| ISC-24..29 | content | grep for router registration in main.py | present | Grep |
-| ISC-30..34 | test | `venv/bin/pytest tests/test_foundation.py -v` | exit 0 | Bash |
-| ISC-35..36 | live | curl + psql count | HTTP 200, row present | Bash |
-| ISC-37..40 | grep | pattern absence checks | 0 matches | Grep |
+| ISC-1 through ISC-7 | schema | `alembic upgrade head` + `\d table` for each | exit 0, all columns present | Bash/psql |
+| ISC-8 | static | `grep -n "def run_daily_planning\|def execute_action\|def approve_action\|def reject_action\|def remember\|def forget\|def get_active_memories" services/brick_agent.py` | 7 matches | Bash |
+| ISC-9 | static | Read `services/brick_agent.py` `run_daily_planning` method | `_anthropic.Anthropic()` + `claude-sonnet-4-5` present | Read |
+| ISC-10, ISC-11 | static | Read `_build_planning_prompt()` | STANDING INSTRUCTIONS block + last_referenced_at update | Read |
+| ISC-12 | static | Read lifespan setup in main.py | APScheduler job with cron trigger 04:00 | Read |
+| ISC-13, ISC-16 | http | `curl -s -o /dev/null -w "%{http_code}" localhost:8765/walkthrough` | 200 | Bash |
+| ISC-14, ISC-15, ISC-17 | visual | Interceptor screenshot | elements visible | Interceptor |
+| ISC-18 through ISC-25 | functional | curl + DB query | status field matches expected | Bash + psql |
+| ISC-26 through ISC-28 | functional | curl memory endpoints | CRUD returns correct shape | Bash |
+| ISC-29 | functional | `curl -X POST localhost:8765/api/brick/run-planning` + DB count | rows created | Bash + psql |
+| ISC-30 | functional | Trigger planning, check Telegram | message delivered | Manual/Interceptor |
+| ISC-31, ISC-32 | static | `grep` requirements.txt | lines present | Bash |
+| ISC-33 | log | Grep server logs after manual planning run | zero publish calls | Bash |
+| Anti-ISC | boundary | curl with wrong tier + grep for os.getenv + grep for str\|None | 403 + 0 matches | Bash |
 
 ## Features
 
-| name | description | satisfies | depends_on | parallelizable |
+| Name | Description | Satisfies | Depends On | Parallelizable |
 |------|-------------|-----------|------------|----------------|
-| schemas | All Pydantic models and enums in `schemas/foundation.py` | ISC-1..10 | — | false |
-| embed_helper | `_embed_text(text) -> List[float]` private async helper using `_openai` pattern | ISC-23 | schemas | false |
-| get_brand_context | Full retrieval service function — blueprint load, query build, embed, vector SQL, assemble BrandContext | ISC-12..17 | embed_helper | false |
-| ingest_sample | Ingest service function — validate, embed, insert VoiceSample row | ISC-18..22 | embed_helper | false |
-| get_foundation_status | Status service function — counts, latest score, blueprint presence, is_ready flag | ISC-22 | schemas | false |
-| routes | FastAPI router with 4 endpoints, wired into main.py | ISC-24..29 | get_brand_context, ingest_sample, get_foundation_status | false |
-| unit_tests | pytest-asyncio tests with mocked embedding and DB | ISC-30..34, ISC-39 | all above | false |
-| live_verification | curl ingest + psql count + samples GET | ISC-35..36 | routes | false |
+| db-migration | Alembic migration adding 5 tables + User.timezone | ISC-1 to ISC-7 | none | false |
+| requirements-update | Add anthropic + apscheduler to requirements.txt | ISC-31, ISC-32 | none | true |
+| brick-models | Add 5 SQLAlchemy model classes to db/models.py | ISC-1 to ISC-5 | db-migration | false |
+| brick-agent-service | Create services/brick_agent.py with BrickAgent class | ISC-8 to ISC-12, ISC-23, ISC-29 | brick-models | false |
+| walkthrough-frontend | Create frontend/walkthrough.html | ISC-14, ISC-15 | brick-agent-service | false |
+| permit-frontend | Create frontend/permit.html | ISC-17 | brick-models | true (with walkthrough-frontend) |
+| brick-api-routes | Add all /api/brick/* routes to main.py | ISC-13, ISC-16, ISC-18 to ISC-28 | brick-agent-service | false |
+| cron-registration | Register APScheduler 4am cron in FastAPI lifespan | ISC-12 | brick-agent-service | false |
+
+## Decisions
+
+- 2026-05-27: Postmark NOT used for notifications — `postmark_api_key` not configured. Telegram channel message is the Phase 3A notification channel. Will note in current_state.md.
+- 2026-05-27: No mobile push for 3A — no push token infrastructure. Telegram is sufficient for JP's use case.
+- 2026-05-27: APScheduler 3.x (not 4.x) chosen — 3.10.4 is the stable LTS, avoids breaking API changes in 4.x.
+- 2026-05-27: brick_memory soft delete (active=false) — preserves audit trail, allows recovery, consistent with soft-delete pattern elsewhere.
+- 2026-05-27: `last_referenced_at` updated in bulk at end of planning run (not per-row mid-prompt) — simpler, one DB roundtrip.
+- 2026-05-27: Manual planning trigger `POST /api/brick/run-planning` added for Gate 9 verification and debugging.
+- 2026-05-27: Brick's own speech uses brick-voice skill prompt injected into Claude's system prompt — NOT getBrandContext(). getBrandContext() is for user-attributed content only.
+
+## Verification
+
+_(Populated after EXECUTE — Gate results go here)_
