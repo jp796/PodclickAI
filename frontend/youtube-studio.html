@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" href="/static/podclick-mark.png" type="image/png">
+  <link rel="stylesheet" href="/podclick-design.css">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Click Studio · PodClickAI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,13 +15,13 @@
       theme: {
         extend: {
           colors: {
-            bg:       '#030B2C',
-            surface:  '#091660',
-            surface2: '#16161f',
-            surface3: '#1c1c28',
-            border:   '#1a2c6b',
-            accent:   '#05C3F9',
-            accent2:  '#00FBF0',
+            bg:       '#0b0a08',
+            surface:  '#111009',
+            surface2: '#161410',
+            surface3: '#1e1b16',
+            border:   '#272420',
+            accent:   '#d95f1e',
+            accent2:  '#f07030',
           },
           fontFamily: { inter: ['Inter', 'sans-serif'] }
         }
@@ -29,116 +30,116 @@
   </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', sans-serif; background: #030B2C; color: #F5F7FA; min-height: 100vh; }
+    body { font-family: 'Inter', sans-serif; background: #0b0a08; color: #F5F7FA; min-height: 100vh; }
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #030B2C; }
-    ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
+    ::-webkit-scrollbar-track { background: #0b0a08; }
+    ::-webkit-scrollbar-thumb { background: #272420; border-radius: 3px; }
 
     /* Gradient */
-    .grad { background: linear-gradient(135deg, #05C3F9, #00FBF0); }
-    .grad-text { background: linear-gradient(135deg, #05C3F9, #00FBF0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .grad { background: linear-gradient(135deg, #d95f1e, #f07030); }
+    .grad-text { background: linear-gradient(135deg, #d95f1e, #f07030); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .grad-border { border: 1px solid transparent; background-clip: padding-box; }
 
     /* Sidebar nav */
-    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 500; color: #7a7a9a; transition: all 0.15s; }
-    .nav-item:hover { background: #16161f; color: #d0d0e0; }
-    .nav-item.active { background: linear-gradient(135deg, rgba(5,195,249,0.15), rgba(0,251,240,0.1)); color: #A8E6FF; border: 1px solid rgba(5,195,249,0.25); }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 500; color: #7a7060; transition: all 0.15s; }
+    .nav-item:hover { background: #161410; color: #d0c8b0; }
+    .nav-item.active { background: linear-gradient(135deg, rgba(217,95,30,0.15), rgba(240,112,48,0.1)); color: #f07030; border: 1px solid rgba(217,95,30,0.25); }
     .nav-item svg { flex-shrink: 0; }
 
     /* Tab buttons */
     .tab-btn { padding: 8px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; letter-spacing: 0.05em; }
-    .tab-btn.active { background: linear-gradient(135deg, #05C3F9, #00FBF0); color: #fff; }
-    .tab-btn:not(.active) { color: #6a6a8a; background: #16161f; border-color: #1a2c6b; }
+    .tab-btn.active { background: linear-gradient(135deg, #d95f1e, #f07030); color: #fff; }
+    .tab-btn:not(.active) { color: #6a6a8a; background: #161410; border-color: #272420; }
     .tab-btn:not(.active):hover { color: #a0a0c0; border-color: #3a3a5a; }
 
     /* Tool cards */
-    .tool-card { background: #050E3D; border: 1px solid #1a2c6b; border-radius: 14px; padding: 24px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
-    .tool-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(5,195,249,0.06), rgba(0,251,240,0.04)); opacity: 0; transition: opacity 0.2s; }
-    .tool-card:hover { border-color: rgba(5,195,249,0.4); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(5,195,249,0.12); }
+    .tool-card { background: #111009; border: 1px solid #272420; border-radius: 14px; padding: 24px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+    .tool-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(217,95,30,0.06), rgba(240,112,48,0.04)); opacity: 0; transition: opacity 0.2s; }
+    .tool-card:hover { border-color: rgba(217,95,30,0.4); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(217,95,30,0.12); }
     .tool-card:hover::before { opacity: 1; }
     .tool-card-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
 
     /* Button styles */
-    .btn-primary { background: linear-gradient(135deg, #05C3F9, #00FBF0); color: white; border: none; padding: 11px 22px; border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
-    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(5,195,249,0.3); }
+    .btn-primary { background: linear-gradient(135deg, #d95f1e, #f07030); color: white; border: none; padding: 11px 22px; border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(217,95,30,0.3); }
     .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-    .btn-secondary { background: #1c1c28; color: #a0a0c0; border: 1px solid #1a2c6b; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
-    .btn-secondary:hover { border-color: #05C3F9; color: #A8E6FF; }
+    .btn-secondary { background: #1e1b16; color: #a0a0c0; border: 1px solid #272420; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+    .btn-secondary:hover { border-color: #d95f1e; color: #f07030; }
 
     /* Input / select / textarea */
-    .field { background: #16161f; border: 1px solid #1a2c6b; border-radius: 9px; padding: 10px 14px; color: #F5F7FA; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.15s; width: 100%; }
-    .field:focus { border-color: #05C3F9; }
+    .field { background: #161410; border: 1px solid #272420; border-radius: 9px; padding: 10px 14px; color: #F5F7FA; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.15s; width: 100%; }
+    .field:focus { border-color: #d95f1e; }
     .field::placeholder { color: #4a4a6a; }
-    select.field option { background: #16161f; }
+    select.field option { background: #161410; }
 
     /* Progress steps */
     .step-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; color: #5a5a7a; transition: color 0.3s; }
     .step-row.done { color: #2EE49C; }
-    .step-row.active { color: #A8E6FF; }
+    .step-row.active { color: #f07030; }
     .step-row.failed { color: #ff8080; }
     .step-dot { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; }
     .step-dot.done { background: rgba(46,228,156,0.15); color: #2EE49C; }
-    .step-dot.active { background: rgba(5,195,249,0.2); }
-    .step-dot.pending { background: #1c1c28; }
-    .spinner { width: 14px; height: 14px; border: 2px solid rgba(5,195,249,0.3); border-top-color: #05C3F9; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    .step-dot.active { background: rgba(217,95,30,0.2); }
+    .step-dot.pending { background: #1e1b16; }
+    .spinner { width: 14px; height: 14px; border: 2px solid rgba(217,95,30,0.3); border-top-color: #d95f1e; border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* Progress bar */
-    .progress-bar { height: 4px; background: #1c1c28; border-radius: 2px; overflow: hidden; }
-    .progress-fill { height: 100%; background: linear-gradient(90deg, #05C3F9, #00FBF0); border-radius: 2px; transition: width 0.4s ease; }
+    .progress-bar { height: 4px; background: #1e1b16; border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #d95f1e, #f07030); border-radius: 2px; transition: width 0.4s ease; }
 
     /* Result quadrants */
-    .quadrant { background: #050E3D; border: 1px solid #1a2c6b; border-radius: 12px; padding: 18px; }
+    .quadrant { background: #111009; border: 1px solid #272420; border-radius: 12px; padding: 18px; }
     .quadrant-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
 
     /* Content idea cards */
-    .idea-card { background: #050E3D; border: 1px solid #1a2c6b; border-radius: 14px; padding: 20px; transition: border-color 0.15s; }
-    .idea-card:hover { border-color: rgba(5,195,249,0.3); }
-    .rank-badge { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #05C3F9, #00FBF0); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0; }
+    .idea-card { background: #111009; border: 1px solid #272420; border-radius: 14px; padding: 20px; transition: border-color 0.15s; }
+    .idea-card:hover { border-color: rgba(217,95,30,0.3); }
+    .rank-badge { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, #d95f1e, #f07030); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0; }
 
     /* Script & SEO panels */
-    .panel-section { background: #16161f; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
-    .panel-section h4 { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #05C3F9; text-transform: uppercase; margin-bottom: 8px; }
+    .panel-section { background: #161410; border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+    .panel-section h4 { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #d95f1e; text-transform: uppercase; margin-bottom: 8px; }
     .panel-section p, .panel-section .content { font-size: 13px; line-height: 1.7; color: #c0c0d8; white-space: pre-wrap; }
 
     /* Copy button */
-    .copy-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #6a6a8a; cursor: pointer; padding: 4px 8px; border-radius: 5px; border: 1px solid #1a2c6b; background: transparent; font-family: 'Inter', sans-serif; transition: all 0.15s; }
-    .copy-btn:hover { color: #A8E6FF; border-color: #05C3F9; }
+    .copy-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #6a6a8a; cursor: pointer; padding: 4px 8px; border-radius: 5px; border: 1px solid #272420; background: transparent; font-family: 'Inter', sans-serif; transition: all 0.15s; }
+    .copy-btn:hover { color: #f07030; border-color: #d95f1e; }
     .copy-btn.copied { color: #2EE49C; border-color: #2EE49C; }
 
     /* Title option card */
-    .title-card { background: #16161f; border: 1px solid #1a2c6b; border-radius: 10px; padding: 14px; transition: border-color 0.15s; }
-    .title-card:hover { border-color: #05C3F9; }
-    .recommended-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; padding: 2px 8px; border-radius: 20px; background: linear-gradient(135deg, #05C3F9, #00FBF0); color: white; }
+    .title-card { background: #161410; border: 1px solid #272420; border-radius: 10px; padding: 14px; transition: border-color 0.15s; }
+    .title-card:hover { border-color: #d95f1e; }
+    .recommended-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; padding: 2px 8px; border-radius: 20px; background: linear-gradient(135deg, #d95f1e, #f07030); color: white; }
 
     /* Tag chip */
-    .tag-chip { display: inline-flex; align-items: center; background: #1c1c28; border: 1px solid #1a2c6b; border-radius: 20px; padding: 3px 10px; font-size: 12px; color: #8888aa; }
+    .tag-chip { display: inline-flex; align-items: center; background: #1e1b16; border: 1px solid #272420; border-radius: 20px; padding: 3px 10px; font-size: 12px; color: #8888aa; }
 
     /* Thumbnail concept card */
-    .thumb-card { background: #16161f; border: 1px solid #1a2c6b; border-radius: 10px; padding: 14px; }
-    .cf-shell { background:#050E3D; border:1px solid #1a2c6b; border-radius:16px; padding:28px; }
+    .thumb-card { background: #161410; border: 1px solid #272420; border-radius: 10px; padding: 14px; }
+    .cf-shell { background:#111009; border:1px solid #272420; border-radius:16px; padding:28px; }
     .cf-card { background:#071352; border:1px solid rgba(84,112,255,0.28); border-radius:16px; padding:18px; }
     .cf-field-card { background:#071352; border:1px solid rgba(84,112,255,0.22); border-radius:14px; padding:18px; }
-    .cf-kicker { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px; background:rgba(5,195,249,0.12); color:#A8E6FF; border:1px solid rgba(5,195,249,0.28); font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; }
-    .cf-segmented { display:inline-flex; align-items:center; gap:4px; padding:4px; background:#16161f; border:1px solid #1a2c6b; border-radius:12px; }
+    .cf-kicker { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:999px; background:rgba(217,95,30,0.12); color:#f07030; border:1px solid rgba(217,95,30,0.28); font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; }
+    .cf-segmented { display:inline-flex; align-items:center; gap:4px; padding:4px; background:#161410; border:1px solid #272420; border-radius:12px; }
     .cf-segmented button { border:0; background:transparent; color:#7a7a9a; padding:8px 12px; border-radius:9px; font-size:12px; font-weight:700; cursor:pointer; transition:all .15s; }
-    .cf-segmented button.active { background:linear-gradient(135deg,#05C3F9,#00FBF0); color:#fff; }
-    .cf-progress-card { background:linear-gradient(135deg,rgba(92,55,255,0.14),rgba(5,195,249,0.06)); border:1px solid rgba(132,99,255,0.32); border-radius:18px; padding:22px; box-shadow:0 18px 55px rgba(0,0,0,0.32); }
+    .cf-segmented button.active { background:linear-gradient(135deg,#d95f1e,#f07030); color:#fff; }
+    .cf-progress-card { background:linear-gradient(135deg,rgba(92,55,255,0.14),rgba(217,95,30,0.06)); border:1px solid rgba(132,99,255,0.32); border-radius:18px; padding:22px; box-shadow:0 18px 55px rgba(0,0,0,0.32); }
     .cf-progress-head { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:18px; }
-    .cf-stage-icon { width:48px; height:48px; border-radius:50%; border:2px solid rgba(132,99,255,0.5); display:flex; align-items:center; justify-content:center; color:#A8E6FF; background:rgba(5,195,249,0.1); box-shadow:0 0 0 8px rgba(132,99,255,0.06); animation:cfPulse 1.35s ease-in-out infinite; flex-shrink:0; }
+    .cf-stage-icon { width:48px; height:48px; border-radius:50%; border:2px solid rgba(132,99,255,0.5); display:flex; align-items:center; justify-content:center; color:#f07030; background:rgba(217,95,30,0.1); box-shadow:0 0 0 8px rgba(132,99,255,0.06); animation:cfPulse 1.35s ease-in-out infinite; flex-shrink:0; }
     .cf-timer { font-size:30px; line-height:1; font-weight:800; color:#A870FF; font-variant-numeric:tabular-nums; text-align:right; }
     .cf-timer-label { font-size:10px; color:#7a7a9a; letter-spacing:0.08em; text-transform:uppercase; font-weight:800; text-align:right; margin-top:4px; }
     .cf-steps { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px; margin-bottom:14px; }
     .cf-step { min-width:0; display:flex; flex-direction:column; align-items:center; gap:7px; color:#5a5a7a; font-size:10px; font-weight:700; text-align:center; transition:color .2s, opacity .2s; }
-    .cf-step-dot { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#16161f; border:1px solid #1a2c6b; color:#5a5a7a; transition:all .2s; }
-    .cf-step.active { color:#A8E6FF; }
-    .cf-step.active .cf-step-dot { border-color:#A870FF; color:#A8E6FF; box-shadow:0 0 0 5px rgba(168,112,255,0.1); animation:cfPulse 1.2s ease-in-out infinite; }
+    .cf-step-dot { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:#161410; border:1px solid #272420; color:#5a5a7a; transition:all .2s; }
+    .cf-step.active { color:#f07030; }
+    .cf-step.active .cf-step-dot { border-color:#A870FF; color:#f07030; box-shadow:0 0 0 5px rgba(168,112,255,0.1); animation:cfPulse 1.2s ease-in-out infinite; }
     .cf-step.done { color:#2EE49C; }
     .cf-step.done .cf-step-dot { border-color:rgba(46,228,156,0.45); color:#2EE49C; background:rgba(46,228,156,0.12); }
-    .cf-progress-track { height:8px; background:#16161f; border-radius:999px; overflow:hidden; border:1px solid rgba(26,44,107,0.8); }
-    .cf-progress-fill { height:100%; width:0%; background:linear-gradient(90deg,#A870FF,#05C3F9,#00FBF0); border-radius:999px; transition:width .5s ease; }
+    .cf-progress-track { height:8px; background:#161410; border-radius:999px; overflow:hidden; border:1px solid rgba(26,44,107,0.8); }
+    .cf-progress-fill { height:100%; width:0%; background:linear-gradient(90deg,#A870FF,#d95f1e,#f07030); border-radius:999px; transition:width .5s ease; }
     .cf-progress-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; font-size:12px; color:#7a7a9a; }
     .cf-boom { display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; background:rgba(46,228,156,0.13); color:#2EE49C; border:1px solid rgba(46,228,156,0.32); font-size:11px; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; animation:cfPop .35s ease both; }
     .cf-thumb-preview { aspect-ratio:16/9; border-radius:12px; position:relative; overflow:hidden; background:#121826; box-shadow:inset 0 0 0 1px rgba(255,255,255,0.08); }
@@ -147,40 +148,40 @@
     .cf-skyline { position:absolute; left:0; right:0; bottom:0; height:42%; opacity:.62; background:
       linear-gradient(to top,rgba(0,0,0,.75),transparent 78%),
       linear-gradient(90deg,transparent 0 6%,rgba(255,255,255,.18) 6% 9%,transparent 9% 13%,rgba(255,255,255,.15) 13% 18%,transparent 18% 24%,rgba(255,255,255,.22) 24% 30%,transparent 30% 38%,rgba(255,255,255,.16) 38% 43%,transparent 43% 52%,rgba(255,255,255,.2) 52% 58%,transparent 58% 66%,rgba(255,255,255,.18) 66% 72%,transparent 72% 100%); }
-    .cf-persona { position:absolute; right:5%; bottom:0; width:30%; height:78%; border-radius:44% 44% 0 0; background:linear-gradient(180deg,#f2b48c 0 18%,#1c1c28 18% 100%); filter:drop-shadow(0 0 16px rgba(255,255,255,0.45)); }
-    .cf-persona::before { content:''; position:absolute; left:50%; top:2%; width:42%; aspect-ratio:1; transform:translateX(-50%); border-radius:50%; background:radial-gradient(circle at 52% 42%,#ffd0aa 0 56%,#8f5038 57% 100%); box-shadow:0 9px 0 -2px #1c1c28; }
+    .cf-persona { position:absolute; right:5%; bottom:0; width:30%; height:78%; border-radius:44% 44% 0 0; background:linear-gradient(180deg,#f2b48c 0 18%,#1e1b16 18% 100%); filter:drop-shadow(0 0 16px rgba(255,255,255,0.45)); }
+    .cf-persona::before { content:''; position:absolute; left:50%; top:2%; width:42%; aspect-ratio:1; transform:translateX(-50%); border-radius:50%; background:radial-gradient(circle at 52% 42%,#ffd0aa 0 56%,#8f5038 57% 100%); box-shadow:0 9px 0 -2px #1e1b16; }
     .cf-persona-photo { position:absolute; right:3%; bottom:0; width:36%; height:88%; object-fit:cover; object-position:50% 18%; border-radius:36% 36% 0 0; filter:drop-shadow(0 0 18px rgba(255,255,255,0.48)); }
     .cf-thumb-text { position:absolute; left:5%; top:8%; max-width:61%; font-size:clamp(20px,3vw,42px); line-height:.95; font-weight:900; text-transform:uppercase; letter-spacing:0; text-shadow:0 3px 0 rgba(0,0,0,0.55), 0 8px 16px rgba(0,0,0,0.5); }
-    .cf-thumb-tag { position:absolute; left:5%; bottom:8%; padding:5px 10px; border-radius:999px; font-size:10px; font-weight:900; color:#001329; background:#00FBF0; box-shadow:0 6px 18px rgba(0,251,240,0.28); }
+    .cf-thumb-tag { position:absolute; left:5%; bottom:8%; padding:5px 10px; border-radius:999px; font-size:10px; font-weight:900; color:#001329; background:#f07030; box-shadow:0 6px 18px rgba(240,112,48,0.28); }
     .cf-quality-row { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:10px; }
-    .cf-quality-pill { background:#0a1248; border:1px solid #1a2c6b; border-radius:10px; padding:8px; min-width:0; }
+    .cf-quality-pill { background:#0a1248; border:1px solid #272420; border-radius:10px; padding:8px; min-width:0; }
     .cf-quality-pill span { display:block; font-size:9px; color:#7a7a9a; font-weight:800; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .cf-quality-pill strong { display:block; color:#d0d0e0; font-size:13px; margin-top:2px; }
     .cf-result-card { background:#071352; border:1px solid rgba(84,112,255,0.28); border-radius:16px; padding:14px; transition:transform .16s, border-color .16s; }
-    .cf-result-card:hover { transform:translateY(-2px); border-color:rgba(5,195,249,0.55); }
+    .cf-result-card:hover { transform:translateY(-2px); border-color:rgba(217,95,30,0.55); }
     .persona-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(126px,1fr)); gap:12px; }
-    .persona-photo-card { background:#071352; border:1px solid #1a2c6b; border-radius:12px; overflow:hidden; }
-    .persona-photo-card img { width:100%; aspect-ratio:4/5; object-fit:cover; display:block; background:#16161f; }
+    .persona-photo-card { background:#071352; border:1px solid #272420; border-radius:12px; overflow:hidden; }
+    .persona-photo-card img { width:100%; aspect-ratio:4/5; object-fit:cover; display:block; background:#161410; }
     @keyframes cfPulse { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.05); opacity:.78; } }
     @keyframes cfPop { from { transform:scale(.92); opacity:0; } to { transform:scale(1); opacity:1; } }
 
     /* Modal overlay */
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
-    .modal-box { background: #050E3D; border: 1px solid #1a2c6b; border-radius: 16px; padding: 28px; width: 100%; max-width: 480px; }
+    .modal-box { background: #111009; border: 1px solid #272420; border-radius: 16px; padding: 28px; width: 100%; max-width: 480px; }
 
     /* Coming soon badge */
-    .coming-soon { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; padding: 2px 8px; border-radius: 20px; background: #1c1c28; color: #6a6a8a; border: 1px solid #1a2c6b; }
+    .coming-soon { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; padding: 2px 8px; border-radius: 20px; background: #1e1b16; color: #6a6a8a; border: 1px solid #272420; }
 
     /* Result tabs */
-    .result-tab-btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid #1a2c6b; background: #16161f; color: #6a6a8a; }
-    .result-tab-btn.active { background: linear-gradient(135deg, #05C3F9, #00FBF0); color: #fff; border-color: transparent; }
+    .result-tab-btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid #272420; background: #161410; color: #6a6a8a; }
+    .result-tab-btn.active { background: linear-gradient(135deg, #d95f1e, #f07030); color: #fff; border-color: transparent; }
     .viral-badge { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 20px; background: linear-gradient(135deg, #FF8C00, #FFD700); color: #000; }
-    .sort-btn { font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 20px; border: 1px solid #1a2c6b; background: transparent; color: #7a7a9a; cursor: pointer; transition: all 0.15s; font-family: inherit; }
-    .sort-btn:hover { border-color: #05C3F9; color: #c0c0d8; }
-    .sort-btn.active { background: rgba(5,195,249,0.15); border-color: rgba(5,195,249,0.5); color: #05C3F9; }
-    .video-card { background: #050E3D; border: 1px solid #1a2c6b; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s; }
+    .sort-btn { font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 20px; border: 1px solid #272420; background: transparent; color: #7a7a9a; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+    .sort-btn:hover { border-color: #d95f1e; color: #c0c0d8; }
+    .sort-btn.active { background: rgba(217,95,30,0.15); border-color: rgba(217,95,30,0.5); color: #d95f1e; }
+    .video-card { background: #111009; border: 1px solid #272420; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s; }
     .video-card:hover { border-color: #3a3a5a; transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
-    .video-thumb-wrap { position: relative; padding-top: 56.25%; background: #16161f; overflow: hidden; flex-shrink: 0; }
+    .video-thumb-wrap { position: relative; padding-top: 56.25%; background: #161410; overflow: hidden; flex-shrink: 0; }
     .video-thumb-wrap img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; transition: transform 0.3s; }
     .video-card:hover .video-thumb-wrap img { transform: scale(1.03); }
     .thumb-overlay { position:absolute; inset:0; background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%); pointer-events:none; }
@@ -192,17 +193,17 @@
     .video-meta { padding:16px; flex:1; display:flex; flex-direction:column; gap:10px; }
     .video-title { font-size:14px; font-weight:600; color:#e8e8f0; line-height:1.45; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
     .video-channel { display:flex; align-items:center; gap:8px; }
-    .channel-avatar { width:26px; height:26px; border-radius:50%; background:linear-gradient(135deg,#05C3F9,#00FBF0); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; flex-shrink:0; }
+    .channel-avatar { width:26px; height:26px; border-radius:50%; background:linear-gradient(135deg,#d95f1e,#f07030); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#fff; flex-shrink:0; }
     .video-stats-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
     .stat-pill { display:inline-flex; align-items:center; gap:4px; font-size:11px; color:#6a6a8a; }
     .stat-pill strong { color:#c0c0d8; font-weight:600; }
     .video-actions { display:flex; gap:6px; margin-top:auto; }
     .trend-rising { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: rgba(46,228,156,0.15); color: #2EE49C; border: 1px solid rgba(46,228,156,0.3); }
-    .trend-stable { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; background: #1c1c28; color: #6a6a8a; border: 1px solid #1a2c6b; }
+    .trend-stable { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; background: #1e1b16; color: #6a6a8a; border: 1px solid #272420; }
     .comp-high { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: rgba(255,100,50,0.15); color: #FF6432; border: 1px solid rgba(255,100,50,0.3); }
-    .comp-medium { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: rgba(0,251,240,0.15); color: #00FBF0; border: 1px solid rgba(0,251,240,0.3); }
+    .comp-medium { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: rgba(240,112,48,0.15); color: #f07030; border: 1px solid rgba(240,112,48,0.3); }
     .comp-low { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: rgba(46,228,156,0.15); color: #2EE49C; border: 1px solid rgba(46,228,156,0.3); }
-    .score-bar { height: 6px; border-radius: 3px; background: #1c1c28; overflow: hidden; margin-top: 4px; }
+    .score-bar { height: 6px; border-radius: 3px; background: #1e1b16; overflow: hidden; margin-top: 4px; }
     .score-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
 
     /* Pillar badge */
@@ -236,10 +237,10 @@
     #ys-toast.show { opacity: 1; transform: translateY(0); }
     #ys-toast.error { border-left-color: #ef4444; }
     #ys-toast.success { border-left-color: #22c55e; }
-    .nav-toggle { display:flex; background:#0a1845; border:1px solid #1a2c6b; border-radius:8px; overflow:hidden; }
-    .nav-toggle a { padding:6px 14px; font-size:12px; font-weight:600; color:#8899cc; text-decoration:none; letter-spacing:0.03em; white-space:nowrap; transition:background 0.15s,color 0.15s; }
-    .nav-toggle a:hover { background:#111f5a; color:#e2e8f0; }
-    .nav-toggle a.active { background:#050E3D; color:#05C3F9; }
+    .nav-toggle { display:flex; background:#161410; border:1px solid #272420; border-radius:8px; overflow:hidden; }
+    .nav-toggle a { padding:6px 14px; font-size:12px; font-weight:600; color:#7a7060; text-decoration:none; letter-spacing:0.03em; white-space:nowrap; transition:background 0.15s,color 0.15s; }
+    .nav-toggle a:hover { background:#1e1b16; color:#e5ddd0; }
+    .nav-toggle a.active { background:#111009; color:#d95f1e; }
     .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
   </style>
 </head>
@@ -258,7 +259,7 @@
         </div>
         <div>
           <img src="/static/podclick-logo.png" alt="PodClick AI" class="nav-logo" onerror="this.style.display='none'">
-          <div class="text-xs" style="color:#5a5a7a;">Studio Suite</div>
+          <div class="text-xs" style="color:#5a5a7a;">Click Studio — Scout & Build</div>
         </div>
       </div>
     </div>
@@ -283,7 +284,7 @@
       </div>
       <div class="nav-item" style="opacity:0.5;cursor:default;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        AI Coach
+        Brick
       </div>
     </nav>
 
@@ -297,7 +298,7 @@
   <main class="flex-1 flex flex-col overflow-hidden">
 
     <!-- Top bar -->
-    <header class="flex items-center justify-between px-6 py-4 border-b" style="border-color:#1a2c6b; background:#030B2C; flex-shrink:0;">
+    <header class="flex items-center justify-between px-6 py-4 border-b" style="border-color:#272420; background:#0b0a08; flex-shrink:0;">
       <div>
         <h1 class="text-lg font-bold text-white">Click Studio</h1>
         <p class="text-xs mt-0.5" style="color:#5a5a7a;">Plan · Create · Grow your channel</p>
@@ -319,7 +320,7 @@
     </header>
 
     <!-- Tab bar -->
-    <div class="flex items-center gap-2 px-6 py-3 border-b" style="border-color:#1a2c6b; background:#030B2C; flex-shrink:0;">
+    <div class="flex items-center gap-2 px-6 py-3 border-b" style="border-color:#272420; background:#0b0a08; flex-shrink:0;">
       <button class="tab-btn active" id="tab-plan" onclick="switchTab('plan')">PLAN</button>
       <button class="tab-btn" id="tab-create" onclick="switchTab('create')">CREATE</button>
       <button class="tab-btn" id="tab-grow" onclick="switchTab('grow')">GROW</button>
@@ -328,7 +329,7 @@
     </div>
 
     <!-- Scrollable content area -->
-    <div class="flex-1 overflow-y-auto" style="background:#030B2C;">
+    <div class="flex-1 overflow-y-auto" style="background:#0b0a08;">
       <div class="max-w-6xl mx-auto px-6 py-6">
 
         <!-- ── PLAN TAB ── -->
@@ -337,8 +338,8 @@
 
             <!-- Competitor Spy card -->
             <div class="tool-card" onclick="openPanel('competitor-spy')">
-              <div class="tool-card-icon" style="background:rgba(5,195,249,0.15);">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#05C3F9" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <div class="tool-card-icon" style="background:rgba(217,95,30,0.15);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d95f1e" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </div>
               <div class="flex items-start justify-between">
                 <div>
@@ -356,8 +357,8 @@
 
             <!-- Topic Finder card -->
             <div class="tool-card" onclick="openPanel('topic-finder')">
-              <div class="tool-card-icon" style="background:rgba(0,251,240,0.15);">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00FBF0" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              <div class="tool-card-icon" style="background:rgba(240,112,48,0.15);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f07030" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
               </div>
               <div class="flex items-start justify-between">
                 <div>
@@ -374,8 +375,8 @@
             </div>
             <!-- Pillar Planner card -->
             <div class="tool-card" onclick="togglePillarPlanner()">
-              <div class="tool-card-icon" style="background:rgba(5,195,249,0.12);">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#05C3F9" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+              <div class="tool-card-icon" style="background:rgba(217,95,30,0.12);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d95f1e" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
               </div>
               <div class="flex items-start justify-between">
                 <div>
@@ -412,7 +413,7 @@
           </div>
 
           <!-- Content Scheduler panel -->
-          <div id="scheduler-panel" class="hidden mb-6" style="background:#050E3D; border:1px solid #1a2c6b; border-radius:16px; padding:28px;">
+          <div id="scheduler-panel" class="hidden mb-6" style="background:#111009; border:1px solid #272420; border-radius:16px; padding:28px;">
             <h3 class="font-bold text-white mb-5">Content Shoot Schedule</h3>
             <div class="mb-5">
               <label class="block text-xs font-semibold mb-3" style="color:#7a7a9a;">SELECT YOUR SHOOT DAYS</label>
@@ -441,13 +442,13 @@
               <button class="btn-primary" onclick="saveSchedule()">Save Schedule</button>
               <span id="scheduler-saved-msg" class="hidden text-sm" style="color:#2EE49C;">&#10003; Saved!</span>
             </div>
-            <div class="mt-4 p-3 rounded-lg text-xs" style="background:#16161f; color:#5a5a7a;">
-              &#128161; <strong style="color:#05C3F9;">Google Calendar sync</strong> coming soon — for now, your schedule is saved and we'll send shoot-day reminders via Telegram.
+            <div class="mt-4 p-3 rounded-lg text-xs" style="background:#161410; color:#5a5a7a;">
+              &#128161; <strong style="color:#d95f1e;">Google Calendar sync</strong> coming soon — for now, your schedule is saved and we'll send shoot-day reminders via Telegram.
             </div>
           </div>
 
           <!-- Pillar Planner panel -->
-          <div id="pillar-planner-panel" class="hidden mb-6" style="background:#050E3D; border:1px solid #1a2c6b; border-radius:16px; padding:28px;">
+          <div id="pillar-planner-panel" class="hidden mb-6" style="background:#111009; border:1px solid #272420; border-radius:16px; padding:28px;">
             <h3 class="font-bold text-white mb-5">Pillar Planner</h3>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
               <div>
@@ -477,7 +478,7 @@
 
             <!-- Progress panel -->
             <div id="progress-panel" class="hidden">
-              <div style="background:#050E3D; border:1px solid #1a2c6b; border-radius:16px; padding:28px;" class="mb-6">
+              <div style="background:#111009; border:1px solid #272420; border-radius:16px; padding:28px;" class="mb-6">
                 <div class="flex items-center justify-between mb-6">
                   <div>
                     <h3 class="font-bold text-white mb-1">Analyzing Market</h3>
@@ -563,10 +564,10 @@
 
             <!-- Script panel -->
             <div id="script-panel" class="hidden mt-6">
-              <div style="background:#050E3D; border:1px solid #1a2c6b; border-radius:16px; padding:28px;">
+              <div style="background:#111009; border:1px solid #272420; border-radius:16px; padding:28px;">
                 <div class="flex items-center justify-between mb-5">
                   <h3 class="font-bold text-white">Video Script</h3>
-                  <div id="script-loading" class="hidden flex items-center gap-2 text-sm" style="color:#05C3F9;">
+                  <div id="script-loading" class="hidden flex items-center gap-2 text-sm" style="color:#d95f1e;">
                     <div class="spinner"></div> Generating script...
                   </div>
                 </div>
@@ -581,10 +582,10 @@
 
             <!-- SEO Package panel -->
             <div id="seo-panel" class="hidden mt-6">
-              <div style="background:#050E3D; border:1px solid #1a2c6b; border-radius:16px; padding:28px;">
+              <div style="background:#111009; border:1px solid #272420; border-radius:16px; padding:28px;">
                 <div class="flex items-center justify-between mb-5">
                   <h3 class="font-bold text-white">SEO Package</h3>
-                  <div id="seo-loading" class="hidden flex items-center gap-2 text-sm" style="color:#05C3F9;">
+                  <div id="seo-loading" class="hidden flex items-center gap-2 text-sm" style="color:#d95f1e;">
                     <div class="spinner"></div> Generating SEO...
                   </div>
                 </div>
@@ -602,8 +603,8 @@
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
             <div class="tool-card" onclick="openScriptBuilder()">
-              <div class="tool-card-icon" style="background:rgba(5,195,249,0.15);">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#05C3F9" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <div class="tool-card-icon" style="background:rgba(217,95,30,0.15);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d95f1e" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
               </div>
               <div class="flex items-start justify-between">
                 <div>
@@ -621,13 +622,13 @@
             </div>
 
             <div class="tool-card" onclick="document.getElementById('cover-forge-panel').classList.toggle('hidden')">
-              <div class="tool-card-icon" style="background:rgba(0,251,240,0.1);">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00FBF0" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <div class="tool-card-icon" style="background:rgba(240,112,48,0.1);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f07030" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
               </div>
               <div class="flex items-start justify-between">
                 <div>
                   <h3 class="font-semibold text-white mb-1">Painter</h3>
-                  <p class="text-sm" style="color:#5a5a7a;">AI-powered thumbnail design</p>
+                  <p class="text-sm" style="color:#5a5a7a;">Thumbnail design — Cover Forge</p>
                 </div>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3a3a5a" stroke-width="2" class="mt-1"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </div>
@@ -640,7 +641,7 @@
 
           <!-- Inline Script Builder -->
           <div id="create-script-panel" class="hidden mt-6">
-            <div style="background:#050E3D; border:1px solid #1a2c6b; border-radius:16px; padding:28px;">
+            <div style="background:#111009; border:1px solid #272420; border-radius:16px; padding:28px;">
               <h3 class="font-bold text-white mb-5">Framer</h3>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
@@ -696,11 +697,11 @@
 
               <div id="cs-results" class="hidden mt-6">
                 <!-- Section 1: Hook -->
-                <div class="mb-4" style="background:#16161f; border:1px solid #1a2c6b; border-radius:12px; padding:20px;">
+                <div class="mb-4" style="background:#161410; border:1px solid #272420; border-radius:12px; padding:20px;">
                   <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-3">
                       <h4 class="font-bold text-white" style="font-size:14px;">HOOK</h4>
-                      <span style="font-size:10px; font-weight:700; padding:2px 9px; border-radius:20px; background:rgba(5,195,249,0.15); color:#A8E6FF; border:1px solid rgba(5,195,249,0.3);">First 30 seconds</span>
+                      <span style="font-size:10px; font-weight:700; padding:2px 9px; border-radius:20px; background:rgba(217,95,30,0.15); color:#f07030; border:1px solid rgba(217,95,30,0.3);">First 30 seconds</span>
                     </div>
                     <button class="copy-btn" onclick="copySection('cs-hook-text', this)">
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -711,7 +712,7 @@
                 </div>
 
                 <!-- Section 2: Early CTA -->
-                <div class="mb-4" style="background:#16161f; border:1px solid #1a2c6b; border-radius:12px; padding:20px;">
+                <div class="mb-4" style="background:#161410; border:1px solid #272420; border-radius:12px; padding:20px;">
                   <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-3">
                       <h4 class="font-bold text-white" style="font-size:14px;">EARLY CTA</h4>
@@ -726,18 +727,18 @@
                 </div>
 
                 <!-- Section 3: Body Outline -->
-                <div class="mb-4" style="background:#16161f; border:1px solid #1a2c6b; border-radius:12px; padding:20px;">
+                <div class="mb-4" style="background:#161410; border:1px solid #272420; border-radius:12px; padding:20px;">
                   <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-3">
                       <h4 class="font-bold text-white" style="font-size:14px;">VIDEO BODY OUTLINE</h4>
-                      <span style="font-size:10px; font-weight:700; padding:2px 9px; border-radius:20px; background:rgba(0,251,240,0.12); color:#7ecfff; border:1px solid rgba(0,251,240,0.3);">90% of video</span>
+                      <span style="font-size:10px; font-weight:700; padding:2px 9px; border-radius:20px; background:rgba(240,112,48,0.12); color:#7ecfff; border:1px solid rgba(240,112,48,0.3);">90% of video</span>
                     </div>
                   </div>
                   <div id="cs-body-outline" class="space-y-2"></div>
                 </div>
 
                 <!-- Section 4: End Screen -->
-                <div class="mb-6" style="background:#16161f; border:1px solid #1a2c6b; border-radius:12px; padding:20px;">
+                <div class="mb-6" style="background:#161410; border:1px solid #272420; border-radius:12px; padding:20px;">
                   <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-3">
                       <h4 class="font-bold text-white" style="font-size:14px;">END SCREEN SCRIPT</h4>
@@ -756,7 +757,7 @@
                 </div>
 
                 <!-- Full script view (hidden in bullet mode) -->
-                <div id="cs-full-script-wrap" class="hidden mb-6" style="background:#16161f; border:1px solid #1a2c6b; border-radius:12px; padding:20px;">
+                <div id="cs-full-script-wrap" class="hidden mb-6" style="background:#161410; border:1px solid #272420; border-radius:12px; padding:20px;">
                   <div class="flex items-center justify-between mb-3">
                     <h4 class="font-bold text-white" style="font-size:14px;">FULL TELEPROMPTER SCRIPT</h4>
                     <button class="copy-btn" onclick="copySection('cs-full-script-text', this)">
@@ -776,9 +777,9 @@
                   </button>
                 </div>
                 <!-- Record CTA — prominent path from script to camera -->
-                <div style="background:linear-gradient(135deg,rgba(5,195,249,0.12),rgba(46,228,156,0.06));border:1px solid rgba(5,195,249,0.3);border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;">
+                <div style="background:linear-gradient(135deg,rgba(217,95,30,0.12),rgba(46,228,156,0.06));border:1px solid rgba(217,95,30,0.3);border-radius:10px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:14px;">
                   <div style="flex:1;">
-                    <div style="font-size:12px;font-weight:700;color:#05C3F9;letter-spacing:0.07em;margin-bottom:3px;">SCRIPT READY</div>
+                    <div style="font-size:12px;font-weight:700;color:#d95f1e;letter-spacing:0.07em;margin-bottom:3px;">SCRIPT READY</div>
                     <div style="font-size:12px;color:#a0a0c0;">Send to Studio and record — camera starts automatically.</div>
                   </div>
                   <button class="btn-primary" style="white-space:nowrap;font-weight:700;padding:10px 18px;" onclick="sendToTeleprompter()">● Record Script →</button>
@@ -800,8 +801,8 @@
             </div>
 
             <!-- Formula reminder -->
-            <div class="mb-5 p-3 rounded-lg text-xs" style="background:#16161f; border:1px solid #1a2c6b; color:#7a7a9a;">
-              <span style="color:#05C3F9; font-weight:700;">Thumbnail Formula: </span>
+            <div class="mb-5 p-3 rounded-lg text-xs" style="background:#161410; border:1px solid #272420; color:#7a7a9a;">
+              <span style="color:#d95f1e; font-weight:700;">Thumbnail Formula: </span>
               Face = 33% of frame · 3-5 words max · High contrast · Text ≠ Title · Title under 60 chars with year
             </div>
 
@@ -823,9 +824,9 @@
                     <button type="button" data-mode="persona" class="active" onclick="setCoverForgePhotoMode('persona')">AI Persona</button>
                   </div>
                 </div>
-                <div id="cf-persona-summary" class="flex items-center justify-between gap-3 rounded-xl p-3" style="background:#050E3D;border:1px solid #1a2c6b;">
+                <div id="cf-persona-summary" class="flex items-center justify-between gap-3 rounded-xl p-3" style="background:#111009;border:1px solid #272420;">
                   <div class="flex items-center gap-3">
-                    <div id="cf-persona-avatar" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#05C3F9,#8A3FFC);display:flex;align-items:center;justify-content:center;color:white;font-weight:900;overflow:hidden;">JP</div>
+                    <div id="cf-persona-avatar" style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#d95f1e,#8A3FFC);display:flex;align-items:center;justify-content:center;color:white;font-weight:900;overflow:hidden;">JP</div>
                     <div>
                       <div class="text-sm font-bold text-white">AI Persona</div>
                       <div id="cf-persona-count" class="text-xs" style="color:#7a7a9a;">No photos uploaded yet · add headshots and body shots</div>
@@ -868,12 +869,12 @@
                     <input id="cf-reference" class="field" placeholder="Paste YouTube thumbnail or video URL..." />
                   </div>
                 </div>
-                <label class="flex items-center justify-between gap-4 p-3 rounded-xl" style="background:#050E3D;border:1px solid #1a2c6b;">
+                <label class="flex items-center justify-between gap-4 p-3 rounded-xl" style="background:#111009;border:1px solid #272420;">
                   <span>
                     <span class="block text-sm font-bold text-white">Home Tour Mode</span>
                     <span class="block text-xs mt-1" style="color:#7a7a9a;">Prioritize property imagery, price-point copy, and listing-style contrast.</span>
                   </span>
-                  <input id="cf-home-tour" type="checkbox" style="width:20px;height:20px;accent-color:#05C3F9;" />
+                  <input id="cf-home-tour" type="checkbox" style="width:20px;height:20px;accent-color:#d95f1e;" />
                 </label>
               </div>
             </div>
@@ -917,8 +918,8 @@
                 <div class="space-y-2" id="cf-titles-list"></div>
               </div>
 
-              <div class="mt-5 p-3 rounded-lg text-xs" style="background:#16161f; color:#7a7a9a; border:1px solid #1a2c6b;">
-                💡 <strong style="color:#05C3F9;">Pro tip:</strong> Upload all 3 thumbnail concepts to YouTube Studio and let YouTube A/B test them. The winner gets pushed to more viewers automatically.
+              <div class="mt-5 p-3 rounded-lg text-xs" style="background:#161410; color:#7a7a9a; border:1px solid #272420;">
+                💡 <strong style="color:#d95f1e;">Pro tip:</strong> Upload all 3 thumbnail concepts to YouTube Studio and let YouTube A/B test them. The winner gets pushed to more viewers automatically.
               </div>
             </div>
           </div>
@@ -971,7 +972,7 @@
             </div>
           </div>
           <!-- Video Advisor panel -->
-          <div id="advisor-panel" class="hidden mt-4" style="background:#050E3D; border:1px solid #1a2c6b; border-radius:16px; padding:28px;">
+          <div id="advisor-panel" class="hidden mt-4" style="background:#111009; border:1px solid #272420; border-radius:16px; padding:28px;">
             <h3 class="font-bold text-white mb-5">Inspector</h3>
             <div class="flex gap-2 mb-5">
               <button id="advisor-btn-video" class="tab-btn active" onclick="setAdvisorMode('video')">Analyze Video</button>
@@ -981,8 +982,8 @@
             <input id="advisor-url-input" class="field mb-4" placeholder="https://youtube.com/watch?v=..." />
             <button id="advisor-run-btn" class="btn-primary" onclick="runVideoAdvisor()">&#10022; Analyze</button>
             <div id="advisor-results" class="hidden mt-6">
-              <div id="advisor-verdict-wrap" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#16161f; color:#c0c0d8; border:1px solid #1a2c6b;">
-                <span class="text-xs font-bold" style="color:#05C3F9; letter-spacing:0.08em;">VERDICT &middot; </span>
+              <div id="advisor-verdict-wrap" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:#161410; color:#c0c0d8; border:1px solid #272420;">
+                <span class="text-xs font-bold" style="color:#d95f1e; letter-spacing:0.08em;">VERDICT &middot; </span>
                 <span id="advisor-verdict"></span>
               </div>
               <div id="advisor-scores"></div>
@@ -990,7 +991,7 @@
           </div>
 
           <!-- Repurpose Engine panel -->
-          <div id="repurpose-panel" class="hidden mt-4" style="background:#050E3D; border:1px solid #1a2c6b; border-radius:16px; padding:28px;">
+          <div id="repurpose-panel" class="hidden mt-4" style="background:#111009; border:1px solid #272420; border-radius:16px; padding:28px;">
             <div class="mb-5">
               <h3 class="font-bold text-white mb-1">Dispatcher</h3>
               <p class="text-sm" style="color:#5a5a7a;">Turn one long video into 5+ pieces of content</p>
@@ -1035,13 +1036,13 @@
 
               <!-- Instagram Caption -->
               <div id="re-out-instagram" class="hidden">
-                <div class="text-xs font-bold mb-3" style="color:#05C3F9; letter-spacing:0.1em;">INSTAGRAM CAPTION</div>
+                <div class="text-xs font-bold mb-3" style="color:#d95f1e; letter-spacing:0.1em;">INSTAGRAM CAPTION</div>
                 <div id="re-instagram-content"></div>
               </div>
 
               <!-- TikTok Hooks -->
               <div id="re-out-tiktok" class="hidden">
-                <div class="text-xs font-bold mb-3" style="color:#00FBF0; letter-spacing:0.1em;">TIKTOK HOOKS</div>
+                <div class="text-xs font-bold mb-3" style="color:#f07030; letter-spacing:0.1em;">TIKTOK HOOKS</div>
                 <div id="re-tiktok-list" class="space-y-2"></div>
               </div>
 
@@ -1055,7 +1056,7 @@
           </div>
 
           <!-- Lead Page Generator panel -->
-          <div id="lead-page-panel" class="hidden mt-4" style="background:#050E3D; border:1px solid #1a2c6b; border-radius:16px; padding:28px;">
+          <div id="lead-page-panel" class="hidden mt-4" style="background:#111009; border:1px solid #272420; border-radius:16px; padding:28px;">
             <div class="mb-5">
               <h3 class="font-bold text-white mb-1">Lead Page Generator</h3>
               <p class="text-sm" style="color:#5a5a7a;">Capture names, emails, and phone numbers from every video</p>
@@ -1113,7 +1114,7 @@
             <div id="lp-results" class="hidden mt-6 space-y-5">
 
               <!-- 1. Landing Page Copy -->
-              <div style="background:#16161f; border:1px solid #1a2c6b; border-radius:12px; padding:20px;">
+              <div style="background:#161410; border:1px solid #272420; border-radius:12px; padding:20px;">
                 <div class="flex items-center justify-between mb-4">
                   <div>
                     <h4 class="font-bold text-white" style="font-size:14px;">Landing Page Copy</h4>
@@ -1129,7 +1130,7 @@
                         Copy
                       </button>
                     </div>
-                    <div id="lp-headline" class="text-sm font-semibold" style="color:#A8E6FF; line-height:1.6; background:#050E3D; border-radius:8px; padding:10px;"></div>
+                    <div id="lp-headline" class="text-sm font-semibold" style="color:#f07030; line-height:1.6; background:#111009; border-radius:8px; padding:10px;"></div>
                   </div>
                   <div>
                     <div class="flex items-center justify-between mb-1">
@@ -1139,7 +1140,7 @@
                         Copy
                       </button>
                     </div>
-                    <div id="lp-subheadline" class="text-sm" style="color:#c0c0d8; line-height:1.6; background:#050E3D; border-radius:8px; padding:10px;"></div>
+                    <div id="lp-subheadline" class="text-sm" style="color:#c0c0d8; line-height:1.6; background:#111009; border-radius:8px; padding:10px;"></div>
                   </div>
                   <div>
                     <div class="flex items-center justify-between mb-1">
@@ -1149,21 +1150,21 @@
                         Copy
                       </button>
                     </div>
-                    <div id="lp-benefits" class="space-y-1 text-sm" style="background:#050E3D; border-radius:8px; padding:10px;"></div>
+                    <div id="lp-benefits" class="space-y-1 text-sm" style="background:#111009; border-radius:8px; padding:10px;"></div>
                     <div id="lp-benefits-text" class="hidden"></div>
                   </div>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <div class="text-xs font-bold mb-1" style="color:#2EE49C; letter-spacing:0.08em;">FORM LABEL</div>
                       <div class="flex items-center gap-2">
-                        <div id="lp-form-label" class="text-sm flex-1" style="color:#c0c0d8; background:#050E3D; border-radius:8px; padding:8px;"></div>
+                        <div id="lp-form-label" class="text-sm flex-1" style="color:#c0c0d8; background:#111009; border-radius:8px; padding:8px;"></div>
                         <button class="copy-btn flex-shrink-0" onclick="copyText(this, document.getElementById('lp-form-label').textContent)">Copy</button>
                       </div>
                     </div>
                     <div>
                       <div class="text-xs font-bold mb-1" style="color:#2EE49C; letter-spacing:0.08em;">BUTTON TEXT</div>
                       <div class="flex items-center gap-2">
-                        <div id="lp-button-text" class="text-sm flex-1" style="color:#c0c0d8; background:#050E3D; border-radius:8px; padding:8px;"></div>
+                        <div id="lp-button-text" class="text-sm flex-1" style="color:#c0c0d8; background:#111009; border-radius:8px; padding:8px;"></div>
                         <button class="copy-btn flex-shrink-0" onclick="copyText(this, document.getElementById('lp-button-text').textContent)">Copy</button>
                       </div>
                     </div>
@@ -1176,13 +1177,13 @@
                         Copy
                       </button>
                     </div>
-                    <div id="lp-thankyou" class="text-sm" style="color:#c0c0d8; line-height:1.6; background:#050E3D; border-radius:8px; padding:10px;"></div>
+                    <div id="lp-thankyou" class="text-sm" style="color:#c0c0d8; line-height:1.6; background:#111009; border-radius:8px; padding:10px;"></div>
                   </div>
                 </div>
               </div>
 
               <!-- 2. Video Description CTA -->
-              <div style="background:#16161f; border:1px solid #1a2c6b; border-radius:12px; padding:20px;">
+              <div style="background:#161410; border:1px solid #272420; border-radius:12px; padding:20px;">
                 <div class="flex items-center justify-between mb-4">
                   <div>
                     <h4 class="font-bold text-white" style="font-size:14px;">Video Description CTA</h4>
@@ -1193,11 +1194,11 @@
                     Copy Full CTA
                   </button>
                 </div>
-                <div id="lp-description-cta" class="text-sm" style="color:#c0c0d8; line-height:1.8; white-space:pre-wrap; background:#050E3D; border-radius:8px; padding:14px; border:1px solid #2a2a3a;"></div>
+                <div id="lp-description-cta" class="text-sm" style="color:#c0c0d8; line-height:1.8; white-space:pre-wrap; background:#111009; border-radius:8px; padding:14px; border:1px solid #272420;"></div>
               </div>
 
               <!-- 3. Email Sequence -->
-              <div style="background:#16161f; border:1px solid #1a2c6b; border-radius:12px; padding:20px;">
+              <div style="background:#161410; border:1px solid #272420; border-radius:12px; padding:20px;">
                 <div class="flex items-center justify-between mb-4">
                   <div>
                     <h4 class="font-bold text-white" style="font-size:14px;">Brand Voice Email Sequence</h4>
@@ -1211,7 +1212,7 @@
               </div>
 
               <!-- 4. CRM Handoff -->
-              <div style="background:#16161f; border:1px solid rgba(0,251,240,0.22); border-radius:12px; padding:20px;">
+              <div style="background:#161410; border:1px solid rgba(240,112,48,0.22); border-radius:12px; padding:20px;">
                 <div class="flex items-center justify-between mb-4">
                   <div>
                     <h4 class="font-bold text-white" style="font-size:14px;">CRM Handoff Plan</h4>
@@ -1224,24 +1225,24 @@
               </div>
 
               <!-- 5. GHL Setup Instructions -->
-              <div style="background:#16161f; border:1px solid #1a2c6b; border-radius:12px; padding:20px;">
+              <div style="background:#161410; border:1px solid #272420; border-radius:12px; padding:20px;">
                 <h4 class="font-bold text-white mb-4" style="font-size:14px;">GHL Setup Instructions</h4>
                 <ol id="lp-ghl-steps" class="space-y-3" style="list-style:none; padding:0; margin:0;"></ol>
               </div>
 
               <!-- 6. Follow Up Boss Integration Note -->
-              <div style="background:#16161f; border:1px solid rgba(46,228,156,0.2); border-radius:12px; padding:18px;">
+              <div style="background:#161410; border:1px solid rgba(46,228,156,0.2); border-radius:12px; padding:18px;">
                 <div class="flex items-center gap-2 mb-3">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2EE49C" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
                   <span class="text-xs font-bold" style="color:#2EE49C; letter-spacing:0.08em;">FOLLOW UP BOSS INTEGRATION</span>
                 </div>
                 <div class="text-xs space-y-2" style="color:#8888aa; line-height:1.7;">
                   <p>Connect GHL to Follow Up Boss to automatically create contacts and track YouTube lead sources.</p>
-                  <div style="background:#050E3D; border-radius:8px; padding:10px; border:1px solid #1e1e2e;">
+                  <div style="background:#111009; border-radius:8px; padding:10px; border:1px solid #1e1e2e;">
                     <div class="text-xs font-bold mb-1" style="color:#7a7a9a; letter-spacing:0.06em;">FUB REST API — Create Contact</div>
-                    <code style="color:#00FBF0; font-size:11px;">POST https://api.followupboss.com/v2/people</code>
+                    <code style="color:#f07030; font-size:11px;">POST https://api.followupboss.com/v2/people</code>
                   </div>
-                  <p>Tag YouTube leads as source: <code style="color:#2EE49C; background:#050E3D; padding:1px 5px; border-radius:3px; font-size:11px;">YouTube - [video topic]</code></p>
+                  <p>Tag YouTube leads as source: <code style="color:#2EE49C; background:#111009; padding:1px 5px; border-radius:3px; font-size:11px;">YouTube - [video topic]</code></p>
                   <p>This lets you track which video generated each lead directly inside FUB pipelines.</p>
                   <p style="color:#5a5a7a;">Use the GHL native FUB integration or Zapier: GHL Contact Created → FUB New Person.</p>
                 </div>
@@ -1254,7 +1255,7 @@
 
         <!-- ── BOARD TAB ── -->
         <div id="pane-board" class="hidden">
-          <div style="background:#050E3D; border:1px solid #1a2c6b; border-radius:16px; padding:40px; text-align:center;">
+          <div style="background:#111009; border:1px solid #272420; border-radius:16px; padding:40px; text-align:center;">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#3a3a5a" stroke-width="1.5" class="mx-auto mb-4"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             <h3 class="font-semibold text-white mb-2">Studio Board</h3>
             <p class="text-sm" style="color:#5a5a7a;">Your scheduled content will appear here.</p>
@@ -1357,11 +1358,11 @@
     </div>
     <input id="ai-persona-file" type="file" accept="image/png,image/jpeg,image/webp" multiple class="hidden" onchange="uploadAiPersonaPhotos(this.files, window.pendingPersonaShotType || 'headshot')" />
 
-    <div class="p-3 rounded-lg text-xs mb-5" style="background:#16161f;border:1px solid #1a2c6b;color:#7a7a9a;line-height:1.6;">
-      <strong style="color:#05C3F9;">Best results:</strong> upload 3-5 clear headshots, 2-3 expressive/curious faces, and at least one waist-up or full-body shot. Use bright, sharp photos with simple backgrounds.
+    <div class="p-3 rounded-lg text-xs mb-5" style="background:#161410;border:1px solid #272420;color:#7a7a9a;line-height:1.6;">
+      <strong style="color:#d95f1e;">Best results:</strong> upload 3-5 clear headshots, 2-3 expressive/curious faces, and at least one waist-up or full-body shot. Use bright, sharp photos with simple backgrounds.
     </div>
 
-    <div id="ai-persona-upload-status" class="hidden mb-4 text-sm" style="color:#05C3F9;"></div>
+    <div id="ai-persona-upload-status" class="hidden mb-4 text-sm" style="color:#d95f1e;"></div>
     <div id="ai-persona-grid" class="persona-grid"></div>
   </div>
 </div>
@@ -1379,7 +1380,7 @@
     <div class="space-y-4">
       <div>
         <label class="block text-xs font-semibold mb-2" style="color:#7a7a9a;">ORIGINAL CONCEPT</label>
-        <input id="adapt-concept-input" class="field" readonly style="color:#05C3F9;" />
+        <input id="adapt-concept-input" class="field" readonly style="color:#d95f1e;" />
       </div>
       <div>
         <label class="block text-xs font-semibold mb-2" style="color:#7a7a9a;">YOUR MARKET</label>
@@ -1394,7 +1395,7 @@
     <div id="adapt-result" class="hidden mt-5">
       <div class="panel-section mb-3">
         <h4>ADAPTED TITLE</h4>
-        <p id="adapt-result-title" class="content font-semibold" style="color:#A8E6FF;"></p>
+        <p id="adapt-result-title" class="content font-semibold" style="color:#f07030;"></p>
       </div>
       <div class="panel-section mb-3">
         <h4>HOOK</h4>
@@ -1522,14 +1523,14 @@ function buildStepsUI(stepStatuses) {
       </div>`;
     } else {
       dotHtml = `<div class="step-dot pending">
-        <div style="width:6px;height:6px;border-radius:50%;background:#2a2a3a;"></div>
+        <div style="width:6px;height:6px;border-radius:50%;background:#272420;"></div>
       </div>`;
     }
 
     let trailHtml = '';
     if (status === 'completed') trailHtml = '<span style="margin-left:auto;font-size:11px;color:#2EE49C;">✓</span>';
     if (status === 'failed')    trailHtml = '<span style="margin-left:auto;font-size:11px;color:#ff5050;" title="' + (info.error || 'failed') + '">✕</span>';
-    if (status === 'running')   trailHtml = '<span style="margin-left:auto;font-size:11px;color:#05C3F9;">running…</span>';
+    if (status === 'running')   trailHtml = '<span style="margin-left:auto;font-size:11px;color:#d95f1e;">running…</span>';
 
     row.innerHTML = `${dotHtml}<span>${step.label}</span>${trailHtml}`;
     list.appendChild(row);
@@ -1614,9 +1615,9 @@ function showReport(result) {
     },
     {
       label: 'BEST FORMAT',
-      icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00FBF0" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`,
-      color: '#00FBF0',
-      bg: 'rgba(0,251,240,0.1)',
+      icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f07030" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>`,
+      color: '#f07030',
+      bg: 'rgba(240,112,48,0.1)',
       data: result.best_format,
     },
     {
@@ -1628,9 +1629,9 @@ function showReport(result) {
     },
     {
       label: 'YOUR FIRST VIDEO',
-      icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#05C3F9" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>`,
-      color: '#05C3F9',
-      bg: 'rgba(5,195,249,0.1)',
+      icon: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d95f1e" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>`,
+      color: '#d95f1e',
+      bg: 'rgba(217,95,30,0.1)',
       data: result.first_video,
     },
   ];
@@ -1660,8 +1661,8 @@ function showReport(result) {
 
   ideasList.innerHTML = result.content_ideas.map(idea => {
     const pillarColors = {
-      relocation:    { bg: 'rgba(5,195,249,0.15)', color: '#A8E6FF' },
-      market_update: { bg: 'rgba(0,251,240,0.15)', color: '#7ecfff' },
+      relocation:    { bg: 'rgba(217,95,30,0.15)', color: '#f07030' },
+      market_update: { bg: 'rgba(240,112,48,0.15)', color: '#7ecfff' },
       neighborhood:  { bg: 'rgba(46,228,156,0.15)', color: '#2EE49C' },
       home_tour:     { bg: 'rgba(255,179,64,0.15)',  color: '#FFB340' },
       lifestyle:     { bg: 'rgba(255,77,109,0.15)',  color: '#FF4D6D' },
@@ -1683,11 +1684,11 @@ function showReport(result) {
         </div>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-        <div style="background:#16161f; border-radius:8px; padding:12px;">
+        <div style="background:#161410; border-radius:8px; padding:12px;">
           <div class="text-xs font-bold mb-1" style="color:#7a7a9a; letter-spacing:0.06em;">WHY IT WORKS</div>
           <p class="text-xs" style="color:#a0a0c0; line-height:1.6;">${escHtml(idea.why_it_works)}</p>
         </div>
-        <div style="background:#16161f; border-radius:8px; padding:12px;">
+        <div style="background:#161410; border-radius:8px; padding:12px;">
           <div class="text-xs font-bold mb-1" style="color:#7a7a9a; letter-spacing:0.06em;">YOUR ANGLE</div>
           <p class="text-xs" style="color:#a0a0c0; line-height:1.6;">${escHtml(idea.your_angle)}</p>
         </div>
@@ -1814,7 +1815,7 @@ function renderSEO(data) {
     data.thumbnail_concepts.forEach((tc, i) => {
       html += `
         <div class="thumb-card">
-          <div class="text-xs font-bold mb-1" style="color:#05C3F9;">Concept ${i+1}</div>
+          <div class="text-xs font-bold mb-1" style="color:#d95f1e;">Concept ${i+1}</div>
           <p class="text-xs font-semibold text-white mb-1">${escHtml(tc.concept||tc.text_overlay||'')}</p>
           ${tc.text_overlay ? `<p class="text-xs" style="color:#5a5a7a;">Text: "${escHtml(tc.text_overlay)}"</p>` : ''}
           ${tc.background   ? `<p class="text-xs" style="color:#5a5a7a;">BG: ${escHtml(tc.background)}</p>` : ''}
@@ -1863,7 +1864,7 @@ async function runTopicFinder() {
   btn.disabled = true;
   btn.textContent = 'Scanning Trends...';
   resultsEl.classList.remove('hidden');
-  resultsEl.innerHTML = `<div class="flex items-center gap-2 text-sm" style="color:#05C3F9;"><div class="spinner"></div> Finding trend-ready topics for ${escHtml(city)}...</div>`;
+  resultsEl.innerHTML = `<div class="flex items-center gap-2 text-sm" style="color:#d95f1e;"><div class="spinner"></div> Finding trend-ready topics for ${escHtml(city)}...</div>`;
 
   try {
     const resp = await fetch('/api/yt/content-calendar', {
@@ -1896,7 +1897,7 @@ async function runTopicFinder() {
           const why = item.why || item.trend_signal || item.search_intent || '';
           const hook = item.hook || item.angle || '';
           return `
-            <div class="p-4 rounded-xl" style="background:#050E3D;border:1px solid #1a2c6b;">
+            <div class="p-4 rounded-xl" style="background:#111009;border:1px solid #272420;">
               <div class="flex items-start justify-between gap-3">
                 <div style="min-width:0;">
                   <div class="flex items-center gap-2 mb-2 flex-wrap">
@@ -1943,7 +1944,7 @@ function setScriptMode(mode) {
   const show = (id, visible) => {
     const el = document.getElementById(id);
     if (!el) return;
-    const wrap = el.closest('[style*="background:#16161f"]') || el.parentElement;
+    const wrap = el.closest('[style*="background:#161410"]') || el.parentElement;
     if (wrap) wrap.style.display = visible ? '' : 'none';
   };
   if (document.getElementById('cs-results') && !document.getElementById('cs-results').classList.contains('hidden')) {
@@ -2070,8 +2071,8 @@ async function runScriptBuilder() {
     const outlineEl = document.getElementById('cs-body-outline');
     const points    = data.body_outline || [];
     outlineEl.innerHTML = points.map((point, i) => `
-      <div class="flex items-start gap-2 p-2 rounded" style="background:#050E3D;">
-        <span style="color:#05C3F9; font-weight:700; flex-shrink:0;">${i + 1}.</span>
+      <div class="flex items-start gap-2 p-2 rounded" style="background:#111009;">
+        <span style="color:#d95f1e; font-weight:700; flex-shrink:0;">${i + 1}.</span>
         <span class="text-sm flex-1" style="color:#c0c0d8;">${escHtml(point)}</span>
         <button class="copy-btn flex-shrink-0 js-copy-point">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -2119,7 +2120,7 @@ async function generateSEOFromFormula() {
   const fullScript = _assembleFullScript(_lastFormulaData);
 
   const seoEl = document.getElementById('cs-seo-content');
-  seoEl.innerHTML = `<div class="flex items-center gap-2 text-sm my-4" style="color:#05C3F9;"><div class="spinner"></div> Generating SEO Package...</div>`;
+  seoEl.innerHTML = `<div class="flex items-center gap-2 text-sm my-4" style="color:#d95f1e;"><div class="spinner"></div> Generating SEO Package...</div>`;
 
   try {
     const resp = await fetch('/api/yt/seo-package', {
@@ -2153,8 +2154,8 @@ function togglePillarPlanner() {
 
 const PILLAR_STYLES = {
   'Relocation':              { bg: 'rgba(46,228,156,0.12)',  color: '#2EE49C',  border: 'rgba(46,228,156,0.3)'  },
-  'Market Updates':          { bg: 'rgba(0,251,240,0.12)',  color: '#00FBF0',  border: 'rgba(0,251,240,0.3)'  },
-  'Neighborhood Deep Dive':  { bg: 'rgba(5,195,249,0.12)', color: '#A8E6FF',  border: 'rgba(5,195,249,0.3)'  },
+  'Market Updates':          { bg: 'rgba(240,112,48,0.12)',  color: '#f07030',  border: 'rgba(240,112,48,0.3)'  },
+  'Neighborhood Deep Dive':  { bg: 'rgba(217,95,30,0.12)', color: '#f07030',  border: 'rgba(217,95,30,0.3)'  },
   'Home Tour':               { bg: 'rgba(255,179,64,0.12)',  color: '#FFB340',  border: 'rgba(255,179,64,0.3)'  },
   'Lifestyle & Community':   { bg: 'rgba(255,77,109,0.12)',  color: '#FF4D6D',  border: 'rgba(255,77,109,0.3)'  },
 };
@@ -2171,7 +2172,7 @@ async function runPillarPlanner() {
 
   const resultsEl = document.getElementById('pp-results');
   resultsEl.classList.remove('hidden');
-  resultsEl.innerHTML = `<div class="flex items-center gap-2 text-sm" style="color:#05C3F9;"><div class="spinner"></div> Building your 90-day content plan...</div>`;
+  resultsEl.innerHTML = `<div class="flex items-center gap-2 text-sm" style="color:#d95f1e;"><div class="spinner"></div> Building your 90-day content plan...</div>`;
 
   try {
     const resp = await fetch('/api/yt/pillar-plan', {
@@ -2186,7 +2187,7 @@ async function runPillarPlanner() {
     resultsEl.innerHTML = (data.pillars || []).map(pillar => {
       const style = PILLAR_STYLES[pillar.name] || PILLAR_STYLES['Relocation'];
       const ideas = (pillar.video_ideas || []).map(idea => `
-        <div class="flex items-start justify-between gap-3 p-3 rounded-lg" style="background:#050E3D; border:1px solid #1e1e2e;">
+        <div class="flex items-start justify-between gap-3 p-3 rounded-lg" style="background:#111009; border:1px solid #1e1e2e;">
           <span class="text-sm flex-1" style="color:#c0c0d8;">${escHtml(idea)}</span>
           <div class="flex gap-2 flex-shrink-0" style="white-space:nowrap;">
             <button class="btn-secondary text-xs"
@@ -2197,7 +2198,7 @@ async function runPillarPlanner() {
         </div>`).join('');
 
       return `
-        <div style="background:#050E3D; border:1px solid #1a2c6b; border-radius:14px; padding:22px;">
+        <div style="background:#111009; border:1px solid #272420; border-radius:14px; padding:22px;">
           <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
             <div class="flex items-center gap-3">
               <span style="font-size:12px; font-weight:700; padding:3px 12px; border-radius:20px; background:${style.bg}; color:${style.color}; border:1px solid ${style.border};">${escHtml(pillar.name)}</span>
@@ -2361,10 +2362,10 @@ function renderResultTabs(result) {
   stdList.innerHTML = standards.length ? standards.map((s, i) => {
     const compClass = (s.competition || '').toLowerCase() === 'high' ? 'comp-high' : (s.competition || '').toLowerCase() === 'low' ? 'comp-low' : 'comp-medium';
     const compLabel = s.competition || 'Medium';
-    return `<div style="background:#050E3D; border:1px solid #1a2c6b; border-radius:14px; padding:20px;">
+    return `<div style="background:#111009; border:1px solid #272420; border-radius:14px; padding:20px;">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-3">
-          <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#05C3F9,#00FBF0);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;flex-shrink:0;">${i+1}</div>
+          <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#d95f1e,#f07030);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;flex-shrink:0;">${i+1}</div>
           <div class="font-semibold text-white">${escHtml(s.format_name || s.name || 'Format ' + (i+1))}</div>
         </div>
         <span class="${escHtml(compClass)}">${escHtml(compLabel)}</span>
@@ -2379,7 +2380,7 @@ function renderResultTabs(result) {
           <div class="text-sm" style="color:#c0c0d8; line-height:1.6;">${escHtml(s.why_it_works)}</div>
         </div>` : ''}
         ${s.your_angle ? `<div>
-          <div class="text-xs font-bold mb-1" style="color:#05C3F9; letter-spacing:0.08em;">YOUR ANGLE</div>
+          <div class="text-xs font-bold mb-1" style="color:#d95f1e; letter-spacing:0.08em;">YOUR ANGLE</div>
           <div class="text-sm" style="color:#c0c0d8; line-height:1.6;">${escHtml(s.your_angle)}</div>
         </div>` : ''}
       </div>` : ''}
@@ -2407,14 +2408,14 @@ function renderResultTabs(result) {
       ? `<span class="trend-rising">Rising${s.trend_percentage ? ' +' + s.trend_percentage + '%' : ''}</span>`
       : `<span class="trend-stable">Stable</span>`;
     const kw = s.keyword || s.term || '';
-    return `<div style="background:#050E3D; border:1px solid #1a2c6b; border-radius:14px; padding:18px;">
+    return `<div style="background:#111009; border:1px solid #272420; border-radius:14px; padding:18px;">
       <div class="font-bold text-white mb-2" style="font-size:15px;">"${escHtml(kw)}"</div>
       <div class="flex items-center gap-2 mb-3 flex-wrap">
         ${trendBadge}
         ${s.audience ? `<span class="tag-chip">${escHtml(s.audience)}</span>` : ''}
         ${s.monthly_searches ? `<span class="tag-chip">${escHtml(s.monthly_searches)}</span>` : ''}
       </div>
-      ${s.video_idea ? `<div class="mb-3"><div class="text-xs font-bold mb-1" style="color:#05C3F9; letter-spacing:0.08em;">VIDEO IDEA</div><div class="text-sm" style="color:#c0c0d8; line-height:1.6;">${escHtml(s.video_idea)}</div></div>` : ''}
+      ${s.video_idea ? `<div class="mb-3"><div class="text-xs font-bold mb-1" style="color:#d95f1e; letter-spacing:0.08em;">VIDEO IDEA</div><div class="text-sm" style="color:#c0c0d8; line-height:1.6;">${escHtml(s.video_idea)}</div></div>` : ''}
       <div class="flex items-center gap-2 mt-3">
         ${kw ? `<button class="btn-secondary text-xs" onclick='window.open("https://www.youtube.com/results?search_query=" + encodeURIComponent(${safeAttr(kw)}), "_blank")'>Search &#8599;</button>` : ''}
         <button class="btn-secondary text-xs" onclick='useTopicInCreate({ title: ${safeAttr(kw)}, city: ${safeAttr(city)}, pillar: ${safeAttr(s.audience || '')}, angle: ${safeAttr(s.video_idea || '')} })'>Use in Create</button>
@@ -2457,9 +2458,9 @@ function renderResultTabs(result) {
     const topVid = topVideoByChannel[c.channel_id] || topVideoByChannel[c.channel_name] || null;
     const avatarHtml = c.channel_thumbnail
       ? `<img src="${escHtml(c.channel_thumbnail)}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none';this.nextSibling.style.display='flex';">
-         <div style="display:none;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#05C3F9,#00FBF0);align-items:center;justify-content:center;font-weight:700;color:white;font-size:15px;flex-shrink:0;">${escHtml((c.channel_name||'C')[0].toUpperCase())}</div>`
-      : `<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#05C3F9,#00FBF0);display:flex;align-items:center;justify-content:center;font-weight:700;color:white;font-size:15px;flex-shrink:0;">${escHtml((c.channel_name||'C')[0].toUpperCase())}</div>`;
-    return `<div style="background:#050E3D; border:1px solid #1a2c6b; border-radius:14px; padding:18px;">
+         <div style="display:none;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#d95f1e,#f07030);align-items:center;justify-content:center;font-weight:700;color:white;font-size:15px;flex-shrink:0;">${escHtml((c.channel_name||'C')[0].toUpperCase())}</div>`
+      : `<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#d95f1e,#f07030);display:flex;align-items:center;justify-content:center;font-weight:700;color:white;font-size:15px;flex-shrink:0;">${escHtml((c.channel_name||'C')[0].toUpperCase())}</div>`;
+    return `<div style="background:#111009; border:1px solid #272420; border-radius:14px; padding:18px;">
       <!-- Channel header row -->
       <div class="flex items-center justify-between gap-3 mb-3">
         <div class="flex items-center gap-3" style="min-width:0;">
@@ -2484,9 +2485,9 @@ function renderResultTabs(result) {
           ${topVid.views ? `<div style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.75);color:#fff;font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;">👁 ${escHtml(fmtNum(topVid.views))}</div>` : ''}
         </div>
         <div style="min-width:0;flex:1;">
-          <div style="font-size:11px;font-weight:700;color:#05C3F9;letter-spacing:0.07em;margin-bottom:3px;">TOP VIDEO</div>
+          <div style="font-size:11px;font-weight:700;color:#d95f1e;letter-spacing:0.07em;margin-bottom:3px;">TOP VIDEO</div>
           <div class="text-xs font-semibold" style="color:#d0d0e0;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${escHtml(topVid.title)}</div>
-          ${topVid.url ? `<a href="${escHtml(topVid.url)}" target="_blank" rel="noopener" style="font-size:10px;color:#00FBF0;margin-top:4px;display:inline-block;">Watch ↗</a>` : ''}
+          ${topVid.url ? `<a href="${escHtml(topVid.url)}" target="_blank" rel="noopener" style="font-size:10px;color:#f07030;margin-top:4px;display:inline-block;">Watch ↗</a>` : ''}
         </div>
       </div>` : ''}
     </div>`;
@@ -2665,7 +2666,7 @@ async function runAdaptConcept() {
     document.getElementById('adapt-result-title').textContent = data.adapted_title || '';
     document.getElementById('adapt-result-hook').textContent  = data.hook || '';
     document.getElementById('adapt-result-outline').innerHTML = (data.outline || []).map((p, i) =>
-      `<div class="flex gap-2 mb-1"><span style="color:#05C3F9;font-weight:700;">${i+1}.</span><span>${escHtml(p)}</span></div>`
+      `<div class="flex gap-2 mb-1"><span style="color:#d95f1e;font-weight:700;">${i+1}.</span><span>${escHtml(p)}</span></div>`
     ).join('');
     document.getElementById('adapt-result').classList.remove('hidden');
     window.adaptedTitle = data.adapted_title;
@@ -2696,13 +2697,13 @@ function openScoutRemix(title, channel, views, score, popular, market) {
     modal.id = 'modal-scout-remix';
     modal.className = 'modal-overlay';
     modal.innerHTML = `
-      <div style="background:#050E3D;border:1px solid #2a2a3a;border-radius:20px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:28px;">
+      <div style="background:#111009;border:1px solid #272420;border-radius:20px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:28px;">
         <div class="flex items-center justify-between mb-4">
           <h3 class="font-bold text-white" style="font-size:18px;">🎙 Remix in My Voice</h3>
           <button onclick="closeModalById('modal-scout-remix')" style="color:#5a5a7a;font-size:22px;background:none;border:none;cursor:pointer;line-height:1;">✕</button>
         </div>
         <!-- Context strip -->
-        <div id="sr-context" style="background:#030B2C;border:1px solid #2a2a3a;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:13px;color:#c0c0d8;line-height:1.6;"></div>
+        <div id="sr-context" style="background:#0b0a08;border:1px solid #272420;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:13px;color:#c0c0d8;line-height:1.6;"></div>
         <!-- Generate button -->
         <button id="sr-run-btn" onclick="runScoutRemix()" class="btn-primary w-full" style="padding:11px 0;font-size:14px;margin-bottom:20px;">Generate My Version</button>
         <!-- Result -->
@@ -2712,15 +2713,15 @@ function openScoutRemix(title, channel, views, score, popular, market) {
             <div id="sr-hook" style="color:#fff;font-size:15px;font-weight:600;line-height:1.5;"></div>
           </div>
           <div style="margin-bottom:14px;">
-            <div class="text-xs font-bold mb-1" style="color:#05C3F9;letter-spacing:.08em;">CONCEPT</div>
+            <div class="text-xs font-bold mb-1" style="color:#d95f1e;letter-spacing:.08em;">CONCEPT</div>
             <div id="sr-concept" style="color:#c0c0d8;font-size:13px;line-height:1.7;"></div>
           </div>
           <div style="margin-bottom:14px;">
-            <div class="text-xs font-bold mb-1" style="color:#05C3F9;letter-spacing:.08em;">MY ANGLE</div>
+            <div class="text-xs font-bold mb-1" style="color:#d95f1e;letter-spacing:.08em;">MY ANGLE</div>
             <div id="sr-angle" style="color:#c0c0d8;font-size:13px;line-height:1.7;"></div>
           </div>
           <div style="margin-bottom:18px;">
-            <div class="text-xs font-bold mb-1" style="color:#05C3F9;letter-spacing:.08em;">CTA</div>
+            <div class="text-xs font-bold mb-1" style="color:#d95f1e;letter-spacing:.08em;">CTA</div>
             <div id="sr-cta" style="color:#c0c0d8;font-size:13px;line-height:1.7;"></div>
           </div>
           <button onclick="copyScoutRemix()" class="btn-secondary w-full" style="padding:9px 0;font-size:13px;">Copy All</button>
@@ -2820,16 +2821,16 @@ function openThumbRemix(title, thumbnail, videoUrl, city) {
     modal.id = 'modal-thumb-remix';
     modal.className = 'modal-overlay';
     modal.innerHTML = `
-      <div style="background:#050E3D;border:1px solid #2a2a3a;border-radius:20px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:28px;">
+      <div style="background:#111009;border:1px solid #272420;border-radius:20px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:28px;">
         <div class="flex items-center justify-between mb-5">
           <h3 class="font-bold text-white" style="font-size:18px;">🖼 Remix This Thumbnail</h3>
           <button onclick="closeModalById('modal-thumb-remix')" style="color:#5a5a7a;font-size:22px;background:none;border:none;cursor:pointer;line-height:1;">✕</button>
         </div>
         <!-- Competitor thumbnail preview -->
-        <div id="remix-thumb-preview" style="border-radius:12px;overflow:hidden;margin-bottom:16px;background:#16161f;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;"></div>
+        <div id="remix-thumb-preview" style="border-radius:12px;overflow:hidden;margin-bottom:16px;background:#161410;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;"></div>
         <div id="remix-thumb-title" class="font-semibold text-white mb-4" style="font-size:14px;line-height:1.5;"></div>
-        <div style="background:#030B2C;border:1px solid #2a2a3a;border-radius:12px;padding:16px;margin-bottom:18px;">
-          <div class="text-xs font-bold mb-2" style="color:#05C3F9;letter-spacing:0.08em;">WHAT MAKES THIS WORK</div>
+        <div style="background:#0b0a08;border:1px solid #272420;border-radius:12px;padding:16px;margin-bottom:18px;">
+          <div class="text-xs font-bold mb-2" style="color:#d95f1e;letter-spacing:0.08em;">WHAT MAKES THIS WORK</div>
           <ul id="remix-analysis" style="color:#c0c0d8;font-size:13px;line-height:1.8;padding-left:18px;"></ul>
         </div>
         <div style="display:flex;gap:10px;">
@@ -3052,12 +3053,12 @@ function renderScheduledTopics() {
   if (!list) return;
   if (count) count.textContent = `${scheduledTopics.length} topic${scheduledTopics.length === 1 ? '' : 's'}`;
   if (!scheduledTopics.length) {
-    list.innerHTML = `<div class="text-sm" style="color:#5a5a7a; background:#16161f; border:1px solid #1a2c6b; border-radius:10px; padding:12px;">Add topics from Trend Radar or Pillar Planner and they will appear here.</div>`;
+    list.innerHTML = `<div class="text-sm" style="color:#5a5a7a; background:#161410; border:1px solid #272420; border-radius:10px; padding:12px;">Add topics from Trend Radar or Pillar Planner and they will appear here.</div>`;
     return;
   }
   list.innerHTML = scheduledTopics.map((topic, i) => {
     const style = PILLAR_STYLES[topic.pillar] || PILLAR_STYLES['Relocation'];
-    return `<div class="flex items-start justify-between gap-3 p-3 rounded-lg" style="background:#16161f; border:1px solid #1a2c6b;">
+    return `<div class="flex items-start justify-between gap-3 p-3 rounded-lg" style="background:#161410; border:1px solid #272420;">
       <div class="flex-1" style="min-width:0;">
         <div class="text-sm font-semibold text-white" style="line-height:1.4;">${escHtml(topic.title)}</div>
         <div class="flex items-center gap-2 mt-2 flex-wrap">
@@ -3170,7 +3171,7 @@ async function runRepurposeEngine() {
       shortsWrap.classList.remove('hidden');
       shortsList.innerHTML = (data.shorts || []).map((s, i) => {
         const fullText = `HOOK:\n${s.hook}\n\nBODY:\n${s.body}\n\nCTA:\n${s.cta}`;
-        return `<div style="background:#16161f; border:1px solid #1a2c6b; border-radius:12px; padding:18px;">
+        return `<div style="background:#161410; border:1px solid #272420; border-radius:12px; padding:18px;">
           <div class="flex items-center justify-between mb-3">
             <div class="text-xs font-bold" style="color:#FFB340; letter-spacing:0.08em;">SHORT #${i + 1}</div>
             <button class="copy-btn" onclick="copyText(this, ${JSON.stringify(fullText).replace(/"/g, "&quot;")})">
@@ -3179,7 +3180,7 @@ async function runRepurposeEngine() {
             </button>
           </div>
           <div class="space-y-2">
-            <div><div class="text-xs font-bold mb-1" style="color:#05C3F9; letter-spacing:0.06em;">HOOK (3s)</div><div class="text-sm" style="color:#c0c0d8; line-height:1.7;">${escHtml(s.hook)}</div></div>
+            <div><div class="text-xs font-bold mb-1" style="color:#d95f1e; letter-spacing:0.06em;">HOOK (3s)</div><div class="text-sm" style="color:#c0c0d8; line-height:1.7;">${escHtml(s.hook)}</div></div>
             <div><div class="text-xs font-bold mb-1" style="color:#5a5a7a; letter-spacing:0.06em;">BODY (50s)</div><div class="text-sm" style="color:#c0c0d8; line-height:1.7;">${escHtml(s.body)}</div></div>
             <div><div class="text-xs font-bold mb-1" style="color:#2EE49C; letter-spacing:0.06em;">CTA (7s)</div><div class="text-sm" style="color:#c0c0d8; line-height:1.7;">${escHtml(s.cta)}</div></div>
           </div>
@@ -3195,7 +3196,7 @@ async function runRepurposeEngine() {
       const ig = data.instagram;
       const hashtags = (ig.hashtags || []).map(h => '#' + h).join(' ');
       const fullCaption = [ig.hook_line, ig.body, ig.cta_line, '', hashtags].filter(Boolean).join('\n\n');
-      igContent.innerHTML = `<div style="background:#16161f; border:1px solid #1a2c6b; border-radius:12px; padding:18px;">
+      igContent.innerHTML = `<div style="background:#161410; border:1px solid #272420; border-radius:12px; padding:18px;">
         <div class="flex items-center justify-between mb-4">
           <div></div>
           <button class="copy-btn" onclick="copyText(this, ${JSON.stringify(fullCaption).replace(/"/g, "&quot;")})">
@@ -3204,7 +3205,7 @@ async function runRepurposeEngine() {
           </button>
         </div>
         <div class="space-y-3">
-          <div><div class="text-xs font-bold mb-1" style="color:#05C3F9; letter-spacing:0.06em;">HOOK LINE</div><div class="text-sm font-semibold" style="color:#A8E6FF; line-height:1.7;">${escHtml(ig.hook_line)}</div></div>
+          <div><div class="text-xs font-bold mb-1" style="color:#d95f1e; letter-spacing:0.06em;">HOOK LINE</div><div class="text-sm font-semibold" style="color:#f07030; line-height:1.7;">${escHtml(ig.hook_line)}</div></div>
           <div><div class="text-xs font-bold mb-1" style="color:#5a5a7a; letter-spacing:0.06em;">BODY</div><div class="text-sm" style="color:#c0c0d8; line-height:1.8; white-space:pre-wrap;">${escHtml(ig.body)}</div></div>
           <div><div class="text-xs font-bold mb-1" style="color:#2EE49C; letter-spacing:0.06em;">CTA</div><div class="text-sm" style="color:#c0c0d8; line-height:1.7;">${escHtml(ig.cta_line)}</div></div>
           <div><div class="text-xs font-bold mb-2" style="color:#5a5a7a; letter-spacing:0.06em;">HASHTAGS</div><div class="flex flex-wrap gap-1">${(ig.hashtags||[]).map(h => `<span class="tag-chip">#${escHtml(h)}</span>`).join('')}</div></div>
@@ -3218,9 +3219,9 @@ async function runRepurposeEngine() {
     if (repurposeOutputs.tiktok && data.tiktok_hooks) {
       ttWrap.classList.remove('hidden');
       ttList.innerHTML = (data.tiktok_hooks || []).map((hook, i) => `
-        <div style="background:#16161f; border:1px solid #1a2c6b; border-radius:10px; padding:14px;" class="flex items-center justify-between gap-3">
+        <div style="background:#161410; border:1px solid #272420; border-radius:10px; padding:14px;" class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-3 flex-1">
-            <div style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#00FBF0,#05C3F9);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;">${i+1}</div>
+            <div style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,#f07030,#d95f1e);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;">${i+1}</div>
             <div class="text-sm font-semibold" style="color:#c0c0d8;">${escHtml(hook)}</div>
           </div>
           <button class="copy-btn flex-shrink-0" onclick="copyText(this, ${JSON.stringify(hook).replace(/"/g, "&quot;")})">
@@ -3238,7 +3239,7 @@ async function runRepurposeEngine() {
       const blog = data.blog;
       const sectionsText = (blog.sections || []).map(s => `## ${s.h2}\n${(s.bullets||[]).map(b => '- ' + b).join('\n')}`).join('\n\n');
       const fullOutline = `# ${blog.h1_title}\n\nMeta: ${blog.meta_description}\n\n${sectionsText}\n\nInternal links:\n${(blog.internal_links||[]).map(l => '- ' + l).join('\n')}`;
-      blogContent.innerHTML = `<div style="background:#16161f; border:1px solid #1a2c6b; border-radius:12px; padding:18px;">
+      blogContent.innerHTML = `<div style="background:#161410; border:1px solid #272420; border-radius:12px; padding:18px;">
         <div class="flex items-center justify-between mb-4">
           <div></div>
           <button class="copy-btn" onclick="copyText(this, ${JSON.stringify(fullOutline).replace(/"/g, "&quot;")})">
@@ -3247,12 +3248,12 @@ async function runRepurposeEngine() {
           </button>
         </div>
         <div class="space-y-4">
-          <div><div class="text-xs font-bold mb-1" style="color:#2EE49C; letter-spacing:0.06em;">SEO H1 TITLE</div><div class="text-sm font-semibold" style="color:#A8E6FF;">${escHtml(blog.h1_title)}</div></div>
+          <div><div class="text-xs font-bold mb-1" style="color:#2EE49C; letter-spacing:0.06em;">SEO H1 TITLE</div><div class="text-sm font-semibold" style="color:#f07030;">${escHtml(blog.h1_title)}</div></div>
           <div><div class="text-xs font-bold mb-1" style="color:#5a5a7a; letter-spacing:0.06em;">META DESCRIPTION</div><div class="text-sm" style="color:#c0c0d8;">${escHtml(blog.meta_description)}</div></div>
           <div>
             <div class="text-xs font-bold mb-2" style="color:#5a5a7a; letter-spacing:0.06em;">SECTIONS</div>
             <div class="space-y-3">${(blog.sections || []).map(s => `
-              <div style="border-left:2px solid #05C3F9; padding-left:12px;">
+              <div style="border-left:2px solid #d95f1e; padding-left:12px;">
                 <div class="text-sm font-semibold text-white mb-1">## ${escHtml(s.h2)}</div>
                 <ul class="space-y-1">${(s.bullets||[]).map(b => `<li class="text-xs" style="color:#8888aa;">• ${escHtml(b)}</li>`).join('')}</ul>
               </div>`).join('')}
@@ -3353,7 +3354,7 @@ function renderAiPersonaGrid() {
   const grid = document.getElementById('ai-persona-grid');
   if (!grid) return;
   if (!aiPersonaPhotos.length) {
-    grid.innerHTML = `<div class="text-sm" style="color:#7a7a9a;background:#071352;border:1px solid #1a2c6b;border-radius:12px;padding:16px;grid-column:1/-1;">No persona photos yet. Upload clear headshots and body shots to power thumbnail generation.</div>`;
+    grid.innerHTML = `<div class="text-sm" style="color:#7a7a9a;background:#071352;border:1px solid #272420;border-radius:12px;padding:16px;grid-column:1/-1;">No persona photos yet. Upload clear headshots and body shots to power thumbnail generation.</div>`;
     return;
   }
   grid.innerHTML = aiPersonaPhotos.map(photo => `
@@ -3502,7 +3503,7 @@ function stopCoverForgeProgress() {
 function coverForgePalette(index, variant) {
   const palettes = [
     { bg:'linear-gradient(135deg,#6f8796 0%,#f3ba5f 100%)', text:'#ffffff', accent:'#f5d547' },
-    { bg:'linear-gradient(135deg,#10131f 0%,#1d4ed8 55%,#05C3F9 100%)', text:'#ffffff', accent:'#00FBF0' },
+    { bg:'linear-gradient(135deg,#10131f 0%,#1d4ed8 55%,#d95f1e 100%)', text:'#ffffff', accent:'#f07030' },
     { bg:'linear-gradient(135deg,#2c0b0e 0%,#f04444 58%,#ffb340 100%)', text:'#ffffff', accent:'#FFD700' },
   ];
   const picked = palettes[index % palettes.length];
@@ -3560,7 +3561,7 @@ async function runCoverForge() {
           <div class="cf-thumb-tag">Variant ${i + 1}</div>
         </div>
         <div style="padding-top:12px;">
-          <div class="text-xs font-bold mb-1" style="color:#05C3F9;">THUMBNAIL TEXT</div>
+          <div class="text-xs font-bold mb-1" style="color:#d95f1e;">THUMBNAIL TEXT</div>
           <div class="text-sm text-white mb-2">${escHtml(v.thumbnail_text || '')}</div>
           <div class="text-xs font-bold mb-1" style="color:#5a5a7a;">LAYOUT</div>
           <div class="text-xs mb-3" style="color:#8888aa;">${escHtml(v.layout_description || '')}</div>
@@ -3582,7 +3583,7 @@ async function runCoverForge() {
     titlesList.innerHTML = (data.titles || []).map((t, i) => {
       const charCount = t.length;
       const charColor = charCount <= 60 ? '#2EE49C' : '#FF6432';
-      return `<div style="background:#16161f; border:1px solid #2a2a3a; border-radius:10px; padding:12px;" class="flex items-center justify-between gap-3">
+      return `<div style="background:#161410; border:1px solid #272420; border-radius:10px; padding:12px;" class="flex items-center justify-between gap-3">
         <span class="text-sm" style="color:#d0d0e0;">${escHtml(t)}</span>
         <div class="flex items-center gap-2 flex-shrink-0">
           <span class="text-xs font-mono" style="color:${charColor};">${charCount}/60</span>
@@ -3667,7 +3668,7 @@ async function runLeadPageGenerator() {
     const steps   = data.ghl_steps || [];
     stepsEl.innerHTML = steps.map((step, i) => `
       <li class="flex items-start gap-3">
-        <div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#05C3F9,#00FBF0);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;margin-top:1px;">${i + 1}</div>
+        <div style="width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#d95f1e,#f07030);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:white;flex-shrink:0;margin-top:1px;">${i + 1}</div>
         <span class="text-sm" style="color:#c0c0d8; line-height:1.6;">${escHtml(step)}</span>
       </li>
     `).join('');

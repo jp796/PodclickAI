@@ -3,34 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" href="/static/podclick-mark.png" type="image/png">
+  <link rel="stylesheet" href="/podclick-design.css">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PodClickAI Studio · Solo</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:        #030B2C;
-      --surface:   #050E3D;
-      --surface2:  #091660;
-      --surface3:  #102078;
-      --border:    #1a2c6b;
-      --grad-from: #05C3F9;
-      --grad-to:   #00FBF0;
-      --grad:      linear-gradient(135deg, #05C3F9, #00FBF0);
-      --grad-glow: 0 0 22px rgba(5,195,249,0.30), 0 0 8px rgba(0,251,240,0.20);
-      --accent:    #05C3F9;
-      --accent2:   #00FBF0;
+      /* Studio-specific overrides — base design system from podclick-design.css */
+      --grad-from: #d95f1e;
+      --grad-to:   #f07030;
+      --grad:      linear-gradient(135deg, #d95f1e, #f07030);
+      --grad-glow: 0 0 22px rgba(217,95,30,0.30), 0 0 8px rgba(240,112,48,0.20);
+      --accent:    var(--orange);
+      --accent2:   var(--orange-hi);
       --pink:      #FF557E;
-      --text:      #F5F7FA;
-      --text-dim:  #8AAFC5;
+      --text:      var(--text-pri);
+      --text-dim:  var(--text-muted);
       --red:       #FF557E;
       --yellow:    #FFB340;
-      --green:     #2EE49C;
+      --green:     #3d8c5c;
       --seaglass:  #BFDDDB;
-      --cobalt:    #050E3D;
+      --cobalt:    var(--bg-raised);
       --slate:     #615B56;
-      --radius:    12px;
-      --font:      -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font:      var(--font-body);
     }
 
     html, body { height: 100%; }
@@ -286,7 +282,7 @@
       text-shadow: 0 0 4px rgba(0,0,0,0.6);
     }
     .prompter-track .reading-line {
-      background: linear-gradient(90deg, rgba(5,195,249,0.0), rgba(5,195,249,0.18) 50%, rgba(5,195,249,0.0));
+      background: linear-gradient(90deg, rgba(217,95,30,0.0), rgba(217,95,30,0.18) 50%, rgba(217,95,30,0.0));
       border-radius: 6px;
     }
     .prompter-overlay {
@@ -327,7 +323,7 @@
       top: 50%;
       left: 0; right: 0;
       height: 2px;
-      background: linear-gradient(90deg, transparent, rgba(5,195,249,0.55), transparent);
+      background: linear-gradient(90deg, transparent, rgba(217,95,30,0.55), transparent);
       pointer-events: none;
     }
     /* Exit button sits inside preview, always reachable */
@@ -353,8 +349,8 @@
       display: none;
       margin-top: 10px;
       padding: 12px 16px;
-      background: linear-gradient(135deg, rgba(5,195,249,0.15), rgba(46,228,156,0.08));
-      border: 1px solid rgba(5,195,249,0.35);
+      background: linear-gradient(135deg, rgba(217,95,30,0.15), rgba(46,228,156,0.08));
+      border: 1px solid rgba(217,95,30,0.35);
       border-radius: 10px;
       font-size: 13px;
       color: var(--text-dim);
@@ -416,7 +412,7 @@
       color: var(--text-dim); font-size: 11px; font-weight: 600;
       cursor: pointer; transition: all .12s;
     }
-    .speed-btn.active { background: rgba(5,195,249,0.15); border-color: var(--accent2); color: var(--text); }
+    .speed-btn.active { background: rgba(217,95,30,0.15); border-color: var(--accent2); color: var(--text); }
     .smart-pace-btn {
       padding: 3px 10px; background: var(--surface2);
       border: 1px solid var(--border); border-radius: 6px;
@@ -519,7 +515,7 @@
       cursor: pointer; border: 1px solid var(--border); background: var(--surface2);
       color: var(--text-dim); transition: all .12s;
     }
-    .social-plat-btn.active { background: var(--accent); color: #030B2C; border-color: var(--accent); }
+    .social-plat-btn.active { background: var(--accent); color: #0b0a08; border-color: var(--accent); }
     .yt-conn-warn {
       font-size: 11px; color: var(--yellow); background: rgba(255,179,64,0.1);
       border: 1px solid rgba(255,179,64,0.3); border-radius: 6px;
@@ -561,7 +557,7 @@
   transition: border-color .15s, background .15s;
   display: flex; flex-direction: column; gap: 5px; position: relative;
 }
-.pub-tile:hover:not(.disabled) { border-color: var(--accent2); background: rgba(5,195,249,0.08); }
+.pub-tile:hover:not(.disabled) { border-color: var(--accent2); background: rgba(217,95,30,0.08); }
 .pub-tile.disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 .pub-tile.expanded { grid-column: 1 / -1; }
 .pub-tile-icon { font-size: 22px; }
@@ -594,13 +590,13 @@
   padding: 9px 12px; outline: none; margin-top: 4px;
 }
 .pub-sub-btn {
-  padding: 11px 18px; background: linear-gradient(135deg,#05C3F9,#00FBF0);
+  padding: 11px 18px; background: linear-gradient(135deg,#d95f1e,#f07030);
   border: none; border-radius: 8px; color: #fff;
   font-size: 13px; font-weight: 700; cursor: pointer; align-self: flex-start;
 }
 .pub-tile.selected {
   border-color: var(--accent2);
-  background: rgba(5,195,249,0.12);
+  background: rgba(217,95,30,0.12);
 }
 .pub-tile.selected::after {
   content: "✓";
@@ -608,7 +604,7 @@
   top: 8px; right: 10px;
   font-size: 14px;
   font-weight: 800;
-  color: #05C3F9;
+  color: #d95f1e;
 }
 .pub-tile.selected .pub-badge-live { display: none; }
 .pub-preset-btn {
@@ -626,7 +622,7 @@
 .pub-exec-btn {
   width: 100%;
   padding: 14px;
-  background: linear-gradient(135deg, #05C3F9, #00FBF0);
+  background: linear-gradient(135deg, #d95f1e, #f07030);
   border: none;
   border-radius: 10px;
   color: #fff;
@@ -689,12 +685,12 @@
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;background:#0a0a18;border:1px solid #1a1a28;border-radius:10px;padding:11px 14px;">
         <span style="font-size:18px;">🎧</span>
         <span style="font-size:13px;color:#888;flex:1;">Using headphones?</span>
-        <button id="dc-hp-yes" onclick="dcSetHeadphones(true)"  style="padding:6px 14px;border-radius:6px;border:1px solid #2a2a3e;background:#050E3D;color:#666;font-size:12px;cursor:pointer;font-weight:600;transition:all .15s;">Yes</button>
-        <button id="dc-hp-no"  onclick="dcSetHeadphones(false)" style="padding:6px 14px;border-radius:6px;border:none;background:linear-gradient(135deg,#05C3F9,#00FBF0);color:#fff;font-size:12px;cursor:pointer;font-weight:600;">No</button>
+        <button id="dc-hp-yes" onclick="dcSetHeadphones(true)"  style="padding:6px 14px;border-radius:6px;border:1px solid #2a2a3e;background:#111009;color:#666;font-size:12px;cursor:pointer;font-weight:600;transition:all .15s;">Yes</button>
+        <button id="dc-hp-no"  onclick="dcSetHeadphones(false)" style="padding:6px 14px;border-radius:6px;border:none;background:linear-gradient(135deg,#d95f1e,#f07030);color:#fff;font-size:12px;cursor:pointer;font-weight:600;">No</button>
       </div>
 
       <!-- Join button -->
-      <button onclick="dcEnterStudio()" style="width:100%;padding:16px;background:linear-gradient(135deg,#05C3F9,#00FBF0);border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:0.02em;box-shadow:0 0 28px rgba(5,195,249,0.35);transition:opacity .15s;">Join Studio</button>
+      <button onclick="dcEnterStudio()" style="width:100%;padding:16px;background:linear-gradient(135deg,#d95f1e,#f07030);border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:0.02em;box-shadow:0 0 28px rgba(217,95,30,0.35);transition:opacity .15s;">Join Studio</button>
       <div style="text-align:center;margin-top:14px;">
         <button onclick="dcSkip()" style="background:none;border:none;color:#333;font-size:12px;cursor:pointer;text-decoration:underline;">Skip — enter without camera</button>
       </div>
@@ -821,7 +817,7 @@
     <div style="font-size:11px;color:var(--text-dim);" id="file-xfer-dest"></div>
   </div>
   <div style="width:120px;height:4px;background:var(--border);border-radius:4px;overflow:hidden;">
-    <div id="file-xfer-track" style="height:100%;width:0%;background:linear-gradient(90deg,#05C3F9,#00FBF0);border-radius:4px;transition:width 0.3s ease;"></div>
+    <div id="file-xfer-track" style="height:100%;width:0%;background:linear-gradient(90deg,#d95f1e,#f07030);border-radius:4px;transition:width 0.3s ease;"></div>
   </div>
   <div style="font-size:11px;color:var(--text-dim);min-width:40px;text-align:right;" id="file-xfer-pct">0%</div>
 </div>
@@ -1020,10 +1016,10 @@
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
             <button class="btn primary" id="btn-gen-script" style="flex:1;font-weight:700;letter-spacing:0.03em;">✨ Generate Script</button>
-            <span id="gen-spinner" style="display:none;color:#05C3F9;font-size:13px;">generating…</span>
+            <span id="gen-spinner" style="display:none;color:#d95f1e;font-size:13px;">generating…</span>
           </div>
           <div id="record-cta">
-            <strong>Script ready.</strong> Hit <strong style="color:#05C3F9;">● Record</strong> to start — camera will turn on automatically.
+            <strong>Script ready.</strong> Hit <strong style="color:#d95f1e;">● Record</strong> to start — camera will turn on automatically.
             <br><button class="btn primary" style="margin-top:8px;width:100%;font-weight:700;" onclick="startCameraAndRecord()">● Start Recording Now</button>
           </div>
           <div id="topic-message" style="margin-top:8px;font-size:12px;color:#888;"></div>
@@ -1031,7 +1027,7 @@
 
         <!-- No schedule state -->
         <div id="topic-empty" style="display:none;color:#888;font-size:13px;padding:8px 0;">
-          No schedule set. <a href="/youtube-studio#scheduler" style="color:#05C3F9;">Set one in Click Studio →</a>
+          No schedule set. <a href="/youtube-studio#scheduler" style="color:#d95f1e;">Set one in Click Studio →</a>
         </div>
       </div>
 
@@ -2126,7 +2122,7 @@
       const res = await fetch("/api/clip", { method:"POST", body:form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || res.statusText);
-      completeFileXfer(true, 'Clip job started — view in Dashboard');
+      completeFileXfer(true, 'Clip job started — view in Job Site');
       return data;
     } catch(e) {
       completeFileXfer(false, 'Clip pipeline failed');
@@ -2223,7 +2219,7 @@
     setTimeout(() => {
       const bar = document.getElementById('file-xfer-bar');
       if (bar) bar.style.display = 'none';
-      if (track) track.style.background = 'linear-gradient(90deg,#05C3F9,#00FBF0)';
+      if (track) track.style.background = 'linear-gradient(90deg,#d95f1e,#f07030)';
     }, 2500);
   }
 
@@ -2285,7 +2281,7 @@
       if (data.message && !data.topic) {
         // No schedule / no topics
         $("topic-empty").style.display  = "block";
-        $("topic-empty").innerHTML = data.message + ' <a href="/youtube-studio" style="color:#05C3F9;">Set one in Click Studio →</a>';
+        $("topic-empty").innerHTML = data.message + ' <a href="/youtube-studio" style="color:#d95f1e;">Set one in Click Studio →</a>';
         return;
       }
 
@@ -2299,7 +2295,7 @@
       const badge = $("topic-shoot-badge");
       if (data.is_shoot_day) {
         badge.style.display = "block";
-        badge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(0,251,240,0.15);border:1px solid rgba(0,251,240,0.35);border-radius:20px;padding:4px 12px;font-size:12px;color:#00FBF0;font-weight:600;">🎬 Today is a shoot day — ${data.today}</span>`;
+        badge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(240,112,48,0.15);border:1px solid rgba(240,112,48,0.35);border-radius:20px;padding:4px 12px;font-size:12px;color:#f07030;font-weight:600;">🎬 Today is a shoot day — ${data.today}</span>`;
       } else {
         badge.style.display = "block";
         badge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid #2a2a3a;border-radius:20px;padding:4px 12px;font-size:12px;color:#888;">📅 Shoot days: ${(data.shoot_days||[]).join(", ") || "not set"}</span>`;
@@ -2481,10 +2477,10 @@
   function dcSetHeadphones(val) {
     const yes = document.getElementById('dc-hp-yes');
     const no  = document.getElementById('dc-hp-no');
-    yes.style.background  = val  ? 'linear-gradient(135deg,#05C3F9,#00FBF0)' : '#050E3D';
+    yes.style.background  = val  ? 'linear-gradient(135deg,#d95f1e,#f07030)' : '#111009';
     yes.style.color       = val  ? '#fff' : '#666';
     yes.style.border      = val  ? 'none' : '1px solid #2a2a3e';
-    no.style.background   = !val ? 'linear-gradient(135deg,#05C3F9,#00FBF0)' : '#050E3D';
+    no.style.background   = !val ? 'linear-gradient(135deg,#d95f1e,#f07030)' : '#111009';
     no.style.color        = !val ? '#fff' : '#666';
     no.style.border       = !val ? 'none' : '1px solid #2a2a3e';
   }

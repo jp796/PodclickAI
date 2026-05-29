@@ -21,59 +21,59 @@
   const css = document.createElement('style');
   css.textContent = `
     #pcRec-launcher{position:fixed;bottom:24px;right:24px;z-index:99999;display:flex;flex-direction:column;align-items:flex-end;gap:10px;}
-    #pcRec-fab{width:52px;height:52px;border-radius:50%;background:#6366f1;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.35);transition:transform .12s,background .2s;}
+    #pcRec-fab{width:52px;height:52px;border-radius:50%;background:#d95f1e;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.35);transition:transform .12s,background .2s;}
     #pcRec-fab:hover{transform:scale(1.08);}
     #pcRec-fab.recording{background:#ef4444;animation:pcRecPulse 1.4s ease-in-out infinite;}
     @keyframes pcRecPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.5);}50%{box-shadow:0 0 0 14px rgba(239,68,68,0);}}
-    #pcRec-panel{background:#1e1e2e;border:1px solid #313244;border-radius:16px;padding:18px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.6);color:#cdd6f4;font-family:system-ui,sans-serif;font-size:13px;max-height:88vh;overflow-y:auto;}
+    #pcRec-panel{background:#111009;border:1px solid #272420;border-radius:16px;padding:18px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,.6);color:#e5ddd0;font-family:system-ui,sans-serif;font-size:13px;max-height:88vh;overflow-y:auto;}
     #pcRec-panel.hidden{display:none;}
     #pcRec-panel::-webkit-scrollbar{width:4px;}
-    #pcRec-panel::-webkit-scrollbar-thumb{background:#45475a;border-radius:2px;}
+    #pcRec-panel::-webkit-scrollbar-thumb{background:#272420;border-radius:2px;}
     .pR-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
     .pR-title{font-weight:700;font-size:14px;}
-    .pR-x{background:none;border:none;color:#6c7086;cursor:pointer;font-size:20px;line-height:1;padding:0;}
-    .pR-x:hover{color:#cdd6f4;}
-    .pR-lbl{font-size:10px;font-weight:700;color:#6c7086;text-transform:uppercase;letter-spacing:.08em;margin:12px 0 6px;}
-    .pR-sel{width:100%;padding:8px 10px;background:#181825;border:1px solid #45475a;border-radius:8px;color:#cdd6f4;font-size:12px;outline:none;cursor:pointer;margin-bottom:10px;}
-    .pR-sel:focus{border-color:#6366f1;}
+    .pR-x{background:none;border:none;color:#7a7060;cursor:pointer;font-size:20px;line-height:1;padding:0;}
+    .pR-x:hover{color:#e5ddd0;}
+    .pR-lbl{font-size:10px;font-weight:700;color:#7a7060;text-transform:uppercase;letter-spacing:.08em;margin:12px 0 6px;}
+    .pR-sel{width:100%;padding:8px 10px;background:#0b0a08;border:1px solid #272420;border-radius:8px;color:#e5ddd0;font-size:12px;outline:none;cursor:pointer;margin-bottom:10px;}
+    .pR-sel:focus{border-color:#d95f1e;}
     .pR-hp{display:flex;gap:8px;margin-bottom:12px;}
-    .pR-hp-btn{flex:1;padding:6px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid #45475a;background:#181825;color:#6c7086;cursor:pointer;transition:all .15s;}
-    .pR-hp-btn.on{background:#6366f1;border-color:#6366f1;color:#fff;}
+    .pR-hp-btn{flex:1;padding:6px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid #272420;background:#0b0a08;color:#7a7060;cursor:pointer;transition:all .15s;}
+    .pR-hp-btn.on{background:#d95f1e;border-color:#d95f1e;color:#fff;}
     .pR-mic-test-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
-    .pR-test-btn{padding:6px 12px;border-radius:7px;border:1px solid #45475a;background:#181825;color:#a6adc8;font-size:11px;cursor:pointer;white-space:nowrap;}
+    .pR-test-btn{padding:6px 12px;border-radius:7px;border:1px solid #272420;background:#0b0a08;color:#a09880;font-size:11px;cursor:pointer;white-space:nowrap;}
     .pR-test-btn.active{background:rgba(163,190,140,.15);border-color:#a3be8c;color:#a3be8c;}
-    .pR-vu-track{flex:1;height:10px;background:#181825;border:1px solid #313244;border-radius:5px;overflow:hidden;}
+    .pR-vu-track{flex:1;height:10px;background:#0b0a08;border:1px solid #272420;border-radius:5px;overflow:hidden;}
     .pR-vu-fill{height:100%;width:0%;border-radius:5px;background:linear-gradient(90deg,#a6e3a1 0%,#fab387 70%,#f38ba8 100%);transition:width .05s ease-out;}
-    .pR-opt{display:flex;align-items:center;gap:6px;font-size:12px;color:#a6adc8;margin-bottom:10px;cursor:pointer;}
-    .pR-opt input{accent-color:#6366f1;cursor:pointer;}
+    .pR-opt{display:flex;align-items:center;gap:6px;font-size:12px;color:#a09880;margin-bottom:10px;cursor:pointer;}
+    .pR-opt input{accent-color:#d95f1e;cursor:pointer;}
 
     /* Camera bubble preview */
     .pR-cam-preview-wrap{position:relative;margin-bottom:10px;display:none;}
     .pR-cam-preview-wrap.show{display:block;}
-    #pcRec-camPreview{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #6366f1;display:block;}
+    #pcRec-camPreview{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #d95f1e;display:block;}
     .pR-bubble-pos{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;}
-    .pR-pos-btn{flex:1;padding:5px 4px;border-radius:6px;border:1px solid #45475a;background:#181825;color:#6c7086;font-size:10px;cursor:pointer;text-align:center;transition:all .15s;}
-    .pR-pos-btn.on{border-color:#6366f1;color:#6366f1;background:rgba(99,102,241,.1);}
+    .pR-pos-btn{flex:1;padding:5px 4px;border-radius:6px;border:1px solid #272420;background:#0b0a08;color:#7a7060;font-size:10px;cursor:pointer;text-align:center;transition:all .15s;}
+    .pR-pos-btn.on{border-color:#d95f1e;color:#d95f1e;background:rgba(99,102,241,.1);}
     .pR-bubble-size{margin-top:6px;}
-    .pR-bubble-size input{width:100%;accent-color:#6366f1;}
-    .pR-bubble-size label{font-size:10px;color:#6c7086;display:flex;justify-content:space-between;}
+    .pR-bubble-size input{width:100%;accent-color:#d95f1e;}
+    .pR-bubble-size label{font-size:10px;color:#7a7060;display:flex;justify-content:space-between;}
 
-    hr.pR-hr{border:none;border-top:1px solid #313244;margin:14px 0;}
+    hr.pR-hr{border:none;border-top:1px solid #272420;margin:14px 0;}
     .pR-big{width:100%;padding:11px;border-radius:10px;border:none;font-weight:700;font-size:13px;cursor:pointer;transition:opacity .15s,transform .1s;}
     .pR-big:hover:not(:disabled){opacity:.88;transform:translateY(-1px);}
     .pR-big:disabled{opacity:.5;cursor:not-allowed;}
-    .pR-big.start{background:#6366f1;color:#fff;}
+    .pR-big.start{background:#d95f1e;color:#fff;}
     .pR-big.stop{background:#ef4444;color:#fff;}
-    .pR-hint{font-size:11px;color:#6c7086;text-align:center;margin-top:10px;}
+    .pR-hint{font-size:11px;color:#7a7060;text-align:center;margin-top:10px;}
     .pR-timer{text-align:center;font-size:32px;font-weight:700;letter-spacing:.08em;font-variant-numeric:tabular-nums;color:#f38ba8;margin-bottom:6px;}
-    .pR-status{text-align:center;font-size:11px;color:#6c7086;text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px;}
-    .pR-vid{width:100%;border-radius:8px;background:#000;max-height:150px;object-fit:contain;border:1px solid #313244;margin-bottom:8px;}
+    .pR-status{text-align:center;font-size:11px;color:#7a7060;text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px;}
+    .pR-vid{width:100%;border-radius:8px;background:#000;max-height:150px;object-fit:contain;border:1px solid #272420;margin-bottom:8px;}
     .pR-row{display:flex;gap:8px;}
-    .pR-sm{flex:1;padding:8px 6px;border-radius:7px;border:1px solid #313244;background:#181825;color:#a6adc8;font-size:12px;cursor:pointer;transition:all .15s;}
-    .pR-sm:hover{background:#313244;color:#cdd6f4;}
+    .pR-sm{flex:1;padding:8px 6px;border-radius:7px;border:1px solid #272420;background:#0b0a08;color:#a09880;font-size:12px;cursor:pointer;transition:all .15s;}
+    .pR-sm:hover{background:#272420;color:#e5ddd0;}
     .pR-sm:disabled{opacity:.4;cursor:default;}
-    .pR-note{font-size:11px;color:#6c7086;margin-top:10px;line-height:1.5;}
-    #pcRec-toast{position:fixed;bottom:90px;right:24px;z-index:100000;background:#313244;color:#cdd6f4;border-radius:8px;padding:8px 14px;font-size:12px;font-family:system-ui,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.4);opacity:0;transition:opacity .2s;pointer-events:none;}
+    .pR-note{font-size:11px;color:#7a7060;margin-top:10px;line-height:1.5;}
+    #pcRec-toast{position:fixed;bottom:90px;right:24px;z-index:100000;background:#272420;color:#e5ddd0;border-radius:8px;padding:8px 14px;font-size:12px;font-family:system-ui,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,.4);opacity:0;transition:opacity .2s;pointer-events:none;}
     #pcRec-toast.show{opacity:1;}
   `;
   document.head.appendChild(css);
@@ -118,7 +118,7 @@
           <!-- Live bubble preview -->
           <div class="pR-cam-preview-wrap" id="pcRec-camPreviewWrap">
             <video id="pcRec-camPreview" autoplay playsinline muted></video>
-            <span style="font-size:10px;color:#6c7086;margin-left:8px;vertical-align:middle;">Live preview</span>
+            <span style="font-size:10px;color:#7a7060;margin-left:8px;vertical-align:middle;">Live preview</span>
           </div>
 
           <!-- Position picker -->
@@ -171,7 +171,7 @@
           <button class="pR-sm" id="pcRec-mp4Btn" onclick="window._pcConvert()">🎬 MP4</button>
           <button class="pR-sm" onclick="window._pcAgain()">🔄 Again</button>
         </div>
-        <p class="pR-note"><strong style="color:#a6adc8;">TikTok review:</strong> Download MP4 → <a href="https://developers.tiktok.com/apps/" target="_blank" style="color:#89b4fa;">developers.tiktok.com</a></p>
+        <p class="pR-note"><strong style="color:#a09880;">TikTok review:</strong> Download MP4 → <a href="https://developers.tiktok.com/apps/" target="_blank" style="color:#89b4fa;">developers.tiktok.com</a></p>
       </div>
     </div>
 
@@ -408,7 +408,7 @@
         // Ring border
         _composeCtx.beginPath();
         _composeCtx.arc(cx, cy, r, 0, Math.PI * 2);
-        _composeCtx.strokeStyle = '#6366f1';
+        _composeCtx.strokeStyle = '#d95f1e';
         _composeCtx.lineWidth = Math.max(3, Math.round(bubbleD * 0.03));
         _composeCtx.stroke();
       }
