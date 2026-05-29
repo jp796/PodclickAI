@@ -8304,6 +8304,69 @@ async def permit_page():
     return FileResponse(BASE_DIR / "frontend" / "permit.html")
 
 
+@app.get("/onboarding")
+async def onboarding_page():
+    """Serve the 6-step onboarding flow."""
+    from fastapi.responses import FileResponse
+    return FileResponse(BASE_DIR / "frontend" / "onboarding.html")
+
+
+# ── Onboarding state ──────────────────────────────────────────────────────────
+
+ONBOARDING_FILE = DATA_DIR / "onboarding.json"
+
+def _read_onboarding():
+    if ONBOARDING_FILE.exists():
+        try:
+            return json.loads(ONBOARDING_FILE.read_text())
+        except Exception:
+            pass
+    return {"step": 1, "completed_at": None}
+
+def _write_onboarding(state):
+    ONBOARDING_FILE.write_text(json.dumps(state, indent=2))
+
+
+@app.get("/api/onboarding/state")
+async def onboarding_state():
+    """Return current onboarding step and completion timestamp."""
+    return _read_onboarding()
+
+
+@app.post("/api/onboarding/advance")
+async def onboarding_advance(req: Request):
+    """Advance to the next onboarding step or mark as complete."""
+    body = await req.json()
+    step = body.get("step", 1)
+    completed = body.get("completed", False)
+    state = _read_onboarding()
+    state["step"] = step
+    if completed:
+        from datetime import datetime
+        state["completed_at"] = datetime.utcnow().isoformat() + "Z"
+    _write_onboarding(state)
+    return state
+
+
+@app.get("/api/onboarding/ghl-check")
+async def onboarding_ghl_check():
+    """Check whether a valid GHL location is already configured."""
+    location_id = os.getenv("TITAN_LOCATION_ID", "")
+    token_file  = DATA_DIR / "social_tokens.json"
+    has_token   = False
+    if token_file.exists():
+        try:
+            tokens = json.loads(token_file.read_text())
+            has_token = bool(tokens.get("ghl", {}).get("access_token"))
+        except Exception:
+            pass
+    return {
+        "connected": bool(location_id),
+        "has_token": has_token,
+        "location_id": location_id[:8] + "…" if location_id else None,
+    }
+
+
 # ── Walk-through data ─────────────────────────────────────────────────────────
 
 @app.get("/api/brick/walkthrough")

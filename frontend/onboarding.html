@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="/static/podclick-mark.png" type="image/png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PodClick — Setup</title>
+  <link rel="stylesheet" href="/podclick-design.css" />
+  <style>
+    html, body {
+      background: var(--bg); color: var(--text-pri);
+      min-height: 100vh; font-family: var(--font-body);
+      margin: 0; padding: 0;
+    }
+
+    /* ── Shell ── */
+    .ob-shell {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 40px 24px 60px;
+    }
+
+    /* ── Logo bar ── */
+    .ob-logo {
+      margin-bottom: 32px;
+    }
+    .ob-logo img { height: 28px; width: auto; object-fit: contain; display: block; }
+    .ob-logo .logo-fallback {
+      font-size: 18px; font-weight: 800; color: var(--text-pri);
+    }
+    .ob-logo .logo-fallback span { color: var(--orange-hi); }
+
+    /* ── Progress dots ── */
+    .ob-progress {
+      display: flex; gap: 8px; margin-bottom: 44px;
+    }
+    .ob-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--border); transition: background 0.2s;
+    }
+    .ob-dot.done   { background: var(--orange-dim); }
+    .ob-dot.active { background: var(--orange-hi); width: 22px; border-radius: 4px; }
+
+    /* ── Card ── */
+    .ob-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 36px 32px;
+      width: 100%; max-width: 560px;
+      display: none;
+    }
+    .ob-card.active { display: block; }
+
+    .ob-eyebrow {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--orange-hi);
+      margin-bottom: 10px;
+    }
+    .ob-heading {
+      font-size: 22px; font-weight: 700; color: var(--text-pri);
+      margin-bottom: 10px; line-height: 1.3;
+    }
+    .ob-sub {
+      font-size: 14px; color: var(--text-dim); line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    /* ── Primary CTA ── */
+    .ob-btn {
+      display: inline-block; padding: 11px 28px;
+      background: linear-gradient(135deg, var(--orange), #e07030);
+      color: #fff; font-weight: 700; font-size: 14px;
+      border-radius: 10px; border: none; cursor: pointer;
+      transition: opacity 0.15s; text-decoration: none;
+    }
+    .ob-btn:hover { opacity: 0.88; }
+    .ob-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .ob-btn-ghost {
+      display: inline-block; padding: 11px 22px;
+      background: var(--bg-raised); color: var(--text-dim);
+      font-weight: 600; font-size: 14px;
+      border-radius: 10px; border: 1px solid var(--border);
+      cursor: pointer; margin-left: 10px; transition: all 0.15s;
+    }
+    .ob-btn-ghost:hover { border-color: var(--orange-dim); color: var(--text); }
+
+    /* ── Step 1 — brick hero ── */
+    .brick-hero {
+      display: flex; align-items: center; gap: 18px;
+      padding: 20px; background: var(--bg-raised);
+      border-radius: 12px; border: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .brick-hero img { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+    .brick-hero .hero-emoji { font-size: 42px; flex-shrink: 0; }
+    .brick-hero-copy { font-size: 14px; color: var(--text); line-height: 1.5; }
+    .brick-hero-copy strong { color: var(--text-pri); }
+
+    /* ── Step 2 — GHL connect ── */
+    .ghl-status-box {
+      padding: 16px 20px; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--bg-raised);
+      margin-bottom: 20px; font-size: 13px; color: var(--text-dim);
+    }
+    .ghl-status-box.connected {
+      border-color: rgba(46,228,156,0.3);
+      background: rgba(46,228,156,0.05);
+      color: #2ee49c;
+    }
+    .ghl-status-box .status-label {
+      font-weight: 700; font-size: 12px; text-transform: uppercase;
+      letter-spacing: 0.06em; margin-bottom: 4px;
+    }
+
+    /* ── Step 3 — Foundation cards ── */
+    .foundation-tier-bar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 18px; border-radius: 10px;
+      background: var(--bg-raised); border: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .tier-label-pill {
+      font-size: 10px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 0.06em; padding: 3px 10px; border-radius: 10px;
+      border: 1px solid; flex-shrink: 0;
+    }
+    .tier-not-ready  { color: var(--text-dim); border-color: var(--border); }
+    .tier-thin       { color: #f0c040; border-color: rgba(240,192,64,0.4); background: rgba(240,192,64,0.08); }
+    .tier-solid      { color: #2ee49c; border-color: rgba(46,228,156,0.4); background: rgba(46,228,156,0.08); }
+    .tier-deep       { color: #82d9f0; border-color: rgba(130,217,240,0.4); background: rgba(130,217,240,0.08); }
+
+    .sample-count-num {
+      font-size: 22px; font-weight: 800; color: var(--text-pri);
+    }
+    .sample-count-label {
+      font-size: 12px; color: var(--text-dim);
+    }
+    .tier-progress-bar {
+      flex: 1; height: 4px; background: var(--surface); border-radius: 4px; overflow: hidden;
+    }
+    .tier-progress-fill {
+      height: 100%; background: linear-gradient(90deg, var(--orange), var(--orange-hi));
+      border-radius: 4px; transition: width 0.4s;
+    }
+
+    .brick-comment {
+      padding: 12px 16px; border-radius: 10px;
+      background: rgba(217,95,30,0.07); border: 1px solid rgba(217,95,30,0.15);
+      font-size: 13px; color: var(--text); line-height: 1.5;
+      margin-bottom: 20px; display: none;
+    }
+    .brick-comment.visible { display: block; }
+
+    .intake-cards {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      margin-bottom: 24px;
+    }
+    .intake-card {
+      background: var(--bg-raised); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px;
+      cursor: pointer; transition: border-color 0.15s;
+    }
+    .intake-card:hover { border-color: var(--orange-dim); }
+    .intake-card .ic-label {
+      font-size: 12px; font-weight: 700; color: var(--text-pri);
+      margin-bottom: 4px;
+    }
+    .intake-card .ic-sub {
+      font-size: 11px; color: var(--text-dim); line-height: 1.4;
+    }
+    .intake-card .ic-icon { font-size: 20px; margin-bottom: 8px; }
+
+    /* voice interview overlay */
+    .interview-overlay {
+      display: none; padding: 20px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; margin-bottom: 20px;
+    }
+    .interview-overlay.open { display: block; }
+    .interview-question-text {
+      font-size: 15px; color: var(--text-pri); font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .interview-hint { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; }
+    .interview-controls { display: flex; gap: 10px; align-items: center; }
+    .record-btn {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: var(--orange); border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: all 0.15s;
+    }
+    .record-btn.recording {
+      background: #d97070; animation: pulse-rec 1s infinite;
+    }
+    @keyframes pulse-rec {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.06); }
+    }
+    .record-btn svg { pointer-events: none; }
+    .record-timer { font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+    .interview-progress { font-size: 11px; color: var(--text-dim); margin-top: 10px; }
+
+    /* paste text area */
+    .paste-overlay {
+      display: none; margin-bottom: 20px;
+    }
+    .paste-overlay.open { display: block; }
+    .paste-textarea {
+      width: 100%; min-height: 120px; box-sizing: border-box;
+      background: var(--bg-raised); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px; font-size: 13px;
+      color: var(--text); resize: vertical; outline: none;
+      font-family: var(--font-body);
+    }
+    .paste-textarea:focus { border-color: var(--orange-dim); }
+    .paste-submit { margin-top: 8px; }
+
+    /* ── Step 4 — Blueprint draft ── */
+    .blueprint-loading {
+      text-align: center; padding: 40px 0; color: var(--text-dim);
+    }
+    .blueprint-draft { display: none; }
+    .blueprint-draft.visible { display: block; }
+    .bp-section { margin-bottom: 20px; }
+    .bp-section-label {
+      font-size: 10px; font-weight: 800; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--text-dim); margin-bottom: 8px;
+    }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      padding: 4px 12px; border-radius: 10px; font-size: 12px; font-weight: 600;
+      background: rgba(217,95,30,0.1); color: var(--orange-hi);
+      border: 1px solid rgba(217,95,30,0.25);
+    }
+    .bp-text {
+      font-size: 13px; color: var(--text); line-height: 1.5;
+      background: var(--bg-raised); border-radius: 8px; padding: 10px 14px;
+    }
+    .pillar-bar { margin-bottom: 8px; }
+    .pillar-name { font-size: 12px; color: var(--text); margin-bottom: 3px; }
+    .pillar-track { height: 5px; background: var(--surface); border-radius: 4px; overflow: hidden; }
+    .pillar-fill { height: 100%; background: linear-gradient(90deg, var(--orange), var(--orange-hi)); border-radius: 4px; }
+
+    /* ── Step 5 — Meet Brick ── */
+    .meet-brick-hero {
+      text-align: center; padding: 24px 0 16px;
+    }
+    .meet-brick-avatar {
+      width: 88px; height: 88px; border-radius: 50%; object-fit: cover;
+      border: 3px solid var(--orange); margin-bottom: 16px;
+    }
+    .meet-brick-name {
+      font-size: 20px; font-weight: 800; color: var(--text-pri); margin-bottom: 4px;
+    }
+    .meet-brick-tier {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--orange-hi); margin-bottom: 20px;
+    }
+    .brick-intro-quote {
+      padding: 18px 20px; border-radius: 12px;
+      background: rgba(217,95,30,0.07); border: 1px solid rgba(217,95,30,0.15);
+      font-size: 14px; color: var(--text); line-height: 1.6;
+      text-align: left; margin-bottom: 24px;
+    }
+
+    /* ── Step 6 — Complete ── */
+    .complete-wrap { text-align: center; padding: 20px 0; }
+    .complete-wrap .checkmark { font-size: 48px; margin-bottom: 16px; }
+    .complete-redirect-msg {
+      font-size: 13px; color: var(--text-dim); margin-top: 16px;
+    }
+
+    /* ── Gate notice ── */
+    .gate-notice {
+      padding: 12px 16px; border-radius: 10px;
+      background: rgba(240,192,64,0.07); border: 1px solid rgba(240,192,64,0.25);
+      font-size: 13px; color: #c8a235; margin-bottom: 18px; display: none;
+    }
+    .gate-notice.visible { display: block; }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block; width: 18px; height: 18px; vertical-align: middle;
+      border: 2px solid var(--border); border-top-color: var(--orange-hi);
+      border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="ob-shell">
+
+  <!-- Logo -->
+  <div class="ob-logo">
+    <img src="/static/podclick-logo.png" alt="PodClick AI" onerror="this.style.display='none'; document.querySelector('.logo-fallback').style.display='block'">
+    <div class="logo-fallback" style="display:none">Podclick<span>AI</span></div>
+  </div>
+
+  <!-- Progress dots -->
+  <div class="ob-progress" id="ob-progress">
+    <div class="ob-dot" data-s="1"></div>
+    <div class="ob-dot" data-s="2"></div>
+    <div class="ob-dot" data-s="3"></div>
+    <div class="ob-dot" data-s="4"></div>
+    <div class="ob-dot" data-s="5"></div>
+    <div class="ob-dot" data-s="6"></div>
+  </div>
+
+  <!-- ── Step 1: Welcome ── -->
+  <div class="ob-card" id="step-1">
+    <div class="ob-eyebrow">Step 1 of 6 — Pour the foundation</div>
+    <div class="ob-heading">Your content site starts here.</div>
+    <div class="ob-sub">PodClick is your content operations system. Brick is your AI operator. Pour your foundation, meet Brick, and you'll have your first walk-through in 15 minutes.</div>
+
+    <div class="brick-hero">
+      <img src="/static/brick-avatar.png" alt="Brick" onerror="this.style.display='none'; this.parentElement.querySelector('.hero-emoji').style.display='block'">
+      <div class="hero-emoji" style="display:none">🔨</div>
+      <div class="brick-hero-copy">
+        <strong>Brick here.</strong> I'll be running your site. The Foundation we pour today is what makes every post, script, and closing sound like <em>you</em> — not like every other AI tool.
+      </div>
+    </div>
+
+    <button class="ob-btn" onclick="goStep(2)">Get on the site →</button>
+  </div>
+
+  <!-- ── Step 2: Connect GHL ── -->
+  <div class="ob-card" id="step-2">
+    <div class="ob-eyebrow">Step 2 of 6 — Connect your platform</div>
+    <div class="ob-heading">Wire up your publishing layer.</div>
+    <div class="ob-sub">PodClick publishes through your Go High Level account. Your social accounts, contacts, and posting schedule all live there.</div>
+
+    <div class="ghl-status-box" id="ghl-status-box">
+      <div class="status-label">Checking connection…</div>
+    </div>
+
+    <div id="ghl-connect-btn-wrap" style="display:none">
+      <a href="/api/youtube/auth" class="ob-btn">Connect GHL →</a>
+    </div>
+    <div id="ghl-advance-wrap" style="display:none">
+      <button class="ob-btn" onclick="goStep(3)">Continue →</button>
+    </div>
+  </div>
+
+  <!-- ── Step 3: Pour Foundation ── -->
+  <div class="ob-card" id="step-3">
+    <div class="ob-eyebrow">Step 3 of 6 — Lay the foundation</div>
+    <div class="ob-heading">Brick learns your voice from real you.</div>
+    <div class="ob-sub">Not from forms or summaries — from how you actually talk and write. Pick any path below.</div>
+
+    <!-- Foundation status bar -->
+    <div class="foundation-tier-bar" id="ob-tier-bar">
+      <div>
+        <div class="sample-count-num" id="ob-sample-count">0</div>
+        <div class="sample-count-label">samples</div>
+      </div>
+      <div class="tier-progress-bar">
+        <div class="tier-progress-fill" id="ob-tier-fill" style="width:0%"></div>
+      </div>
+      <span class="tier-label-pill tier-not-ready" id="ob-tier-pill">Pouring…</span>
+    </div>
+
+    <!-- Brick comment at thresholds -->
+    <div class="brick-comment" id="ob-brick-comment"></div>
+
+    <!-- Gate notice -->
+    <div class="gate-notice" id="ob-gate-notice">
+      Add 5 samples to keep going. Brick needs enough material to know your voice.
+    </div>
+
+    <!-- Intake method cards -->
+    <div class="intake-cards">
+      <div class="intake-card" onclick="openInterview()">
+        <div class="ic-icon">🎙️</div>
+        <div class="ic-label">Talk to Brick</div>
+        <div class="ic-sub">8 questions, 30–60 sec each. Best signal.</div>
+      </div>
+      <div class="intake-card" onclick="openPaste()">
+        <div class="ic-icon">📝</div>
+        <div class="ic-label">Paste your writing</div>
+        <div class="ic-sub">Blog posts, LinkedIn, articles — your words.</div>
+      </div>
+      <div class="intake-card" onclick="openUpload()">
+        <div class="ic-icon">📂</div>
+        <div class="ic-label">Upload audio/video</div>
+        <div class="ic-sub">Podcasts, talks, Loom recordings.</div>
+      </div>
+      <div class="intake-card" onclick="window.open('/foundation','_blank')">
+        <div class="ic-icon">🔗</div>
+        <div class="ic-label">More options</div>
+        <div class="ic-sub">Channel sync, RSS, full intake panel.</div>
+      </div>
+    </div>
+
+    <!-- Voice interview overlay -->
+    <div class="interview-overlay" id="interview-overlay">
+      <div class="interview-question-text" id="iv-question-text">Loading question…</div>
+      <div class="interview-hint" id="iv-hint"></div>
+      <div class="interview-controls">
+        <button class="record-btn" id="iv-record-btn" onclick="ivToggleRecord()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+            <circle cx="12" cy="12" r="6"/>
+          </svg>
+        </button>
+        <span class="record-timer" id="iv-timer">0:00</span>
+      </div>
+      <div class="interview-progress" id="iv-progress">Question 1 of 8</div>
+    </div>
+
+    <!-- Paste overlay -->
+    <div class="paste-overlay" id="paste-overlay">
+      <textarea class="paste-textarea" id="paste-text" placeholder="Paste your writing here — blog posts, LinkedIn posts, articles. 3–5 pieces is plenty."></textarea>
+      <div class="paste-submit">
+        <button class="ob-btn" onclick="submitPaste()">Pour it in →</button>
+        <button class="ob-btn-ghost" onclick="closePaste()">Close</button>
+      </div>
+    </div>
+
+    <!-- Hidden file input -->
+    <input type="file" id="upload-input" accept="audio/*,video/*,.mp3,.mp4,.m4a,.wav,.webm" style="display:none" onchange="handleUpload(this.files[0])">
+
+    <div id="ob-step3-footer" style="margin-top: 4px;">
+      <button class="ob-btn" id="ob-step3-next" onclick="tryAdvanceStep3()" disabled>Keep going →</button>
+    </div>
+  </div>
+
+  <!-- ── Step 4: Blueprint ── -->
+  <div class="ob-card" id="step-4">
+    <div class="ob-eyebrow">Step 4 of 6 — Draft the blueprint</div>
+    <div class="ob-heading">Here's what your foundation tells me about you.</div>
+    <div class="ob-sub">Edit anything that's off. I'll use this to make every piece of content sound like you.</div>
+
+    <div class="blueprint-loading" id="bp-loading">
+      <div><span class="spinner"></span> Reading your material…</div>
+    </div>
+    <div class="blueprint-draft" id="bp-draft">
+      <div class="bp-section">
+        <div class="bp-section-label">Tone</div>
+        <div class="chip-row" id="bp-tone"></div>
+      </div>
+      <div class="bp-section">
+        <div class="bp-section-label">How you talk</div>
+        <div class="bp-text" id="bp-cadence"></div>
+      </div>
+      <div class="bp-section">
+        <div class="bp-section-label">Audience</div>
+        <div class="bp-text" id="bp-audience"></div>
+      </div>
+      <div class="bp-section" id="bp-pillars-section">
+        <div class="bp-section-label">Content pillars detected</div>
+        <div id="bp-pillars"></div>
+      </div>
+      <div class="bp-section">
+        <div class="bp-section-label">Vocabulary you use naturally</div>
+        <div class="chip-row" id="bp-vocab-yes"></div>
+      </div>
+    </div>
+
+    <div id="bp-footer" style="margin-top: 24px; display: none;">
+      <button class="ob-btn" onclick="confirmBlueprint()">Looks right — keep going →</button>
+    </div>
+  </div>
+
+  <!-- ── Step 5: Meet Brick ── -->
+  <div class="ob-card" id="step-5">
+    <div class="ob-eyebrow">Step 5 of 6 — Meet your GC</div>
+
+    <div class="meet-brick-hero">
+      <img src="/static/brick-avatar.png" alt="Brick" class="meet-brick-avatar" onerror="this.style.display='none'">
+      <div class="meet-brick-name">Brick</div>
+      <div class="meet-brick-tier">Draftsman — starting clearance</div>
+    </div>
+
+    <div class="brick-intro-quote">
+      I'm Brick, your AI general contractor. I'll be running your content site.<br><br>
+      Starting today I'm at Draftsman tier — I'll suggest, you decide. Nothing goes live without your sign-off. As I earn your trust, you can promote me up the permit ladder.<br><br>
+      Your walk-through is ready in the morning. I'll have the site plan laid out.
+    </div>
+
+    <div class="ob-heading" style="font-size:16px; margin-bottom: 6px;">The permit ladder</div>
+    <div class="ob-sub" style="margin-bottom: 20px;">Each tier gives me more clearance. You set the pace.</div>
+
+    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom: 28px;">
+      <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--bg-raised); border:1px solid var(--border); border-radius:8px;">
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#60a5fa; width:90px; flex-shrink:0;">Draftsman</div>
+        <div style="font-size:12px; color:var(--text-dim);">Suggest only. Nothing executes without your approval.</div>
+        <div style="margin-left:auto; font-size:10px; font-weight:700; color:#60a5fa; border:1px solid rgba(96,165,250,0.3); padding:2px 8px; border-radius:6px;">You are here</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--bg-raised); border:1px solid var(--border); border-radius:8px; opacity:0.6;">
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#fb923c; width:90px; flex-shrink:0;">Bricklayer</div>
+        <div style="font-size:12px; color:var(--text-dim);">Drafts and queues. Punch list before anything ships.</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--bg-raised); border:1px solid var(--border); border-radius:8px; opacity:0.6;">
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#c084fc; width:90px; flex-shrink:0;">Foreman</div>
+        <div style="font-size:12px; color:var(--text-dim);">Auto-executes with notifications. Approvals for key calls.</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--bg-raised); border:1px solid var(--border); border-radius:8px; opacity:0.6;">
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#c4961c; width:90px; flex-shrink:0;">GC</div>
+        <div style="font-size:12px; color:var(--text-dim);">Full clearance. Site runs itself. You approve the unusual.</div>
+      </div>
+    </div>
+
+    <button class="ob-btn" onclick="completionStep()">Open my walk-through →</button>
+  </div>
+
+  <!-- ── Step 6: Complete ── -->
+  <div class="ob-card" id="step-6">
+    <div class="complete-wrap">
+      <div class="checkmark">🔨</div>
+      <div class="ob-heading">Site open. Walk-through loading.</div>
+      <div class="ob-sub">Brick's pulling the overnight data. Your first walk-through will be ready shortly.</div>
+      <div class="complete-redirect-msg">Redirecting to your walk-through…</div>
+    </div>
+  </div>
+
+</div><!-- .ob-shell -->
+
+<script>
+/* ── Constants ── */
+const IV_QUESTIONS = [
+  { q: "Introduce yourself like you would at a networking event.",            hint: "Who are you, what do you do, where do you work?" },
+  { q: "Tell me about the last deal or project you're proud of.",             hint: "What made it special?" },
+  { q: "What's something most people in your industry get wrong?",            hint: "I want a real opinion, not a polite one." },
+  { q: "Describe your ideal client.",                                         hint: "What do they look like, what do they need from you?" },
+  { q: "Walk me through a typical Tuesday.",                                  hint: "What's a normal day in your business?" },
+  { q: "What's the most valuable thing you've learned in this business?",     hint: "The thing you wish someone told you 5 years ago." },
+  { q: "If you had 60 seconds to convince someone to work with you, what would you say?", hint: "Your elevator pitch — say it like you mean it." },
+  { q: "What do you do for fun outside of work?",                             hint: "Hobbies, family, things you care about." },
+];
+
+const BRICK_COMMENTS = {
+  5:  "Five samples in. Foundation's pouring. Keep going — the more material I have, the cleaner the output.",
+  10: "Ten samples. I'm getting a clear read on your voice. Strong material.",
+  15: "Solid. Foundation's set. You can advance whenever you're ready, or keep adding — more depth means sharper output.",
+  25: "Twenty-five samples. Foundation's deep. I've got what I need.",
+};
+
+const THIN_THRESHOLD  = 5;
+const SOLID_THRESHOLD = 15;
+const DEEP_THRESHOLD  = 50;
+
+/* ── State ── */
+let _currentStep = 1;
+let _sampleCount = 0;
+let _ivQIdx      = 0;
+let _ivRecorder  = null;
+let _ivChunks    = [];
+let _ivTimerInt  = null;
+let _ivSeconds   = 0;
+let _ivRecording = false;
+let _bpData      = null;
+
+/* ── Init ── */
+(async function init() {
+  const state = await fetch('/api/onboarding/state').then(r => r.json()).catch(() => ({step:1, completed_at: null}));
+  if (state.completed_at) {
+    window.location = '/walkthrough';
+    return;
+  }
+  goStep(state.step || 1);
+})();
+
+/* ── Step navigation ── */
+function goStep(n) {
+  _currentStep = n;
+  document.querySelectorAll('.ob-card').forEach(c => c.classList.remove('active'));
+  const card = document.getElementById('step-' + n);
+  if (card) card.classList.add('active');
+  updateDots(n);
+  fetch('/api/onboarding/advance', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({step: n}) });
+  onStepEnter(n);
+}
+
+function updateDots(active) {
+  document.querySelectorAll('.ob-dot').forEach(d => {
+    const s = parseInt(d.dataset.s);
+    d.className = 'ob-dot' + (s < active ? ' done' : s === active ? ' active' : '');
+  });
+}
+
+function onStepEnter(n) {
+  if (n === 2) initGhlStep();
+  if (n === 3) startFoundationPoll();
+  if (n === 4) triggerBlueprintGen();
+}
+
+/* ── Step 2: GHL check ── */
+async function initGhlStep() {
+  const box  = document.getElementById('ghl-status-box');
+  const connectWrap = document.getElementById('ghl-connect-btn-wrap');
+  const advanceWrap = document.getElementById('ghl-advance-wrap');
+  try {
+    const data = await fetch('/api/onboarding/ghl-check').then(r => r.json());
+    if (data.connected) {
+      box.className = 'ghl-status-box connected';
+      box.innerHTML = `<div class="status-label">✓ Connected</div>Location ${data.location_id || ''} already wired in. Good to go.`;
+      advanceWrap.style.display = 'block';
+      // Auto-advance after 1.2s if already connected
+      setTimeout(() => goStep(3), 1200);
+    } else {
+      box.innerHTML = `<div class="status-label">Not connected</div>Connect your GHL account to wire in your social accounts and contacts.`;
+      connectWrap.style.display = 'block';
+    }
+  } catch(e) {
+    box.innerHTML = `<div class="status-label">Check failed</div>Can't verify connection — continue anyway?`;
+    advanceWrap.style.display = 'block';
+  }
+}
+
+/* ── Step 3: Foundation poll ── */
+let _pollInt = null;
+function startFoundationPoll() {
+  updateFoundationUI(_sampleCount);
+  clearInterval(_pollInt);
+  _pollInt = setInterval(async () => {
+    try {
+      const data = await fetch('/api/foundation/status').then(r => r.json());
+      const n = data.sample_count || 0;
+      if (n !== _sampleCount) {
+        _sampleCount = n;
+        updateFoundationUI(n);
+      }
+    } catch(e) {}
+  }, 2000);
+}
+
+function updateFoundationUI(n) {
+  document.getElementById('ob-sample-count').textContent = n;
+
+  // Tier pill + progress
+  const pill = document.getElementById('ob-tier-pill');
+  const fill = document.getElementById('ob-tier-fill');
+  let pct = 0;
+  if (n === 0) {
+    pill.className = 'tier-label-pill tier-not-ready'; pill.textContent = 'Pouring…'; pct = 0;
+  } else if (n < THIN_THRESHOLD) {
+    pill.className = 'tier-label-pill tier-not-ready'; pill.textContent = 'Pouring…'; pct = (n / THIN_THRESHOLD) * 25;
+  } else if (n < SOLID_THRESHOLD) {
+    pill.className = 'tier-label-pill tier-thin'; pill.textContent = 'Thin'; pct = 25 + ((n - THIN_THRESHOLD) / (SOLID_THRESHOLD - THIN_THRESHOLD)) * 40;
+  } else if (n < DEEP_THRESHOLD) {
+    pill.className = 'tier-label-pill tier-solid'; pill.textContent = 'Set'; pct = 65 + ((n - SOLID_THRESHOLD) / (DEEP_THRESHOLD - SOLID_THRESHOLD)) * 35;
+  } else {
+    pill.className = 'tier-label-pill tier-deep'; pill.textContent = 'Deep'; pct = 100;
+  }
+  fill.style.width = pct + '%';
+
+  // Brick comments at thresholds
+  const comment = document.getElementById('ob-brick-comment');
+  const commentKeys = Object.keys(BRICK_COMMENTS).map(Number).sort((a,b) => b-a);
+  let msg = null;
+  for (const k of commentKeys) { if (n >= k) { msg = BRICK_COMMENTS[k]; break; } }
+  if (msg) { comment.textContent = msg; comment.classList.add('visible'); }
+
+  // Gate + advance button
+  const nextBtn   = document.getElementById('ob-step3-next');
+  const gateNote  = document.getElementById('ob-gate-notice');
+  if (n >= THIN_THRESHOLD) {
+    nextBtn.disabled = false;
+    gateNote.classList.remove('visible');
+  } else {
+    nextBtn.disabled = true;
+  }
+}
+
+function tryAdvanceStep3() {
+  clearInterval(_pollInt);
+  goStep(4);
+}
+
+/* ── Intake: voice interview ── */
+function openInterview() {
+  closeAllIntakeOverlays();
+  document.getElementById('interview-overlay').classList.add('open');
+  loadIvQuestion(_ivQIdx);
+}
+
+function loadIvQuestion(idx) {
+  const q = IV_QUESTIONS[idx];
+  document.getElementById('iv-question-text').textContent = q.q;
+  document.getElementById('iv-hint').textContent          = q.hint;
+  document.getElementById('iv-progress').textContent      = `Question ${idx+1} of ${IV_QUESTIONS.length}`;
+  document.getElementById('iv-record-btn').className      = 'record-btn';
+  document.getElementById('iv-timer').textContent         = '0:00';
+  _ivSeconds = 0; _ivRecording = false;
+  if (_ivTimerInt) clearInterval(_ivTimerInt);
+}
+
+async function ivToggleRecord() {
+  if (!_ivRecording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+      _ivChunks  = [];
+      _ivRecorder = new MediaRecorder(stream);
+      _ivRecorder.ondataavailable = e => { if (e.data.size > 0) _ivChunks.push(e.data); };
+      _ivRecorder.onstop = () => ivSubmitBlob();
+      _ivRecorder.start();
+      _ivRecording = true;
+      document.getElementById('iv-record-btn').className = 'record-btn recording';
+      _ivTimerInt = setInterval(() => {
+        _ivSeconds++;
+        const m = Math.floor(_ivSeconds/60), s = _ivSeconds%60;
+        document.getElementById('iv-timer').textContent = m + ':' + String(s).padStart(2,'0');
+      }, 1000);
+    } catch(e) {
+      alert('Microphone access needed for voice interview.');
+    }
+  } else {
+    _ivRecording = false;
+    clearInterval(_ivTimerInt);
+    _ivRecorder.stop();
+    _ivRecorder.stream.getTracks().forEach(t => t.stop());
+    document.getElementById('iv-record-btn').className = 'record-btn';
+    document.getElementById('iv-timer').textContent = 'Submitting…';
+  }
+}
+
+async function ivSubmitBlob() {
+  const blob = new Blob(_ivChunks, {type: 'audio/webm'});
+  const form = new FormData();
+  form.append('audio', blob, 'iv-answer.webm');
+  form.append('single_speaker', 'true');
+  try {
+    await fetch('/api/foundation/transcribe-and-ingest', {method: 'POST', body: form});
+  } catch(e) {}
+  _ivQIdx++;
+  if (_ivQIdx < IV_QUESTIONS.length) {
+    loadIvQuestion(_ivQIdx);
+  } else {
+    document.getElementById('interview-overlay').classList.remove('open');
+    _ivQIdx = 0;
+  }
+}
+
+/* ── Intake: paste text ── */
+function openPaste() {
+  closeAllIntakeOverlays();
+  document.getElementById('paste-overlay').classList.add('open');
+}
+function closePaste() { document.getElementById('paste-overlay').classList.remove('open'); }
+
+async function submitPaste() {
+  const text = document.getElementById('paste-text').value.trim();
+  if (!text) return;
+  try {
+    await fetch('/api/foundation/ingest', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({text, source: 'written_from_scratch'})
+    });
+    document.getElementById('paste-text').value = '';
+    closePaste();
+  } catch(e) {}
+}
+
+/* ── Intake: file upload ── */
+function openUpload() {
+  closeAllIntakeOverlays();
+  document.getElementById('upload-input').click();
+}
+
+async function handleUpload(file) {
+  if (!file) return;
+  const form = new FormData();
+  form.append('audio', file, file.name);
+  form.append('single_speaker', 'true');
+  try {
+    await fetch('/api/foundation/transcribe-and-ingest', {method: 'POST', body: form});
+  } catch(e) {}
+}
+
+function closeAllIntakeOverlays() {
+  document.getElementById('interview-overlay').classList.remove('open');
+  document.getElementById('paste-overlay').classList.remove('open');
+}
+
+/* ── Step 4: Blueprint auto-generate ── */
+async function triggerBlueprintGen() {
+  document.getElementById('bp-loading').style.display = 'block';
+  document.getElementById('bp-draft').classList.remove('visible');
+  document.getElementById('bp-footer').style.display = 'none';
+  try {
+    const data = await fetch('/api/blueprint/auto-generate', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'}).then(r => r.json());
+    _bpData = data;
+    renderBlueprintDraft(data);
+  } catch(e) {
+    document.getElementById('bp-loading').innerHTML = '<div style="color:var(--text-dim)">Could not read your material — continue anyway?</div>';
+    document.getElementById('bp-footer').style.display = 'block';
+  }
+}
+
+function renderBlueprintDraft(d) {
+  document.getElementById('bp-loading').style.display = 'none';
+
+  // Tone chips
+  const toneEl = document.getElementById('bp-tone');
+  toneEl.innerHTML = (d.tone || []).map(t => `<span class="chip">${escHtml(t)}</span>`).join('');
+
+  // Cadence
+  document.getElementById('bp-cadence').textContent = d.cadence || '—';
+
+  // Audience
+  document.getElementById('bp-audience').textContent = d.audience_primary || '—';
+
+  // Pillars
+  const pillarsEl = document.getElementById('bp-pillars');
+  pillarsEl.innerHTML = (d.pillars || []).map(p =>
+    `<div class="pillar-bar">
+      <div class="pillar-name">${escHtml(p.name)} <span style="color:var(--text-dim);font-size:11px;">${Math.round((p.weight||0)*100)}%</span></div>
+      <div class="pillar-track"><div class="pillar-fill" style="width:${Math.round((p.weight||0)*100)}%"></div></div>
+    </div>`
+  ).join('');
+
+  // Vocabulary
+  const vocabEl = document.getElementById('bp-vocab-yes');
+  vocabEl.innerHTML = (d.vocabulary_yes || []).map(v => `<span class="chip">${escHtml(v)}</span>`).join('');
+
+  document.getElementById('bp-draft').classList.add('visible');
+  document.getElementById('bp-footer').style.display = 'block';
+}
+
+function confirmBlueprint() { goStep(5); }
+
+/* ── Step 5: Meet Brick / set permit ── */
+async function completionStep() {
+  // Ensure permit is set to draftsman if not already
+  try {
+    const permit = await fetch('/api/brick/permit').then(r => r.json());
+    if (!permit.current_tier) {
+      await fetch('/api/brick/permit/promote', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'});
+    }
+  } catch(e) {}
+  goStep(6);
+}
+
+/* ── Step 6: Complete + redirect ── */
+function onStepEnterStep6() {
+  // Stamp completed_at
+  fetch('/api/onboarding/advance', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({step:6, completed:true})});
+  // Trigger Brick planning run in background
+  fetch('/api/brick/run-planning', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'}).catch(()=>{});
+  // Redirect to walk-through after 2.5s
+  setTimeout(() => { window.location = '/walkthrough'; }, 2500);
+}
+
+// Patch onStepEnter to handle step 6
+const _origOnStepEnter = onStepEnter;
+function onStepEnter(n) {
+  _origOnStepEnter(n);
+  if (n === 6) onStepEnterStep6();
+}
+
+/* ── Helpers ── */
+function escHtml(str) {
+  return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

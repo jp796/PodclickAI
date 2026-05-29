@@ -241,10 +241,14 @@
       flex: 1; font-size: 14px; color: var(--text); line-height: 1.5;
     }
     .punch-action-badge {
-      display: inline-block; padding: 3px 9px; border-radius: 8px;
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 9px; border-radius: 8px;
       font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em;
       background: rgba(217,95,30,0.1); color: var(--accent);
       border: 1px solid rgba(217,95,30,0.2); white-space: nowrap; flex-shrink: 0;
+    }
+    .punch-badge-icon {
+      width: 13px; height: 13px; object-fit: contain; vertical-align: middle; flex-shrink: 0;
     }
     .punch-actions {
       display: flex; align-items: center; gap: 8px; margin-top: 12px;
@@ -633,7 +637,7 @@ function renderPunchItem(action) {
   el.innerHTML = `
     <div class="punch-item-top">
       <div class="punch-rationale">${rationale}</div>
-      <span class="punch-action-badge">${actionType}</span>
+      <span class="punch-action-badge"><img src="/static/brick-icon.png" class="punch-badge-icon" alt="" onerror="this.style.display='none'">${actionType}</span>
     </div>
     <div class="punch-actions">
       <button class="btn-approve" data-id="${id}">✓ Approve</button>
@@ -818,6 +822,14 @@ async function loadPermit() {
     // permit badge stays at default — non-critical
   }
 }
+
+/* ── Onboarding redirect guard ────────────────────────────────── */
+(async function () {
+  try {
+    const s = await fetch('/api/onboarding/state').then(r => r.json());
+    if (!s.completed_at) { window.location.href = '/onboarding'; }
+  } catch (e) { /* unreachable API — don't block walk-through */ }
+})();
 
 /* ── Init ─────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', function () {

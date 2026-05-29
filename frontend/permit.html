@@ -139,6 +139,12 @@
       font-size: 38px; margin-bottom: 14px;
       border: 3px solid transparent;
     }
+    .tier-brick-icon {
+      width: 44px; height: 44px; object-fit: contain;
+    }
+    .ceremony-brick-icon {
+      width: 40px; height: 40px; object-fit: contain; display: block; margin: 0 auto;
+    }
     .tier-icon-wrap[data-tier="owner_builder"] { background: rgba(107,114,128,.15); border-color: var(--tier-owner-builder); box-shadow: 0 0 24px rgba(107,114,128,.20); }
     .tier-icon-wrap[data-tier="draftsman"]     { background: rgba(59,130,246,.15);  border-color: var(--tier-draftsman);     box-shadow: 0 0 24px rgba(59,130,246,.25); }
     .tier-icon-wrap[data-tier="bricklayer"]    { background: rgba(249,115,22,.15);  border-color: var(--tier-bricklayer);    box-shadow: 0 0 24px rgba(249,115,22,.25); }
@@ -344,7 +350,7 @@
       <img src="/static/brick-avatar.png" alt="Brick" class="brick-permit-portrait" onerror="this.style.display='none'">
     </div>
     <div class="tier-icon-wrap" id="tier-icon-wrap" data-tier="draftsman">
-      <span id="tier-icon">📐</span>
+      <span id="tier-icon"><img src="/static/brick-icon.png" class="tier-brick-icon" alt="Brick" onerror="this.style.display='none'"></span>
     </div>
     <div class="tier-name-large" id="tier-name-large" data-tier="draftsman">Draftsman</div>
   </div>
@@ -432,7 +438,7 @@
 <!-- ── Ceremony modal ───────────────────────────────────────────────── -->
 <div class="modal-overlay" id="ceremony-modal">
   <div class="modal-box">
-    <div class="modal-icon" id="ceremony-icon">🔑</div>
+    <div class="modal-icon" id="ceremony-icon"><img src="/static/brick-icon.png" class="ceremony-brick-icon" alt="Brick" onerror="this.style.display='none'"></div>
     <div class="modal-title" id="ceremony-title">Brick says…</div>
     <div class="modal-body" id="ceremony-body"></div>
     <div class="modal-sub">Reloading in a moment…</div>
@@ -496,7 +502,7 @@
     badgeSection.dataset.tier = currentTier;
     iconWrap.dataset.tier     = currentTier;
     nameEl.dataset.tier       = currentTier;
-    iconEl.textContent        = meta.icon;
+    iconEl.innerHTML          = '<img src="/static/brick-icon.png" class="tier-brick-icon" alt="Brick" onerror="this.style.display=\'none\'">';
     nameEl.textContent        = meta.label;
 
     // Stats
@@ -591,13 +597,13 @@
     const bodyEl  = document.getElementById('ceremony-body');
 
     if (action === 'promote') {
-      const meta = TIER_META[newTier] || { label: newTier, icon: '🔑' };
-      iconEl.textContent  = meta.icon;
+      const meta = TIER_META[newTier] || { label: newTier };
+      iconEl.innerHTML    = '<img src="/static/brick-icon.png" class="ceremony-brick-icon" alt="Brick" onerror="this.style.display=\'none\'">';
       titleEl.textContent = 'Promoted to ' + meta.label;
       bodyEl.textContent  = CEREMONY.promote;
     } else {
-      const meta = TIER_META[newTier] || { label: newTier, icon: '📋' };
-      iconEl.textContent  = meta.icon;
+      const meta = TIER_META[newTier] || { label: newTier };
+      iconEl.innerHTML    = '<img src="/static/brick-icon.png" class="ceremony-brick-icon" alt="Brick" onerror="this.style.display=\'none\'">';
       titleEl.textContent = 'Demoted to ' + meta.label;
       bodyEl.textContent  = CEREMONY.demote(newTier);
     }
