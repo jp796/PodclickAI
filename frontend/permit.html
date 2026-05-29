@@ -3,6 +3,7 @@
 <head>
   <link rel="stylesheet" href="/podclick-design.css">
   <meta charset="UTF-8" />
+  <link rel="icon" href="/static/podclick-mark.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Brick's Permit · PodClickAI</title>
   <style>
@@ -301,6 +302,9 @@
       .actions-section { flex-direction: column; }
       .btn { width: 100%; justify-content: center; }
     }
+    .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
+    .brick-portrait-wrap { display: flex; justify-content: center; margin-bottom: 16px; }
+    .brick-permit-portrait { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--orange); }
   </style>
 </head>
 <body>
@@ -308,7 +312,7 @@
 <!-- ── Header ──────────────────────────────────────────────────────── -->
 <header>
   <div class="brand">
-    <span><span class="pc">PodClick</span><span class="ai">AI</span></span>
+    <span><img src="/static/podclick-logo.png" alt="PodClick AI" class="nav-logo" onerror="this.style.display='none'"></span>
     <span class="sub">Brick's Permit</span>
   </div>
   <nav class="nav-toggle">
@@ -336,6 +340,9 @@
   <!-- Current tier badge -->
   <div class="tier-badge-section" id="tier-badge-section" data-tier="draftsman">
     <div class="tier-label-sm">Current clearance</div>
+    <div class="brick-portrait-wrap">
+      <img src="/static/brick-avatar.png" alt="Brick" class="brick-permit-portrait" onerror="this.style.display='none'">
+    </div>
     <div class="tier-icon-wrap" id="tier-icon-wrap" data-tier="draftsman">
       <span id="tier-icon">📐</span>
     </div>

@@ -3,6 +3,7 @@
 <head>
   <link rel="stylesheet" href="/podclick-design.css">
   <meta charset="UTF-8" />
+  <link rel="icon" href="/static/podclick-mark.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Walk-through · PodClickAI</title>
   <style>
@@ -387,6 +388,8 @@
       100% { background-position: 200% 0; }
     }
     .skeleton-block { height: 80px; border-radius: var(--radius); margin-bottom: 10px; }
+    .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
+    .brick-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; }
   </style>
 </head>
 <body>
@@ -394,7 +397,7 @@
 <!-- ── Header ──────────────────────────────────────────────────── -->
 <header>
   <div class="brand">
-    <span class="pc">PodClick</span><span class="ai">AI</span>
+    <img src="/static/podclick-logo.png" alt="PodClick AI" class="nav-logo" onerror="this.style.display='none'">
     <span class="sub">Walk-through</span>
   </div>
   <div class="header-right">
@@ -439,7 +442,7 @@
 
     <!-- 1 · Greeting -->
     <div class="greeting-card">
-      <div class="greeting-icon">🔨</div>
+      <div class="greeting-icon"><img src="/static/brick-avatar.png" alt="Brick" class="brick-avatar" onerror="this.outerHTML='🔨'"></div>
       <div class="greeting-text">
         <div class="greeting-from">Brick — Walk-through Report</div>
         <div class="greeting-msg" id="greeting-msg">Loading…</div>

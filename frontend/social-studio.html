@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <link rel="icon" href="/static/podclick-mark.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Social Studio · PodClickAI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -513,6 +514,7 @@
     .rec-action-row {
       display: flex; gap: 10px; flex-wrap: wrap;
     }
+    .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
   </style>
 </head>
 <body>
@@ -520,7 +522,7 @@
 <!-- ── Header ─────────────────────────────────────────────────────── -->
 <header>
   <div class="brand">
-    <span class="pc">Pod</span><span class="ai">Click</span><span class="ai">AI</span>
+    <img src="/static/podclick-logo.png" alt="PodClick AI" class="nav-logo" onerror="this.style.display='none'">
     <span class="sub">Social Studio</span>
   </div>
   <nav class="nav-toggle">

@@ -270,6 +270,7 @@
   panel.setAttribute('aria-label', 'Brick chat panel');
   panel.innerHTML = [
     '<div id="brick-panel-header">',
+    '  <img src="/static/brick-avatar.png" alt="Brick" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display=\'none\'">',
     '  <span id="brick-panel-title">Brick</span>',
     '  <span id="brick-tier-badge">—</span>',
     '  <button id="brick-close-btn" title="Close" aria-label="Close Brick panel">',

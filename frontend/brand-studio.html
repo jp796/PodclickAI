@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <link rel="icon" href="/static/podclick-mark.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Brand Studio · PodClickAI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -452,6 +453,7 @@
     /* Continue button */
     .onboard-continue-btn { width: 100%; margin-top: 20px; background: linear-gradient(135deg, #05C3F9, #00FBF0); color: #030B2C; border: none; border-radius: 10px; padding: 14px; font-size: 15px; font-weight: 800; cursor: pointer; letter-spacing: 0.02em; }
     .onboard-continue-btn:hover { opacity: 0.9; }
+    .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
   </style>
 </head>
 <body>
@@ -460,7 +462,7 @@
   <header>
     <div style="display:flex; align-items:baseline; gap:4px;">
       <div class="brand">
-        <span class="pc">PodClick</span><span class="ai">AI</span>
+        <img src="/static/podclick-logo.png" alt="PodClick AI" class="nav-logo" onerror="this.style.display='none'">
         <span class="sub">Brand Studio</span>
       </div>
     </div>

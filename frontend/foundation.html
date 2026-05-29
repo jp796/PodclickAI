@@ -3,6 +3,7 @@
 <head>
   <link rel="stylesheet" href="/podclick-design.css">
   <meta charset="UTF-8" />
+  <link rel="icon" href="/static/podclick-mark.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Foundation · PodClickAI</title>
   <style>
@@ -403,6 +404,7 @@
     #fn-toast.show { opacity: 1; }
     #fn-toast.success { border-color: var(--green); color: var(--green); }
     #fn-toast.error   { border-color: var(--coral); color: var(--coral); }
+    .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
   </style>
 </head>
 <body>
@@ -411,7 +413,7 @@
 <header>
   <div style="display:flex;align-items:center;gap:6px;">
     <div class="brand">
-      <span class="pc">PodClick</span><span class="ai">AI</span>
+      <img src="/static/podclick-logo.png" alt="PodClick AI" class="nav-logo" onerror="this.style.display='none'">
       <span class="sub">Foundation</span>
     </div>
   </div>

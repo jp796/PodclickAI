@@ -28,6 +28,7 @@ import aiofiles
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, Request, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
@@ -94,6 +95,17 @@ DATA_DIR     = BASE_DIR / "data"
 JOBS_DIR     = DATA_DIR / "jobs"
 EPISODES_FILE = DATA_DIR / "episodes.json"
 FRONTEND_DIR  = BASE_DIR / "frontend"
+STATIC_DIR    = FRONTEND_DIR / "static"
+STATIC_DIR.mkdir(exist_ok=True)
+
+# Serve brand assets from /static/
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# Serve shared design system CSS
+@app.get("/podclick-design.css")
+async def serve_design_css():
+    from fastapi.responses import FileResponse as _FR2
+    return _FR2(str(FRONTEND_DIR / "podclick-design.css"), media_type="text/css")
 
 LIBRARY_DIR    = DATA_DIR / "library"
 LIBRARY_FILE   = DATA_DIR / "library.json"

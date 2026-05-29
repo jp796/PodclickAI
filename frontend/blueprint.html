@@ -3,6 +3,7 @@
 <head>
   <link rel="stylesheet" href="/podclick-design.css">
   <meta charset="UTF-8" />
+  <link rel="icon" href="/static/podclick-mark.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Blueprint · PodClickAI</title>
   <style>
@@ -314,6 +315,7 @@
       .hero { flex-direction: column; }
       .cta-block { flex-direction: column; }
     }
+    .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
   </style>
 </head>
 <body>
@@ -321,7 +323,7 @@
   <!-- ── Header ──────────────────────────────────────────────────────── -->
   <header>
     <div class="brand">
-      <span class="pc">PodClick</span><span class="ai">AI</span>
+      <img src="/static/podclick-logo.png" alt="PodClick AI" class="nav-logo" onerror="this.style.display='none'">
       <span class="sub">Blueprint</span>
     </div>
     <nav class="nav-toggle">

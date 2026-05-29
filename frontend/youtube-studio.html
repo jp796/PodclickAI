@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <link rel="icon" href="/static/podclick-mark.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Click Studio · PodClickAI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -239,6 +240,7 @@
     .nav-toggle a { padding:6px 14px; font-size:12px; font-weight:600; color:#8899cc; text-decoration:none; letter-spacing:0.03em; white-space:nowrap; transition:background 0.15s,color 0.15s; }
     .nav-toggle a:hover { background:#111f5a; color:#e2e8f0; }
     .nav-toggle a.active { background:#050E3D; color:#05C3F9; }
+    .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
   </style>
 </head>
 <body class="font-inter">
@@ -255,7 +257,7 @@
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2L2 14h12L8 2z" fill="white"/></svg>
         </div>
         <div>
-          <div class="text-sm font-bold text-white">PodClickAI</div>
+          <img src="/static/podclick-logo.png" alt="PodClick AI" class="nav-logo" onerror="this.style.display='none'">
           <div class="text-xs" style="color:#5a5a7a;">Studio Suite</div>
         </div>
       </div>
