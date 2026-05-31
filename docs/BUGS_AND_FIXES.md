@@ -625,3 +625,40 @@ Stack overflow meant `initGhlStep()` never executed, leaving the UI on the loadi
 
 **Files:** `routers/foundation.py` (`_bg_recompute_score`, both ingest routes), `main.py` (`_nightly_foundation_recompute`, `_startup` cron registration)
 
+---
+
+## 2026-05-31 — Stage 2 Step 2: Studio → Ship It Workflow Slice (2A + 2B + 2C)
+
+**Gap:** No path existed from "recording done in studio.html" to a Project record in the database. The recording Blob lived only in browser memory. `/api/run` (called by the existing Publish button) returned 404. Ship It was unreachable from a live recording.
+
+**What was built (3-part bundle):**
+
+**2A — Save & Continue (studio → project)**
+- Added "What's this build?" title input to the recording tray (pre-populated from topic-title if set)
+- Added "Save & Continue →" hero button in the recording tray
+- `saveAndContinue()` JS function POSTs the blob + title to `POST /api/projects/from-recording`
+- On success: redirects to `/project/{project_id}`
+- Title fallback: `"New build — {date} {time}"` (construction vocabulary)
+
+**2B — Auto-transcription on project load**
+- `POST /api/projects/{project_id}/transcribe` endpoint: kicks off Whisper in background thread (non-blocking), returns immediately
+- `_run_transcription()` background task: reads `data/recordings/{project_id}.{ext}`, calls Whisper, writes `project.transcript`, sets `transcription_status='done'` or `'failed'`
+- `project.html` `boot()`: calls `_maybeAutoTranscribe()` on page load — fires transcription if recording exists but transcript is empty
+- Transcription status banner shows in step 1 panel while Whisper is running
+- `_pollTranscription()` polls every 4s until done or failed
+- "Next Step →" button disabled until transcript is present
+
+**2C — Database + model (schema)**
+- Alembic migration `c9d4f2a1b607`: adds `recording_path` (Text, nullable) and `transcription_status` (Text, nullable) to `projects` table
+- `db/models.py` Project model updated with both columns
+- `_project_to_dict()` serializer updated to include both fields
+
+**Verified:**
+- `POST /api/projects/from-recording` with a real video form field → project created with `recording_path` and `transcription_status='pending'` (HTTP 201)
+- `POST /api/projects/{id}/transcribe` → returns `{"ok": true, "status": "started"}` immediately; empty test file → status transitions to `'failed'` within 3s (graceful failure, not a crash)
+- `/project/{id}` route serves project.html correctly
+
+**Note:** `/api/run` (legacy Publish → Buzzsprout path) returns 404 — pre-existing broken route unrelated to this fix. Renamed Publish button to "Legacy Publish" in the tray to signal it's secondary to Save & Continue.
+
+**Files:** `main.py` (two new endpoints + `_run_transcription` + `_project_to_dict`), `db/models.py`, `alembic/versions/c9d4f2a1b607_stage2_recording_path.py`, `frontend/studio.html` (recording tray + `saveAndContinue()`), `frontend/project.html` (transcription banner + `_maybeAutoTranscribe` + `showStep1` gate)
+

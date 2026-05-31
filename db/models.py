@@ -713,6 +713,16 @@ class Project(Base):
     # Ship It wizard state — which step the user last reached (1-4)
     wizard_step: Column = Column(Integer, nullable=True, server_default="1")
 
+    # Raw recording file — saved by POST /api/projects/from-recording.
+    # Local path: data/recordings/{project_id}.webm
+    # Null until the studio hands off via "Save & Continue".
+    recording_path: Column = Column(Text, nullable=True)
+
+    # Transcription state — separate from main status so Ship It can gate
+    # on transcript readiness without ambiguity.
+    # Values: pending | running | done | failed
+    transcription_status: Column = Column(Text, nullable=True)
+
     # Pipeline outputs (populated as steps complete)
     mp3_url: Column = Column(Text, nullable=True)        # path to assembled MP3
     transcript: Column = Column(Text, nullable=True)     # full transcript text

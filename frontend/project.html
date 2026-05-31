@@ -185,6 +185,13 @@
         <h2>Transcript Review</h2>
         <span class="meta" id="step1-wordcount">0 words</span>
       </div>
+
+      <!-- Transcription status banner — shown when auto-transcription is in progress -->
+      <div id="transcription-banner" style="display:none; background: rgba(58,110,168,0.10); border: 1px solid #3a6ea8; border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; font-size: 13px;">
+        <div id="transcription-banner-msg" style="color: #7fb8e8; font-weight: 600; margin-bottom: 4px;">🎙 Transcribing your recording…</div>
+        <div style="color: var(--text-sec);">Whisper is working on it. This usually takes 30–90 seconds. Page will update automatically.</div>
+      </div>
+
       <p style="font-family: var(--font-body); font-size: 13px; color: var(--text-sec); margin-bottom: 12px;">Read through, fix anything Whisper missed, then move on.</p>
       <textarea id="transcript-area" rows="18" placeholder="Transcript will appear here once processing finishes."></textarea>
       <div class="field-row" style="justify-content: space-between;">
@@ -412,11 +419,36 @@
     function showStep1() {
       hideAllStepPanels();
       $('step1-panel').classList.remove('hidden');
+      const p = state.project || {};
       const ta = $('transcript-area');
-      const text = (state.project && state.project.transcript) ? state.project.transcript : '';
+      const text = p.transcript || '';
       ta.value = text;
       state.transcriptDirty = false;
       $('step1-wordcount').textContent = wordCount(text) + ' words';
+
+      // Transcription gate: disable Next Step until transcript is present
+      const nextBtn = $('step1-next-btn');
+      const ts = p.transcription_status;
+      const hasTranscript = !!(text && text.trim());
+      if (nextBtn) {
+        if (hasTranscript) {
+          nextBtn.disabled = false;
+          nextBtn.title = '';
+        } else {
+          nextBtn.disabled = true;
+          nextBtn.title = 'Waiting for transcription to finish before moving on.';
+        }
+      }
+
+      // Show banner if transcription is in progress
+      const banner = $('transcription-banner');
+      if (banner) {
+        if (!hasTranscript && (ts === 'running' || ts === 'pending')) {
+          banner.style.display = '';
+        } else if (hasTranscript) {
+          banner.style.display = 'none';
+        }
+      }
     }
 
     function showStep2() {
@@ -811,6 +843,78 @@
     }
 
     // ────── Boot ──────────────────────────────────────────────────────────
+    // ── Auto-transcription ───────────────────────────────────────────────
+    // Fires when project has a recording_path but no transcript yet.
+    // Kicks off Whisper via POST /api/projects/{id}/transcribe,
+    // then polls every 4s until transcription_status === 'done'.
+
+    let _transcriptionPoll = null;
+
+    function _showTranscriptionBanner(msg) {
+      const banner = $('transcription-banner');
+      const bannerMsg = $('transcription-banner-msg');
+      if (!banner) return;
+      if (msg) { bannerMsg.textContent = msg; banner.style.display = ''; }
+      else      { banner.style.display = 'none'; }
+    }
+
+    async function _pollTranscription() {
+      try {
+        const p = await loadProject();
+        state.project = Object.assign({}, state.project || {}, p);
+        const ts = p.transcription_status;
+
+        if (ts === 'done') {
+          // Transcript ready — stop polling, re-render, hide banner
+          clearInterval(_transcriptionPoll);
+          _transcriptionPoll = null;
+          _showTranscriptionBanner(null);
+          applyProjectState();
+          toast('Transcript ready. Review and fix anything Whisper missed.', 'success');
+        } else if (ts === 'failed') {
+          clearInterval(_transcriptionPoll);
+          _transcriptionPoll = null;
+          _showTranscriptionBanner(null);
+          $('transcription-banner').style.display = '';
+          $('transcription-banner-msg').textContent = '⚠ Transcription failed — paste your script manually or retry.';
+          $('transcription-banner-msg').style.color = '#d97070';
+        }
+        // 'running' or 'pending': keep polling
+      } catch (err) {
+        console.warn('[project] transcription poll error', err);
+      }
+    }
+
+    async function _maybeAutoTranscribe(p) {
+      // Trigger only when: recording exists, transcript is empty, not already running
+      if (!p.recording_path) return;
+      if (p.transcript && p.transcript.trim()) return;
+      if (p.transcription_status === 'running') {
+        // Already running — just start polling
+        _showTranscriptionBanner('🎙 Transcription in progress…');
+        if (!_transcriptionPoll) {
+          _transcriptionPoll = setInterval(_pollTranscription, 4000);
+        }
+        return;
+      }
+      if (p.transcription_status === 'done') return; // done but transcript might have been cleared manually — don't re-run
+
+      // Kick off transcription
+      try {
+        const res = await fetch('/api/projects/' + encodeURIComponent(PROJECT_ID) + '/transcribe', {
+          method: 'POST',
+        });
+        if (res.ok) {
+          _showTranscriptionBanner('🎙 Transcribing your recording…');
+          if (!_transcriptionPoll) {
+            _transcriptionPoll = setInterval(_pollTranscription, 4000);
+          }
+        }
+      } catch (err) {
+        console.warn('[project] auto-transcribe start failed', err);
+      }
+    }
+
     async function boot() {
       if (!PROJECT_ID) {
         $('header-title').textContent = 'No project id in URL.';
@@ -822,6 +926,8 @@
         const p = await loadProject();
         state.project = p;
         applyProjectState();
+        // Auto-start transcription if the project came from studio handoff
+        await _maybeAutoTranscribe(p);
       } catch (err) {
         $('header-title').textContent = 'Could not load project.';
         $('header-meta').innerHTML = '<span>' + escHtml(err.message) + '</span>';

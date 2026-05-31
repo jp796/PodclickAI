@@ -785,6 +785,8 @@ def _project_to_dict(project) -> dict:
         "episode_number": project.episode_number,
         "status": project.status,
         "wizard_step": project.wizard_step,
+        "recording_path": project.recording_path,
+        "transcription_status": project.transcription_status,
         "mp3_url": project.mp3_url,
         "transcript": project.transcript,
         "show_notes": project.show_notes,
@@ -873,6 +875,249 @@ async def update_project(project_id: str, request: Request):
         await session.commit()
         await session.refresh(row)
         return JSONResponse(_project_to_dict(row))
+
+
+@app.post("/api/projects/from-recording")
+async def create_project_from_recording(
+    video: UploadFile = File(...),
+    title: str = Form(default=""),
+    recorded_at: str = Form(default=""),
+):
+    """
+    Stage 2 Step 2 — Studio handoff endpoint.
+
+    Accepts the raw WebM Blob from studio.html's "Save & Continue" action.
+    Saves the file to data/recordings/{project_id}.webm and creates a Project
+    record in the database.
+
+    Returns: {project_id, project: {...}}
+    The caller redirects to /project/{project_id}.
+
+    Title rules:
+      - If title is provided: use it as-is.
+      - If blank: "New build — {YYYY-MM-DD HH:MM}" (construction vocabulary).
+    """
+    import datetime as _dt
+    import uuid as _uuid
+    from db.engine import async_session as _async_session
+    from db.models import Project, Location
+    from sqlalchemy import select as _select
+    from config import settings as _settings
+
+    location_id_str = _settings.titan_location_id
+    if not location_id_str:
+        return JSONResponse({"error": "No location configured"}, status_code=500)
+
+    project_id = _uuid.uuid4()
+
+    # ── Save recording to disk ────────────────────────────────────────────
+    recordings_dir = DATA_DIR / "recordings"
+    recordings_dir.mkdir(exist_ok=True)
+
+    # Preserve extension from uploaded filename, default webm
+    orig_filename = video.filename or "recording.webm"
+    ext = orig_filename.rsplit(".", 1)[-1].lower() if "." in orig_filename else "webm"
+    if ext not in {"webm", "mp4", "mov", "mkv", "ogg"}:
+        ext = "webm"
+
+    recording_filename = f"{project_id}.{ext}"
+    recording_path = str(recordings_dir / recording_filename)
+
+    try:
+        contents = await video.read()
+        with open(recording_path, "wb") as f:
+            f.write(contents)
+    except Exception as exc:
+        return JSONResponse({"error": f"Failed to save recording: {exc}"}, status_code=500)
+
+    # ── Build title ───────────────────────────────────────────────────────
+    effective_title = title.strip()
+    if not effective_title:
+        ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+        effective_title = f"New build — {ts}"
+
+    # ── Create Project record ─────────────────────────────────────────────
+    try:
+        async with _async_session() as session:
+            # Resolve the Location row for this location_id string
+            loc_row = (
+                await session.execute(
+                    _select(Location).where(Location.ghl_location_id == location_id_str)
+                )
+            ).scalar_one_or_none()
+
+            if not loc_row:
+                # Fallback: use the UUID directly if it's already a UUID
+                try:
+                    loc_uuid = _uuid.UUID(location_id_str)
+                except ValueError:
+                    return JSONResponse(
+                        {"error": "Could not resolve location"}, status_code=500
+                    )
+            else:
+                loc_uuid = loc_row.id
+
+            project = Project(
+                id=project_id,
+                location_id=loc_uuid,
+                title=effective_title,
+                type="episode",
+                status="recording_done",
+                recording_path=recording_path,
+                transcription_status="pending",
+                wizard_step=1,
+            )
+            session.add(project)
+            await session.commit()
+            await session.refresh(project)
+
+            return JSONResponse(
+                {
+                    "project_id": str(project_id),
+                    "project": _project_to_dict(project),
+                },
+                status_code=201,
+            )
+    except Exception as exc:
+        # Clean up the saved file if DB insert fails
+        try:
+            Path(recording_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+        return JSONResponse({"error": f"Failed to create project: {exc}"}, status_code=500)
+
+
+async def _run_transcription(project_id_str: str) -> None:
+    """
+    Background task — transcribe the project's recording via Whisper.
+
+    Updates project.transcript and project.transcription_status.
+    Called from POST /api/projects/{project_id}/transcribe.
+    """
+    import uuid as _uuid
+    import openai as _openai
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select as _select
+    from config import settings as _settings
+
+    try:
+        pid = _uuid.UUID(project_id_str)
+    except ValueError:
+        print(f"[transcribe] Invalid project_id: {project_id_str}")
+        return
+
+    async with _async_session() as session:
+        project = (
+            await session.execute(_select(Project).where(Project.id == pid))
+        ).scalar_one_or_none()
+
+        if not project:
+            print(f"[transcribe] Project {project_id_str} not found")
+            return
+        if not project.recording_path:
+            print(f"[transcribe] Project {project_id_str} has no recording_path")
+            project.transcription_status = "failed"
+            await session.commit()
+            return
+
+        recording_file = Path(project.recording_path)
+        if not recording_file.exists():
+            print(f"[transcribe] Recording file not found: {project.recording_path}")
+            project.transcription_status = "failed"
+            await session.commit()
+            return
+
+        # Mark running
+        project.transcription_status = "running"
+        await session.commit()
+
+    # Whisper call is sync — run in thread pool so event loop is not blocked
+    import asyncio as _asyncio
+    import functools as _functools
+
+    def _whisper_call(path: str) -> str:
+        client = _openai.OpenAI(api_key=_settings.openai_api_key)
+        with open(path, "rb") as af:
+            result = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=af,
+                response_format="text",
+            )
+        return result if isinstance(result, str) else str(result)
+
+    try:
+        loop = _asyncio.get_event_loop()
+        transcript_text = await loop.run_in_executor(
+            None,
+            _functools.partial(_whisper_call, str(recording_file)),
+        )
+        transcript_text = transcript_text.strip()
+    except Exception as exc:
+        print(f"[transcribe] Whisper failed for {project_id_str}: {exc}")
+        async with _async_session() as session:
+            project = (
+                await session.execute(_select(Project).where(Project.id == pid))
+            ).scalar_one_or_none()
+            if project:
+                project.transcription_status = "failed"
+                await session.commit()
+        return
+
+    # Write transcript + mark done
+    async with _async_session() as session:
+        project = (
+            await session.execute(_select(Project).where(Project.id == pid))
+        ).scalar_one_or_none()
+        if project:
+            project.transcript = transcript_text
+            project.transcription_status = "done"
+            await session.commit()
+            print(
+                f"[transcribe] Done — project {project_id_str}, "
+                f"{len(transcript_text)} chars"
+            )
+
+
+@app.post("/api/projects/{project_id}/transcribe")
+async def start_transcription(project_id: str):
+    """
+    Stage 2 Step 2 — Kick off Whisper transcription for a project's recording.
+
+    Returns immediately (transcription runs in background).
+    Poll GET /api/projects/{project_id} and check transcription_status:
+      pending → running → done (transcript field populated) | failed
+
+    Idempotent: re-calling while 'running' is a no-op.
+    Re-calling after 'failed' retries.
+    """
+    import uuid as _uuid
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select as _select
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        return JSONResponse({"error": "Invalid project ID"}, status_code=400)
+
+    async with _async_session() as session:
+        project = (
+            await session.execute(_select(Project).where(Project.id == pid))
+        ).scalar_one_or_none()
+        if not project:
+            return JSONResponse({"error": "Project not found"}, status_code=404)
+        if project.transcription_status == "running":
+            return JSONResponse({"ok": True, "status": "already_running"})
+        if project.transcription_status == "done" and project.transcript:
+            return JSONResponse({"ok": True, "status": "already_done"})
+        if not project.recording_path:
+            return JSONResponse(
+                {"error": "No recording attached to this project"}, status_code=422
+            )
+
+    asyncio.create_task(_run_transcription(project_id))
+    return JSONResponse({"ok": True, "status": "started"})
 
 
 @app.post("/api/projects/{project_id}/transition")

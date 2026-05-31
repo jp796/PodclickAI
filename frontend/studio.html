@@ -903,9 +903,27 @@
         <video id="tray-video" controls playsinline
           style="width:100%; border-radius:8px; background:#000; max-height:180px; display:block; margin-bottom:10px;">
         </video>
+
+        <!-- ── What's this build? ──────────────────────────────────── -->
+        <div style="margin-bottom:10px;">
+          <label for="build-title" style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.06em;">What's this build?</label>
+          <input type="text" id="build-title"
+            style="width:100%;margin-top:4px;background:#13131a;border:1px solid #2a2a3a;border-radius:8px;padding:8px 12px;color:#fff;font-size:14px;box-sizing:border-box;"
+            placeholder="Leave blank to auto-name…" />
+          <p style="margin:4px 0 0;font-size:11px;color:#555;">Optional — you can rename it anytime on the build page.</p>
+        </div>
+
+        <!-- ── Save & Continue (hero action) ─────────────────────── -->
+        <button id="btn-save-continue"
+          style="width:100%;padding:11px;font-size:15px;font-weight:700;letter-spacing:0.03em;background:#d95f1e;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-bottom:8px;"
+          onclick="saveAndContinue()">
+          Save &amp; Continue →
+        </button>
+        <div id="save-continue-status" style="font-size:12px;color:#888;text-align:center;display:none;margin-bottom:8px;"></div>
+
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button class="btn ghost" style="font-size:12px; padding:5px 12px;" onclick="trayDownload()">⬇ Download</button>
-          <button class="btn primary" style="font-size:12px; padding:5px 14px;" onclick="openPublishModal()">🚀 Publish</button>
+          <button class="btn ghost" style="font-size:12px; padding:5px 14px;" onclick="openPublishModal()">🚀 Legacy Publish</button>
         </div>
       </div>
 
@@ -1770,6 +1788,19 @@
     const trayDuration = document.getElementById('tray-duration');
     const mb = (blob.size / 1_000_000).toFixed(1);
     trayFilesize.textContent = `${mb} MB`;
+
+    // Pre-populate "What's this build?" from the topic title if set
+    const buildTitleInput = document.getElementById('build-title');
+    const topicTitleInput = document.getElementById('topic-title');
+    if (buildTitleInput && topicTitleInput && topicTitleInput.value.trim()) {
+      buildTitleInput.value = topicTitleInput.value.trim();
+    }
+
+    // Reset save-continue state for new take
+    const scStatus = document.getElementById('save-continue-status');
+    const scBtn = document.getElementById('btn-save-continue');
+    if (scStatus) { scStatus.style.display = 'none'; scStatus.textContent = ''; }
+    if (scBtn) { scBtn.disabled = false; scBtn.textContent = 'Save & Continue →'; }
     // Revoke any previous URL
     if (trayVideo._blobUrl) URL.revokeObjectURL(trayVideo._blobUrl);
     const blobUrl = URL.createObjectURL(blob);
@@ -1799,6 +1830,59 @@
     a.download = `podclick-take-${ts}.webm`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+
+  /* ── Save & Continue → Project ──────────────────────────────────── */
+  async function saveAndContinue() {
+    if (!state.recordingBlob) {
+      toast('Nothing to save — record something first.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btn-save-continue');
+    const status = document.getElementById('save-continue-status');
+
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    status.textContent = 'Uploading your recording…';
+    status.style.display = 'block';
+    status.style.color = '#888';
+
+    try {
+      const title = (document.getElementById('build-title') || {}).value || '';
+      const ts = new Date().toISOString();
+      const filename = `studio-${ts.replace(/[:.]/g,'-').slice(0,19)}.webm`;
+
+      const form = new FormData();
+      form.append('video', state.recordingBlob, filename);
+      form.append('title', title.trim());
+      form.append('recorded_at', ts);
+
+      const res = await fetch('/api/projects/from-recording', {
+        method: 'POST',
+        body: form,
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || `Server error ${res.status}`);
+      }
+
+      status.textContent = 'Build saved. Breaking ground…';
+      status.style.color = '#4caf50';
+      btn.textContent = '✓ Saved';
+
+      // Small delay so the user sees the success state before redirect
+      setTimeout(() => {
+        window.location.href = '/project/' + data.project_id;
+      }, 600);
+
+    } catch (err) {
+      status.textContent = 'Save failed: ' + err.message;
+      status.style.color = '#e05a5a';
+      btn.disabled = false;
+      btn.textContent = 'Save & Continue →';
+    }
   }
 
   /* ── Post-Episode Tab Switching ─────────────────────────────────── */
