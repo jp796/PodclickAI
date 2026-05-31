@@ -255,6 +255,19 @@ class BrickAgent:
             # Ensure permit row exists (upsert-on-first-run)
             permit = await self._get_or_create_permit(session, location_id)
 
+            # Idempotency: expire today's pending actions before creating new ones.
+            # Prevents accumulation from multiple same-day planning runs.
+            today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            await session.execute(
+                sa_text(
+                    "UPDATE brick_actions SET status = 'expired' "
+                    "WHERE location_id = :loc AND status = 'pending' "
+                    "AND requested_at >= :today"
+                ),
+                {"loc": uuid.UUID(location_id), "today": today_start},
+            )
+            await session.commit()
+
             # Load planning context
             context = await self._load_planning_context(session, location_id)
 
@@ -1049,7 +1062,8 @@ class BrickAgent:
             ).bindparams(loc=loc_uuid)
         )
         foundation_row = foundation_result.fetchone()
-        foundation_score = round((foundation_row[0] or 0) * 100, 1) if foundation_row else 0.0
+        # Return None when score has never been computed — not 0.0 (misleading to Brick)
+        foundation_score = round(foundation_row[0] * 100, 1) if (foundation_row and foundation_row[0] is not None) else None
 
         # Sample count
         sample_count_result = await session.execute(
@@ -1109,10 +1123,16 @@ class BrickAgent:
         lines.append(f"- Posts this month: {context['posts_mtd']}")
         lines.append(f"- Posts scheduled next 7 days: {context['upcoming_count']}")
         lines.append(f"- Pending punch list items: {context['pending_punch_list']}")
-        lines.append(
-            f"- Foundation: {context['foundation_score']}% match, "
-            f"{context['foundation_samples']} samples"
-        )
+        if context["foundation_score"] is not None:
+            lines.append(
+                f"- Foundation: {context['foundation_score']}% voice cohesion, "
+                f"{context['foundation_samples']} samples"
+            )
+        else:
+            lines.append(
+                f"- Foundation: score not yet computed, "
+                f"{context['foundation_samples']} samples loaded"
+            )
         if context["pillars"]:
             lines.append(f"- Content pillars: {', '.join(context['pillars'])}")
         lines.append("")
@@ -1131,9 +1151,14 @@ class BrickAgent:
             '    }\n'
             '  ]\n'
             '}\n'
-            "Propose 2-4 actions. Only action_types allowed at Draftsman tier: "
-            "suggest_post_idea, draft_post. "
-            "Rationale must pass the foreman test — no corporate-speak, reference real data."
+            "RULES:\n"
+            "- Propose EXACTLY 3-5 PRIORITIZED actions. No more. Choose only the highest-impact items.\n"
+            "- Only action_types allowed at Draftsman tier: suggest_post_idea, draft_post.\n"
+            "- Do NOT list variations of the same idea. "
+            "If multiple drafts would cover similar ground (educational, tactical, informational posts), "
+            "consolidate them into one best action.\n"
+            "- Each action must cover a distinct topic, format, or intent.\n"
+            "- Rationale must pass the foreman test — no corporate-speak, reference real data."
         )
 
         return "\n".join(lines)

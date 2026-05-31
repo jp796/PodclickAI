@@ -352,6 +352,12 @@
       font-size: 13px; font-weight: 800; color: var(--text); min-width: 36px;
       text-align: right;
     }
+    .compute-score-btn {
+      font-size: 11px; font-weight: 700; padding: 2px 10px;
+      background: var(--amber, #f59e0b); color: #000;
+      border: none; border-radius: 6px; cursor: pointer; margin-left: 8px;
+    }
+    .compute-score-btn:disabled { opacity: 0.6; cursor: wait; }
     .sparkline-placeholder {
       height: 48px; background: var(--surface2); border: 1px solid var(--border);
       border-radius: 8px; display: flex; align-items: center; justify-content: center;
@@ -507,7 +513,7 @@
       <div id="recent-list-container">
         <div class="empty-state hidden" id="recent-empty">
           <div class="empty-icon">💤</div>
-          Nothing ran overnight. Brick was off the clock.
+          Nothing built overnight — Brick's been quiet.
         </div>
       </div>
     </div>
@@ -746,6 +752,32 @@ function renderRecentActions(recentActions) {
   container.appendChild(list);
 }
 
+/* ── Foundation score compute ─────────────────────────────────── */
+async function computeFoundationScore() {
+  const btn = document.getElementById('compute-score-btn');
+  if (btn) { btn.textContent = 'Computing…'; btn.disabled = true; }
+  try {
+    const res = await fetch('/api/foundation/compute-score', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) {
+      wtToast(data.detail || 'Compute failed', 'error');
+      if (btn) { btn.textContent = 'Compute'; btn.disabled = false; }
+      return;
+    }
+    // Update score display
+    const score = data.score;
+    document.getElementById('foundation-bar-fill').style.width = Math.min(100, score) + '%';
+    document.getElementById('foundation-pct-label').textContent = score.toFixed(0) + '%';
+    document.getElementById('stat-foundation').textContent = score.toFixed(0) + '%';
+    document.getElementById('stat-foundation-bar').style.width = Math.min(100, score) + '%';
+    if (btn) btn.remove();
+    wtToast('Foundation score computed: ' + score.toFixed(0) + '%', 'success');
+  } catch (e) {
+    wtToast('Compute failed — check server', 'error');
+    if (btn) { btn.textContent = 'Compute'; btn.disabled = false; }
+  }
+}
+
 /* ── Main load ────────────────────────────────────────────────── */
 async function loadWalkthrough() {
   try {
@@ -768,16 +800,31 @@ function applyWalkthrough(data) {
   greetingEl.textContent = data.greeting || 'Walk-through ready.';
 
   // Stats strip
-  const score = typeof data.foundation_score === 'number' ? data.foundation_score : 0;
-  document.getElementById('stat-foundation').textContent = score.toFixed(0) + '%';
+  const scoreComputed = data.foundation_score !== null && data.foundation_score !== undefined;
+  const score = scoreComputed ? data.foundation_score : 0;
+  document.getElementById('stat-foundation').textContent = scoreComputed ? score.toFixed(0) + '%' : '—';
   document.getElementById('stat-foundation-bar').style.width = Math.min(100, score) + '%';
   document.getElementById('stat-posts-mtd').textContent = data.posts_mtd != null ? data.posts_mtd : '—';
   document.getElementById('stat-upcoming').textContent = data.upcoming_posts != null ? data.upcoming_posts : '—';
   document.getElementById('stat-samples').textContent = data.foundation_samples != null ? data.foundation_samples : '—';
 
-  // Stats panel
+  // Stats panel — Foundation score block
   document.getElementById('foundation-bar-fill').style.width = Math.min(100, score) + '%';
-  document.getElementById('foundation-pct-label').textContent = score.toFixed(0) + '%';
+  if (scoreComputed) {
+    document.getElementById('foundation-pct-label').textContent = score.toFixed(0) + '%';
+  } else {
+    document.getElementById('foundation-pct-label').textContent = '—';
+    // Inject compute button next to the bar
+    var barWrap = document.getElementById('foundation-pct-label').parentElement;
+    if (!document.getElementById('compute-score-btn')) {
+      var btn = document.createElement('button');
+      btn.id = 'compute-score-btn';
+      btn.className = 'compute-score-btn';
+      btn.textContent = 'Compute';
+      btn.onclick = computeFoundationScore;
+      barWrap.appendChild(btn);
+    }
+  }
   document.getElementById('samples-count-label').textContent = data.foundation_samples != null ? data.foundation_samples : '0';
   document.getElementById('posts-mtd-big').textContent = data.posts_mtd != null ? data.posts_mtd : '—';
 

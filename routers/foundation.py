@@ -22,6 +22,7 @@ from schemas.foundation import (
 )
 from services.foundation import (
     BrandContextError,
+    calculate_foundation_score,
     get_brand_context,
     get_foundation_status,
     ingest_sample,
@@ -72,6 +73,30 @@ async def route_score(
         "computed_at": status.computed_at,
         "sample_count": status.sample_count,
     }
+
+
+@router.post("/compute-score", summary="Compute Foundation voice cohesion score")
+async def route_compute_score(
+    session: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    Compute and persist the Foundation voice cohesion score for this location.
+    Uses pgvector nearest-neighbor cosine similarity across voice samples.
+    Requires at least 5 non-excluded samples with embeddings.
+    """
+    location_id = get_current_location_id()
+    try:
+        score = await calculate_foundation_score(session=session, location_id=location_id)
+        return {
+            "ok": True,
+            "location_id": location_id,
+            "score": round(score * 100, 1),
+            "score_raw": score,
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.get("/samples", response_model=List[VoiceSampleOut], summary="List voice samples (recent, no vectors)")

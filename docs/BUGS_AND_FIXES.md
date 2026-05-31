@@ -554,3 +554,56 @@ Stack overflow meant `initGhlStep()` never executed, leaving the UI on the loadi
 4. "What happens next" line sets the time expectation.
 
 **File:** `frontend/onboarding.html`
+
+---
+
+## 2026-05-30 — Foundation Score Reads 0% (Never Computed)
+
+**Symptom:** Walk-through showed "Foundation Score: 0%" despite 197 voice samples. Brick referenced "0% Foundation match" in all punch list rationales — misleading every recommendation.
+
+**Root Cause:** `calculate_foundation_score()` was never implemented. `foundation_scores` table was empty. Every read of the table returned null → coalesced to 0.0 → displayed as 0%.
+
+**Fix:**
+- Added `calculate_foundation_score(session, location_id)` to `services/foundation.py`. Uses pgvector's `<=>` cosine distance operator — for each of 50 sampled voice samples, finds its nearest neighbor and averages the similarity scores. Inserts result into `foundation_scores`.
+- Added `POST /api/foundation/compute-score` endpoint in `routers/foundation.py`.
+- Changed `foundation_score` in both `brick_walkthrough` (main.py) and `_load_planning_context` (brick_agent.py) to return `None` (not 0.0) when no score has been computed. Distinguishes "uncalculated" from a real zero.
+- Updated `_build_planning_prompt` to describe null score as "score not yet computed" instead of "0% match."
+- Added "Compute" button in `walkthrough.html` that calls the endpoint inline.
+- **Computed score for the live corpus: 65.1%** (197 samples).
+
+**Files:** `services/foundation.py`, `routers/foundation.py`, `main.py`, `services/brick_agent.py`, `frontend/walkthrough.html`
+
+---
+
+## 2026-05-30 — Punch List Had 20 Items (Planning Loop Accumulation + Duplicates + Similar Actions)
+
+**Symptom:** Walk-through punch list showed 20 items — including duplicates and "Foundation's at zero" rationales from past runs. Multiple items recommended nearly identical actions ("draft educational post," "draft tactical content").
+
+**Root Cause (multi-layer):**
+1. `run_daily_planning` created new `brick_actions` rows every run with no deduplication or slate-clearing. 5 runs × 4 actions = 20+ items.
+2. Planning prompt asked for "2-4 actions" but had no hard cap and no consolidation rule.
+3. Dedup at the walkthrough endpoint only caught exact-text duplicates; slightly varied rationales all passed through.
+
+**Fix:**
+- `run_daily_planning` now expires today's pending actions (`status='expired'`) before creating new ones. Makes the planning loop idempotent within a day — re-running replaces, not appends.
+- Planning prompt updated to "Propose EXACTLY 3-5 PRIORITIZED actions. No more."
+- Added consolidation rule: "Do not list variations of the same idea — consolidate similar drafts into one best action."
+- `brick_walkthrough` deduplicates by rationale text before returning, as a last-resort safety net.
+- Cleared all 24 stale accumulated actions manually; triggered fresh planning run.
+
+**Result:** 4 distinct, correctly-reasoned actions with real 65.1% score referenced.
+
+**Files:** `services/brick_agent.py`, `main.py`
+
+---
+
+## 2026-05-30 — "Built Overnight" Showed Items From 3 Days Ago
+
+**Symptom:** "Built Overnight" section in the walk-through displayed executed actions from multiple days prior.
+
+**Root Cause:** `brick_walkthrough` queried `brick_track_record` with only `.limit(10)` — no time filter. Returned oldest executed items regardless of when they ran.
+
+**Fix:** Added `executed_at >= now() - interval '24 hours'` filter to the `recent_rows` query. Updated the empty-state text to "Nothing built overnight — Brick's been quiet."
+
+**Files:** `main.py`, `frontend/walkthrough.html`
+

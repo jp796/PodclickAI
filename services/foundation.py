@@ -485,3 +485,87 @@ async def auto_generate_blueprint(
     parsed["_already_existed"] = already_exists
     parsed["_sample_count"] = sample_count
     return parsed
+
+
+# ── Foundation score calculation ──────────────────────────────────────────────
+
+async def calculate_foundation_score(session: AsyncSession, location_id: str) -> float:
+    """
+    Compute voice cohesion score for a location's Foundation corpus.
+
+    Method: for each of up to 50 voice samples, find its nearest-neighbor
+    cosine similarity (using pgvector <=> cosine distance operator).
+    Average those scores → insert into foundation_scores → return.
+
+    Score is 0.0–1.0. Typical well-formed voice corpus: 0.70–0.90.
+    A low score means high variance in writing style across samples.
+
+    Raises ValueError if fewer than 5 samples are available.
+    """
+    loc_str = str(uuid.UUID(location_id))
+
+    # Count available samples with embeddings
+    count_row = await session.execute(
+        text(
+            "SELECT COUNT(*) FROM voice_samples "
+            "WHERE location_id = :loc AND excluded = false AND embedding IS NOT NULL"
+        ),
+        {"loc": loc_str},
+    )
+    count = count_row.scalar() or 0
+
+    if count < 5:
+        raise ValueError(
+            f"Foundation score requires at least 5 voice samples — "
+            f"location has {count}."
+        )
+
+    # Compute average nearest-neighbor cosine similarity.
+    # pgvector <=> returns cosine DISTANCE (0.0 = identical, 2.0 = opposite).
+    # cosine similarity = 1.0 - cosine distance.
+    # For each sample we find its single nearest neighbor and record that similarity.
+    score_row = await session.execute(
+        text(
+            """
+            SELECT AVG(1.0 - nn_dist) AS avg_similarity
+            FROM (
+                SELECT (
+                    SELECT s2.embedding <=> s1.embedding
+                    FROM voice_samples s2
+                    WHERE s2.location_id = :loc
+                      AND s2.excluded = false
+                      AND s2.id != s1.id
+                    ORDER BY s2.embedding <=> s1.embedding
+                    LIMIT 1
+                ) AS nn_dist
+                FROM voice_samples s1
+                WHERE s1.location_id = :loc
+                  AND s1.excluded = false
+                  AND s1.embedding IS NOT NULL
+                LIMIT 50
+            ) t
+            WHERE nn_dist IS NOT NULL
+            """
+        ),
+        {"loc": loc_str},
+    )
+    avg_similarity = score_row.scalar()
+
+    if avg_similarity is None:
+        raise ValueError(
+            "Could not compute similarity — ensure embeddings are populated in voice_samples."
+        )
+
+    score = max(0.0, min(1.0, float(avg_similarity)))
+
+    # Insert new foundation_scores row
+    await session.execute(
+        text(
+            "INSERT INTO foundation_scores (location_id, score, sample_count) "
+            "VALUES (CAST(:loc AS uuid), :score, :count)"
+        ),
+        {"loc": loc_str, "score": score, "count": count},
+    )
+    await session.commit()
+
+    return score

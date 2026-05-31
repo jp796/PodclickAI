@@ -8412,21 +8412,30 @@ async def brick_walkthrough():
             .limit(20)
         )).scalars().all()
 
-        pending_actions = [
-            {
+        # Dedup by rationale text — multiple planning runs can produce identical items
+        _seen_rationales = set()
+        pending_actions = []
+        for a in pending_rows:
+            rat = (a.rationale or "").strip()
+            if rat in _seen_rationales:
+                continue
+            _seen_rationales.add(rat)
+            pending_actions.append({
                 "id": str(a.id),
                 "action_type": a.action_type,
-                "rationale": a.rationale or "",
+                "rationale": rat,
                 "payload": a.payload or {},
                 "requested_at": a.requested_at.isoformat() if a.requested_at else None,
-            }
-            for a in pending_rows
-        ]
+            })
 
-        # Recent actions (last 7 days)
+        # Recent actions (last 24 hours only — "Built Overnight" section)
+        cutoff_24h = _dt.utcnow() - __import__('datetime').timedelta(hours=24)
         recent_rows = (await session.execute(
             _select(_BTR)
-            .where(_BTR.location_id == loc_uuid)
+            .where(_and(
+                _BTR.location_id == loc_uuid,
+                _BTR.executed_at >= cutoff_24h,
+            ))
             .order_by(_BTR.executed_at.desc())
             .limit(10)
         )).scalars().all()
@@ -8459,7 +8468,8 @@ async def brick_walkthrough():
             "ORDER BY computed_at DESC LIMIT 1"
         ).bindparams(loc=loc_uuid))
         score_row = score_r.fetchone()
-        foundation_score = round((score_row[0] or 0) * 100, 1) if score_row else 0.0
+        # Return None when score has never been computed — not 0% (misleading)
+        foundation_score = round(score_row[0] * 100, 1) if (score_row and score_row[0] is not None) else None
 
         samples_r = await session.execute(_sa_text(
             "SELECT COUNT(*) FROM voice_samples WHERE location_id = :loc AND excluded = false"
