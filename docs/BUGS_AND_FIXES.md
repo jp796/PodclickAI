@@ -515,3 +515,42 @@ AND (CAST(:platform AS text) IS NULL OR platform IS NULL OR platform = CAST(:pla
 **Files:** `main.py` — `YT_API_REFERER` constant, `_run_competitor_spy()` AsyncClient, video analyzer AsyncClient.
 
 **Verified:** Live API test — Rick Astley video returned 1,777,073,707 views, 4,500,000 subs, score 394.9x, popular=True.
+
+---
+
+## 2026-05-30 — Step 2 Stuck on "Checking connection…" Indefinitely
+
+**Symptom:** Onboarding step 2 (Connect GHL) showed "Checking connection…" forever. Never auto-advanced to step 3 even though GHL was already connected via `TITAN_LOCATION_ID` in `.env`.
+
+**Root Cause:** JavaScript function declaration hoisting. Two `function onStepEnter(n)` declarations existed in the same script scope — the original at line ~579 and a "patch" block added at the bottom of the file. Both hoist to the top; the **last declaration wins**. The patch block contained:
+```javascript
+const _origOnStepEnter = onStepEnter;  // captures the already-hoisted second function
+function onStepEnter(n) {               // this is what gets called
+  _origOnStepEnter(n);                  // calls itself → infinite recursion → stack overflow
+  if (n === 6) onStepEnterStep6();
+}
+```
+Stack overflow meant `initGhlStep()` never executed, leaving the UI on the loading state.
+
+**Fix:**
+- Merged `if (n === 6) onStepEnterStep6();` directly into the original `onStepEnter()` function.
+- Removed the broken `const _origOnStepEnter` override block entirely.
+- Added `Promise.race()` with a 5-second timeout to `initGhlStep()` so the UI never hangs indefinitely regardless of API response time.
+
+**File:** `frontend/onboarding.html`
+
+---
+
+## 2026-05-30 — Step 1 Onboarding Copy Lacks Product Explanation
+
+**Symptom:** Onboarding step 1 jumped straight to Brick's introduction before explaining what PodClick is. A first-time user had no context for why they were being sent through this flow.
+
+**Root Cause:** Original copy mixed product/character voice without a clear sequence. "Brick here. I'll be running your site." came before any explanation of the product.
+
+**Fix:** Rewrote step 1 in the correct 4-part sequence:
+1. Heading lands the construction metaphor: "Welcome to your job site."
+2. Body explains the product in brand voice (no market-segment jargon, active phrasing).
+3. Brick callout introduces the character in Brick's voice.
+4. "What happens next" line sets the time expectation.
+
+**File:** `frontend/onboarding.html`

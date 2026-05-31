@@ -308,16 +308,18 @@
   <!-- ── Step 1: Welcome ── -->
   <div class="ob-card" id="step-1">
     <div class="ob-eyebrow">Step 1 of 6 — Pour the foundation</div>
-    <div class="ob-heading">Your content site starts here.</div>
-    <div class="ob-sub">PodClick is your content operations system. Brick is your AI operator. Pour your foundation, meet Brick, and you'll have your first walk-through in 15 minutes.</div>
+    <div class="ob-heading">Welcome to your job site.</div>
+    <div class="ob-sub">PodClick is your content operation system. Record once, publish everywhere, and watch what works. We use construction language because that's how real operations work — foundations, blueprints, permits, walk-throughs.</div>
 
     <div class="brick-hero">
       <img src="/static/brick-avatar.png" alt="Brick" onerror="this.style.display='none'; this.parentElement.querySelector('.hero-emoji').style.display='block'">
       <div class="hero-emoji" style="display:none">🔨</div>
       <div class="brick-hero-copy">
-        <strong>Brick here.</strong> I'll be running your site. The Foundation we pour today is what makes every post, script, and closing sound like <em>you</em> — not like every other AI tool.
+        <strong>Brick here.</strong> I'm your AI general contractor. I'll be running your site.
       </div>
     </div>
+
+    <div class="ob-sub" style="margin-top: 16px; font-style: italic;">Pour your foundation, lay your blueprint, and you'll have your first walk-through in 15 minutes.</div>
 
     <button class="ob-btn" onclick="goStep(2)">Get on the site →</button>
   </div>
@@ -580,6 +582,7 @@ function onStepEnter(n) {
   if (n === 2) initGhlStep();
   if (n === 3) startFoundationPoll();
   if (n === 4) triggerBlueprintGen();
+  if (n === 6) onStepEnterStep6();
 }
 
 /* ── Step 2: GHL check ── */
@@ -587,8 +590,12 @@ async function initGhlStep() {
   const box  = document.getElementById('ghl-status-box');
   const connectWrap = document.getElementById('ghl-connect-btn-wrap');
   const advanceWrap = document.getElementById('ghl-advance-wrap');
+  const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000));
   try {
-    const data = await fetch('/api/onboarding/ghl-check').then(r => r.json());
+    const data = await Promise.race([
+      fetch('/api/onboarding/ghl-check').then(r => r.json()),
+      timeout
+    ]);
     if (data.connected) {
       box.className = 'ghl-status-box connected';
       box.innerHTML = `<div class="status-label">✓ Connected</div>Location ${data.location_id || ''} already wired in. Good to go.`;
@@ -838,13 +845,6 @@ function onStepEnterStep6() {
   fetch('/api/brick/run-planning', {method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'}).catch(()=>{});
   // Redirect to walk-through after 2.5s
   setTimeout(() => { window.location = '/walkthrough'; }, 2500);
-}
-
-// Patch onStepEnter to handle step 6
-const _origOnStepEnter = onStepEnter;
-function onStepEnter(n) {
-  _origOnStepEnter(n);
-  if (n === 6) onStepEnterStep6();
 }
 
 /* ── Helpers ── */
