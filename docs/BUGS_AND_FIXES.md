@@ -607,3 +607,21 @@ Stack overflow meant `initGhlStep()` never executed, leaving the UI on the loadi
 
 **Files:** `main.py`, `frontend/walkthrough.html`
 
+---
+
+## 2026-05-31 — Foundation Score Never Auto-Computed After Intake (Stage 2, Step 1)
+
+**Symptom:** New users finishing Foundation intake saw a null Foundation score in the Walk-through unless they manually clicked a hidden "Compute" button. Brick's first planning run described the Foundation as "score not yet computed" even minutes after intake completion.
+
+**Root Cause:** `calculate_foundation_score()` was only triggered by `POST /api/foundation/compute-score` (manual call). No automatic trigger existed after sample ingestion, and no nightly cron existed to recompute for stale locations.
+
+**Fix (two parts):**
+
+1. **Background trigger on every ingest** — both `/api/foundation/ingest` and `/api/foundation/transcribe-and-ingest` now fire `asyncio.create_task(_bg_recompute_score(location_id))` after sample insertion. The background task opens its own session, checks that sample count >= 5, calls `calculate_foundation_score()`, and logs result. Never blocks the ingest response. Silently no-ops if samples are below threshold.
+
+2. **Nightly cron at 03:00 America/Chicago** — added `_nightly_foundation_recompute()` to `main.py` registered on the existing APScheduler alongside the Brick planning cron. Skips recompute if a score was already computed in the last 23 hours (avoids double-work on days where intake triggered an auto-compute). Fires one hour before Brick's 04:00 planning loop so the planning context always has a fresh score.
+
+**Verified:** POST to `/api/foundation/ingest` → score updated at `2026-05-31T14:26:02Z` (3s later, background task) → `/api/foundation/score` returns `65.1%` with 198 samples.
+
+**Files:** `routers/foundation.py` (`_bg_recompute_score`, both ingest routes), `main.py` (`_nightly_foundation_recompute`, `_startup` cron registration)
+

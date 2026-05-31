@@ -47,6 +47,56 @@ async def health_check():
     return {"status": "ok"}
 
 
+async def _nightly_foundation_recompute() -> None:
+    """
+    Nightly cron job — recompute Foundation voice cohesion score.
+
+    Runs at 03:00 America/Chicago (one hour before Brick's planning loop)
+    so the planning context always has a fresh score.
+
+    Skips recompute if a score was already computed in the last 23 hours
+    (e.g., user triggered manual compute during intake today).
+    Only operates on the default location (single-tenant beta setup).
+    """
+    import datetime as _dt
+    from db.engine import async_session as _async_session
+    from sqlalchemy import text as _text
+    from config import settings as _settings
+    from services.foundation import calculate_foundation_score as _compute
+
+    location_id = _settings.titan_location_id
+    if not location_id:
+        print("[foundation.cron] No TITAN_LOCATION_ID configured — skipping recompute")
+        return
+
+    try:
+        async with _async_session() as session:
+            # Check when the score was last computed
+            row = await session.execute(
+                _text(
+                    "SELECT computed_at FROM foundation_scores "
+                    "WHERE location_id = :loc "
+                    "ORDER BY computed_at DESC LIMIT 1"
+                ),
+                {"loc": location_id},
+            )
+            last = row.scalar()
+            cutoff = _dt.datetime.utcnow() - _dt.timedelta(hours=23)
+            if last and last > cutoff:
+                print(
+                    f"[foundation.cron] Score fresh (computed {last.isoformat()}) — skipping"
+                )
+                return
+
+            score = await _compute(session=session, location_id=location_id)
+            print(
+                f"[foundation.cron] Recomputed score: {round(score * 100, 1)}% "
+                f"for location {location_id}"
+            )
+    except Exception as exc:  # noqa: BLE001
+        print(f"[foundation.cron] Nightly recompute failed — {exc}")
+
+
 @app.on_event("startup")
 async def _startup():
     """Start the release scheduler + uploads sweep background loops."""
@@ -74,8 +124,23 @@ async def _startup():
             replace_existing=True,
             misfire_grace_time=600,  # tolerate up to 10-min delay on cold start
         )
+
+        # ── Foundation score nightly recompute (Step 1, Stage 2) ──────────────
+        # Fires at 03:00 America/Chicago — before Brick's planning loop at 04:00
+        # so the planning context always has a fresh score.
+        # Only recomputes if the last score is >23h old (avoids redundant work
+        # on days where the user triggered a manual compute via intake).
+        _brick_scheduler.add_job(
+            _nightly_foundation_recompute,
+            CronTrigger(hour=3, minute=0, timezone=pytz.timezone("America/Chicago")),
+            id="foundation_nightly_score",
+            replace_existing=True,
+            misfire_grace_time=600,
+        )
+
         _brick_scheduler.start()
         print("[brick.cron] Daily planning cron registered — fires 04:00 America/Chicago")
+        print("[foundation.cron] Nightly score recompute registered — fires 03:00 America/Chicago")
     except Exception as _brick_cron_err:
         print(f"[brick.cron] WARNING: Could not register cron — {_brick_cron_err}")
 

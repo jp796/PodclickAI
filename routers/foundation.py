@@ -5,13 +5,14 @@ All business logic lives in services/foundation.py.
 """
 from __future__ import annotations
 
+import asyncio
 from typing import List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import get_current_location_id, settings
-from db.engine import get_db
+from db.engine import get_db, async_session
 from schemas.foundation import (
     BrandContext,
     BrandContextTaskType,
@@ -30,6 +31,37 @@ from services.foundation import (
 
 router = APIRouter()
 
+# Minimum samples required before auto-compute is worth running.
+# Matches the hard floor in calculate_foundation_score().
+_SCORE_MIN_SAMPLES = 5
+
+
+async def _bg_recompute_score(location_id: str) -> None:
+    """
+    Background task — compute Foundation score after ingestion.
+
+    Opens its own session so it never blocks the ingest response.
+    Silently skips if sample count is below the minimum.
+    Silently logs but never raises — caller must not depend on outcome.
+    """
+    try:
+        async with async_session() as session:
+            row = await session.execute(
+                text(
+                    "SELECT COUNT(*) FROM voice_samples "
+                    "WHERE location_id = :loc AND excluded = false AND embedding IS NOT NULL"
+                ),
+                {"loc": location_id},
+            )
+            count = row.scalar() or 0
+            if count < _SCORE_MIN_SAMPLES:
+                return
+            await calculate_foundation_score(session=session, location_id=location_id)
+            print(f"[foundation.score] Auto-computed score for location {location_id} "
+                  f"({count} samples)")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[foundation.score] Background recompute failed — {exc}")
+
 
 @router.post("/ingest", response_model=IngestResponse, summary="Ingest a voice sample into the Foundation")
 async def route_ingest(
@@ -38,7 +70,7 @@ async def route_ingest(
 ) -> IngestResponse:
     location_id = get_current_location_id()
     try:
-        return await ingest_sample(
+        result = await ingest_sample(
             session=session,
             location_id=location_id,
             text_content=body.text,
@@ -49,6 +81,10 @@ async def route_ingest(
             weight=body.weight,
             edit_distance=body.edit_distance,
         )
+        # Fire-and-forget: recompute Foundation score after every ingest.
+        # Runs in background — does not block or affect this response.
+        asyncio.create_task(_bg_recompute_score(location_id))
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
@@ -185,6 +221,9 @@ async def route_transcribe_and_ingest(
             source="podcast",
             weight=1.2,
         )
+
+        # Fire-and-forget: recompute Foundation score after transcription ingest.
+        asyncio.create_task(_bg_recompute_score(location_id))
 
         return {
             "sample_id": result.sample_id,
