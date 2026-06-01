@@ -744,6 +744,13 @@ class Project(Base):
     # Guest asset email tracking
     guest_email_sent_at: Column = Column(DateTime(timezone=True), nullable=True)
 
+    # Distribution links — populated during Closing (schedule_closing → _distribute_project)
+    buzzsprout_url: Column = Column(Text, nullable=True)        # audio_url from Buzzsprout response
+    buzzsprout_episode_id: Column = Column(Text, nullable=True) # Buzzsprout episode integer id (str)
+    youtube_url: Column = Column(Text, nullable=True)           # https://www.youtube.com/watch?v=...
+    youtube_video_id: Column = Column(Text, nullable=True)      # YouTube video id string
+    legacy_metadata: Column = Column(JSONB, nullable=True)      # catch-all for migrated episodes.json fields
+
     created_at: Column = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

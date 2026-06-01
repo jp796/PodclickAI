@@ -662,3 +662,100 @@ Stack overflow meant `initGhlStep()` never executed, leaving the UI on the loadi
 
 **Files:** `main.py` (two new endpoints + `_run_transcription` + `_project_to_dict`), `db/models.py`, `alembic/versions/c9d4f2a1b607_stage2_recording_path.py`, `frontend/studio.html` (recording tray + `saveAndContinue()`), `frontend/project.html` (transcription banner + `_maybeAutoTranscribe` + `showStep1` gate)
 
+---
+
+## 2026-05-31 — Stage 2 Step 2.5: Studio Recording Has No Audio for Ship It (Clip Silent Skip)
+
+**Symptom:** Ship It on a studio-recorded project silently skipped all clip generation. No clips rendered, no SRTs written. `render_all_clips()` was never called. Foundation show notes were generated but the clip distribution pipeline produced nothing.
+
+**Root Cause (two gaps):**
+
+1. `_run_ship_it_async()` got `job_data` from the legacy in-memory `jobs` dict. Studio recordings (created via `POST /api/projects/from-recording`) have no associated job — `job_id` is None — so `job_data = {}`. Without `job_data["mp3_path"]`, `run_ship_it()` silently skipped clips.
+
+2. Even if a recording file existed, it's `.webm` (browser MediaRecorder format). `render_all_clips()` expected an MP3 path (`source_mp3` param). No extraction step existed.
+
+3. `job_data["words"]` (word-level timestamps) was also missing. Without it, `detect_clips_for_project()` skips clip detection — meaning even if audio was present, clip boundaries couldn't be computed.
+
+**Fix:**
+
+Added two module-level sync helpers (callable from `run_in_executor`):
+
+- `_ship_it_extract_audio(recording_path)` — FFmpeg extracts audio track from recording to `<recording>.ship_audio.mp3`. Idempotent: skips re-extraction if output already exists and is non-empty.
+- `_ship_it_whisper_words(audio_path, api_key)` — calls OpenAI Whisper API with `response_format="verbose_json"` and `timestamp_granularities=["word", "segment"]`. Returns `{text, words, segments}` in the shape `detect_clips_for_project()` expects.
+
+In `_run_ship_it_async()`:
+- Added `recording_path: str = ""` parameter (passed in from `ship_it()` endpoint)
+- Added Step 2.5 block before the `run_ship_it()` call: if `job_data` is empty AND `recording_path` exists on disk, extract audio + get word timestamps → populate `job_data["mp3_path"]`, `job_data["words"]`, `job_data["segments"]`
+- On extraction failure: logs warning, `job_data` stays empty, clips skipped gracefully (non-fatal)
+
+In `ship_it()` endpoint:
+- Added `recording_path = project.recording_path or ""` extraction from project
+- Passes `recording_path` to `_run_ship_it_async()`
+
+**Result:** Ship It on a studio recording now: extracts audio from webm, re-transcribes with word timestamps, detects clip candidates from actual word boundaries, renders 9:16 MP4 clips. Full pipeline active.
+
+**Files:** `main.py` (`_ship_it_extract_audio`, `_ship_it_whisper_words`, `_run_ship_it_async` Step 2.5 block, `ship_it` endpoint)
+
+---
+
+## DEFERRED OPTIMIZATIONS (known, not blocking)
+
+Items logged here are real inefficiencies that were intentionally deferred. Do not fix during the current build sprint. Revisit when the Ship It pipeline is stable and verified.
+
+---
+
+### DEFERRED OPT-1 — Whisper Double-Call (Cost Bleed)
+
+**Filed:** 2026-05-31 | **Status:** Deferred
+
+**What it is:** Step 2.5 in `_run_ship_it_async()` calls Whisper twice per project. First call is the standard text-only transcription (done in Step 2C via `_run_transcription()`). Second call is `_ship_it_whisper_words()` in Step 2.5 using `response_format="verbose_json"` to get word-level timestamps. Both calls are necessary for their purposes (transcript for show notes + display; word timestamps for clip detection), but they charge separately.
+
+**Cost impact:** ~$0.18 per call × 2 = ~$0.36 per 30-minute recording. On a free/low tier with infrequent recordings, acceptable. At scale (e.g. 100 recordings/month) = ~$36/month vs. $18/month.
+
+**Ideal fix:** Consolidate into a single Whisper call with `response_format="verbose_json"` and `timestamp_granularities=["word", "segment"]`. This call returns both the plain transcript (in `.text`) and the word-level timestamps (in `.words`). Eliminates the duplicate call entirely. Requires rewriting `_run_transcription()` to use verbose_json and store word timestamps alongside the transcript on the Project model.
+
+**Do not fix now** — wait until transcript storage schema is finalized post-verification.
+
+---
+
+### DEFERRED OPT-2 — Recording File Cleanup (.ship_audio.mp3 Accumulation)
+
+**Filed:** 2026-05-31 | **Status:** Deferred
+
+**What it is:** `_ship_it_extract_audio()` writes `<recording>.ship_audio.mp3` next to the source WebM recording in `data/recordings/`. Extraction is idempotent (skips if file already exists and is non-empty), which is correct. However there is no cleanup step — extracted audio files accumulate indefinitely alongside their source recordings.
+
+**Impact:** Each extracted file is approximately the same size as the audio track from the recording (e.g., 30-minute audio ≈ 30–50MB as MP3 at -q:a 2). On a busy system with many projects, `data/recordings/` grows without bound.
+
+**Ideal fix:** Add a cleanup routine (either post-assembly or as a periodic job) that deletes `.ship_audio.mp3` files once the assembled episode MP3 exists and the project is in `review` or later status. Alternatively, write extracted audio to a temp directory and reference it only for the duration of the Ship It run.
+
+**Do not fix now** — data/recordings/ is local dev only. Add cleanup as part of the first production deploy checklist.
+
+---
+
+## 2026-06-01 — Phase A+B: Distribution columns + Buzzsprout/YouTube wiring
+
+**What shipped:**
+
+**Phase A — Schema migration (Alembic a7b3c8e2f015):**
+- Added 5 new columns to `projects` table: `buzzsprout_url`, `buzzsprout_episode_id`, `youtube_url`, `youtube_video_id`, `legacy_metadata` (JSONB)
+- Updated `db/models.py` Project model with all 5 columns
+- Updated `_project_to_dict()` serializer to include all 5 new fields
+
+**Phase B — Distribution pipeline wiring:**
+- Added `_distribute_project(project_id, closing_at_ts)` async helper in `main.py`
+  - Converts show_notes markdown → HTML via `markdown-it-py` before Buzzsprout upload
+  - Calls `pipeline/upload.upload_episode()` as private draft (WIRE DON'T REWRITE)
+  - Adds entry to `pipeline/scheduler` queue so `flip_to_public()` fires at `closing_scheduled_at`
+  - Calls `pipeline/youtube.upload_video()` via executor (sync function) as `private`
+  - Persists `buzzsprout_url`, `buzzsprout_episode_id`, `youtube_url`, `youtube_video_id` to project record
+- Updated `schedule_closing()`:
+  - Auto-increments `episode_number` from `MAX(episode_number) + 1` (defaults to 101 on first project)
+  - Fires `_distribute_project()` as async background task
+  - Updated response message to acknowledge background upload
+
+**Formatting fix — Buzzsprout show notes prompt:**
+- Updated Ship It step d (Foundation show notes) prompt to produce structured Buzzsprout-ready markdown sections: Episode Summary, What You'll Learn, Episode Highlights, Resources Mentioned, About the Host, Subscribe & Review
+- `_distribute_project()` converts this markdown to HTML before sending to Buzzsprout API
+
+**Files:** `db/models.py`, `alembic/versions/a7b3c8e2f015_stage2b_distribution_columns.py`, `main.py`
+

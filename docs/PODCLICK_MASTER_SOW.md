@@ -1562,6 +1562,36 @@ Brick's voice in any system-generated content, error message, or notification sh
 
 ---
 
+---
+
+## 20. DEFERRED OPTIMIZATIONS
+
+Items in this section are real inefficiencies identified during build. They are intentionally deferred to avoid scope creep during active sprint work. Each item documents what the problem is, what the correct fix looks like, and when to revisit.
+
+### DO-1 — Whisper Double-Call (Ship It Cost Bleed)
+
+**Filed:** 2026-05-31 | **Blocks:** Nothing currently
+
+Step 2C (`_run_transcription()`) calls Whisper for plain text transcript. Step 2.5 (`_ship_it_whisper_words()`) calls Whisper again for verbose_json word timestamps. Both calls are necessary for their immediate purposes, but they charge separately — approximately $0.36 per 30-minute recording vs. $0.18 if consolidated.
+
+**Correct fix:** Single Whisper call with `response_format="verbose_json"` and `timestamp_granularities=["word","segment"]` returns both `.text` and `.words`. Requires updating `_run_transcription()` to use verbose_json and persist word timestamps on the Project model alongside the transcript.
+
+**Revisit when:** Transcript storage schema is finalized and the Ship It pipeline has passed verification.
+
+---
+
+### DO-2 — .ship_audio.mp3 File Accumulation
+
+**Filed:** 2026-05-31 | **Blocks:** Nothing currently
+
+`_ship_it_extract_audio()` writes `<recording>.ship_audio.mp3` adjacent to the source WebM in `data/recordings/`. Files are never cleaned up. At scale (~30–50MB per recording), `data/recordings/` grows without bound.
+
+**Correct fix:** Cleanup routine that deletes `.ship_audio.mp3` once the assembled episode exists and the project is in `review` or later status. Alternative: write extracted audio to a temp directory scoped to the Ship It run.
+
+**Revisit when:** First production deploy checklist. This is local dev only until then.
+
+---
+
 **End of document.**
 
 **Next handoff artifacts to create:**

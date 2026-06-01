@@ -796,6 +796,12 @@ def _project_to_dict(project) -> dict:
         "closing_scheduled_at": project.closing_scheduled_at.isoformat() if project.closing_scheduled_at else None,
         "closed_at": project.closed_at.isoformat() if project.closed_at else None,
         "guest_email_sent_at": project.guest_email_sent_at.isoformat() if project.guest_email_sent_at else None,
+        # Distribution links (Phase B)
+        "buzzsprout_url": project.buzzsprout_url,
+        "buzzsprout_episode_id": project.buzzsprout_episode_id,
+        "youtube_url": project.youtube_url,
+        "youtube_video_id": project.youtube_video_id,
+        "legacy_metadata": project.legacy_metadata,
         "created_at": project.created_at.isoformat() if project.created_at else None,
         "updated_at": project.updated_at.isoformat() if project.updated_at else None,
     }
@@ -1296,6 +1302,7 @@ async def ship_it(project_id: str, request: Request):
         mp3_url = project.mp3_url or ""
         location_id = project.location_id
         project_uuid = project.id
+        recording_path = project.recording_path or ""
 
     # Kick off async processing
     asyncio.create_task(_run_ship_it_async(
@@ -1305,6 +1312,7 @@ async def ship_it(project_id: str, request: Request):
         transcript=transcript,
         mp3_url=mp3_url,
         location_id=location_id,
+        recording_path=recording_path,
     ))
 
     return JSONResponse({
@@ -1314,6 +1322,76 @@ async def ship_it(project_id: str, request: Request):
     })
 
 
+# ── Step 2.5 helpers — audio extraction + word timestamps for studio recordings ──
+
+def _ship_it_extract_audio(recording_path: str) -> str:
+    """
+    Extract audio track from a studio recording (webm/mp4/mov/ogg) to MP3.
+
+    Saves alongside the source as <recording_path>.ship_audio.mp3 so retries
+    don't re-extract (idem­potent: skip if output already exists and is non-empty).
+
+    Returns the output MP3 path. Raises RuntimeError on FFmpeg failure.
+    """
+    import subprocess
+    from pathlib import Path as _Path
+    out_path = str(_Path(recording_path).with_suffix("")) + ".ship_audio.mp3"
+    if _Path(out_path).exists() and _Path(out_path).stat().st_size > 0:
+        return out_path  # already extracted from a previous attempt
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", recording_path,
+        "-q:a", "2",          # VBR ~190 kbps — good quality for Whisper
+        "-map", "a",           # audio track only
+        out_path,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"FFmpeg audio extraction failed for {recording_path}: "
+            f"{result.stderr[-400:]}"
+        )
+    return out_path
+
+
+def _ship_it_whisper_words(audio_path: str, api_key: str) -> dict:
+    """
+    Transcribe audio via OpenAI Whisper (verbose_json) and return word timestamps.
+
+    Returns dict with keys:
+      text     — full transcript string
+      words    — list of {word, start, end} dicts (matches detect_clips_for_project contract)
+      segments — list of Whisper segment objects
+    """
+    import openai as _openai_mod
+    client = _openai_mod.OpenAI(api_key=api_key)
+    with open(audio_path, "rb") as af:
+        result = client.audio.transcriptions.create(
+            model="whisper-1",
+            file=af,
+            response_format="verbose_json",
+            timestamp_granularities=["word", "segment"],
+        )
+    # Normalize words list to the shape detect_clips_for_project expects
+    raw_words = result.words or []
+    words = [
+        {"word": w.word.strip(), "start": w.start, "end": w.end}
+        for w in raw_words
+        if hasattr(w, "start") and hasattr(w, "end")
+    ]
+    segments = []
+    if hasattr(result, "segments") and result.segments:
+        segments = [
+            {"start": s.start, "end": s.end, "text": s.text}
+            for s in result.segments
+        ]
+    return {
+        "text": result.text or "",
+        "words": words,
+        "segments": segments,
+    }
+
+
 async def _run_ship_it_async(
     project_uuid,
     project_id: str,
@@ -1321,6 +1399,7 @@ async def _run_ship_it_async(
     transcript: str,
     mp3_url: str,
     location_id,
+    recording_path: str = "",
 ) -> None:
     """
     Async Ship It orchestration — runs after the HTTP response returns.
@@ -1340,6 +1419,43 @@ async def _run_ship_it_async(
     # Load job data (words + segments) from in-memory jobs dict if available
     job_data = jobs.get(job_id, {}) if job_id else {}
 
+    # ── Step 2.5: Studio recording path — extract audio + word timestamps ────────
+    # When a project came from Save & Continue (no legacy job), job_data is empty.
+    # Extract the audio track from the recording file and re-transcribe with
+    # word-level timestamps so clip detection + rendering can proceed.
+    if not job_data.get("mp3_path") and recording_path:
+        from pathlib import Path as _path_check
+        if _path_check(recording_path).exists():
+            try:
+                print(f"[ship_it.2.5] Extracting audio from {recording_path}…")
+                extracted_audio = await loop.run_in_executor(
+                    None, _ship_it_extract_audio, recording_path
+                )
+                print(f"[ship_it.2.5] Audio extracted → {extracted_audio}")
+
+                # Re-transcribe with verbose_json for word timestamps
+                print(f"[ship_it.2.5] Running Whisper (verbose_json) for word timestamps…")
+                from config import settings as _cfg_s
+                whisper_result = await loop.run_in_executor(
+                    None, _ship_it_whisper_words, extracted_audio, _cfg_s.openai_api_key
+                )
+                job_data = {
+                    "mp3_path": extracted_audio,
+                    "words": whisper_result["words"],
+                    "segments": whisper_result["segments"],
+                }
+                word_count = len(whisper_result["words"])
+                print(f"[ship_it.2.5] Whisper complete — {word_count} word timestamps. "
+                      f"Clip detection ready.")
+            except Exception as _ext_err:
+                import logging
+                logging.getLogger("podclick.projects").warning(
+                    "[ship_it.2.5] Audio extraction/transcription failed — "
+                    "clips will be skipped: %s", _ext_err
+                )
+        else:
+            print(f"[ship_it.2.5] recording_path set but file missing: {recording_path} — skipping")
+
     # ── a-c: Sponsor, clip detection, clip rendering (sync via executor) ───────
     try:
         from pipeline.project_pipeline import run_ship_it as _sync_ship_it
@@ -1353,12 +1469,17 @@ async def _run_ship_it_async(
 
         ship_result = await loop.run_in_executor(None, _sync)
 
-        # Persist sponsor placement to Project
-        if ship_result.get("sponsor_placement"):
+        # Persist sponsor placement + assembled episode path to Project
+        _sponsor_pl = ship_result.get("sponsor_placement")
+        _assembled = ship_result.get("assembled_mp3")
+        if _sponsor_pl or _assembled:
             async with _async_session() as session:
                 proj = (await session.execute(select(Project).where(Project.id == project_uuid))).scalar_one_or_none()
                 if proj:
-                    proj.sponsor_placement = ship_result["sponsor_placement"]
+                    if _sponsor_pl:
+                        proj.sponsor_placement = _sponsor_pl
+                    if _assembled:
+                        proj.mp3_url = _assembled
                     await session.commit()
 
         # Persist Clip rows to DB
@@ -1421,10 +1542,16 @@ async def _run_ship_it_async(
                 messages=[{
                     "role": "user",
                     "content": (
-                        f"Write engaging show notes for this podcast episode. "
-                        f"Include a 2-3 sentence summary, 3-5 key takeaways, and a call to action. "
-                        f"Use construction vocabulary naturally (Blueprint, Foundation, Closing, etc. where they fit). "
-                        f"Do NOT use banned phrases: AI-powered, leverage, unlock, seamless.\n\n"
+                        f"Write Buzzsprout-ready show notes for this podcast episode using "
+                        f"this exact structure (use markdown formatting — headers, bullets, bold):\n\n"
+                        f"## Episode Summary\n[2-3 sentence summary of what this episode covers and why it matters]\n\n"
+                        f"## What You'll Learn\n- [Key takeaway]\n- [Key takeaway]\n- [Key takeaway]\n\n"
+                        f"## Episode Highlights\n[00:00] Introduction\n[Approximate timestamps for 3-5 key moments based on transcript flow]\n\n"
+                        f"## Resources Mentioned\n[Any tools, people, books, or links discussed — write 'None mentioned' if absent]\n\n"
+                        f"## About the Host\n[1-2 sentence bio in first person, referencing their market and niche]\n\n"
+                        f"## Subscribe & Review\n[Short CTA — subscribe wherever they listen, leave a review if it helped]\n\n"
+                        f"Use construction vocabulary naturally. "
+                        f"Do NOT use banned phrases: AI-powered, leverage, unlock, seamless, workflow, dashboard.\n\n"
                         f"TRANSCRIPT:\n{transcript[:3000]}"
                     )
                 }],
@@ -1531,6 +1658,144 @@ async def _run_ship_it_async(
         logging.getLogger("podclick.projects").error("Status transition to 'review' failed: %s", _trans_err)
 
 
+# ── _distribute_project — background upload to Buzzsprout + YouTube ───────────
+
+async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
+    """
+    Background task: upload assembled episode to Buzzsprout (private draft) and
+    YouTube (private). Adds Buzzsprout entry to the release queue so the scheduler
+    flips it public at closing_scheduled_at.
+
+    Called from schedule_closing() via asyncio.create_task().
+    WIRE DON'T REWRITE — calls pipeline/upload.py and pipeline/youtube.py unchanged.
+    """
+    import logging as _log
+    import uuid as _uuid
+    _logger = _log.getLogger("podclick.distribute")
+
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select as _select
+
+    # ── Load project ──────────────────────────────────────────────────────────
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        _logger.error("_distribute_project: invalid project_id %s", project_id)
+        return
+
+    async with _async_session() as _s:
+        proj = (await _s.execute(_select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if not proj:
+            _logger.error("_distribute_project: project %s not found", project_id)
+            return
+        mp3_path      = proj.mp3_url or ""
+        recording_path = proj.recording_path or ""
+        title         = proj.title or "Untitled Episode"
+        show_notes_md = proj.show_notes or ""
+        episode_number = proj.episode_number or 0
+
+    if not mp3_path or not Path(mp3_path).exists():
+        _logger.warning("_distribute_project: no assembled MP3 for project %s — skipping Buzzsprout", project_id)
+        mp3_ready = False
+    else:
+        mp3_ready = True
+
+    # ── Markdown → HTML for Buzzsprout description ───────────────────────────
+    try:
+        from markdown_it import MarkdownIt as _MarkdownIt
+        _md = _MarkdownIt()
+        description_html = _md.render(show_notes_md) if show_notes_md else ""
+    except Exception as _md_err:
+        _logger.warning("_distribute_project: markdown-to-HTML failed (%s), using plain text", _md_err)
+        description_html = show_notes_md
+
+    # ── B2: Buzzsprout upload (private draft → scheduler flips public) ────────
+    buzzsprout_url     = None
+    buzzsprout_ep_id   = None
+    if mp3_ready:
+        try:
+            from pipeline.upload import upload_episode
+            bz_result = await upload_episode(
+                mp3_path=mp3_path,
+                title=title,
+                description=description_html,
+                episode_number=episode_number,
+                private=True,   # scheduler flips to public at closing_scheduled_at
+            )
+            if bz_result.get("success"):
+                buzzsprout_url   = bz_result.get("url")
+                buzzsprout_ep_id = bz_result.get("episode_id")
+                _logger.info("_distribute_project: Buzzsprout draft uploaded — ep_id=%s", buzzsprout_ep_id)
+
+                # Add to release queue so flip_to_public() fires at closing time
+                from pipeline.scheduler import add_to_queue
+                add_to_queue(
+                    job_id=project_id,
+                    title=title,
+                    episode_number=episode_number,
+                    buzzsprout_episode_id=buzzsprout_ep_id,
+                    scheduled_at=closing_at_ts,
+                    youtube_url=None,   # filled in after YouTube step below
+                    source="automation",
+                )
+            else:
+                _logger.warning("_distribute_project: Buzzsprout upload failed — %s", bz_result.get("error"))
+        except Exception as _bz_err:
+            _logger.error("_distribute_project: Buzzsprout upload exception: %s", _bz_err)
+
+    # ── B3: YouTube upload (always private — JP reviews before making public) ──
+    youtube_url    = None
+    youtube_vid_id = None
+    video_path = recording_path or mp3_path   # prefer WebM (has video); fall back to mp3-only
+    if video_path and Path(video_path).exists():
+        try:
+            from pipeline.youtube import upload_video, is_authorized
+            if is_authorized():
+                loop = asyncio.get_event_loop()
+                yt_result = await loop.run_in_executor(
+                    None,
+                    lambda: upload_video(
+                        video_path=video_path,
+                        title=title,
+                        description=show_notes_md,  # YouTube accepts plain text
+                        privacy_status="private",   # JP reviews before making public
+                        tags=["podcast", "real estate"],
+                    ),
+                )
+                if yt_result.get("ok"):
+                    youtube_url    = yt_result.get("url")
+                    youtube_vid_id = yt_result.get("video_id")
+                    _logger.info("_distribute_project: YouTube private upload OK — video_id=%s", youtube_vid_id)
+                else:
+                    _logger.warning("_distribute_project: YouTube upload failed — %s", yt_result.get("error"))
+            else:
+                _logger.info("_distribute_project: YouTube not authorized — skipping upload")
+        except Exception as _yt_err:
+            _logger.error("_distribute_project: YouTube upload exception: %s", _yt_err)
+    else:
+        _logger.info("_distribute_project: no video/audio file found — skipping YouTube upload")
+
+    # ── B4: Persist distribution links to project ─────────────────────────────
+    if buzzsprout_url or buzzsprout_ep_id or youtube_url or youtube_vid_id:
+        try:
+            async with _async_session() as _ps:
+                _proj = (await _ps.execute(_select(Project).where(Project.id == pid))).scalar_one_or_none()
+                if _proj:
+                    if buzzsprout_url:
+                        _proj.buzzsprout_url = buzzsprout_url
+                    if buzzsprout_ep_id:
+                        _proj.buzzsprout_episode_id = buzzsprout_ep_id
+                    if youtube_url:
+                        _proj.youtube_url = youtube_url
+                    if youtube_vid_id:
+                        _proj.youtube_video_id = youtube_vid_id
+                    await _ps.commit()
+                    _logger.info("_distribute_project: distribution links persisted for project %s", project_id)
+        except Exception as _persist_err:
+            _logger.error("_distribute_project: failed to persist distribution links: %s", _persist_err)
+
+
 @app.post("/api/projects/{project_id}/schedule-closing")
 async def schedule_closing(project_id: str, request: Request):
     """
@@ -1579,6 +1844,7 @@ async def schedule_closing(project_id: str, request: Request):
         return JSONResponse({"error": "Invalid closing_at format — use ISO 8601"}, status_code=400)
 
     async with _async_session() as session:
+        from sqlalchemy import func
         project = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
         if not project:
             return JSONResponse({"error": "Project not found"}, status_code=404)
@@ -1593,6 +1859,14 @@ async def schedule_closing(project_id: str, request: Request):
         if guest_id_overrides is not None:
             project.guest_ids = guest_id_overrides
 
+        # Auto-assign episode_number if not already set
+        # Queries MAX from projects table; falls back to 100 so new episodes start at 101+
+        if not project.episode_number:
+            max_ep = (await session.execute(
+                select(func.max(Project.episode_number))
+            )).scalar()
+            project.episode_number = (max_ep or 100) + 1
+
         # Set closing date + transition
         project.closing_scheduled_at = closing_at
         project.status = "scheduled"
@@ -1600,6 +1874,8 @@ async def schedule_closing(project_id: str, request: Request):
 
         await session.commit()
         project_data = _project_to_dict(project)
+
+    closing_at_ts = closing_at.timestamp()
 
     # Guest CRM: update linked guests → 'recorded' (async, non-fatal)
     asyncio.create_task(_update_guest_statuses(
@@ -1619,10 +1895,19 @@ async def schedule_closing(project_id: str, request: Request):
         show_notes=project_data.get("show_notes", ""),
     ))
 
+    # Distribution: upload to Buzzsprout (private draft) + YouTube (private)
+    # _distribute_project persists buzzsprout_url, buzzsprout_episode_id,
+    # youtube_url, youtube_video_id back to the project record.
+    asyncio.create_task(_distribute_project(
+        project_id=project_id,
+        closing_at_ts=closing_at_ts,
+    ))
+
     return JSONResponse({
         **project_data,
         "message": f"Closing lined up for {closing_at.strftime('%B %d at %-I:%M %p')}. "
-                   f"Posts go up across {len(platforms)} platforms.",
+                   f"Posts go up across {len(platforms)} platforms. "
+                   f"Episode uploading to Buzzsprout and YouTube in the background.",
     })
 
 

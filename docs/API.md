@@ -803,11 +803,20 @@ Notes:    Transitions project to 'processing', fires background task:
 ### POST /api/projects/{id}/schedule-closing
 ```json
 Request:  { "closing_at": "2026-06-01T08:00:00Z", "platforms": ["linkedin","facebook"] }
-Response: { "ok": true, "project_id": "uuid", "post_id": "uuid", "closing_at": "..." }
+Response: { ...project dict..., "message": "Closing lined up for June 1 at 8:00 AM. ..." }
 Errors:   400 — Project must be in 'review' | 404 — Not found
-Notes:    Creates Post + PostVariant rows per platform with stagger offsets.
-          Transitions project to 'scheduled'. Guest CRM auto-update in background.
-          Guest asset email queued to Punch List for approval.
+Notes:    Transitions project to 'scheduled'.
+          Auto-assigns episode_number = MAX(episode_number)+1 if not already set (starts at 101).
+          Fires three background tasks:
+            1. _update_guest_statuses — advances linked guests → 'recorded'
+            2. _create_closing_posts  — creates Post+PostVariant rows per platform with stagger
+            3. _distribute_project   — uploads to Buzzsprout (private draft) + YouTube (private),
+               persists buzzsprout_url/buzzsprout_episode_id/youtube_url/youtube_video_id,
+               adds entry to pipeline/scheduler queue so flip_to_public() fires at closing_at.
+          Show notes converted from Markdown → HTML before Buzzsprout upload.
+          YouTube always uploads as 'private' — JP reviews before making public.
+Response fields added (Phase B): buzzsprout_url, buzzsprout_episode_id, youtube_url,
+          youtube_video_id, legacy_metadata (all nullable until distribution completes).
 ```
 
 ### POST /api/projects/{id}/transition
