@@ -698,23 +698,109 @@ In `ship_it()` endpoint:
 
 ---
 
+## 2026-06-03 — Phase C: MP4 Upload Entry Point (Studio → Ship It from disk)
+
+**What shipped:**
+
+**Backend — `POST /api/projects/from-upload`** (main.py, after `create_project_from_recording`):
+- Accepts `file: UploadFile` (MP4/MOV/WebM/MP3/M4A) + optional `title: str` via multipart form
+- Rejects unsupported extensions with 400 before touching disk
+- Saves to `data/recordings/{project_id}.{ext}`
+- Creates Project record: `status='recording_done'`, `transcription_status='pending'`
+- Fires `asyncio.create_task(_run_transcription(...))` immediately — Whisper starts in background
+- Returns `{project_id, project: {...}}` (HTTP 201) — caller redirects to `/project/{project_id}`
+- DB error handling: cleans up saved file if Project insert fails
+- Pattern mirrors `create_project_from_recording` exactly (wire, don't rewrite)
+
+**Frontend — Upload panel in `studio.html`** (`id="upload-tray"`, always visible):
+- Drag-and-drop zone + "browse" file picker (`.mp4,.mov,.webm,.mp3,.m4a`)
+- Shows selected filename + file size on selection
+- Title field ("What's this build?") with auto-name fallback
+- "Upload & Continue →" button (disabled/gray until file is selected, orange when ready)
+- Upload uses `XMLHttpRequest` (not `fetch`) to fire `onprogress` events into the existing file-xfer-bar progress UI
+- On 201: waits 600ms then redirects to `/project/{project_id}`
+- On error: re-enables button, shows error in status line + toast
+
+**JS functions added:** `uploadFileSelected`, `uploadDragOver`, `uploadDragLeave`, `uploadDrop`, `uploadAndContinue`, `_setUploadReady`, `_uploadFile` (module-level state)
+
+**Docs updated:** `docs/API.md` — route table + `POST /api/projects/from-upload` shape block
+
+**Files:** `main.py`, `frontend/studio.html`, `docs/API.md`
+
+---
+
+## 2026-06-03 — YouTube chapters, Vyral hashtags, Shorts upload loop
+
+**What shipped (three additions to the Ship It → distribute path):**
+
+**1. YouTube chapter markers (auto from Whisper segments)**
+- Added `_chapters_from_segments(segments, max_chapters=8)` helper — groups Whisper verbose_json segments into time blocks, derives 3-8 chapter labels from the first 6 words of each segment
+- Added `_format_chapters(chapters)` helper — formats as `0:00 Introduction\n2:15 Label…` (YouTube spec)
+- Chapter markers are computed during `_run_ship_it_async` (when segments are in memory) and stored in `project.legacy_metadata["youtube_chapters"]`
+- `_distribute_project()` reads stored chapters, formats them, prepends to YouTube description
+- YouTube chapter requirements enforced: first at 0:00, minimum 3 chapters, no chapters within first 30s
+- Chapters are NOT added to Buzzsprout (they use HTML description, no timestamps)
+
+**2. Vyral hashtag wiring**
+- `_distribute_project()` reads `data/social_hashtags.json` (the Hashtag Lab output)
+- Combines `core[:10]` + `niche[:5]` sets, strips `#` prefix (YouTube tags don't use it)
+- Passed as `tags=` to `upload_video()` — replaces hardcoded `["podcast", "real estate"]`
+- Fallback: `["podcast", "real estate", "successagent"]` if no saved hashtag sets exist
+- Shorts get same Vyral tags + `["Shorts", "YouTubeShorts"]` appended
+
+**3. YouTube Shorts upload loop**
+- After main YouTube upload succeeds, `_distribute_project()` queries the Clip table for all rendered clips for this project
+- Each clip with a valid `rendered_url` on disk is uploaded as a private YouTube Short
+- Title: `{hook_text} | {episode_title}` (capped at 100 chars each)
+- Description: hook + full episode link (if available) + show notes preview
+- Shorts only attempt if main video upload succeeded (`_yt_authorized = youtube_vid_id is not None`)
+- Failures per-clip are logged and non-fatal — remaining clips continue uploading
+- DEFERRED: Short `video_id` / URL is not yet stored back to the Clip DB record (see DEFERRED OPT-3 below)
+
+**Files:** `main.py` (`_chapters_from_segments`, `_format_chapters`, `_run_ship_it_async` chapter storage, `_distribute_project` rewrite)
+
+---
+
 ## DEFERRED OPTIMIZATIONS (known, not blocking)
 
 Items logged here are real inefficiencies that were intentionally deferred. Do not fix during the current build sprint. Revisit when the Ship It pipeline is stable and verified.
 
 ---
 
-### DEFERRED OPT-1 — Whisper Double-Call (Cost Bleed)
+### ~~DEFERRED OPT-1 — Whisper Double-Call (Cost Bleed)~~ — CLOSED 2026-06-03
 
-**Filed:** 2026-05-31 | **Status:** Deferred
+**Filed:** 2026-05-31 | **Status:** ✅ CLOSED
 
-**What it is:** Step 2.5 in `_run_ship_it_async()` calls Whisper twice per project. First call is the standard text-only transcription (done in Step 2C via `_run_transcription()`). Second call is `_ship_it_whisper_words()` in Step 2.5 using `response_format="verbose_json"` to get word-level timestamps. Both calls are necessary for their purposes (transcript for show notes + display; word timestamps for clip detection), but they charge separately.
+**What it was:** Two Whisper calls per project — one text-only in `_run_transcription()`, one verbose_json in `_ship_it_whisper_words()` for word timestamps. ~$0.36 per 30-min recording vs. $0.18 optimal.
 
-**Cost impact:** ~$0.18 per call × 2 = ~$0.36 per 30-minute recording. On a free/low tier with infrequent recordings, acceptable. At scale (e.g. 100 recordings/month) = ~$36/month vs. $18/month.
+**Fix shipped (2026-06-03):**
+- `_run_transcription()` rewritten: FFmpeg compress to 16kHz mono 48kbps → `{stem}.transcription.mp3`, single Whisper verbose_json call returning text + words + segments in one API call.
+- Stores compressed audio path + word/segment arrays in `project.legacy_metadata` (`extracted_audio_path`, `whisper_words`, `whisper_segments`).
+- `ship_it()` endpoint reads stored legacy_metadata and passes to `_run_ship_it_async()` as `stored_audio_path`, `stored_words`, `stored_segments`.
+- `_run_ship_it_async` step 2.5: fast path uses stored data when available (zero second Whisper call). Fallback path (extraction + Whisper) retained for pre-fix projects where stored audio has been cleaned up.
+- Also fixes the Whisper 25MB failure on real-length episodes: 40-min episode at 16kHz mono 48kbps ≈ 14MB, well under cap.
+- Marathon guard: if compressed file still >24MB, chunks into 20-min segments with timestamp re-offsetting.
 
-**Ideal fix:** Consolidate into a single Whisper call with `response_format="verbose_json"` and `timestamp_granularities=["word", "segment"]`. This call returns both the plain transcript (in `.text`) and the word-level timestamps (in `.words`). Eliminates the duplicate call entirely. Requires rewriting `_run_transcription()` to use verbose_json and store word timestamps alongside the transcript on the Project model.
+**UI fix (project.html):**
+- `showStep1()` now handles all four transcription states in banner: running/pending (blue), failed (red, construction vocabulary), done (hidden). No dual-state possible.
+- `_pollTranscription()` failed branch calls `applyProjectState()` instead of manually re-setting banner (single source of truth).
+- `_maybeAutoTranscribe()` no longer auto-retries `failed` projects (user uses Retry button).
 
-**Do not fix now** — wait until transcript storage schema is finalized post-verification.
+**Files:** `main.py` (`_run_transcription`, `ship_it`, `_run_ship_it_async`), `frontend/project.html`
+
+---
+
+### DEFERRED OPT-3 — YouTube Short URL Not Stored Back to Clip Record
+
+**Filed:** 2026-06-03 | **Status:** Deferred
+
+**What it is:** When `_distribute_project()` uploads each rendered clip as a YouTube Short, it logs the `video_id` but does NOT store it back to the `Clip` DB record. The Clip model has no `youtube_url` column. Short video IDs are lost after the task completes — there's no way to link back from the Clip row to its YouTube Short later.
+
+**Impact:** JP can find the Shorts in YouTube Studio, but can't retrieve the Short URL from the PodClick UI or API. No user-facing bug today — Shorts are private and JP reviews them manually. Becomes a real gap when we add a "Share this Short" link to the project detail page.
+
+**Ideal fix:** Add `youtube_short_url` (Text, nullable) to the `Clip` model + Alembic migration. Store `yt_result["url"]` there after each successful Short upload. Surface the link in `GET /api/projects/{id}/clips`.
+
+**Do not fix now** — wait until the first real episode test confirms Shorts are uploading correctly. Then add the column in a Phase D/E cleanup migration.
 
 ---
 
@@ -759,3 +845,41 @@ Items logged here are real inefficiencies that were intentionally deferred. Do n
 
 **Files:** `db/models.py`, `alembic/versions/a7b3c8e2f015_stage2b_distribution_columns.py`, `main.py`
 
+
+
+---
+
+## 2026-06-03 — OPT-1 Closed: Single-transcription fix (Whisper double-call + 25MB cap)
+
+**What shipped:**
+
+**`_run_transcription()` rewrite (main.py):**
+- FFmpeg compresses source recording to 16kHz mono ~48kbps → `{stem}.transcription.mp3`
+  (40-min episode ≈ 14MB — Whisper's 25MB hard limit no longer reachable on real episodes)
+- Single Whisper verbose_json call with `timestamp_granularities=["word","segment"]`
+  returns `.text` + `.words` + `.segments` — no second call needed downstream
+- Stores all three in `project.legacy_metadata`:
+  - `extracted_audio_path` — compressed audio path for Ship It filler removal
+  - `whisper_words` — word timestamps for clip detection
+  - `whisper_segments` — segment timestamps for chapter markers
+- Marathon guard: if compressed file still >24MB, chunks into 20-min segments with
+  timestamp re-offsetting and merges results
+
+**`ship_it()` endpoint (main.py):**
+- Reads `project.legacy_metadata` before kicking off `_run_ship_it_async`
+- Passes `stored_audio_path`, `stored_words`, `stored_segments` into the async task
+
+**`_run_ship_it_async` step 2.5 (main.py):**
+- Fast path: if `stored_audio_path` exists on disk and `stored_words` is non-empty,
+  uses stored data directly — zero second Whisper call (OPT-1 closed)
+- Fallback path: extract + Whisper for pre-fix projects or if compressed audio was cleaned up
+- `_ship_it_whisper_words()` function retained as fallback only
+
+**project.html UI fix:**
+- `showStep1()` handles all four transcription states in banner: running/pending (blue "Transcribing…"),
+  failed (red construction vocabulary "Transcription stalled. Paste your script above or use the Retry button."),
+  done (banner hidden), else hidden. No dual-state possible.
+- `_pollTranscription()` failed branch calls `applyProjectState()` — single source of truth
+- `_maybeAutoTranscribe()` now returns early on `failed` status — user manually retries
+
+**Files:** `main.py`, `frontend/project.html`, `docs/BUGS_AND_FIXES.md`

@@ -440,12 +440,21 @@
         }
       }
 
-      // Show banner if transcription is in progress
+      // Show banner based on transcription state — one state at a time
       const banner = $('transcription-banner');
-      if (banner) {
-        if (!hasTranscript && (ts === 'running' || ts === 'pending')) {
+      const bannerMsg = $('transcription-banner-msg');
+      if (banner && bannerMsg) {
+        if (hasTranscript) {
+          banner.style.display = 'none';
+        } else if (ts === 'running' || ts === 'pending') {
+          bannerMsg.textContent = '🎙 Transcribing your recording — this usually takes 1–3 minutes…';
+          bannerMsg.style.color = '#7fb8e8';
           banner.style.display = '';
-        } else if (hasTranscript) {
+        } else if (ts === 'failed') {
+          bannerMsg.textContent = 'Transcription stalled. Paste your script above or use the Retry button below.';
+          bannerMsg.style.color = '#d97070';
+          banner.style.display = '';
+        } else {
           banner.style.display = 'none';
         }
       }
@@ -865,19 +874,16 @@
         const ts = p.transcription_status;
 
         if (ts === 'done') {
-          // Transcript ready — stop polling, re-render, hide banner
+          // Transcript ready — stop polling, re-render step 1 (banner hides in showStep1)
           clearInterval(_transcriptionPoll);
           _transcriptionPoll = null;
-          _showTranscriptionBanner(null);
           applyProjectState();
-          toast('Transcript ready. Review and fix anything Whisper missed.', 'success');
+          toast('Transcript poured. Review and fix anything Whisper missed.', 'success');
         } else if (ts === 'failed') {
+          // Stop polling — showStep1 (via applyProjectState) shows the failed state in banner
           clearInterval(_transcriptionPoll);
           _transcriptionPoll = null;
-          _showTranscriptionBanner(null);
-          $('transcription-banner').style.display = '';
-          $('transcription-banner-msg').textContent = '⚠ Transcription failed — paste your script manually or retry.';
-          $('transcription-banner-msg').style.color = '#d97070';
+          applyProjectState();
         }
         // 'running' or 'pending': keep polling
       } catch (err) {
@@ -886,18 +892,18 @@
     }
 
     async function _maybeAutoTranscribe(p) {
-      // Trigger only when: recording exists, transcript is empty, not already running
+      // Trigger only when: recording exists, transcript empty, not already running/failed/done
       if (!p.recording_path) return;
       if (p.transcript && p.transcript.trim()) return;
+      if (p.transcription_status === 'done') return;   // done, transcript may have been cleared manually
+      if (p.transcription_status === 'failed') return; // don't auto-retry failed — user uses Retry button
       if (p.transcription_status === 'running') {
-        // Already running — just start polling
-        _showTranscriptionBanner('🎙 Transcription in progress…');
+        // Already running — just attach the poll
         if (!_transcriptionPoll) {
           _transcriptionPoll = setInterval(_pollTranscription, 4000);
         }
         return;
       }
-      if (p.transcription_status === 'done') return; // done but transcript might have been cleared manually — don't re-run
 
       // Kick off transcription
       try {

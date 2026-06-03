@@ -993,15 +993,142 @@ async def create_project_from_recording(
         return JSONResponse({"error": f"Failed to create project: {exc}"}, status_code=500)
 
 
+@app.post("/api/projects/from-upload")
+async def create_project_from_upload(
+    file: UploadFile = File(...),
+    title: str = Form(default=""),
+):
+    """
+    Phase C — Upload entry point.
+
+    Accepts a pre-recorded MP4/MOV/WebM/MP3/M4A file from disk.
+    Saves to data/recordings/{project_id}.{ext}, creates a Project record,
+    kicks off Whisper transcription in the background.
+
+    Returns: {project_id, project: {...}}
+    Caller redirects to /project/{project_id}.
+    """
+    import datetime as _dt
+    import uuid as _uuid
+    from db.engine import async_session as _async_session
+    from db.models import Project, Location
+    from sqlalchemy import select as _select
+    from config import settings as _settings
+
+    _ALLOWED_EXTS = {"mp4", "mov", "webm", "mp3", "m4a"}
+
+    location_id_str = _settings.titan_location_id
+    if not location_id_str:
+        return JSONResponse({"error": "No location configured"}, status_code=500)
+
+    # ── Validate extension ────────────────────────────────────────────────
+    orig_filename = file.filename or "upload.mp4"
+    ext = orig_filename.rsplit(".", 1)[-1].lower() if "." in orig_filename else "mp4"
+    if ext not in _ALLOWED_EXTS:
+        return JSONResponse(
+            {"error": f"Unsupported file type .{ext}. Accepted: {', '.join(sorted(_ALLOWED_EXTS))}"},
+            status_code=400,
+        )
+
+    project_id = _uuid.uuid4()
+
+    # ── Save file to disk ─────────────────────────────────────────────────
+    recordings_dir = DATA_DIR / "recordings"
+    recordings_dir.mkdir(exist_ok=True)
+
+    recording_filename = f"{project_id}.{ext}"
+    recording_path = str(recordings_dir / recording_filename)
+
+    try:
+        contents = await file.read()
+        with open(recording_path, "wb") as f:
+            f.write(contents)
+    except Exception as exc:
+        return JSONResponse({"error": f"Failed to save file: {exc}"}, status_code=500)
+
+    # ── Build title ───────────────────────────────────────────────────────
+    effective_title = title.strip()
+    if not effective_title:
+        ts = _dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+        effective_title = f"New build — {ts}"
+
+    # ── Create Project record ─────────────────────────────────────────────
+    try:
+        async with _async_session() as session:
+            loc_row = (
+                await session.execute(
+                    _select(Location).where(Location.ghl_location_id == location_id_str)
+                )
+            ).scalar_one_or_none()
+
+            if not loc_row:
+                try:
+                    loc_uuid = _uuid.UUID(location_id_str)
+                except ValueError:
+                    try:
+                        Path(recording_path).unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                    return JSONResponse(
+                        {"error": "Could not resolve location"}, status_code=500
+                    )
+            else:
+                loc_uuid = loc_row.id
+
+            project = Project(
+                id=project_id,
+                location_id=loc_uuid,
+                title=effective_title,
+                type="episode",
+                status="recording_done",
+                recording_path=recording_path,
+                transcription_status="pending",
+                wizard_step=1,
+            )
+            session.add(project)
+            await session.commit()
+            await session.refresh(project)
+
+            # Kick off transcription in the background
+            asyncio.create_task(_run_transcription(str(project_id)))
+
+            return JSONResponse(
+                {
+                    "project_id": str(project_id),
+                    "project": _project_to_dict(project),
+                },
+                status_code=201,
+            )
+    except Exception as exc:
+        try:
+            Path(recording_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+        return JSONResponse({"error": f"Failed to create project: {exc}"}, status_code=500)
+
+
 async def _run_transcription(project_id_str: str) -> None:
     """
     Background task — transcribe the project's recording via Whisper.
 
-    Updates project.transcript and project.transcription_status.
-    Called from POST /api/projects/{project_id}/transcribe.
+    Single-transcription architecture (OPT-1):
+    1. FFmpeg compress to 16kHz mono ~48kbps  → {stem}.transcription.mp3
+       (40-min episode ≈ 14MB — well under Whisper's 25MB cap; no quality loss
+        because Whisper resamples to 16kHz mono internally)
+    2. If still >24MB (marathon episode), chunk into 20-min segments + re-offset timestamps.
+    3. Single Whisper call: response_format='verbose_json',
+       timestamp_granularities=['word','segment'].
+    4. Persist:
+         project.transcript                              ← plain text (wizard display)
+         project.legacy_metadata['extracted_audio_path'] ← path for Ship It filler removal
+         project.legacy_metadata['whisper_words']        ← word timestamps for clip detection
+         project.legacy_metadata['whisper_segments']     ← segment timestamps for chapters
+
+    Ship It reads legacy_metadata — no second Whisper call needed (eliminates OPT-1 cost bleed).
     """
     import uuid as _uuid
     import openai as _openai
+    import subprocess as _subprocess
     from db.engine import async_session as _async_session
     from db.models import Project
     from sqlalchemy import select as _select
@@ -1038,50 +1165,164 @@ async def _run_transcription(project_id_str: str) -> None:
         project.transcription_status = "running"
         await session.commit()
 
-    # Whisper call is sync — run in thread pool so event loop is not blocked
     import asyncio as _asyncio
     import functools as _functools
+    import math as _math
 
-    def _whisper_call(path: str) -> str:
+    loop = _asyncio.get_event_loop()
+
+    # ── Step 1: FFmpeg compress to 16kHz mono ~48kbps ───────────────────────────
+    compressed_path = str(recording_file.with_suffix("")) + ".transcription.mp3"
+
+    def _compress(src: str, dst: str) -> None:
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", src,
+            "-vn",          # drop video track
+            "-ar", "16000", # 16kHz — Whisper's native rate (no quality loss)
+            "-ac", "1",     # mono
+            "-b:a", "48k",  # ~48kbps — 40min ≈ 14MB
+            "-f", "mp3",
+            dst,
+        ]
+        r = _subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError(f"FFmpeg compression failed: {r.stderr[-400:]}")
+
+    try:
+        if Path(compressed_path).exists() and Path(compressed_path).stat().st_size > 0:
+            print(f"[transcribe] Compressed audio already exists — skipping FFmpeg")
+        else:
+            print(f"[transcribe] Compressing {recording_file.name} → {Path(compressed_path).name}")
+            await loop.run_in_executor(
+                None, _functools.partial(_compress, str(recording_file), compressed_path)
+            )
+        compressed_size = Path(compressed_path).stat().st_size
+        print(f"[transcribe] Compressed: {compressed_size / 1024 / 1024:.1f} MB")
+    except Exception as exc:
+        print(f"[transcribe] FFmpeg failed for {project_id_str}: {exc}")
+        async with _async_session() as session:
+            proj = (await session.execute(_select(Project).where(Project.id == pid))).scalar_one_or_none()
+            if proj:
+                proj.transcription_status = "failed"
+                await session.commit()
+        return
+
+    # ── Step 2: Single Whisper call (or chunked for marathon episodes) ───────────
+    WHISPER_LIMIT = 24 * 1024 * 1024  # 24MB safety margin (API cap is 25MB)
+
+    def _whisper_single(path: str) -> dict:
+        """verbose_json call — returns {text, words, segments}."""
         client = _openai.OpenAI(api_key=_settings.openai_api_key)
         with open(path, "rb") as af:
             result = client.audio.transcriptions.create(
                 model="whisper-1",
                 file=af,
-                response_format="text",
+                response_format="verbose_json",
+                timestamp_granularities=["word", "segment"],
             )
-        return result if isinstance(result, str) else str(result)
+        words = [
+            {"word": w.word.strip(), "start": w.start, "end": w.end}
+            for w in (result.words or [])
+            if hasattr(w, "start") and hasattr(w, "end")
+        ]
+        segments = [
+            {"start": s.start, "end": s.end, "text": s.text}
+            for s in (result.segments or [])
+        ] if hasattr(result, "segments") and result.segments else []
+        return {"text": result.text or "", "words": words, "segments": segments}
+
+    def _whisper_chunked(path: str, size_bytes: int) -> dict:
+        """20-minute chunks with timestamp re-offset for marathon episodes."""
+        # Estimate duration from compressed size at 48kbps
+        est_duration_s = size_bytes / (48000 / 8)
+        chunk_s = 20 * 60
+        n_chunks = _math.ceil(est_duration_s / chunk_s)
+        print(f"[transcribe] Marathon episode — {n_chunks} chunks of {chunk_s//60}min")
+        client = _openai.OpenAI(api_key=_settings.openai_api_key)
+        base = str(Path(path).with_suffix(""))
+        all_words, all_segs, all_text = [], [], []
+        for i in range(n_chunks):
+            offset = i * chunk_s
+            chunk_path = f"{base}.chunk{i:02d}.mp3"
+            cmd = ["ffmpeg", "-y", "-i", path, "-ss", str(offset),
+                   "-t", str(chunk_s), "-c", "copy", chunk_path]
+            proc = _subprocess.run(cmd, capture_output=True, text=True)
+            if proc.returncode != 0 or not Path(chunk_path).exists():
+                print(f"[transcribe] Chunk {i} extraction failed — skipping")
+                continue
+            if Path(chunk_path).stat().st_size == 0:
+                Path(chunk_path).unlink(missing_ok=True)
+                continue
+            try:
+                with open(chunk_path, "rb") as cf:
+                    r = client.audio.transcriptions.create(
+                        model="whisper-1", file=cf,
+                        response_format="verbose_json",
+                        timestamp_granularities=["word", "segment"],
+                    )
+                all_words.extend([
+                    {"word": w.word.strip(), "start": w.start + offset, "end": w.end + offset}
+                    for w in (r.words or []) if hasattr(w, "start") and hasattr(w, "end")
+                ])
+                if hasattr(r, "segments") and r.segments:
+                    all_segs.extend([
+                        {"start": s.start + offset, "end": s.end + offset, "text": s.text}
+                        for s in r.segments
+                    ])
+                all_text.append(r.text or "")
+                print(f"[transcribe] Chunk {i}: {len(r.words or [])} words at offset {offset}s")
+            except Exception as ce:
+                print(f"[transcribe] Chunk {i} Whisper failed: {ce}")
+            finally:
+                Path(chunk_path).unlink(missing_ok=True)
+        return {"text": " ".join(all_text).strip(), "words": all_words, "segments": all_segs}
 
     try:
-        loop = _asyncio.get_event_loop()
-        transcript_text = await loop.run_in_executor(
-            None,
-            _functools.partial(_whisper_call, str(recording_file)),
+        if compressed_size > WHISPER_LIMIT:
+            print(f"[transcribe] {compressed_size/1024/1024:.1f}MB > 24MB limit — chunking")
+            whisper_result = await loop.run_in_executor(
+                None, _functools.partial(_whisper_chunked, compressed_path, compressed_size)
+            )
+        else:
+            print(f"[transcribe] Running single Whisper verbose_json call")
+            whisper_result = await loop.run_in_executor(
+                None, _functools.partial(_whisper_single, compressed_path)
+            )
+        transcript_text = whisper_result["text"].strip()
+        print(
+            f"[transcribe] Done — {len(transcript_text)} chars, "
+            f"{len(whisper_result['words'])} words, "
+            f"{len(whisper_result['segments'])} segments"
         )
-        transcript_text = transcript_text.strip()
     except Exception as exc:
         print(f"[transcribe] Whisper failed for {project_id_str}: {exc}")
         async with _async_session() as session:
-            project = (
-                await session.execute(_select(Project).where(Project.id == pid))
-            ).scalar_one_or_none()
-            if project:
-                project.transcription_status = "failed"
+            proj = (await session.execute(_select(Project).where(Project.id == pid))).scalar_one_or_none()
+            if proj:
+                proj.transcription_status = "failed"
                 await session.commit()
         return
 
-    # Write transcript + mark done
+    # ── Step 3: Persist transcript + stored timestamps for Ship It ───────────────
     async with _async_session() as session:
-        project = (
+        proj = (
             await session.execute(_select(Project).where(Project.id == pid))
         ).scalar_one_or_none()
-        if project:
-            project.transcript = transcript_text
-            project.transcription_status = "done"
+        if proj:
+            proj.transcript = transcript_text
+            proj.transcription_status = "done"
+            # Store timestamps so Ship It skips the second Whisper call (OPT-1 closed)
+            existing_meta = proj.legacy_metadata or {}
+            existing_meta["extracted_audio_path"] = compressed_path
+            existing_meta["whisper_words"] = whisper_result["words"]
+            existing_meta["whisper_segments"] = whisper_result["segments"]
+            proj.legacy_metadata = existing_meta
             await session.commit()
             print(
-                f"[transcribe] Done — project {project_id_str}, "
-                f"{len(transcript_text)} chars"
+                f"[transcribe] Persisted — transcript {len(transcript_text)} chars, "
+                f"{len(whisper_result['words'])} words stored, "
+                f"audio: {Path(compressed_path).name}"
             )
 
 
@@ -1303,6 +1544,12 @@ async def ship_it(project_id: str, request: Request):
         location_id = project.location_id
         project_uuid = project.id
         recording_path = project.recording_path or ""
+        # Read stored single-transcription data (OPT-1 fix) — Ship It reads these
+        # instead of running a second Whisper call.
+        _legacy = project.legacy_metadata or {}
+        stored_audio_path = _legacy.get("extracted_audio_path", "")
+        stored_words = _legacy.get("whisper_words", [])
+        stored_segments = _legacy.get("whisper_segments", [])
 
     # Kick off async processing
     asyncio.create_task(_run_ship_it_async(
@@ -1313,6 +1560,9 @@ async def ship_it(project_id: str, request: Request):
         mp3_url=mp3_url,
         location_id=location_id,
         recording_path=recording_path,
+        stored_audio_path=stored_audio_path,
+        stored_words=stored_words,
+        stored_segments=stored_segments,
     ))
 
     return JSONResponse({
@@ -1400,6 +1650,9 @@ async def _run_ship_it_async(
     mp3_url: str,
     location_id,
     recording_path: str = "",
+    stored_audio_path: str = "",
+    stored_words: Optional[list] = None,
+    stored_segments: Optional[list] = None,
 ) -> None:
     """
     Async Ship It orchestration — runs after the HTTP response returns.
@@ -1419,42 +1672,64 @@ async def _run_ship_it_async(
     # Load job data (words + segments) from in-memory jobs dict if available
     job_data = jobs.get(job_id, {}) if job_id else {}
 
-    # ── Step 2.5: Studio recording path — extract audio + word timestamps ────────
-    # When a project came from Save & Continue (no legacy job), job_data is empty.
-    # Extract the audio track from the recording file and re-transcribe with
-    # word-level timestamps so clip detection + rendering can proceed.
-    if not job_data.get("mp3_path") and recording_path:
-        from pathlib import Path as _path_check
-        if _path_check(recording_path).exists():
-            try:
-                print(f"[ship_it.2.5] Extracting audio from {recording_path}…")
-                extracted_audio = await loop.run_in_executor(
-                    None, _ship_it_extract_audio, recording_path
-                )
-                print(f"[ship_it.2.5] Audio extracted → {extracted_audio}")
+    # ── Step 2.5: Audio + word timestamps for clip detection ─────────────────────
+    # Fast path (OPT-1 fix): single-transcription stored timestamps from _run_transcription.
+    # No second Whisper call needed — just read what was stored at upload time.
+    # Fallback path: extract + re-transcribe (pre-fix projects or cleaned-up audio files).
+    if not job_data.get("mp3_path"):
+        _stored_w = stored_words or []
+        _stored_s = stored_segments or []
 
-                # Re-transcribe with verbose_json for word timestamps
-                print(f"[ship_it.2.5] Running Whisper (verbose_json) for word timestamps…")
-                from config import settings as _cfg_s
-                whisper_result = await loop.run_in_executor(
-                    None, _ship_it_whisper_words, extracted_audio, _cfg_s.openai_api_key
+        if stored_audio_path and _stored_w:
+            from pathlib import Path as _path_check
+            if _path_check(stored_audio_path).exists():
+                print(
+                    f"[ship_it.2.5] Using stored transcription data — "
+                    f"{len(_stored_w)} words, no second Whisper call (OPT-1)"
                 )
                 job_data = {
-                    "mp3_path": extracted_audio,
-                    "words": whisper_result["words"],
-                    "segments": whisper_result["segments"],
+                    "mp3_path": stored_audio_path,
+                    "words": _stored_w,
+                    "segments": _stored_s,
                 }
-                word_count = len(whisper_result["words"])
-                print(f"[ship_it.2.5] Whisper complete — {word_count} word timestamps. "
-                      f"Clip detection ready.")
-            except Exception as _ext_err:
-                import logging
-                logging.getLogger("podclick.projects").warning(
-                    "[ship_it.2.5] Audio extraction/transcription failed — "
-                    "clips will be skipped: %s", _ext_err
+            else:
+                print(
+                    f"[ship_it.2.5] Stored audio missing on disk ({stored_audio_path}) "
+                    f"— falling back to re-extraction"
                 )
-        else:
-            print(f"[ship_it.2.5] recording_path set but file missing: {recording_path} — skipping")
+
+        # Fallback: extract + Whisper for pre-fix projects or if stored audio is gone
+        if not job_data.get("mp3_path") and recording_path:
+            from pathlib import Path as _path_check
+            if _path_check(recording_path).exists():
+                try:
+                    print(f"[ship_it.2.5] Fallback: extracting audio from {recording_path}…")
+                    extracted_audio = await loop.run_in_executor(
+                        None, _ship_it_extract_audio, recording_path
+                    )
+                    print(f"[ship_it.2.5] Audio extracted → {extracted_audio}")
+                    print(f"[ship_it.2.5] Running Whisper (verbose_json) — fallback path…")
+                    from config import settings as _cfg_s
+                    whisper_result = await loop.run_in_executor(
+                        None, _ship_it_whisper_words, extracted_audio, _cfg_s.openai_api_key
+                    )
+                    job_data = {
+                        "mp3_path": extracted_audio,
+                        "words": whisper_result["words"],
+                        "segments": whisper_result["segments"],
+                    }
+                    print(
+                        f"[ship_it.2.5] Fallback Whisper done — "
+                        f"{len(whisper_result['words'])} word timestamps"
+                    )
+                except Exception as _ext_err:
+                    import logging
+                    logging.getLogger("podclick.projects").warning(
+                        "[ship_it.2.5] Audio extraction/transcription failed — "
+                        "clips will be skipped: %s", _ext_err
+                    )
+            else:
+                print(f"[ship_it.2.5] recording_path set but file missing: {recording_path} — skipping")
 
     # ── a-c: Sponsor, clip detection, clip rendering (sync via executor) ───────
     try:
@@ -1558,11 +1833,19 @@ async def _run_ship_it_async(
             )
             show_notes_text = response.content[0].text
 
-            # Persist show notes
+            # Persist show notes + YouTube chapter markers
+            _segments = job_data.get("segments", [])
+            _chapters = _chapters_from_segments(_segments) if _segments else []
             async with _async_session() as session:
                 proj = (await session.execute(select(Project).where(Project.id == project_uuid))).scalar_one_or_none()
                 if proj:
                     proj.show_notes = show_notes_text
+                    if _chapters:
+                        import json as _jc
+                        existing_meta = proj.legacy_metadata or {}
+                        existing_meta["youtube_chapters"] = _chapters
+                        proj.legacy_metadata = existing_meta
+                        print(f"[ship_it.chapters] {len(_chapters)} chapter markers stored for project {project_uuid}")
                     await session.commit()
 
             # Audit log for Foundation call
@@ -1660,6 +1943,70 @@ async def _run_ship_it_async(
 
 # ── _distribute_project — background upload to Buzzsprout + YouTube ───────────
 
+def _chapters_from_segments(segments: list, max_chapters: int = 8) -> list:
+    """
+    Derive YouTube chapter markers from Whisper segment list.
+    Returns list of {start_s: float, label: str} sorted by start_s.
+
+    YouTube chapter rules:
+      - First chapter MUST be 0:00.
+      - Minimum 3 chapters to activate the feature.
+      - Each label: max 100 chars.
+    """
+    if not segments:
+        return []
+
+    total = segments[-1].get("end", 0)
+    if total < 60:
+        return []  # too short to bother
+
+    # Always open with 0:00 Introduction
+    chapters = [{"start_s": 0.0, "label": "Introduction"}]
+
+    # Target ~1 chapter per 3 minutes; cap at max_chapters
+    target = min(max_chapters, max(3, int(total / 180)))
+    step = max(1, len(segments) // target)
+
+    for i in range(step, len(segments), step):
+        if len(chapters) >= max_chapters:
+            break
+        seg = segments[i]
+        start = seg.get("start", 0)
+        if start < 30:          # avoid micro-chapters near the open
+            continue
+        text = seg.get("text", "").strip()
+        # Use first 6 words as label, strip trailing punctuation
+        words = text.split()[:6]
+        label = " ".join(words).rstrip(".,!?—–").strip()
+        if not label:
+            continue
+        chapters.append({"start_s": float(start), "label": label[:100]})
+
+    # Drop duplicates (same start_s), re-sort
+    seen: set = set()
+    unique = []
+    for c in sorted(chapters, key=lambda x: x["start_s"]):
+        key = int(c["start_s"])
+        if key not in seen:
+            seen.add(key)
+            unique.append(c)
+
+    return unique if len(unique) >= 3 else []
+
+
+def _format_chapters(chapters: list) -> str:
+    """
+    Format chapter list as YouTube-ready description block.
+    e.g. "0:00 Introduction\n2:15 The real issue with listings…"
+    """
+    lines = []
+    for c in chapters:
+        s = int(c["start_s"])
+        mm, ss = divmod(s, 60)
+        lines.append(f"{mm}:{ss:02d} {c['label']}")
+    return "\n".join(lines)
+
+
 async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
     """
     Background task: upload assembled episode to Buzzsprout (private draft) and
@@ -1689,19 +2036,41 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
         if not proj:
             _logger.error("_distribute_project: project %s not found", project_id)
             return
-        mp3_path      = proj.mp3_url or ""
+        mp3_path       = proj.mp3_url or ""
         recording_path = proj.recording_path or ""
-        title         = proj.title or "Untitled Episode"
-        show_notes_md = proj.show_notes or ""
+        title          = proj.title or "Untitled Episode"
+        show_notes_md  = proj.show_notes or ""
         episode_number = proj.episode_number or 0
+        _meta          = proj.legacy_metadata or {}
 
-    if not mp3_path or not Path(mp3_path).exists():
-        _logger.warning("_distribute_project: no assembled MP3 for project %s — skipping Buzzsprout", project_id)
-        mp3_ready = False
-    else:
-        mp3_ready = True
+    # ── Vyral hashtags (from Hashtag Lab saved sets) ──────────────────────────
+    import json as _json
+    _ht_path = DATA_DIR / "social_hashtags.json"
+    _yt_tags: list = []
+    try:
+        if _ht_path.exists():
+            _ht_data = _json.loads(_ht_path.read_text())
+            _core  = [t.lstrip("#") for t in _ht_data.get("core", [])[:10] if t]
+            _niche = [t.lstrip("#") for t in _ht_data.get("niche", [])[:5]  if t]
+            _yt_tags = _core + _niche
+    except Exception as _ht_err:
+        _logger.warning("_distribute_project: could not load hashtags (%s) — using defaults", _ht_err)
+    if not _yt_tags:
+        _yt_tags = ["podcast", "real estate", "successagent"]
 
-    # ── Markdown → HTML for Buzzsprout description ───────────────────────────
+    # ── YouTube chapter text (stored by Ship It in legacy_metadata) ───────────
+    _chapter_text = ""
+    _stored_chapters = _meta.get("youtube_chapters", [])
+    if _stored_chapters:
+        _chapter_text = _format_chapters(_stored_chapters)
+        _logger.info("_distribute_project: %d chapter markers loaded", len(_stored_chapters))
+
+    # ── Build YouTube description (show notes + chapter block) ────────────────
+    _yt_description = show_notes_md
+    if _chapter_text:
+        _yt_description = _chapter_text + "\n\n" + show_notes_md
+
+    # ── Markdown → HTML for Buzzsprout description ────────────────────────────
     try:
         from markdown_it import MarkdownIt as _MarkdownIt
         _md = _MarkdownIt()
@@ -1709,6 +2078,12 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
     except Exception as _md_err:
         _logger.warning("_distribute_project: markdown-to-HTML failed (%s), using plain text", _md_err)
         description_html = show_notes_md
+
+    if not mp3_path or not Path(mp3_path).exists():
+        _logger.warning("_distribute_project: no assembled MP3 for project %s — skipping Buzzsprout", project_id)
+        mp3_ready = False
+    else:
+        mp3_ready = True
 
     # ── B2: Buzzsprout upload (private draft → scheduler flips public) ────────
     buzzsprout_url     = None
@@ -1721,14 +2096,13 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
                 title=title,
                 description=description_html,
                 episode_number=episode_number,
-                private=True,   # scheduler flips to public at closing_scheduled_at
+                private=True,
             )
             if bz_result.get("success"):
                 buzzsprout_url   = bz_result.get("url")
                 buzzsprout_ep_id = bz_result.get("episode_id")
                 _logger.info("_distribute_project: Buzzsprout draft uploaded — ep_id=%s", buzzsprout_ep_id)
 
-                # Add to release queue so flip_to_public() fires at closing time
                 from pipeline.scheduler import add_to_queue
                 add_to_queue(
                     job_id=project_id,
@@ -1736,7 +2110,7 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
                     episode_number=episode_number,
                     buzzsprout_episode_id=buzzsprout_ep_id,
                     scheduled_at=closing_at_ts,
-                    youtube_url=None,   # filled in after YouTube step below
+                    youtube_url=None,
                     source="automation",
                 )
             else:
@@ -1744,10 +2118,10 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
         except Exception as _bz_err:
             _logger.error("_distribute_project: Buzzsprout upload exception: %s", _bz_err)
 
-    # ── B3: YouTube upload (always private — JP reviews before making public) ──
+    # ── B3: YouTube main upload (private, with chapters + Vyral hashtags) ─────
     youtube_url    = None
     youtube_vid_id = None
-    video_path = recording_path or mp3_path   # prefer WebM (has video); fall back to mp3-only
+    video_path = recording_path or mp3_path
     if video_path and Path(video_path).exists():
         try:
             from pipeline.youtube import upload_video, is_authorized
@@ -1758,15 +2132,18 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
                     lambda: upload_video(
                         video_path=video_path,
                         title=title,
-                        description=show_notes_md,  # YouTube accepts plain text
-                        privacy_status="private",   # JP reviews before making public
-                        tags=["podcast", "real estate"],
+                        description=_yt_description,
+                        privacy_status="private",
+                        tags=_yt_tags,
                     ),
                 )
                 if yt_result.get("ok"):
                     youtube_url    = yt_result.get("url")
                     youtube_vid_id = yt_result.get("video_id")
-                    _logger.info("_distribute_project: YouTube private upload OK — video_id=%s", youtube_vid_id)
+                    _logger.info(
+                        "_distribute_project: YouTube main upload OK — video_id=%s tags=%d chapters=%d",
+                        youtube_vid_id, len(_yt_tags), len(_stored_chapters),
+                    )
                 else:
                     _logger.warning("_distribute_project: YouTube upload failed — %s", yt_result.get("error"))
             else:
@@ -1775,6 +2152,70 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
             _logger.error("_distribute_project: YouTube upload exception: %s", _yt_err)
     else:
         _logger.info("_distribute_project: no video/audio file found — skipping YouTube upload")
+
+    # ── B3b: YouTube Shorts — upload each rendered clip (private) ─────────────
+    _shorts_uploaded = 0
+    _yt_authorized = youtube_vid_id is not None  # only run if main upload succeeded
+    if _yt_authorized:
+        try:
+            from db.models import Clip as _Clip
+            from sqlalchemy import select as _clip_select
+
+            async with _async_session() as _cs:
+                _clips = (
+                    await _cs.execute(
+                        _clip_select(_Clip).where(_Clip.project_id == pid)
+                    )
+                ).scalars().all()
+
+            from pipeline.youtube import upload_video as _yt_upload
+
+            for _clip in _clips:
+                _rendered = _clip.rendered_url or ""
+                if not _rendered or not Path(_rendered).exists():
+                    continue
+
+                _hook = (_clip.hook_text or title)[:100]
+                _short_title = f"{_hook} | {title}"[:100]
+                _short_desc = (
+                    f"{_hook}\n\n"
+                    f"Full episode: {youtube_url or 'Coming soon'}\n\n"
+                    + show_notes_md[:500]
+                )
+
+                try:
+                    loop = asyncio.get_event_loop()
+                    _sr = await loop.run_in_executor(
+                        None,
+                        lambda _rp=_rendered, _st=_short_title, _sd=_short_desc: _yt_upload(
+                            video_path=_rp,
+                            title=_st,
+                            description=_sd,
+                            privacy_status="private",
+                            tags=_yt_tags + ["Shorts", "YouTubeShorts"],
+                            category_id="22",
+                        ),
+                    )
+                    if _sr.get("ok"):
+                        _shorts_uploaded += 1
+                        _logger.info(
+                            "_distribute_project: Short uploaded — video_id=%s clip=%s",
+                            _sr.get("video_id"), _clip.id,
+                        )
+                        # Store short URL in clip record via rendered_url annotation
+                        # (Full youtube_url column on Clip is deferred — DEFERRED OPT-3)
+                    else:
+                        _logger.warning(
+                            "_distribute_project: Short upload failed for clip %s — %s",
+                            _clip.id, _sr.get("error"),
+                        )
+                except Exception as _sr_err:
+                    _logger.warning("_distribute_project: Short upload exception clip %s: %s", _clip.id, _sr_err)
+
+            if _shorts_uploaded:
+                _logger.info("_distribute_project: %d Shorts uploaded for project %s", _shorts_uploaded, project_id)
+        except Exception as _shorts_err:
+            _logger.error("_distribute_project: Shorts loop failed: %s", _shorts_err)
 
     # ── B4: Persist distribution links to project ─────────────────────────────
     if buzzsprout_url or buzzsprout_ep_id or youtube_url or youtube_vid_id:
@@ -1791,7 +2232,10 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
                     if youtube_vid_id:
                         _proj.youtube_video_id = youtube_vid_id
                     await _ps.commit()
-                    _logger.info("_distribute_project: distribution links persisted for project %s", project_id)
+                    _logger.info(
+                        "_distribute_project: distribution links persisted — project=%s shorts=%d",
+                        project_id, _shorts_uploaded,
+                    )
         except Exception as _persist_err:
             _logger.error("_distribute_project: failed to persist distribution links: %s", _persist_err)
 

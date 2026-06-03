@@ -927,6 +927,42 @@
         </div>
       </div>
 
+      <!-- ── Upload Pre-Recorded File ─────────────────────────────────── -->
+      <div class="panel" id="upload-tray">
+        <h3>📂 Upload a Pre-Recorded File</h3>
+        <p style="font-size:12px;color:#888;margin:0 0 10px;">Have a recording already? Drop it here and we'll pour it straight into the pipeline.</p>
+
+        <!-- Drop zone -->
+        <div id="upload-drop-zone"
+          style="border:2px dashed #2a2a3a;border-radius:10px;padding:28px 16px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;margin-bottom:10px;"
+          onclick="document.getElementById('upload-file-input').click()"
+          ondragover="uploadDragOver(event)"
+          ondragleave="uploadDragLeave(event)"
+          ondrop="uploadDrop(event)">
+          <div style="font-size:28px;margin-bottom:6px;">🎬</div>
+          <div style="font-size:13px;color:#aaa;">Drag &amp; drop or <span style="color:#d95f1e;font-weight:600;">browse</span></div>
+          <div style="font-size:11px;color:#555;margin-top:4px;">MP4 · MOV · WebM · MP3 · M4A</div>
+          <div id="upload-file-name" style="display:none;margin-top:8px;font-size:12px;color:#d95f1e;font-weight:600;word-break:break-all;"></div>
+        </div>
+        <input type="file" id="upload-file-input" accept=".mp4,.mov,.webm,.mp3,.m4a" style="display:none;" onchange="uploadFileSelected(this)">
+
+        <!-- Title -->
+        <div style="margin-bottom:10px;">
+          <label for="upload-title" style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.06em;">What's this build?</label>
+          <input type="text" id="upload-title"
+            style="width:100%;margin-top:4px;background:#13131a;border:1px solid #2a2a3a;border-radius:8px;padding:8px 12px;color:#fff;font-size:14px;box-sizing:border-box;"
+            placeholder="Leave blank to auto-name…" />
+        </div>
+
+        <!-- Upload button -->
+        <button id="btn-upload-continue"
+          style="width:100%;padding:11px;font-size:15px;font-weight:700;letter-spacing:0.03em;background:#2a2a3a;color:#777;border:none;border-radius:8px;cursor:not-allowed;margin-bottom:6px;"
+          disabled onclick="uploadAndContinue()">
+          Upload &amp; Continue →
+        </button>
+        <div id="upload-status" style="font-size:12px;color:#888;text-align:center;display:none;"></div>
+      </div>
+
       <!-- ── Post-Episode Tools ──────────────────────────────────────── -->
       <div class="panel" id="post-ep-panel" style="display:none;">
         <h3>Episode Tools</h3>
@@ -1830,6 +1866,147 @@
     a.download = `podclick-take-${ts}.webm`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  }
+
+  // ── Upload pre-recorded file ──────────────────────────────────────────
+
+  let _uploadFile = null;
+
+  function _setUploadReady(ready) {
+    const btn = document.getElementById('btn-upload-continue');
+    if (ready) {
+      btn.disabled = false;
+      btn.style.background = '#d95f1e';
+      btn.style.color = '#fff';
+      btn.style.cursor = 'pointer';
+    } else {
+      btn.disabled = true;
+      btn.style.background = '#2a2a3a';
+      btn.style.color = '#777';
+      btn.style.cursor = 'not-allowed';
+    }
+  }
+
+  function uploadFileSelected(input) {
+    const f = input.files && input.files[0];
+    if (!f) return;
+    _uploadFile = f;
+    const nameEl = document.getElementById('upload-file-name');
+    nameEl.textContent = f.name + ' (' + (f.size / 1048576).toFixed(1) + ' MB)';
+    nameEl.style.display = 'block';
+    _setUploadReady(true);
+  }
+
+  function uploadDragOver(e) {
+    e.preventDefault();
+    const zone = document.getElementById('upload-drop-zone');
+    zone.style.borderColor = '#d95f1e';
+    zone.style.background = 'rgba(217,95,30,0.06)';
+  }
+
+  function uploadDragLeave(e) {
+    const zone = document.getElementById('upload-drop-zone');
+    zone.style.borderColor = '#2a2a3a';
+    zone.style.background = '';
+  }
+
+  function uploadDrop(e) {
+    e.preventDefault();
+    uploadDragLeave(e);
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!f) return;
+    const allowed = ['mp4', 'mov', 'webm', 'mp3', 'm4a'];
+    const ext = f.name.split('.').pop().toLowerCase();
+    if (!allowed.includes(ext)) {
+      toast('⚠️ Unsupported file type — use MP4, MOV, WebM, MP3, or M4A', 'error');
+      return;
+    }
+    _uploadFile = f;
+    const nameEl = document.getElementById('upload-file-name');
+    nameEl.textContent = f.name + ' (' + (f.size / 1048576).toFixed(1) + ' MB)';
+    nameEl.style.display = 'block';
+    _setUploadReady(true);
+  }
+
+  async function uploadAndContinue() {
+    if (!_uploadFile) return;
+
+    const btn = document.getElementById('btn-upload-continue');
+    const statusEl = document.getElementById('upload-status');
+
+    btn.disabled = true;
+    btn.textContent = 'Uploading…';
+    statusEl.style.display = 'block';
+    statusEl.textContent = 'Pouring foundation…';
+
+    const fd = new FormData();
+    fd.append('file', _uploadFile, _uploadFile.name);
+    const titleVal = document.getElementById('upload-title').value.trim();
+    if (titleVal) fd.append('title', titleVal);
+
+    try {
+      // Show file transfer bar
+      const xferBar = document.getElementById('file-xfer-bar');
+      const xferLabel = document.getElementById('file-xfer-label');
+      const xferDest = document.getElementById('file-xfer-dest');
+      const xferTrack = document.getElementById('file-xfer-track');
+      const xferPct = document.getElementById('file-xfer-pct');
+
+      if (xferBar) {
+        xferBar.style.display = 'flex';
+        xferLabel.textContent = 'Uploading to Job Site…';
+        xferDest.textContent = _uploadFile.name;
+        xferTrack.style.width = '0%';
+        xferPct.textContent = '0%';
+      }
+
+      // Use XMLHttpRequest to get progress events
+      const projectId = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/projects/from-upload');
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && xferBar) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            xferTrack.style.width = pct + '%';
+            xferPct.textContent = pct + '%';
+            statusEl.textContent = `Uploading… ${pct}%`;
+          }
+        };
+
+        xhr.onload = () => {
+          if (xferBar) xferBar.style.display = 'none';
+          if (xhr.status === 201) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              resolve(data.project_id);
+            } catch (err) {
+              reject(new Error('Invalid response from server'));
+            }
+          } else {
+            let msg = 'Upload failed';
+            try { msg = JSON.parse(xhr.responseText).error || msg; } catch (_) {}
+            reject(new Error(msg));
+          }
+        };
+
+        xhr.onerror = () => {
+          if (xferBar) xferBar.style.display = 'none';
+          reject(new Error('Network error — check server'));
+        };
+
+        xhr.send(fd);
+      });
+
+      statusEl.textContent = '✅ File poured. Redirecting to Job Site…';
+      setTimeout(() => { window.location.href = '/project/' + projectId; }, 600);
+
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = 'Upload & Continue →';
+      statusEl.textContent = '❌ ' + err.message;
+      toast('❌ ' + err.message, 'error');
+    }
   }
 
   /* ── Save & Continue → Project ──────────────────────────────────── */

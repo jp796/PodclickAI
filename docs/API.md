@@ -777,6 +777,7 @@ Notes:    Triggers the same logic as the 4am cron. Useful for manual testing.
 | GET | `/api/projects/{id}/clips` | List clips for project |
 | PATCH | `/api/projects/{id}/clips/{clipId}` | Update clip caption/status/hook_text |
 | POST | `/api/projects/{id}/ship-it` | Hero button — trigger full pipeline |
+| POST | `/api/projects/from-upload` | Phase C — upload pre-recorded file → project + transcription |
 | POST | `/api/projects/{id}/schedule-closing` | Step 4 — schedule publish + create posts |
 
 ### GET /api/projects
@@ -785,6 +786,19 @@ Query:    ?status=review&limit=20 (both optional)
 Response: [ { "id", "title", "status", "wizard_step", "episode_number", "mp3_url",
               "transcript", "show_notes", "sponsor_placement", "guest_ids",
               "closing_scheduled_at", "closed_at", "created_at", "updated_at" } ]
+```
+
+### POST /api/projects/from-upload
+```
+Request:  multipart/form-data — file (UploadFile, required), title (str, optional)
+Response: { "project_id": "uuid", "project": {...} }
+Accepted: .mp4, .mov, .webm, .mp3, .m4a
+Errors:   400 — unsupported extension | 500 — location not configured or DB error
+Notes:    Saves file to data/recordings/{project_id}.{ext}. Creates Project with
+          status='recording_done', transcription_status='pending'.
+          Kicks off Whisper transcription in background immediately.
+          Caller redirects to /project/{project_id} on 201.
+          Uses XMLHttpRequest in the Studio upload panel to show upload progress bar.
 ```
 
 ### POST /api/projects/{id}/ship-it
