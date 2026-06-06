@@ -2142,6 +2142,36 @@ async def _run_ship_it_async(
 
     loop = asyncio.get_event_loop()
 
+    try:
+        await _run_ship_it_inner(
+            project_uuid=project_uuid, project_id=project_id, job_id=job_id,
+            transcript=transcript, mp3_url=mp3_url, location_id=location_id,
+            recording_path=recording_path, stored_audio_path=stored_audio_path,
+            stored_words=stored_words, stored_segments=stored_segments,
+            loop=loop,
+        )
+    except Exception as _fatal:
+        import logging
+        logging.getLogger("podclick.projects").error(
+            "Ship It fatal error for %s: %s", project_id, _fatal, exc_info=True
+        )
+        await _ship_it_fail_safe(project_uuid, str(_fatal))
+
+
+async def _run_ship_it_inner(
+    project_uuid, project_id, job_id, transcript, mp3_url, location_id,
+    recording_path, stored_audio_path, stored_words, stored_segments, loop,
+) -> None:
+    """Inner Ship It body — wrapped by _run_ship_it_async for fail-safe error handling."""
+    from db.engine import async_session as _async_session
+    from db.models import Project, Clip
+    from sqlalchemy import select
+    from services.foundation import get_brand_context, assert_foundation_ready
+    from schemas.foundation import BrandContextTaskType as _TaskType
+    import anthropic as _anthropic
+    import uuid as _uuid
+    from config import settings as _settings
+
     # Load job data (words + segments) from in-memory jobs dict if available
     job_data = jobs.get(job_id, {}) if job_id else {}
 
@@ -2231,11 +2261,14 @@ async def _run_ship_it_async(
                         proj.mp3_url = _assembled
                     await session.commit()
 
-        # Persist Clip rows to DB
+        # Persist Clip rows to DB — delete first to prevent accumulation from re-runs
         rendered = ship_result.get("rendered_clips", [])
         clip_ids = []
         if rendered:
             async with _async_session() as session:
+                from sqlalchemy import delete as _delete
+                await session.execute(_delete(Clip).where(Clip.project_id == project_uuid))
+                await session.flush()
                 for idx, r in enumerate(rendered):
                     clip = Clip(
                         project_id=project_uuid,
@@ -2417,14 +2450,30 @@ async def _run_ship_it_async(
             proj = (await session.execute(select(Project).where(Project.id == project_uuid))).scalar_one_or_none()
             if proj and proj.status == "processing":
                 proj.status = "review"
-                # Land the wizard at Step 3 (clips) — transcript (1) and audio (2)
-                # were reviewed implicitly during recording; Ship It is the first
-                # time the user sees the assembled output, so drop them at clips.
                 proj.wizard_step = 3
                 await session.commit()
     except Exception as _trans_err:
         import logging
         logging.getLogger("podclick.projects").error("Status transition to 'review' failed: %s", _trans_err)
+
+
+async def _ship_it_fail_safe(project_uuid, error_msg: str) -> None:
+    """Reset stuck 'processing' project to 'failed' with an error message."""
+    try:
+        from db.engine import async_session as _ses
+        from db.models import Project
+        from sqlalchemy import select as _sel
+        async with _ses() as session:
+            proj = (await session.execute(_sel(Project).where(Project.id == project_uuid))).scalar_one_or_none()
+            if proj and proj.status == "processing":
+                proj.status = "failed"
+                # Store error in audio_assembly for display in failed-banner
+                existing = proj.audio_assembly or {}
+                existing["ship_it_error"] = error_msg
+                proj.audio_assembly = existing
+                await session.commit()
+    except Exception:
+        pass
 
 
 # ── _distribute_project — background upload to Buzzsprout + YouTube ───────────

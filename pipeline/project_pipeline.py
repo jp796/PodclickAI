@@ -442,13 +442,23 @@ def render_all_clips(
             mp4_path = str(out_dir / f"{clip_id}.mp4")
 
             if use_video:
-                render_vertical_clip_from_video(
-                    source_video=source_video,
-                    start_sec=start,
-                    end_sec=end,
-                    srt_content=srt_content,
-                    output_path=mp4_path,
-                )
+                try:
+                    render_vertical_clip_from_video(
+                        source_video=source_video,
+                        start_sec=start,
+                        end_sec=end,
+                        srt_content=srt_content,
+                        output_path=mp4_path,
+                    )
+                except RuntimeError as _vid_err:
+                    log(f"  ⚠ {clip_id} video render failed ({_vid_err}) — falling back to audio-only")
+                    render_vertical_clip(
+                        source_mp3=source_mp3,
+                        start_sec=start,
+                        end_sec=end,
+                        srt_content=srt_content,
+                        output_path=mp4_path,
+                    )
             else:
                 render_vertical_clip(
                     source_mp3=source_mp3,
@@ -472,7 +482,8 @@ def render_all_clips(
                 **candidate,
                 "rendered_url": None,
                 "srt_url": None,
-                "status": "pending",
+                "status": "failed",
+                "error_reason": str(e),
             })
 
     return results
