@@ -469,6 +469,18 @@
           <!-- Tools sidebar -->
           <div class="tools-sidebar">
 
+            <!-- Crop mode picker -->
+            <div class="tool-section">
+              <div class="tool-title">Crop Mode</div>
+              <div class="pos-row" id="crop-mode-row">
+                <div class="pos-pill active" data-crop="stack" title="Host top, guest bottom — best for interviews">⬛⬛ Stack</div>
+                <div class="pos-pill" data-crop="left"  title="Left half only (host)">◧ Host</div>
+                <div class="pos-pill" data-crop="right" title="Right half only (guest)">◨ Guest</div>
+                <div class="pos-pill" data-crop="center" title="Center crop (single speaker)">◻ Center</div>
+              </div>
+              <button class="btn btn-ghost" id="rerender-btn" style="width:100%;margin-top:8px;font-size:11px;padding:7px;">↺ Re-render with this crop</button>
+            </div>
+
             <!-- Clip info block -->
             <div class="tool-section">
               <div class="tool-title">Hook</div>
@@ -1421,6 +1433,15 @@
       $('sched-confirm-btn').addEventListener('click', scheduleAllClips);
       $('ai-optimize-btn').addEventListener('click', aiOptimizeSchedule);
 
+      // Crop mode picker
+      document.querySelectorAll('#crop-mode-row .pos-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('#crop-mode-row .pos-pill').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        });
+      });
+      $('rerender-btn').addEventListener('click', reRenderClip);
+
       // Wizard bar clicks
       bindWizardClicks();
 
@@ -1507,6 +1528,35 @@
       } finally {
         btn.disabled = false;
         btn.textContent = '🤖 AI Optimize';
+      }
+    }
+
+    async function reRenderClip() {
+      if (!_currentClipId) { toast('Select a clip first.', 'error'); return; }
+      const cropBtn = document.querySelector('#crop-mode-row .pos-pill.active');
+      const cropMode = cropBtn ? cropBtn.dataset.crop : 'stack';
+      const btn = $('rerender-btn');
+      btn.disabled = true;
+      btn.textContent = '↺ Re-rendering…';
+      try {
+        const data = await api('POST',
+          '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/clips/' + encodeURIComponent(_currentClipId) + '/rerender',
+          { crop_mode: cropMode }
+        );
+        // Reload the video in the player with cache-bust
+        const video = $('clip-player');
+        const newSrc = data.rendered_url + '?t=' + Date.now();
+        video.src = newSrc;
+        video.load();
+        video.play().catch(() => {});
+        toast(`Re-rendered with ${cropMode} crop.`, 'success');
+        // Reload clips to refresh strip thumbnails
+        await reloadClips();
+      } catch(err) {
+        toast('Re-render failed — ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '↺ Re-render with this crop';
       }
     }
 

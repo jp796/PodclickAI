@@ -337,22 +337,23 @@ def render_vertical_clip_from_video(
     output_path: str,
     width: int = 1080,
     height: int = 1920,
+    crop_mode: str = "stack",
 ) -> str:
     """
-    Render a 9:16 clip cut directly from the source video recording.
+    Render a 9:16 clip from the source video recording.
 
-    The source is landscape (typically 1920×1080). We center-crop to 9:16
-    and scale to 1080×1920 — standard Shorts/Reels/TikTok resolution.
+    crop_mode options:
+      "stack"  — (DEFAULT) Split-screen interview layout. Cuts the landscape frame
+                 in half horizontally, stacks host (left) on top, guest (right)
+                 on bottom. Each half scales to 1080×960, total = 1080×1920.
+                 Best for two-person podcast recordings. Eliminates side-by-side
+                 artifact from center-cropping a split-screen frame.
+      "left"   — Portrait crop of the LEFT half only (host). Good for solo clips.
+      "right"  — Portrait crop of the RIGHT half only (guest).
+      "center" — Original center-crop of full frame. Good for wide single-speaker.
 
-    Crop formula (input-dimension-agnostic):
-      crop_w = ih * (9/16)         → 9:16 width at full source height
-      crop_x = (iw - crop_w) / 2   → centered horizontally
-      → scale to 1080×1920
-
-    Captions are burned in using the same libass style as the audio path,
-    with timestamps rebased to 0 (generate_srt_for_clip already does this).
-
-    Returns output_path on success. Raises RuntimeError on FFmpeg failure.
+    Captions are burned in via libass at correct scale.
+    Returns output_path. Raises RuntimeError on FFmpeg failure.
     """
     duration = end_sec - start_sec
 
@@ -362,27 +363,56 @@ def render_vertical_clip_from_video(
         with open(srt_path, "w") as f:
             f.write(srt_content)
 
-        # Center-crop landscape → 9:16, scale to 1080×1920, burn captions
-        vf = (
-            f"crop=ih*9/16:ih:(iw-ih*9/16)/2:0,"
-            f"scale={width}:{height},"
-            f"subtitles='{srt_path}':force_style='{_CAPTION_STYLE}'"
-        )
-        cmd = [
-            "ffmpeg", "-y",
-            # Seek before -i for fast keyframe seek (input-side -ss)
-            "-ss", str(start_sec), "-t", str(duration),
-            "-i", source_video,
-            "-vf", vf,
-            "-t", str(duration),
-            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-            "-c:a", "aac", "-b:a", "128k",
-            output_path,
-        ]
+        if crop_mode == "stack":
+            # Vertical stack: top = left half, bottom = right half
+            # Each half: iw/2 × ih → scale to 1080 × 960 → vstack → 1080×1920
+            half_h = height // 2  # 960
+            filter_complex = (
+                f"[0:v]crop=iw/2:ih:0:0,scale={width}:{half_h}[top];"
+                f"[0:v]crop=iw/2:ih:iw/2:0,scale={width}:{half_h}[bot];"
+                f"[top][bot]vstack=inputs=2,"
+                f"subtitles='{srt_path}':force_style='{_CAPTION_STYLE}'[v]"
+            )
+            cmd = [
+                "ffmpeg", "-y",
+                "-ss", str(start_sec), "-t", str(duration),
+                "-i", source_video,
+                "-filter_complex", filter_complex,
+                "-map", "[v]", "-map", "0:a",
+                "-t", str(duration),
+                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                "-c:a", "aac", "-b:a", "128k",
+                output_path,
+            ]
+        else:
+            # Single-person crop modes
+            if crop_mode == "left":
+                crop_vf = "crop=iw/2:ih:0:0"
+            elif crop_mode == "right":
+                crop_vf = "crop=iw/2:ih:iw/2:0"
+            else:  # center
+                crop_vf = "crop=ih*9/16:ih:(iw-ih*9/16)/2:0"
+
+            vf = (
+                f"{crop_vf},"
+                f"scale={width}:{height},"
+                f"subtitles='{srt_path}':force_style='{_CAPTION_STYLE}'"
+            )
+            cmd = [
+                "ffmpeg", "-y",
+                "-ss", str(start_sec), "-t", str(duration),
+                "-i", source_video,
+                "-vf", vf,
+                "-t", str(duration),
+                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+                "-c:a", "aac", "-b:a", "128k",
+                output_path,
+            ]
+
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(
-                f"FFmpeg clip render (video) failed: {result.stderr[-400:]}"
+                f"FFmpeg clip render ({crop_mode}) failed: {result.stderr[-400:]}"
             )
 
     return output_path
@@ -395,6 +425,7 @@ def render_all_clips(
     clip_candidates: list,
     progress_cb=None,
     source_video: str = "",
+    crop_mode: str = "stack",
 ) -> list:
     """
     Render all clip candidates for a project.
@@ -449,6 +480,7 @@ def render_all_clips(
                         end_sec=end,
                         srt_content=srt_content,
                         output_path=mp4_path,
+                        crop_mode=crop_mode,
                     )
                 except RuntimeError as _vid_err:
                     log(f"  ⚠ {clip_id} video render failed ({_vid_err}) — falling back to audio-only")
@@ -496,6 +528,7 @@ def run_ship_it(
     job_data: dict,
     progress_cb=None,
     source_video: str = "",
+    crop_mode: str = "stack",
 ) -> dict:
     """
     Full Ship It chain (sync, run via executor):
@@ -575,6 +608,7 @@ def run_ship_it(
                 clip_candidates=result["clip_candidates"],
                 progress_cb=progress_cb,
                 source_video=source_video,
+                crop_mode=crop_mode,
             )
             result["rendered_clips"] = rendered
         except Exception as e:

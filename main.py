@@ -1584,6 +1584,116 @@ async def serve_project_clip_srt(project_id: str, clip_id: str):
     return PlainTextResponse(srt_path.read_text(encoding="utf-8"))
 
 
+@app.post("/api/projects/{project_id}/clips/{clip_id}/rerender")
+async def rerender_clip(project_id: str, clip_id: str, request: Request):
+    """
+    Re-render a single clip with a different crop mode.
+
+    Body: { "crop_mode": "stack" | "left" | "right" | "center" }
+      stack  — host top / guest bottom (default, best for interviews)
+      left   — left half of frame only (host solo)
+      right  — right half of frame only (guest solo)
+      center — original center crop (wide single-speaker)
+
+    Response: { "ok": true, "rendered_url": "/api/projects/.../clips/.../video" }
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Clip, Project
+    from sqlalchemy import select
+    from pipeline.project_pipeline import (
+        generate_srt_for_clip, render_vertical_clip_from_video, render_vertical_clip
+    )
+    import uuid as _uuid
+    import asyncio as _asyncio
+
+    try:
+        pid = _uuid.UUID(project_id)
+        cid = _uuid.UUID(clip_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+
+    body = {}
+    try: body = await request.json()
+    except Exception: pass
+
+    crop_mode = body.get("crop_mode", "stack")
+    if crop_mode not in ("stack", "left", "right", "center"):
+        raise HTTPException(status_code=400, detail="crop_mode must be stack|left|right|center")
+
+    async with _async_session() as session:
+        clip = (await session.execute(
+            select(Clip).where(Clip.id == cid, Clip.project_id == pid)
+        )).scalar_one_or_none()
+        proj = (await session.execute(
+            select(Project).where(Project.id == pid)
+        )).scalar_one_or_none()
+
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    recording_path = proj.recording_path or ""
+    legacy = proj.legacy_metadata or {}
+    stored_words = legacy.get("whisper_words", [])
+    extracted_audio = legacy.get("extracted_audio_path", "")
+
+    if not recording_path or not Path(recording_path).exists():
+        raise HTTPException(status_code=400, detail="Source recording not on disk")
+
+    start = clip.source_start_seconds or 0.0
+    end   = clip.source_end_seconds or 0.0
+
+    # Re-use existing SRT if available, regenerate otherwise
+    srt_content = ""
+    if clip.srt_url and Path(clip.srt_url).exists():
+        srt_content = Path(clip.srt_url).read_text(encoding="utf-8")
+    elif stored_words:
+        srt_content = generate_srt_for_clip(stored_words, start, end)
+
+    # Output to the same path (overwrites the existing render)
+    mp4_path = clip.rendered_url or ""
+    if not mp4_path or mp4_path.startswith("/api/"):
+        raise HTTPException(status_code=400, detail="Cannot determine output path for re-render")
+
+    loop = _asyncio.get_event_loop()
+
+    def _do_rerender():
+        try:
+            render_vertical_clip_from_video(
+                source_video=recording_path,
+                start_sec=start,
+                end_sec=end,
+                srt_content=srt_content,
+                output_path=mp4_path,
+                crop_mode=crop_mode,
+            )
+        except RuntimeError as vid_err:
+            # Fallback to audio-only if video render fails
+            if extracted_audio and Path(extracted_audio).exists():
+                render_vertical_clip(
+                    source_mp3=extracted_audio,
+                    start_sec=start,
+                    end_sec=end,
+                    srt_content=srt_content,
+                    output_path=mp4_path,
+                )
+            else:
+                raise vid_err
+        return mp4_path
+
+    try:
+        await loop.run_in_executor(None, _do_rerender)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Re-render failed: {exc}")
+
+    return JSONResponse({
+        "ok": True,
+        "crop_mode": crop_mode,
+        "rendered_url": f"/api/projects/{project_id}/clips/{clip_id}/video",
+    })
+
+
 @app.post("/api/projects/{project_id}/clips/{clip_id}/post-to-youtube")
 async def post_clip_to_youtube(project_id: str, clip_id: str, request: Request):
     """
@@ -2242,8 +2352,9 @@ async def _run_ship_it_inner(
             return _sync_ship_it(
                 project_id=project_id,
                 job_data=job_data,
-                progress_cb=lambda msg: None,  # non-blocking; no WS in async task
-                source_video=recording_path,   # prefer video-source render when available
+                progress_cb=lambda msg: None,
+                source_video=recording_path,
+                crop_mode="stack",  # stack = host top / guest bottom for interviews
             )
 
         ship_result = await loop.run_in_executor(None, _sync)
