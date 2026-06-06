@@ -1904,6 +1904,7 @@ async def _run_ship_it_async(
                 project_id=project_id,
                 job_data=job_data,
                 progress_cb=lambda msg: None,  # non-blocking; no WS in async task
+                source_video=recording_path,   # prefer video-source render when available
             )
 
         ship_result = await loop.run_in_executor(None, _sync)

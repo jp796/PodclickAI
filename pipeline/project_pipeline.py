@@ -261,6 +261,26 @@ def detect_clips_for_project(
 
 # ── Vertical 9:16 clip render ──────────────────────────────────────────────────
 
+# Caption style constants — shared across both render paths.
+#
+# libass font size math:
+#   Default PlayResY = 288 (libass internal script resolution)
+#   Scale factor     = output_height / PlayResY = 1920 / 288 = 6.667
+#   FontSize=14  → 14 × 6.667 ≈ 93px on-screen (~4.8% of 1920)  ← Submagic-size
+#   FontSize=48  → 48 × 6.667 ≈ 320px on-screen (~16.7%)        ← was the bug
+#
+# MarginV math (Alignment=2 = bottom-center, margin from bottom):
+#   MarginV=30  → 30 × 6.667 ≈ 200px from bottom                ← good Shorts position
+#   MarginV=200 → 200 × 6.667 ≈ 1333px from bottom  (near top!) ← was the bug
+_CAPTION_STYLE = (
+    "Fontname=Arial,FontSize=14,Bold=1,"
+    "PrimaryColour=&H00FFFFFF&,"            # white text
+    "OutlineColour=&H00000000&,Outline=3,"  # black outline for readability
+    "Shadow=1,"
+    "Alignment=2,MarginV=30"               # bottom-center, 200px from bottom
+)
+
+
 def render_vertical_clip(
     source_mp3: str,
     start_sec: float,
@@ -272,17 +292,10 @@ def render_vertical_clip(
     height: int = 1920,
 ) -> str:
     """
-    Render a vertical 9:16 clip from an MP3 source.
+    Render a vertical 9:16 clip from an MP3 source (audio-only fallback).
 
-    Since the source is audio-only (MP3), this creates a solid-color
-    background video with the audio overlay and burned-in captions.
-
-    Steps:
-      1. Trim audio to [start_sec, end_sec]
-      2. Create 1080×1920 solid-color background video at 30fps
-      3. Overlay audio on the background
-      4. Burn captions via libass from SRT file
-      5. Output MP4 to output_path
+    Used when no video source is available. Creates a solid-color
+    background with the trimmed audio and burned-in captions.
 
     Returns output_path on success. Raises RuntimeError on FFmpeg failure.
     """
@@ -290,44 +303,86 @@ def render_vertical_clip(
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
-
-        # Write SRT file
         srt_path = str(tmp / "clip.srt")
         with open(srt_path, "w") as f:
             f.write(srt_content)
 
-        # Build FFmpeg command:
-        # - lavfi color source for background
-        # - amovie input for audio trim
-        # - subtitles filter for caption burn
         cmd = [
             "ffmpeg", "-y",
-            # 1. Audio source trimmed from MP3
             "-ss", str(start_sec), "-t", str(duration),
             "-i", source_mp3,
-            # 2. Solid background video
             "-f", "lavfi",
             "-i", f"color=c={background_color}:s={width}x{height}:r=30",
-            # 3. Map: background video [1] + audio [0]
             "-map", "1:v", "-map", "0:a",
-            # 4. Burn subtitles
-            "-vf", f"subtitles='{srt_path}':force_style='Fontname=Arial,FontSize=48,Bold=1,"
-                   f"PrimaryColour=&H00FFFFFF&,OutlineColour=&H00000000&,Outline=2,"
-                   f"Alignment=2,MarginV=200'",
-            # 5. Shorten to actual audio duration
+            "-vf", f"subtitles='{srt_path}':force_style='{_CAPTION_STYLE}'",
             "-t", str(duration),
-            # 6. Encoding
             "-c:v", "libx264", "-preset", "fast", "-crf", "23",
             "-c:a", "aac", "-b:a", "128k",
-            # 7. Output
             output_path,
         ]
-
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(
-                f"FFmpeg clip render failed (start={start_sec:.1f}s end={end_sec:.1f}s): "
-                f"{result.stderr[-400:]}"
+                f"FFmpeg clip render (audio) failed: {result.stderr[-400:]}"
+            )
+
+    return output_path
+
+
+def render_vertical_clip_from_video(
+    source_video: str,
+    start_sec: float,
+    end_sec: float,
+    srt_content: str,
+    output_path: str,
+    width: int = 1080,
+    height: int = 1920,
+) -> str:
+    """
+    Render a 9:16 clip cut directly from the source video recording.
+
+    The source is landscape (typically 1920×1080). We center-crop to 9:16
+    and scale to 1080×1920 — standard Shorts/Reels/TikTok resolution.
+
+    Crop formula (input-dimension-agnostic):
+      crop_w = ih * (9/16)         → 9:16 width at full source height
+      crop_x = (iw - crop_w) / 2   → centered horizontally
+      → scale to 1080×1920
+
+    Captions are burned in using the same libass style as the audio path,
+    with timestamps rebased to 0 (generate_srt_for_clip already does this).
+
+    Returns output_path on success. Raises RuntimeError on FFmpeg failure.
+    """
+    duration = end_sec - start_sec
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        srt_path = str(tmp / "clip.srt")
+        with open(srt_path, "w") as f:
+            f.write(srt_content)
+
+        # Center-crop landscape → 9:16, scale to 1080×1920, burn captions
+        vf = (
+            f"crop=ih*9/16:ih:(iw-ih*9/16)/2:0,"
+            f"scale={width}:{height},"
+            f"subtitles='{srt_path}':force_style='{_CAPTION_STYLE}'"
+        )
+        cmd = [
+            "ffmpeg", "-y",
+            # Seek before -i for fast keyframe seek (input-side -ss)
+            "-ss", str(start_sec), "-t", str(duration),
+            "-i", source_video,
+            "-vf", vf,
+            "-t", str(duration),
+            "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+            "-c:a", "aac", "-b:a", "128k",
+            output_path,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"FFmpeg clip render (video) failed: {result.stderr[-400:]}"
             )
 
     return output_path
@@ -339,23 +394,36 @@ def render_all_clips(
     words: list,
     clip_candidates: list,
     progress_cb=None,
+    source_video: str = "",
 ) -> list:
     """
     Render all clip candidates for a project.
 
+    Preferred path (when source_video is provided and exists on disk):
+      render_vertical_clip_from_video() — cuts from the actual recording,
+      center-crops 1920×1080 → 1080×1920, burns captions.
+
+    Fallback path (audio-only):
+      render_vertical_clip() — audio over solid black background.
+
     For each candidate:
-      1. Generate SRT from word timestamps
+      1. Generate SRT from word timestamps (rebased to 0)
       2. Render 9:16 MP4 to data/project_clips/{project_id}/clip_{n}.mp4
       3. Return list of {start, end, hook_text, rendered_url, srt_url, score}
-
-    Returns updated candidates list with rendered_url and srt_url populated.
     """
     out_dir = _CLIPS_DIR / project_id
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    use_video = bool(source_video and os.path.exists(source_video))
+
     def log(msg):
         if progress_cb:
             progress_cb(msg)
+
+    if use_video:
+        log(f"Clip render mode: video source (center-crop 9:16) from {Path(source_video).name}")
+    else:
+        log("Clip render mode: audio-over-black (no video source)")
 
     results = []
     for idx, candidate in enumerate(clip_candidates):
@@ -366,21 +434,29 @@ def render_all_clips(
         log(f"Rendering {clip_id} ({start:.0f}s–{end:.0f}s)…")
 
         try:
-            # Generate SRT
             srt_content = generate_srt_for_clip(words, start, end)
             srt_path = str(out_dir / f"{clip_id}.srt")
             with open(srt_path, "w") as f:
                 f.write(srt_content)
 
-            # Render MP4
             mp4_path = str(out_dir / f"{clip_id}.mp4")
-            render_vertical_clip(
-                source_mp3=source_mp3,
-                start_sec=start,
-                end_sec=end,
-                srt_content=srt_content,
-                output_path=mp4_path,
-            )
+
+            if use_video:
+                render_vertical_clip_from_video(
+                    source_video=source_video,
+                    start_sec=start,
+                    end_sec=end,
+                    srt_content=srt_content,
+                    output_path=mp4_path,
+                )
+            else:
+                render_vertical_clip(
+                    source_mp3=source_mp3,
+                    start_sec=start,
+                    end_sec=end,
+                    srt_content=srt_content,
+                    output_path=mp4_path,
+                )
 
             results.append({
                 **candidate,
@@ -396,7 +472,7 @@ def render_all_clips(
                 **candidate,
                 "rendered_url": None,
                 "srt_url": None,
-                "status": "pending",  # stays pending so retry is possible
+                "status": "pending",
             })
 
     return results
@@ -408,6 +484,7 @@ def run_ship_it(
     project_id: str,
     job_data: dict,
     progress_cb=None,
+    source_video: str = "",
 ) -> dict:
     """
     Full Ship It chain (sync, run via executor):
@@ -486,6 +563,7 @@ def run_ship_it(
                 words=words,
                 clip_candidates=result["clip_candidates"],
                 progress_cb=progress_cb,
+                source_video=source_video,
             )
             result["rendered_clips"] = rendered
         except Exception as e:
