@@ -384,7 +384,36 @@
     <div id="step3-panel" class="card hidden">
       <div class="card-head">
         <h2>Clips</h2>
-        <span class="meta" id="clip-count-meta">0 clips</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="meta" id="clip-count-meta">0 clips</span>
+          <button class="btn btn-primary" id="schedule-all-btn" style="font-size:11px;padding:6px 12px;"
+            title="Schedule all clips to auto-publish on YouTube">📅 Schedule All</button>
+        </div>
+      </div>
+
+      <!-- Schedule cadence panel (hidden by default) -->
+      <div id="schedule-panel" style="display:none;background:#0d0c0a;border:1px solid #272420;border-radius:9px;padding:16px 18px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:700;color:#F5F7FA;margin-bottom:12px;">Schedule All Clips to YouTube</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end;">
+          <div>
+            <label style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#847d74;display:block;margin-bottom:6px;">First clip publishes</label>
+            <input type="datetime-local" id="sched-start" style="width:100%;background:#161410;border:1px solid #352f28;border-radius:7px;color:#F5F7FA;padding:8px 10px;font-size:13px;font-family:inherit;" />
+          </div>
+          <div>
+            <label style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#847d74;display:block;margin-bottom:6px;">Cadence</label>
+            <select id="sched-cadence" style="width:100%;background:#161410;border:1px solid #352f28;border-radius:7px;color:#F5F7FA;padding:8px 10px;font-size:13px;font-family:inherit;">
+              <option value="1">Every day</option>
+              <option value="2" selected>Every 2 days</option>
+              <option value="3">Every 3 days</option>
+              <option value="7">Weekly</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" id="sched-confirm-btn" style="flex:1;">Go — Upload &amp; Schedule</button>
+            <button class="btn btn-ghost" onclick="document.getElementById('schedule-panel').style.display='none';">✕</button>
+          </div>
+        </div>
+        <div id="sched-result" style="margin-top:12px;font-size:12px;color:#847d74;"></div>
       </div>
 
       <!-- Empty state (no clips) -->
@@ -1367,6 +1396,19 @@
       $('line-it-up-btn').addEventListener('click', lineItUp);
       $('rerun-ship-btn').addEventListener('click', rerunShipIt);
 
+      // Schedule All Clips
+      $('schedule-all-btn').addEventListener('click', () => {
+        const panel = $('schedule-panel');
+        panel.style.display = panel.style.display === 'none' ? '' : 'none';
+        // Default start = tomorrow 9am local
+        if (!$('sched-start').value) {
+          const d = new Date(); d.setDate(d.getDate()+1); d.setHours(9,0,0,0);
+          const pad = n => String(n).padStart(2,'0');
+          $('sched-start').value = d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+        }
+      });
+      $('sched-confirm-btn').addEventListener('click', scheduleAllClips);
+
       // Wizard bar clicks
       bindWizardClicks();
 
@@ -1412,6 +1454,46 @@
     }
 
     // ── Boot ───────────────────────────────────────────────────────────────
+    async function scheduleAllClips() {
+      const btn = $('sched-confirm-btn');
+      const result = $('sched-result');
+      const localVal = $('sched-start').value;
+      const cadence  = parseInt($('sched-cadence').value, 10);
+      if (!localVal) { toast('Pick a start date first.', 'error'); return; }
+
+      // Convert local datetime-local value to UTC ISO string
+      const startUtc = new Date(localVal).toISOString();
+
+      btn.disabled = true;
+      btn.textContent = 'Uploading…';
+      result.textContent = 'Uploading clips to YouTube — this may take a few minutes…';
+      result.style.color = '#847d74';
+
+      try {
+        const data = await api('POST',
+          '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/clips/schedule-all',
+          { start_at: startUtc, cadence_days: cadence }
+        );
+        const ok = data.scheduled.filter(s => s.ok).length;
+        const fail = data.scheduled.length - ok;
+        result.style.color = ok > 0 ? '#52c47a' : '#ff8080';
+        result.innerHTML =
+          `✓ ${ok} clip${ok!==1?'s':''} scheduled on YouTube. ` +
+          (fail ? `${fail} failed. ` : '') +
+          `First goes live: <strong>${new Date(data.first_publish).toLocaleString()}</strong>, ` +
+          `last: <strong>${new Date(data.last_publish).toLocaleString()}</strong>.<br>` +
+          `Check YouTube Studio → Content → Scheduled to confirm.`;
+        toast(`${ok} clips scheduled — auto-publishing on cadence.`, 'success');
+      } catch(err) {
+        result.textContent = 'Error: ' + err.message;
+        result.style.color = '#ff8080';
+        toast('Schedule failed — ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Go — Upload & Schedule';
+      }
+    }
+
     async function boot() {
       if (!PROJECT_ID) {
         $('header-title').textContent = 'No project id in URL.';

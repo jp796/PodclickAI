@@ -1649,6 +1649,124 @@ async def post_clip_to_youtube(project_id: str, clip_id: str, request: Request):
         raise HTTPException(status_code=502, detail=str(exc))
 
 
+@app.post("/api/projects/{project_id}/clips/schedule-all")
+async def schedule_all_clips(project_id: str, request: Request):
+    """
+    Upload all rendered clips as YouTube Shorts on a scheduled cadence.
+
+    Body:
+      start_at      — ISO 8601 datetime for first clip (e.g. "2026-06-10T09:00:00Z")
+      cadence_days  — days between each clip (1, 2, 3, or 7)
+      hour_utc      — hour of day in UTC to publish (default 14 = 9am Central)
+
+    Response: { "scheduled": [ {clip_id, title, publish_at, video_id, url} ] }
+    YouTube auto-publishes each clip at its scheduled time — no manual toggle needed.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Clip, Project
+    from sqlalchemy import select
+    from pipeline.youtube import upload_video as _yt_upload, is_authorized
+    from datetime import datetime, timedelta, timezone
+    import uuid as _uuid
+    import asyncio as _asyncio
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid project ID")
+
+    if not is_authorized():
+        raise HTTPException(status_code=400, detail="YouTube not connected")
+
+    body = await request.json()
+    cadence_days = max(1, int(body.get("cadence_days", 2)))
+    start_at_str = body.get("start_at", "")
+
+    # Parse start time, default to tomorrow at 14:00 UTC (9am Central)
+    try:
+        start_dt = datetime.fromisoformat(start_at_str.replace("Z", "+00:00")) if start_at_str else None
+    except Exception:
+        start_dt = None
+    if not start_dt:
+        start_dt = datetime.now(timezone.utc).replace(hour=14, minute=0, second=0, microsecond=0)
+        start_dt += timedelta(days=1)
+
+    # Load project + approved/rendered clips (de-duplicate by rendered_url)
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        clip_rows = (await session.execute(
+            select(Clip).where(Clip.project_id == pid, Clip.status != "removed")
+        )).scalars().all()
+
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # De-duplicate by rendered_url
+    seen_urls = set()
+    clips = []
+    for c in clip_rows:
+        if c.rendered_url and c.rendered_url not in seen_urls and Path(c.rendered_url).exists():
+            seen_urls.add(c.rendered_url)
+            clips.append(c)
+
+    if not clips:
+        raise HTTPException(status_code=400, detail="No rendered clips found for this project")
+
+    loop = _asyncio.get_event_loop()
+    scheduled = []
+
+    for idx, clip in enumerate(clips):
+        publish_dt = start_dt + timedelta(days=idx * cadence_days)
+        publish_at = publish_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        hook = (clip.hook_text or proj.title or "PodClick Short")[:100]
+        caption = clip.clip_caption or ""
+        desc = (
+            f"{caption}\n\n"
+            f"🎙 From the Success Agent Podcast\n\n"
+            f"📞 Work with JP Fluellen:\n"
+            f"Wyoming: +1-307-772-1184 | Missouri: +1-417-340-1927\n"
+            f"👉 https://jpfluellen.com/contact\n\n"
+            f"#Shorts #YouTubeShorts #SuccessAgentPodcast #RealEstate"
+        )
+
+        clip_path = clip.rendered_url
+
+        def _upload(path=clip_path, title=hook, description=desc, pub=publish_at):
+            return _yt_upload(
+                video_path=path,
+                title=title,
+                description=description,
+                privacy_status="private",
+                publish_at=pub,
+                tags=["Shorts", "YouTubeShorts", "SuccessAgentPodcast", "RealEstate", "podcast"],
+                category_id="22",
+            )
+
+        try:
+            result = await loop.run_in_executor(None, _upload)
+            scheduled.append({
+                "clip_id":    str(clip.id),
+                "title":      hook,
+                "publish_at": publish_at,
+                "video_id":   result.get("video_id"),
+                "url":        result.get("url"),
+                "ok":         result.get("ok", False),
+                "error":      result.get("error"),
+            })
+        except Exception as e:
+            scheduled.append({"clip_id": str(clip.id), "ok": False, "error": str(e)})
+
+    success_count = sum(1 for s in scheduled if s.get("ok"))
+    return JSONResponse({
+        "scheduled": scheduled,
+        "total": len(scheduled),
+        "success": success_count,
+        "first_publish": start_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "last_publish": (start_dt + timedelta(days=(len(clips)-1) * cadence_days)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    })
+
+
 @app.patch("/api/projects/{project_id}/clips/{clip_id}")
 async def update_clip(project_id: str, clip_id: str, request: Request):
     """Update clip caption or status (approve/remove from wizard step 3)."""
@@ -2264,10 +2382,49 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
         _chapter_text = _format_chapters(_stored_chapters)
         _logger.info("_distribute_project: %d chapter markers loaded", len(_stored_chapters))
 
-    # ── Build YouTube description (show notes + chapter block) ────────────────
-    _yt_description = show_notes_md
+    # ── Build YouTube long-form description ───────────────────────────────────
+    # Structure: chapters → episode summary → links/CTAs → hashtags
+    _desc_parts = []
+
+    # 1. Chapters (timestamps)
     if _chapter_text:
-        _yt_description = _chapter_text + "\n\n" + show_notes_md
+        _desc_parts.append(_chapter_text)
+
+    # 2. Episode summary from show notes (first 500 chars of plain text)
+    if show_notes_md:
+        # Strip markdown headers/bullets for a clean paragraph
+        import re as _re
+        _plain = _re.sub(r'#{1,6}\s+', '', show_notes_md)
+        _plain = _re.sub(r'\*\*(.+?)\*\*', r'\1', _plain).strip()
+        _desc_parts.append(_plain[:600] + ("…" if len(_plain) > 600 else ""))
+
+    # 3. CTA block — JP's contact info and links
+    _desc_parts.append(
+        "━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🏠 WORK WITH JP FLUELLEN\n"
+        "Backed by tech, trust, and 400+ homes sold since 2011.\n"
+        "Serving Wyoming & Missouri.\n\n"
+        "📞 Wyoming: +1-307-772-1184\n"
+        "📞 Missouri: +1-417-340-1927\n"
+        "📧 jp@jpfluellen.com\n\n"
+        "👉 Free Home Valuation: https://jpfluellen.com/valuation\n"
+        "👉 Connect with JP: https://jpfluellen.com/contact\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "🎙 ABOUT THE SUCCESS AGENT PODCAST\n"
+        "Weekly conversations with business owners, team leaders, CEOs, and real estate professionals.\n"
+        "Subscribe to learn how top performers build businesses that work for them.\n\n"
+        "🔔 Subscribe so you never miss an episode!\n"
+        "👍 Like this video if it added value.\n"
+        "💬 Comment below — what was your biggest takeaway?"
+    )
+
+    # 4. Hashtags
+    _hashtags = " ".join(f"#{t.replace(' ','')}" for t in (_yt_tags[:10] if _yt_tags else []))
+    if _hashtags:
+        _desc_parts.append(_hashtags)
+    _desc_parts.append("#SuccessAgentPodcast #RealEstate #Podcast #RealEstateInvesting")
+
+    _yt_description = "\n\n".join(_desc_parts)
 
     # ── Markdown → HTML for Buzzsprout description ────────────────────────────
     try:

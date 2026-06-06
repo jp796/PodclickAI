@@ -269,6 +269,7 @@ def upload_video(
     tags: list = None,
     category_id: str = "22",       # 22 = People & Blogs
     privacy_status: str = "private",  # "private"|"unlisted"|"public"
+    publish_at: str = "",           # RFC 3339 e.g. "2026-06-15T09:00:00Z" — auto-publishes at this time
     thumbnail_path: str = "",
     made_for_kids: bool = False,
     progress_cb=None,
@@ -307,8 +308,11 @@ def upload_video(
                 "categoryId":  category_id,
             },
             "status": {
-                "privacyStatus":      privacy_status,
+                # When publish_at is set, use "private" privacy so YouTube schedules
+                # the video to go public automatically at that time.
+                "privacyStatus":          "private" if publish_at else privacy_status,
                 "selfDeclaredMadeForKids": made_for_kids,
+                **({"publishAt": publish_at} if publish_at else {}),
             },
         }
 
