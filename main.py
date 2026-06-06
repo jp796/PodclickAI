@@ -1643,7 +1643,8 @@ async def post_clip_to_youtube(project_id: str, clip_id: str, request: Request):
             )
 
         result = await loop.run_in_executor(None, _do_upload)
-        return _JR({"ok": True, "video_id": result.get("id"), "url": result.get("url")})
+        vid = result.get("video_id") or result.get("id")
+        return _JR({"ok": True, "video_id": vid, "url": result.get("url")})
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
