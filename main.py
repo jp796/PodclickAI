@@ -801,10 +801,33 @@ def _project_to_dict(project) -> dict:
         "buzzsprout_episode_id": project.buzzsprout_episode_id,
         "youtube_url": project.youtube_url,
         "youtube_video_id": project.youtube_video_id,
-        "legacy_metadata": project.legacy_metadata,
+        # Strip large word/segment arrays from API response — frontend never needs them.
+        # Ship It reads them directly from the DB in the background task.
+        "legacy_metadata": _strip_heavy_metadata(project.legacy_metadata),
         "created_at": project.created_at.isoformat() if project.created_at else None,
         "updated_at": project.updated_at.isoformat() if project.updated_at else None,
     }
+
+
+def _strip_heavy_metadata(meta) -> dict:
+    """Return legacy_metadata without the large whisper arrays.
+
+    whisper_words (7K+ entries) and whisper_segments (700+ entries) are
+    only needed server-side by Ship It. Sending them to the browser adds
+    ~430KB to every project API response for no benefit.
+    """
+    if not meta:
+        return {}
+    light = dict(meta)
+    words = light.pop("whisper_words", None)
+    segs  = light.pop("whisper_segments", None)
+    # Keep a compact summary so the frontend knows the data is there
+    if words is not None:
+        light["has_whisper_data"] = True
+        light["word_count"] = len(words)
+    if segs is not None:
+        light["segment_count"] = len(segs)
+    return light
 
 
 # ── Project CRUD routes ────────────────────────────────────────────────────────
