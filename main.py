@@ -1505,6 +1505,70 @@ async def serve_project_clip_video(project_id: str, clip_id: str):
     return _FR(path=path, media_type="video/mp4", filename=Path(path).name)
 
 
+@app.post("/api/projects/{project_id}/clips/{clip_id}/post-to-youtube")
+async def post_clip_to_youtube(project_id: str, clip_id: str, request: Request):
+    """
+    Upload a rendered clip as a private YouTube Short.
+
+    Body (optional): { "title": "...", "description": "..." }
+    Response: { "ok": true, "video_id": "...", "url": "https://www.youtube.com/watch?v=..." }
+    """
+    from fastapi.responses import JSONResponse as _JR
+    from db.engine import async_session as _async_session
+    from db.models import Clip, Project
+    from sqlalchemy import select
+    import uuid as _uuid
+
+    try:
+        pid = _uuid.UUID(project_id)
+        cid = _uuid.UUID(clip_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+
+    body = {}
+    try: body = await request.json()
+    except Exception: pass
+
+    async with _async_session() as session:
+        clip = (await session.execute(
+            select(Clip).where(Clip.id == cid, Clip.project_id == pid)
+        )).scalar_one_or_none()
+        proj = (await session.execute(
+            select(Project).where(Project.id == pid)
+        )).scalar_one_or_none()
+
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    clip_path = clip.rendered_url or ""
+    if not clip_path or not Path(clip_path).exists():
+        raise HTTPException(status_code=400, detail="Clip file not on disk")
+
+    title = body.get("title") or (clip.hook_text or "PodClick Short")[:100]
+    description = body.get("description") or (clip.clip_caption or "")
+
+    # Upload via existing pipeline/youtube helper (same as main episode)
+    try:
+        import asyncio as _asyncio
+        from config import settings as _settings
+        loop = _asyncio.get_event_loop()
+
+        def _do_upload():
+            from pipeline.youtube import upload_video as _yt_upload
+            return _yt_upload(
+                video_path=clip_path,
+                title=title,
+                description=description + "\n\n#Shorts",
+                privacy="private",
+                tags=["Shorts", "YouTubeShorts", "podcast"],
+            )
+
+        result = await loop.run_in_executor(None, _do_upload)
+        return _JR({"ok": True, "video_id": result.get("id"), "url": result.get("url")})
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
 @app.patch("/api/projects/{project_id}/clips/{clip_id}")
 async def update_clip(project_id: str, clip_id: str, request: Request):
     """Update clip caption or status (approve/remove from wizard step 3)."""
