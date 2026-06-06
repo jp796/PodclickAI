@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Project · PodClick</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { background: #0b0a08; color: #F5F7FA; min-height: 100vh; font-family: 'Inter', sans-serif; }
@@ -15,6 +15,7 @@
 
     /* ── Layout ── */
     .shell { max-width: 1080px; margin: 0 auto; padding: 24px 22px 80px; }
+    .shell.wide { max-width: 1320px; }
     .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
     .topbar .back { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #7a7060; }
     .topbar .back:hover { color: #f07030; }
@@ -63,13 +64,6 @@
     .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
     .btn-ghost { background: #1e1b16; border: 1px solid #272420; color: #a0a0c0; }
     .btn-ghost:hover { border-color: #d95f1e; color: #f07030; }
-    .btn-yt { background: #ff0000; color: #fff; border: none; font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 7px; cursor: pointer; transition: all 0.12s; }
-    .btn-yt:hover { background: #cc0000; transform: translateY(-1px); }
-    .btn-yt:disabled { opacity: 0.4; cursor: not-allowed; }
-    .btn-approve { background: rgba(61,140,92,0.15); border: 1px solid #3d8c5c; color: #52c47a; font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 7px; cursor: pointer; transition: all 0.12s; }
-    .btn-approve:hover { background: rgba(61,140,92,0.25); }
-    .btn-remove  { background: transparent; border: 1px solid #272420; color: #847d74; font-size: 12px; font-weight: 600; padding: 7px 14px; border-radius: 7px; cursor: pointer; transition: all 0.12s; }
-    .btn-remove:hover  { border-color: #a03838; color: #ff8080; }
 
     /* ── Form fields ── */
     textarea, input[type="text"], input[type="datetime-local"] {
@@ -88,118 +82,165 @@
     .flag.on { color: #52c47a; border-color: #1a3d28; background: rgba(61,140,92,0.08); }
     .sponsor-line { margin-top: 14px; padding: 12px 14px; background: #1e1b16; border-left: 3px solid #d95f1e; border-radius: 5px; font-size: 13px; color: #F5F7FA; }
 
-    /* ── Clip grid ── */
-    .clips-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
-    .clip-card {
-      background: #1e1b16; border: 1px solid #272420; border-radius: 10px;
-      overflow: hidden; transition: all 0.15s; display: flex; flex-direction: column;
-    }
-    .clip-card:hover { border-color: #352f28; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-    .clip-card.approved { border-color: #3d8c5c; }
-    .clip-card.removed  { opacity: 0.45; }
+    /* ════════════════════════════════════════════════════════════════
+       STEP 3 — SUBMAGIC-STYLE CLIP EDITOR
+       ════════════════════════════════════════════════════════════════ */
 
-    /* 9:16 preview area */
-    .clip-preview {
-      position: relative; background: #0b0a08; cursor: pointer;
-      aspect-ratio: 9/16; overflow: hidden;
+    /* Clip strip (horizontal scroll) */
+    .clip-strip-wrap { margin-bottom: 18px; }
+    .clip-strip {
+      display: flex; gap: 10px; overflow-x: auto; padding: 4px 2px 12px;
+      scrollbar-width: thin; scrollbar-color: #352f28 transparent;
+    }
+    .clip-strip::-webkit-scrollbar { height: 8px; }
+    .clip-strip::-webkit-scrollbar-track { background: transparent; }
+    .clip-strip::-webkit-scrollbar-thumb { background: #352f28; border-radius: 4px; }
+    .strip-card {
+      position: relative; flex: 0 0 auto; width: 70px; aspect-ratio: 9/16;
+      background: #0d0c0a; border: 2px solid #272420; border-radius: 10px;
+      overflow: hidden; cursor: pointer; transition: all 0.15s;
       display: flex; align-items: center; justify-content: center;
     }
-    .clip-preview-thumb {
-      width: 100%; height: 100%; object-fit: cover; display: block;
+    .strip-card:hover { border-color: #d95f1e; transform: translateY(-2px); }
+    .strip-card.active { border-color: #f07030; box-shadow: 0 0 0 2px rgba(240,112,48,0.25), 0 6px 18px rgba(217,95,30,0.30); }
+    .strip-card.removed { opacity: 0.4; }
+    .strip-thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .strip-novideo { font-size: 20px; color: #4a4540; }
+    .strip-num {
+      position: absolute; top: 5px; left: 5px;
+      background: rgba(0,0,0,0.72); color: #fff; font-size: 10px; font-weight: 800;
+      padding: 1px 5px; border-radius: 4px; letter-spacing: 0.04em;
     }
-    .clip-play-overlay {
-      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.35); transition: background 0.15s;
+    .strip-dot {
+      position: absolute; bottom: 5px; right: 5px;
+      width: 9px; height: 9px; border-radius: 50%;
+      background: #4a4540; border: 1px solid #0d0c0a;
     }
-    .clip-preview:hover .clip-play-overlay { background: rgba(0,0,0,0.55); }
-    .clip-play-btn {
-      width: 52px; height: 52px; border-radius: 50%;
-      background: linear-gradient(135deg, #d95f1e, #f07030);
+    .strip-dot.approved { background: #52c47a; }
+    .strip-dot.removed  { background: #a03838; }
+
+    /* Editor grid: player (left) + sidebar (right) */
+    .editor-grid {
+      display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+      gap: 22px; align-items: start;
+    }
+
+    /* Player column */
+    .player-col { display: flex; flex-direction: column; align-items: center; }
+    .player-frame {
+      position: relative; width: 100%; max-width: 380px;
+      aspect-ratio: 9/16; max-height: 75vh;
+      background: #000; border: 1px solid #272420; border-radius: 14px;
+      overflow: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.55);
+    }
+    #clip-player { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
+    .player-empty {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px;
+      color: #4a4540; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .player-empty .big { font-size: 34px; }
+
+    /* Caption overlay */
+    #caption-overlay {
+      position: absolute; left: 50%; transform: translateX(-50%);
+      max-width: 88%; text-align: center; display: none;
+      font-weight: 800; font-size: 21px; line-height: 1.18; letter-spacing: 0.01em;
+      text-transform: uppercase; color: #FFD700;
+      padding: 7px 14px; border-radius: 12px;
+      background: rgba(0,0,0,0.55);
+      text-shadow: 0 2px 6px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.9);
+      pointer-events: none; word-break: break-word;
+    }
+    #caption-overlay.pos-bottom { bottom: 12%; }
+    #caption-overlay.pos-middle { top: 50%; transform: translate(-50%, -50%); }
+
+    /* Custom controls */
+    .player-controls { width: 100%; max-width: 380px; margin-top: 14px; }
+    .controls-row { display: flex; align-items: center; gap: 12px; }
+    .play-btn {
+      flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%;
+      background: linear-gradient(135deg, #d95f1e, #f07030); color: #fff;
+      border: none; cursor: pointer; font-size: 15px;
       display: flex; align-items: center; justify-content: center;
-      color: #fff; font-size: 20px;
-      box-shadow: 0 4px 16px rgba(217,95,30,0.5);
-      transform: scale(1); transition: transform 0.12s;
+      box-shadow: 0 4px 14px rgba(217,95,30,0.4); transition: transform 0.1s;
     }
-    .clip-preview:hover .clip-play-btn { transform: scale(1.1); }
-    .clip-no-video {
-      width: 100%; height: 100%; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 8px;
-      color: #4a4540; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    .play-btn:hover { transform: scale(1.06); }
+    #scrubber {
+      flex: 1; -webkit-appearance: none; appearance: none; height: 5px;
+      background: #272420; border-radius: 3px; outline: none; cursor: pointer; padding: 0; min-width: 0;
     }
+    #scrubber::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none; width: 14px; height: 14px;
+      border-radius: 50%; background: #f07030; cursor: pointer; border: 2px solid #0b0a08;
+    }
+    #scrubber::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #f07030; cursor: pointer; border: 2px solid #0b0a08; }
+    .time-display { flex: 0 0 auto; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: #847d74; font-variant-numeric: tabular-nums; }
 
-    .clip-duration {
-      position: absolute; bottom: 8px; right: 8px;
-      background: rgba(0,0,0,0.75); color: #fff; font-size: 11px; font-weight: 700;
-      padding: 2px 7px; border-radius: 4px;
-    }
-    .clip-score-badge {
-      position: absolute; top: 8px; left: 8px;
-      background: linear-gradient(135deg, #FF8C00, #FFD700); color: #000;
-      font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 4px;
-    }
-    .clip-status-badge {
-      position: absolute; top: 8px; right: 8px;
-      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; letter-spacing: 0.04em;
-    }
-    .clip-status-badge.approved { background: rgba(61,140,92,0.85); color: #fff; }
-    .clip-status-badge.removed  { background: rgba(160,56,56,0.85); color: #fff; }
+    /* Action buttons below player */
+    .player-actions { display: flex; gap: 8px; margin-top: 16px; width: 100%; max-width: 380px; }
+    .player-actions .btn { flex: 1; text-align: center; padding: 10px 12px; font-size: 12px; }
+    .btn-download { background: #1e1b16; border: 1px solid #352f28; color: #F5F7FA; }
+    .btn-download:hover:not(:disabled) { border-color: #d95f1e; color: #f07030; }
+    .btn-signoff { background: rgba(61,140,92,0.15); border: 1px solid #3d8c5c; color: #52c47a; }
+    .btn-signoff:hover { background: rgba(61,140,92,0.25); }
+    .btn-remove { background: transparent; border: 1px solid #272420; color: #847d74; }
+    .btn-remove:hover { border-color: #a03838; color: #ff8080; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    .clip-body { padding: 12px 14px 14px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
-    .clip-hook-edit {
-      font-size: 13px; font-weight: 700; color: #F5F7FA; line-height: 1.4;
-      outline: none; border: 1px solid transparent; border-radius: 5px; padding: 4px 6px;
-      background: transparent; min-height: 36px;
-    }
-    .clip-hook-edit:focus { border-color: #d95f1e; background: #0d0c0a; }
-    .clip-caption-area {
-      font-size: 12px; color: #a0a0c0; border: 1px solid #272420; border-radius: 7px;
-      padding: 8px 10px; background: #0d0c0a; resize: none; font-family: inherit;
-      line-height: 1.5; width: 100%;
-    }
-    .clip-caption-area:focus { outline: none; border-color: #d95f1e; }
-    .clip-caption-label { font-size: 10px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; color: #4a4540; }
+    /* Tools sidebar */
+    .tools-sidebar { display: flex; flex-direction: column; gap: 20px; }
+    .tool-section { display: flex; flex-direction: column; gap: 10px; }
+    .tool-title { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #847d74; }
 
-    .clip-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-    .clip-actions .spacer { flex: 1; }
+    /* Caption style swatches */
+    .swatch-row { display: flex; gap: 10px; }
+    .swatch {
+      width: 38px; height: 38px; border-radius: 9px; cursor: pointer;
+      border: 2px solid #272420; position: relative; transition: all 0.12s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .swatch:hover { transform: translateY(-1px); }
+    .swatch .dot { width: 20px; height: 20px; border-radius: 50%; }
+    .swatch.active { border-color: #f07030; box-shadow: 0 0 0 2px rgba(240,112,48,0.30); }
 
-    /* ── Clip modal — YT Shorts style ── */
-    #clip-modal {
-      display: none; position: fixed; inset: 0; z-index: 1000;
-      background: rgba(0,0,0,0.88); backdrop-filter: blur(6px);
-      align-items: center; justify-content: center;
+    /* Position pills */
+    .pos-row { display: flex; gap: 8px; }
+    .pos-pill {
+      flex: 1; text-align: center; padding: 9px 10px; border-radius: 9px;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.04em; cursor: pointer;
+      background: #0d0c0a; border: 1px solid #272420; color: #847d74; transition: all 0.12s;
     }
-    #clip-modal.open { display: flex; }
-    .clip-modal-inner {
-      display: flex; gap: 28px; align-items: flex-start;
-      max-height: 92vh; width: 100%; max-width: 900px; padding: 0 20px;
-    }
-    .clip-modal-video-wrap {
-      flex-shrink: 0; width: min(340px, 42vw);
-      position: relative; border-radius: 12px; overflow: hidden;
-      background: #000; box-shadow: 0 24px 64px rgba(0,0,0,0.7);
-    }
-    #clip-modal-video {
-      display: block; width: 100%; height: auto;
-      max-height: 88vh; object-fit: contain;
-    }
-    .clip-modal-sidebar {
-      flex: 1; display: flex; flex-direction: column; gap: 16px;
-      padding-top: 8px; min-width: 0;
-    }
-    .clip-modal-close {
-      position: absolute; top: 20px; right: 20px;
-      width: 36px; height: 36px; border-radius: 50%;
-      background: rgba(255,255,255,0.1); border: none; color: #fff;
-      font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-      transition: background 0.15s;
-    }
-    .clip-modal-close:hover { background: rgba(255,255,255,0.2); }
-    .clip-modal-hook { font-size: 20px; font-weight: 700; color: #F5F7FA; line-height: 1.3; }
-    .clip-modal-caption { font-size: 14px; color: #a0a0c0; line-height: 1.6; }
-    .clip-modal-range { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #4a4540; }
-    .clip-modal-actions { display: flex; flex-direction: column; gap: 10px; }
+    .pos-pill:hover { border-color: #352f28; color: #F5F7FA; }
+    .pos-pill.active { background: linear-gradient(135deg, #d95f1e, #f07030); border-color: transparent; color: #fff; }
 
-    /* ── Platform tiles ── */
+    /* Hook editable */
+    #hook-edit {
+      font-size: 14px; font-weight: 700; color: #F5F7FA; line-height: 1.4;
+      outline: none; border: 1px solid #272420; border-radius: 9px; padding: 10px 12px;
+      background: #0d0c0a; min-height: 44px;
+    }
+    #hook-edit:focus { border-color: #d95f1e; }
+    #hook-edit:empty::before { content: 'Add a hook…'; color: #4a4540; }
+
+    #caption-edit { min-height: 96px; font-size: 13px; }
+
+    /* Publish buttons */
+    .publish-section { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px solid #272420; }
+    .publish-btn {
+      width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 11px 14px; border-radius: 10px; font-size: 13px; font-weight: 700;
+      letter-spacing: 0.02em; cursor: pointer; border: none; color: #fff; transition: all 0.12s;
+    }
+    .publish-btn:hover:not(:disabled) { transform: translateY(-1px); opacity: 0.95; }
+    .publish-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .btn-publish-yt { background: #ff0000; }
+    .btn-publish-ig { background: linear-gradient(135deg, #f09433 0%, #C13584 45%, #833AB4 100%); }
+    .btn-publish-tt { background: #010101; border: 1px solid #25F4EE; box-shadow: inset 1px 0 0 #FE2C55; }
+
+    .editor-empty { padding: 60px 20px; text-align: center; color: #4a4540; font-size: 14px; }
+
+    /* ── Platform tiles (Step 4) ── */
     .platforms { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; }
     .plat-tile {
       background: #0d0c0a; border: 1px solid #272420; border-radius: 9px;
@@ -249,10 +290,15 @@
     #toast.show { opacity: 1; transform: translateY(0); }
     #toast.success { border-color: #3d8c5c; }
     #toast.error   { border-color: #a03838; color: #f0c8c8; }
+
+    @media (max-width: 880px) {
+      .editor-grid { grid-template-columns: 1fr; }
+      .tools-sidebar { margin-top: 4px; }
+    }
   </style>
 </head>
 <body>
-  <div class="shell">
+  <div class="shell" id="shell">
 
     <div class="topbar">
       <a href="/projects" class="back">&larr; Job Site</a>
@@ -333,14 +379,94 @@
       </div>
     </div>
 
-    <!-- Step 3 — Clips -->
+    <!-- Step 3 — Clips (Submagic-style editor) -->
     <div id="step3-panel" class="card hidden">
       <div class="card-head">
         <h2>Clips</h2>
         <span class="meta" id="clip-count-meta">0 clips</span>
       </div>
-      <div id="clips-list"></div>
-      <div class="field-row" style="justify-content:flex-end;margin-top:8px;">
+
+      <!-- Empty state (no clips) -->
+      <div id="clips-empty" class="editor-empty hidden">No clips yet — they appear once Ship It finishes.</div>
+
+      <!-- Editor (shown when clips exist) -->
+      <div id="clips-editor" class="hidden">
+
+        <!-- Horizontal clip strip -->
+        <div class="clip-strip-wrap">
+          <div class="clip-strip" id="clip-strip"></div>
+        </div>
+
+        <!-- Player + sidebar -->
+        <div class="editor-grid">
+
+          <!-- Player column -->
+          <div class="player-col">
+            <div class="player-frame">
+              <video id="clip-player" playsinline preload="metadata"></video>
+              <div id="caption-overlay" class="pos-bottom"></div>
+              <div id="player-empty" class="player-empty">
+                <span class="big">🎬</span><span>No video for this clip</span>
+              </div>
+            </div>
+
+            <div class="player-controls">
+              <div class="controls-row">
+                <button class="play-btn" id="play-btn" title="Play / Pause">▶</button>
+                <input type="range" id="scrubber" min="0" max="100" value="0" step="0.1" aria-label="Seek" />
+                <span class="time-display" id="time-display">0:00 / 0:00</span>
+              </div>
+            </div>
+
+            <div class="player-actions">
+              <button class="btn btn-download" id="download-btn">↓ Download</button>
+              <button class="btn btn-signoff" id="signoff-btn">✓ Sign Off</button>
+              <button class="btn btn-remove" id="remove-btn">✕ Remove</button>
+            </div>
+          </div>
+
+          <!-- Tools sidebar -->
+          <div class="tools-sidebar">
+
+            <div class="tool-section">
+              <div class="tool-title">Caption Style</div>
+              <div class="swatch-row" id="caption-swatches">
+                <div class="swatch active" data-color="#FFD700" title="Yellow"><span class="dot" style="background:#FFD700;"></span></div>
+                <div class="swatch" data-color="#FFFFFF" title="White"><span class="dot" style="background:#FFFFFF;"></span></div>
+                <div class="swatch" data-color="#00FF88" title="Green"><span class="dot" style="background:#00FF88;"></span></div>
+                <div class="swatch" data-color="#f07030" title="Orange"><span class="dot" style="background:#f07030;"></span></div>
+              </div>
+            </div>
+
+            <div class="tool-section">
+              <div class="tool-title">Caption Position</div>
+              <div class="pos-row" id="caption-positions">
+                <div class="pos-pill active" data-pos="bottom">Bottom</div>
+                <div class="pos-pill" data-pos="middle">Middle</div>
+              </div>
+            </div>
+
+            <div class="tool-section">
+              <div class="tool-title">Hook Text</div>
+              <div id="hook-edit" contenteditable="true" spellcheck="true"></div>
+            </div>
+
+            <div class="tool-section">
+              <div class="tool-title">Caption / Post Copy</div>
+              <textarea id="caption-edit" rows="4" placeholder="Foundation-generated caption…"></textarea>
+            </div>
+
+            <div class="publish-section">
+              <button class="publish-btn btn-publish-yt" id="post-yt-btn">▶ Post to YouTube</button>
+              <button class="publish-btn btn-publish-ig" id="post-ig-btn">📷 Post to Instagram</button>
+              <button class="publish-btn btn-publish-tt" id="post-tt-btn">🎵 Post to TikTok</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="field-row" style="justify-content:flex-end;margin-top:18px;">
         <button class="btn btn-primary" id="step3-next-btn">Next &rarr;</button>
       </div>
     </div>
@@ -370,22 +496,6 @@
 
   </div><!-- /shell -->
 
-  <!-- Clip modal — YT Shorts vertical player -->
-  <div id="clip-modal">
-    <button class="clip-modal-close" id="clip-modal-close" title="Close">✕</button>
-    <div class="clip-modal-inner">
-      <div class="clip-modal-video-wrap">
-        <video id="clip-modal-video" controls playsinline></video>
-      </div>
-      <div class="clip-modal-sidebar">
-        <div class="clip-modal-hook" id="clip-modal-hook"></div>
-        <div class="clip-modal-range" id="clip-modal-range"></div>
-        <div class="clip-modal-caption" id="clip-modal-caption"></div>
-        <div class="clip-modal-actions" id="clip-modal-actions"></div>
-      </div>
-    </div>
-  </div>
-
   <div id="toast"></div>
 
   <script>
@@ -414,6 +524,17 @@
       transcriptDirty: false,
       transcriptSaving: false,
     };
+
+    // ── Clip editor state ────────────────────────────────────────────────
+    let _activeClipIdx = 0;       // index into the de-duplicated visible clip list
+    let _visibleClips = [];       // current de-duplicated clip list driving the strip
+    let _currentClipId = null;    // id of the clip currently loaded in the player
+    let _srtEntries = [];         // parsed SRT for the active clip
+    let _captionColor = '#FFD700';
+    let _captionPos = 'bottom';   // 'bottom' | 'middle'
+    let _hookTimer = null;
+    let _capTimer = null;
+    let _controlsBound = false;
 
     // ── Utilities ──────────────────────────────────────────────────────────
     function $(id) { return document.getElementById(id); }
@@ -460,6 +581,12 @@
       el.className = 'show ' + (kind || '');
       clearTimeout(el._t);
       el._t = setTimeout(() => { el.className = ''; }, 3000);
+    }
+    function fmtTime(s) {
+      if (s == null || isNaN(s)) return '0:00';
+      const m = Math.floor(s / 60);
+      const sec = Math.floor(s % 60);
+      return m + ':' + String(sec).padStart(2, '0');
     }
 
     // ── API ────────────────────────────────────────────────────────────────
@@ -548,6 +675,7 @@
 
     function showStep1() {
       hideAllStepPanels();
+      stopPlayer();
       $('step1-panel').classList.remove('hidden');
       const p = state.project || {};
       const text = p.transcript || '';
@@ -584,6 +712,7 @@
 
     function showStep2() {
       hideAllStepPanels();
+      stopPlayer();
       $('step2-panel').classList.remove('hidden');
       const p = state.project || {};
       const wrap = $('audio-player-wrap');
@@ -606,11 +735,13 @@
     function showStep3() {
       hideAllStepPanels();
       $('step3-panel').classList.remove('hidden');
+      $('shell').classList.add('wide');
       renderClips();
     }
 
     function showStep4() {
       hideAllStepPanels();
+      stopPlayer();
       $('step4-panel').classList.remove('hidden');
       const p = state.project || {};
       $('closing-at').value = toLocalInputValue(p.closing_scheduled_at) || defaultClosingTime();
@@ -620,155 +751,337 @@
 
     function showProcessing() {
       hideAllStepPanels();
+      stopPlayer();
       $('processing-panel').classList.remove('hidden');
     }
 
-    // ── Clips ──────────────────────────────────────────────────────────────
-    function fmtDuration(start, end) {
-      const secs = Math.max(0, Math.round((Number(end)||0) - (Number(start)||0)));
-      return Math.floor(secs/60) + ':' + String(secs%60).padStart(2,'0');
+    // ════════════════════════════════════════════════════════════════════
+    // STEP 3 — SUBMAGIC CLIP EDITOR
+    // ════════════════════════════════════════════════════════════════════
+
+    // SRT parser — turns SRT text into [{start, end, text}]
+    function parseSRT(text) {
+      if (!text) return [];
+      const blocks = String(text).trim().split(/\n\n+/);
+      return blocks.map(block => {
+        const lines = block.trim().split('\n');
+        if (lines.length < 2) return null;
+        const timeMatch = lines[1].match(/(\d{2}:\d{2}:\d{2}[,\.]\d{3}) --> (\d{2}:\d{2}:\d{2}[,\.]\d{3})/);
+        if (!timeMatch) return null;
+        const toSec = t => { const [h,m,s] = t.replace(',', '.').split(':'); return +h*3600 + +m*60 + +s; };
+        return { start: toSec(timeMatch[1]), end: toSec(timeMatch[2]), text: lines.slice(2).join('\n') };
+      }).filter(Boolean);
     }
 
-    function renderClips() {
-      const wrap = $('clips-list');
-      // De-duplicate by rendered_url so repeated Ship It runs don't show duplicates
-      const allClips = Array.isArray(state.clips) ? state.clips : [];
+    // Visible clip list = de-duplicated by rendered_url (or id) so repeated Ship It runs don't double up.
+    function buildVisibleClips() {
+      const all = Array.isArray(state.clips) ? state.clips : [];
       const seen = new Set();
-      const clips = allClips.filter(c => {
+      return all.filter(c => {
         const key = c.rendered_url || c.id;
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       });
+    }
 
-      $('clip-count-meta').textContent = clips.length + ' clip' + (clips.length !== 1 ? 's' : '');
-      if (!clips.length) {
-        wrap.innerHTML = '<div class="empty">No clips yet — they appear once Ship It finishes.</div>';
+    // Entry point — kept so signOffClip / removeClip / reloadClips can refresh the UI.
+    function renderClips() {
+      _visibleClips = buildVisibleClips();
+      const count = _visibleClips.length;
+      $('clip-count-meta').textContent = count + ' clip' + (count !== 1 ? 's' : '');
+
+      const emptyEl = $('clips-empty');
+      const editorEl = $('clips-editor');
+      if (!count) {
+        emptyEl.classList.remove('hidden');
+        editorEl.classList.add('hidden');
+        stopPlayer();
+        _currentClipId = null;
         return;
       }
+      emptyEl.classList.add('hidden');
+      editorEl.classList.remove('hidden');
 
-      const html = clips.map((c, i) => {
+      // Keep the active index valid; if the active clip vanished, snap to 0.
+      if (_activeClipIdx >= count || _activeClipIdx < 0) _activeClipIdx = 0;
+
+      renderClipStrip();
+
+      // Load the active clip into the player only if it isn't already loaded
+      // (avoids interrupting playback on a status patch re-render).
+      const active = _visibleClips[_activeClipIdx];
+      if (active && active.id !== _currentClipId) {
+        loadClipIntoPlayer(active);
+      } else if (active) {
+        syncActionButtons(active);
+      }
+    }
+
+    function renderClipStrip() {
+      const strip = $('clip-strip');
+      strip.innerHTML = _visibleClips.map((c, i) => {
         const status = c.status || 'pending';
-        const hook = escHtml(c.hook_text || '');
-        const caption = escHtml(c.clip_caption || c.caption || '');
-        const score = c.virality_score != null ? Number(c.virality_score).toFixed(2) : null;
-        const dur = fmtDuration(c.source_start_seconds, c.source_end_seconds);
         const hasVideo = !!c.rendered_url;
-
-        const statusBadge = (status === 'approved' || status === 'removed')
-          ? `<span class="clip-status-badge ${escHtml(status)}">${status === 'approved' ? '✓ Signed off' : '✕ Removed'}</span>`
-          : '';
-        const scoreBadge = score ? `<span class="clip-score-badge">⚡ ${escHtml(score)}</span>` : '';
-
-        return `
-          <div class="clip-card ${escHtml(status)}" data-idx="${i}" data-clip-id="${escHtml(c.id)}">
-            <div class="clip-preview" data-idx="${i}">
-              ${hasVideo
-                ? `<div class="clip-play-overlay">
-                     <div class="clip-play-btn">▶</div>
-                   </div>
-                   <span class="clip-duration">${escHtml(dur)}</span>
-                   ${scoreBadge}
-                   ${statusBadge}`
-                : `<div class="clip-no-video"><span style="font-size:28px;">🎬</span><span>No video</span></div>`
-              }
-            </div>
-            <div class="clip-body">
-              <div class="clip-hook-edit" contenteditable="true" data-field="hook_text" spellcheck="true">${hook}</div>
-              <div>
-                <div class="clip-caption-label">Caption</div>
-                <textarea class="clip-caption-area" data-field="clip_caption" rows="3">${caption}</textarea>
-              </div>
-              <div class="clip-actions">
-                ${hasVideo ? `<button class="btn-yt" data-action="post-yt" title="Upload this Short to YouTube">▶ Post to YouTube</button>` : ''}
-                <span class="spacer"></span>
-                <button class="btn-approve" data-action="approve">Sign off</button>
-                <button class="btn-remove"  data-action="remove">Remove</button>
-              </div>
-            </div>
-          </div>`;
+        const num = String(i + 1).padStart(2, '0');
+        const activeCls = i === _activeClipIdx ? ' active' : '';
+        const removedCls = status === 'removed' ? ' removed' : '';
+        const dotCls = status === 'approved' ? ' approved' : (status === 'removed' ? ' removed' : '');
+        const inner = hasVideo
+          ? '<video class="strip-thumb" src="' + escHtml(c.rendered_url) + '#t=0.1" muted preload="metadata" playsinline></video>'
+          : '<span class="strip-novideo">🎬</span>';
+        return '<div class="strip-card' + activeCls + removedCls + '" data-idx="' + i + '">' +
+                 inner +
+                 '<span class="strip-num">' + num + '</span>' +
+                 '<span class="strip-dot' + dotCls + '"></span>' +
+               '</div>';
       }).join('');
 
-      wrap.innerHTML = `<div class="clips-grid">${html}</div>`;
-
-      // Bind events
-      wrap.querySelectorAll('.clip-card').forEach((card, i) => {
-        const clipId = card.getAttribute('data-clip-id');
-        const clip = clips[i];
-        const hookEl = card.querySelector('.clip-hook-edit');
-        const capEl  = card.querySelector('textarea[data-field="clip_caption"]');
-        let hookTimer, capTimer;
-
-        function debouncedSave(field, value) {
-          patchClip(clipId, { [field]: value })
-            .catch(err => toast('Could not save — ' + err.message, 'error'));
-        }
-        if (hookEl) hookEl.addEventListener('input', () => {
-          clearTimeout(hookTimer);
-          hookTimer = setTimeout(() => debouncedSave('hook_text', hookEl.innerText.trim()), 700);
+      strip.querySelectorAll('.strip-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const idx = parseInt(card.getAttribute('data-idx'), 10);
+          if (!isNaN(idx)) selectClip(idx);
         });
-        if (capEl) capEl.addEventListener('input', () => {
-          clearTimeout(capTimer);
-          capTimer = setTimeout(() => debouncedSave('clip_caption', capEl.value), 700);
-        });
+      });
+    }
 
-        // Play button opens modal
-        const preview = card.querySelector('.clip-preview');
-        if (preview && clip.rendered_url) {
-          preview.addEventListener('click', () => openClipModal(clip, clipId));
+    function selectClip(idx) {
+      if (idx === _activeClipIdx && _visibleClips[idx] && _visibleClips[idx].id === _currentClipId) return;
+      _activeClipIdx = idx;
+      renderClipStrip();
+      const clip = _visibleClips[idx];
+      if (clip) loadClipIntoPlayer(clip);
+    }
+
+    function loadClipIntoPlayer(clip) {
+      const video = $('clip-player');
+      const emptyEl = $('player-empty');
+      _currentClipId = clip.id;
+
+      // Reset caption state for the new clip.
+      _srtEntries = [];
+      const overlay = $('caption-overlay');
+      overlay.style.display = 'none';
+      overlay.textContent = '';
+
+      if (clip.rendered_url) {
+        emptyEl.style.display = 'none';
+        video.style.visibility = 'visible';
+        video.src = clip.rendered_url;
+        video.load();
+        loadClipSRT(clip);
+      } else {
+        // No rendered video — show the empty state, stop any prior playback.
+        video.removeAttribute('src');
+        try { video.load(); } catch(e) {}
+        video.style.visibility = 'hidden';
+        emptyEl.style.display = 'flex';
+      }
+
+      // Reset controls UI.
+      $('scrubber').value = 0;
+      $('time-display').textContent = '0:00 / 0:00';
+      $('play-btn').textContent = '▶';
+
+      // Populate sidebar fields.
+      $('hook-edit').textContent = clip.hook_text || '';
+      $('caption-edit').value = clip.clip_caption || clip.caption || '';
+
+      syncActionButtons(clip);
+    }
+
+    function syncActionButtons(clip) {
+      const status = clip.status || 'pending';
+      const hasVideo = !!clip.rendered_url;
+      $('download-btn').disabled = !hasVideo;
+      $('post-yt-btn').disabled = !hasVideo;
+      $('post-ig-btn').disabled = !hasVideo;
+      $('post-tt-btn').disabled = !hasVideo;
+
+      const signoff = $('signoff-btn');
+      if (status === 'approved') {
+        signoff.textContent = '✓ Signed off';
+        signoff.disabled = true;
+      } else {
+        signoff.textContent = '✓ Sign Off';
+        signoff.disabled = false;
+      }
+    }
+
+    async function loadClipSRT(clip) {
+      _srtEntries = [];
+      if (!clip.rendered_url) return;
+      const reqClipId = clip.id;
+      try {
+        const resp = await fetch('/api/projects/' + encodeURIComponent(PROJECT_ID) + '/clips/' + encodeURIComponent(clip.id) + '/srt');
+        if (!resp.ok) return; // No SRT — captions simply stay hidden.
+        const text = await resp.text();
+        // Guard against a race where the user switched clips while this fetch was in flight.
+        if (_currentClipId !== reqClipId) return;
+        _srtEntries = parseSRT(text);
+      } catch (e) {
+        _srtEntries = [];
+      }
+    }
+
+    function renderCaption(currentTime) {
+      const overlay = $('caption-overlay');
+      if (!_srtEntries.length) { overlay.style.display = 'none'; return; }
+      const entry = _srtEntries.find(e => currentTime >= e.start && currentTime < e.end);
+      if (entry) {
+        overlay.textContent = entry.text.replace(/\n/g, ' ');
+        overlay.style.color = _captionColor;
+        overlay.style.display = 'block';
+      } else {
+        overlay.style.display = 'none';
+      }
+    }
+
+    function stopPlayer() {
+      const video = $('clip-player');
+      if (!video) return;
+      try { video.pause(); } catch(e) {}
+    }
+
+    function initVideoControls() {
+      if (_controlsBound) return;
+      _controlsBound = true;
+      const video = $('clip-player');
+      const playBtn = $('play-btn');
+      const scrubber = $('scrubber');
+      const timeEl = $('time-display');
+
+      video.addEventListener('timeupdate', () => {
+        if (!isNaN(video.duration) && video.duration > 0) {
+          scrubber.value = (video.currentTime / video.duration) * 100;
+          timeEl.textContent = fmtTime(video.currentTime) + ' / ' + fmtTime(video.duration);
         }
+        renderCaption(video.currentTime);
+      });
+      video.addEventListener('loadedmetadata', () => {
+        timeEl.textContent = fmtTime(0) + ' / ' + fmtTime(video.duration);
+      });
+      video.addEventListener('play',  () => { playBtn.textContent = '⏸'; });
+      video.addEventListener('pause', () => { playBtn.textContent = '▶'; });
+      video.addEventListener('ended', () => { playBtn.textContent = '▶'; });
 
-        // Action buttons
-        const approveBtn = card.querySelector('[data-action="approve"]');
-        const removeBtn  = card.querySelector('[data-action="remove"]');
-        const ytBtn      = card.querySelector('[data-action="post-yt"]');
-        if (approveBtn) approveBtn.addEventListener('click', () => signOffClip(clipId));
-        if (removeBtn)  removeBtn.addEventListener('click',  () => removeClip(clipId));
-        if (ytBtn)      ytBtn.addEventListener('click',      () => postClipToYouTube(clip, clipId, ytBtn));
+      playBtn.addEventListener('click', () => {
+        if (!video.src) return;
+        if (video.paused) { video.play().catch(() => {}); }
+        else { video.pause(); }
+      });
+      scrubber.addEventListener('input', () => {
+        if (!isNaN(video.duration) && video.duration > 0) {
+          video.currentTime = (scrubber.value / 100) * video.duration;
+        }
       });
     }
 
-    // ── Clip modal ─────────────────────────────────────────────────────────
-    function openClipModal(clip, clipId) {
-      const modal = $('clip-modal');
-      const video = $('clip-modal-video');
-      $('clip-modal-hook').textContent = clip.hook_text || '';
-      $('clip-modal-range').textContent = fmtRange(clip.source_start_seconds, clip.source_end_seconds);
-      $('clip-modal-caption').textContent = clip.clip_caption || clip.caption || '';
-      video.src = clip.rendered_url;
-      video.load();
-      video.play().catch(() => {});
-
-      // Action buttons in sidebar
-      const actions = $('clip-modal-actions');
-      actions.innerHTML = `
-        <button class="btn-yt" id="modal-yt-btn" style="width:100%;justify-content:center;display:flex;align-items:center;gap:6px;">
-          ▶ Post to YouTube
-        </button>
-        <button class="btn-approve" id="modal-approve-btn" style="width:100%;justify-content:center;">Sign off</button>
-        <button class="btn-remove"  id="modal-remove-btn"  style="width:100%;justify-content:center;">Remove</button>
-      `;
-      $('modal-yt-btn').addEventListener('click', () => postClipToYouTube(clip, clipId, $('modal-yt-btn')));
-      $('modal-approve-btn').addEventListener('click', async () => {
-        await signOffClip(clipId);
-        closeClipModal();
-      });
-      $('modal-remove-btn').addEventListener('click', async () => {
-        await removeClip(clipId);
-        closeClipModal();
+    function initEditorTools() {
+      // Caption color swatches.
+      document.querySelectorAll('#caption-swatches .swatch').forEach(sw => {
+        sw.addEventListener('click', () => {
+          document.querySelectorAll('#caption-swatches .swatch').forEach(s => s.classList.remove('active'));
+          sw.classList.add('active');
+          _captionColor = sw.getAttribute('data-color') || '#FFD700';
+          const overlay = $('caption-overlay');
+          overlay.style.color = _captionColor;
+        });
       });
 
-      modal.classList.add('open');
+      // Caption position pills.
+      document.querySelectorAll('#caption-positions .pos-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+          document.querySelectorAll('#caption-positions .pos-pill').forEach(p => p.classList.remove('active'));
+          pill.classList.add('active');
+          _captionPos = pill.getAttribute('data-pos') || 'bottom';
+          const overlay = $('caption-overlay');
+          overlay.classList.remove('pos-bottom', 'pos-middle');
+          overlay.classList.add(_captionPos === 'middle' ? 'pos-middle' : 'pos-bottom');
+        });
+      });
+
+      // Hook text — debounced auto-save on input, immediate on blur.
+      const hookEl = $('hook-edit');
+      hookEl.addEventListener('input', () => {
+        clearTimeout(_hookTimer);
+        _hookTimer = setTimeout(saveHook, 700);
+      });
+      hookEl.addEventListener('blur', () => { clearTimeout(_hookTimer); saveHook(); });
+
+      // Caption — debounced auto-save on input, immediate on blur.
+      const capEl = $('caption-edit');
+      capEl.addEventListener('input', () => {
+        clearTimeout(_capTimer);
+        _capTimer = setTimeout(saveCaption, 700);
+      });
+      capEl.addEventListener('blur', () => { clearTimeout(_capTimer); saveCaption(); });
+
+      // Action buttons.
+      $('download-btn').addEventListener('click', () => {
+        const clip = _visibleClips[_activeClipIdx];
+        if (clip) downloadClip(clip);
+      });
+      $('signoff-btn').addEventListener('click', () => {
+        if (_currentClipId) signOffClip(_currentClipId);
+      });
+      $('remove-btn').addEventListener('click', () => {
+        if (_currentClipId) removeClip(_currentClipId);
+      });
+
+      // Publish buttons.
+      $('post-yt-btn').addEventListener('click', () => {
+        const clip = _visibleClips[_activeClipIdx];
+        if (clip) postClipToYouTube(clip, clip.id, $('post-yt-btn'));
+      });
+      $('post-ig-btn').addEventListener('click', () => {
+        const clip = _visibleClips[_activeClipIdx];
+        if (clip) postClipToInstagram(clip, clip.id, $('post-ig-btn'));
+      });
+      $('post-tt-btn').addEventListener('click', () => {
+        const clip = _visibleClips[_activeClipIdx];
+        if (clip) postClipToTikTok(clip, clip.id, $('post-tt-btn'));
+      });
     }
 
-    function closeClipModal() {
-      const modal = $('clip-modal');
-      const video = $('clip-modal-video');
-      modal.classList.remove('open');
-      video.pause();
-      video.src = '';
+    function activeClipId() {
+      const clip = _visibleClips[_activeClipIdx];
+      return clip ? clip.id : null;
     }
 
+    function saveHook() {
+      const id = activeClipId();
+      if (!id) return;
+      const value = $('hook-edit').innerText.trim();
+      const clip = state.clips.find(c => c.id === id);
+      if (clip && (clip.hook_text || '') === value) return; // No change.
+      patchClip(id, { hook_text: value })
+        .then(() => { if (clip) clip.hook_text = value; })
+        .catch(err => toast('Could not save hook — ' + err.message, 'error'));
+    }
+
+    function saveCaption() {
+      const id = activeClipId();
+      if (!id) return;
+      const value = $('caption-edit').value;
+      const clip = state.clips.find(c => c.id === id);
+      if (clip && (clip.clip_caption || clip.caption || '') === value) return; // No change.
+      patchClip(id, { clip_caption: value })
+        .then(() => { if (clip) clip.clip_caption = value; })
+        .catch(err => toast('Could not save caption — ' + err.message, 'error'));
+    }
+
+    function downloadClip(clip) {
+      if (!clip.rendered_url) { toast('No video to download for this clip.', 'error'); return; }
+      const a = document.createElement('a');
+      a.href = clip.rendered_url;
+      a.download = 'clip_' + String(_activeClipIdx + 1).padStart(2, '0') + '.mp4';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    // ── Publish handlers ─────────────────────────────────────────────────
     async function postClipToYouTube(clip, clipId, btn) {
       const p = state.project || {};
       const ytConnected = await checkYouTubeConnected();
@@ -777,11 +1090,12 @@
         return;
       }
       const hook = clip.hook_text || p.title || 'PodClick Short';
-      const desc = (clip.clip_caption || '') + (p.mp3_url ? '\n\n' + (p.buzzsprout_url || '') : '');
+      const desc = (clip.clip_caption || clip.caption || '') + (p.buzzsprout_url ? '\n\n' + p.buzzsprout_url : '');
+      const original = btn.textContent;
       btn.disabled = true;
       btn.textContent = 'Uploading…';
       try {
-        const res = await api('POST', '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/clips/' + encodeURIComponent(clipId) + '/post-to-youtube', {
+        await api('POST', '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/clips/' + encodeURIComponent(clipId) + '/post-to-youtube', {
           title: hook.substring(0, 100),
           description: desc.trim(),
         });
@@ -790,7 +1104,7 @@
       } catch(err) {
         toast('YouTube upload failed — ' + err.message, 'error');
         btn.disabled = false;
-        btn.textContent = '▶ Post to YouTube';
+        btn.textContent = original;
       }
     }
 
@@ -799,6 +1113,49 @@
         const s = await api('GET', '/api/youtube/status');
         return !!(s && s.connected);
       } catch(e) { return false; }
+    }
+
+    // Instagram: the API requires an image for direct posting, so the copy path
+    // is "copy caption + open Instagram" — consistent with Social Studio behavior.
+    async function postClipToInstagram(clip, clipId, btn) {
+      const caption = clip.clip_caption || clip.caption || clip.hook_text || '';
+      const copied = await copyToClipboard(caption);
+      if (copied) {
+        toast('Caption copied — post the clip on Instagram with this copy.', 'success');
+      } else {
+        toast('Could not copy caption automatically — copy it from the sidebar.', 'error');
+      }
+    }
+
+    async function postClipToTikTok(clip, clipId, btn) {
+      const caption = clip.clip_caption || clip.caption || clip.hook_text || '';
+      const copied = await copyToClipboard(caption);
+      if (copied) {
+        toast('Caption copied — download the clip, then post it on TikTok.', 'success');
+      } else {
+        toast('Could not copy caption automatically — copy it from the sidebar.', 'error');
+      }
+    }
+
+    async function copyToClipboard(text) {
+      if (!text) return false;
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch (e) { /* fall through to execCommand */ }
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      } catch (e) { return false; }
     }
 
     async function signOffClip(clipId) {
@@ -810,6 +1167,7 @@
         toast('Clip signed off.', 'success');
       } catch(err) { toast('Sign-off failed — ' + err.message, 'error'); }
     }
+
     async function removeClip(clipId) {
       try {
         await patchClip(clipId, { status: 'removed' });
@@ -857,6 +1215,8 @@
 
       if (p.status === 'failed') {
         hideAllStepPanels();
+        stopPlayer();
+        $('shell').classList.remove('wide');
         $('failed-banner').classList.remove('hidden');
         $('success-banner').classList.add('hidden');
         renderWizardBar(p.wizard_step || 1);
@@ -873,6 +1233,7 @@
       }
 
       if (p.status === 'processing') {
+        $('shell').classList.remove('wide');
         renderWizardBar(0);
         showProcessing();
         startProcessingPoll();
@@ -884,6 +1245,9 @@
       const stored = (p.wizard_step != null && p.wizard_step >= 1 && p.wizard_step <= 4) ? p.wizard_step : 1;
       const wizardStep = (p.status === 'review' && stored === 1) ? 3 : stored;
       renderWizardBar(wizardStep);
+
+      // The wide layout is only for the clip editor.
+      if (wizardStep !== 3) $('shell').classList.remove('wide');
 
       if (wizardStep <= 1)      showStep1();
       else if (wizardStep === 2) showStep2();
@@ -926,7 +1290,9 @@
         state.clips = Array.isArray(data) ? data : [];
         renderClips();
       } catch(err) {
-        $('clips-list').innerHTML = '<div class="empty">Could not load clips — ' + escHtml(err.message) + '</div>';
+        $('clips-empty').classList.remove('hidden');
+        $('clips-editor').classList.add('hidden');
+        $('clips-empty').textContent = 'Could not load clips — ' + err.message;
       }
     }
 
@@ -976,14 +1342,9 @@
       // Wizard bar clicks
       bindWizardClicks();
 
-      // Clip modal close
-      $('clip-modal-close').addEventListener('click', closeClipModal);
-      $('clip-modal').addEventListener('click', e => {
-        if (e.target === $('clip-modal')) closeClipModal();
-      });
-      document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') closeClipModal();
-      });
+      // Clip editor (player controls + sidebar tools)
+      initVideoControls();
+      initEditorTools();
 
       window.addEventListener('beforeunload', e => {
         if (state.transcriptDirty) { e.preventDefault(); e.returnValue = ''; }

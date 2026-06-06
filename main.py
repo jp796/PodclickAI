@@ -1505,6 +1505,41 @@ async def serve_project_clip_video(project_id: str, clip_id: str):
     return _FR(path=path, media_type="video/mp4", filename=Path(path).name)
 
 
+@app.get("/api/projects/{project_id}/clips/{clip_id}/srt")
+async def serve_project_clip_srt(project_id: str, clip_id: str):
+    """Return the SRT caption file for a rendered clip as plain text."""
+    from fastapi.responses import PlainTextResponse
+    from db.engine import async_session as _async_session
+    from db.models import Clip
+    from sqlalchemy import select
+    import uuid as _uuid
+
+    try:
+        pid = _uuid.UUID(project_id)
+        cid = _uuid.UUID(clip_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+
+    async with _async_session() as session:
+        clip = (await session.execute(
+            select(Clip).where(Clip.id == cid, Clip.project_id == pid)
+        )).scalar_one_or_none()
+
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    # Derive SRT path from rendered_url (stored as filesystem path)
+    rendered = clip.rendered_url or ""
+    if rendered.startswith("/api/"):
+        raise HTTPException(status_code=404, detail="SRT not available")
+
+    srt_path = Path(rendered).with_suffix(".srt")
+    if not srt_path.exists():
+        raise HTTPException(status_code=404, detail="SRT file not on disk")
+
+    return PlainTextResponse(srt_path.read_text(encoding="utf-8"))
+
+
 @app.post("/api/projects/{project_id}/clips/{clip_id}/post-to-youtube")
 async def post_clip_to_youtube(project_id: str, clip_id: str, request: Request):
     """
