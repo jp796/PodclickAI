@@ -23,7 +23,14 @@
     /* ── Header card ── */
     .header-card { background: #161410; border: 1px solid #272420; border-left: 3px solid #d95f1e; border-radius: 10px; padding: 18px 20px; margin-bottom: 18px; }
     .header-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #4a4540; margin-bottom: 6px; }
-    .header-title { font-size: 24px; font-weight: 700; color: #F5F7FA; line-height: 1.15; }
+    .header-title {
+      font-size: 24px; font-weight: 700; color: #F5F7FA; line-height: 1.15;
+      outline: none; border-radius: 6px; padding: 2px 6px; margin: -2px -6px;
+      transition: background 0.15s;
+    }
+    .header-title[contenteditable="true"]:hover { background: rgba(255,255,255,0.04); cursor: text; }
+    .header-title[contenteditable="true"]:focus { background: #0d0c0a; box-shadow: 0 0 0 2px #d95f1e; }
+    .title-saving { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #4a4540; margin-left: 10px; vertical-align: middle; transition: opacity 0.2s; }
     .header-meta { margin-top: 8px; display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #847d74; }
     .status-pill { padding: 3px 9px; border-radius: 4px; border: 1px solid #272420; }
     .status-draft          { color: #4a4540; }
@@ -300,8 +307,8 @@
     </div>
 
     <div id="header-card" class="header-card">
-      <div class="header-eyebrow">Project</div>
-      <div class="header-title" id="header-title">Loading…</div>
+      <div class="header-eyebrow">Project <span class="title-saving hidden" id="title-saving">Saving…</span></div>
+      <div class="header-title" id="header-title" contenteditable="true" spellcheck="false">Loading…</div>
       <div class="header-meta" id="header-meta"></div>
     </div>
 
@@ -598,7 +605,28 @@
     function shipIt()              { return api('POST', '/api/projects/'+encodeURIComponent(PROJECT_ID)+'/ship-it'); }
     function scheduleClosing(payload) { return api('POST','/api/projects/'+encodeURIComponent(PROJECT_ID)+'/schedule-closing', payload); }
 
-    // ── Header ─────────────────────────────────────────────────────────────
+    // ── Header + inline title edit ──────────────────────────────────────────
+    let _titleSaveTimer = null;
+
+    async function saveTitle() {
+      const el = $('header-title');
+      const newTitle = el.textContent.trim();
+      if (!newTitle || newTitle === (state.project && state.project.title)) return;
+      const saving = $('title-saving');
+      saving.classList.remove('hidden');
+      try {
+        const updated = await patchProject({ title: newTitle });
+        if (state.project) state.project.title = newTitle;
+        document.title = newTitle + ' · PodClick';
+        toast('Title saved.', 'success');
+      } catch(err) {
+        toast('Could not save title — ' + err.message, 'error');
+        el.textContent = (state.project && state.project.title) || 'Untitled Project';
+      } finally {
+        saving.classList.add('hidden');
+      }
+    }
+
     function renderHeader(p) {
       const title = p.title || 'Untitled Project';
       $('header-title').textContent = title;
@@ -1313,6 +1341,20 @@
 
     // ── Bind controls ──────────────────────────────────────────────────────
     function bindControls() {
+      // ── Inline title editing ──
+      const titleEl = $('header-title');
+      titleEl.addEventListener('blur', () => {
+        clearTimeout(_titleSaveTimer);
+        saveTitle();
+      });
+      titleEl.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); }
+        if (e.key === 'Escape') {
+          titleEl.textContent = (state.project && state.project.title) || 'Untitled Project';
+          titleEl.blur();
+        }
+      });
+
       $('transcript-area').addEventListener('input', () => {
         state.transcriptDirty = true;
         $('step1-wordcount').textContent = wordCount($('transcript-area').value) + ' words';
