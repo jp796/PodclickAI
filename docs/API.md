@@ -774,7 +774,8 @@ Notes:    Triggers the same logic as the 4am cron. Useful for manual testing.
 | GET | `/api/projects/{id}` | Single project detail |
 | PATCH | `/api/projects/{id}` | Update editable fields |
 | POST | `/api/projects/{id}/transition` | State-machine transition |
-| GET | `/api/projects/{id}/clips` | List clips for project |
+| GET | `/api/projects/{id}/clips` | List clips for project (rendered_url returns /video endpoint, not filesystem path) |
+| GET | `/api/projects/{id}/clips/{clipId}/video` | Stream rendered MP4 for in-browser preview |
 | PATCH | `/api/projects/{id}/clips/{clipId}` | Update clip caption/status/hook_text |
 | POST | `/api/projects/{id}/ship-it` | Hero button — trigger full pipeline |
 | POST | `/api/projects/from-upload` | Phase C — upload pre-recorded file → project + transcription |

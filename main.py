@@ -1458,9 +1458,51 @@ async def list_project_clips(project_id: str):
             "hook_text": c.hook_text,
             "clip_caption": c.clip_caption,
             "virality_score": c.virality_score,
-            "rendered_url": c.rendered_url,
+            # rendered_url is a filesystem path — expose a streamable /video URL instead
+            "rendered_url": (
+                f"/api/projects/{c.project_id}/clips/{c.id}/video"
+                if c.rendered_url and Path(c.rendered_url).exists()
+                else None
+            ),
+            "srt_url": c.srt_url,
             "status": c.status,
         } for c in rows])
+
+
+@app.get("/api/projects/{project_id}/clips/{clip_id}/video")
+async def serve_project_clip_video(project_id: str, clip_id: str):
+    """
+    Stream a rendered project clip MP4 for in-browser preview.
+
+    The rendered_url stored on Clip rows is a local filesystem path.
+    This endpoint converts it to a streamable HTTP response so the
+    project.html Step 3 video player works without filesystem access.
+    """
+    from fastapi.responses import FileResponse as _FR
+    from db.engine import async_session as _async_session
+    from db.models import Clip
+    from sqlalchemy import select
+    import uuid as _uuid
+
+    try:
+        pid = _uuid.UUID(project_id)
+        cid = _uuid.UUID(clip_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+
+    async with _async_session() as session:
+        clip = (await session.execute(
+            select(Clip).where(Clip.id == cid, Clip.project_id == pid)
+        )).scalar_one_or_none()
+
+    if not clip:
+        raise HTTPException(status_code=404, detail="Clip not found")
+
+    path = clip.rendered_url or ""
+    if not path or not Path(path).exists():
+        raise HTTPException(status_code=404, detail="Clip file not on disk")
+
+    return _FR(path=path, media_type="video/mp4", filename=Path(path).name)
 
 
 @app.patch("/api/projects/{project_id}/clips/{clip_id}")
