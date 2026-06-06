@@ -1125,7 +1125,7 @@
     async function checkYouTubeConnected() {
       try {
         const s = await api('GET', '/api/youtube/status');
-        return !!(s && s.connected);
+        return !!(s && (s.authorized || s.connected));
       } catch(e) { return false; }
     }
 
