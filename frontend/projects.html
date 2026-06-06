@@ -4,125 +4,167 @@
   <meta charset="UTF-8" />
   <link rel="icon" href="/static/podclick-mark.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PodClick — Job Site</title>
-  <link rel="stylesheet" href="/podclick-design.css" />
+  <title>Job Site · PodClick</title>
   <style>
-    html, body { background: var(--bg); color: var(--text-pri); min-height: 100vh; font-family: var(--font-body); margin: 0; }
-    a { color: var(--orange-hi); text-decoration: none; }
-    a:hover { color: var(--orange); }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: #0b0a08; color: #F5F7FA; min-height: 100vh; font-family: 'Inter', sans-serif; }
+    a { color: #f07030; text-decoration: none; }
+
+    /* ── Top bar ── */
     .topbar {
       display: flex; align-items: center; gap: 16px;
-      padding: 14px 24px; border-bottom: 1px solid var(--border);
-      background: var(--bg-raised);
+      padding: 13px 24px; border-bottom: 1px solid #272420;
+      background: #111009; position: sticky; top: 0; z-index: 100;
     }
-    .topbar .brand { font-size: 17px; font-weight: 700; color: var(--text-pri); }
-    .topbar .brand span { color: var(--orange-hi); }
-    .topbar .tagline { font-size: 12px; color: var(--text-dim); }
-    .topbar nav { margin-left: auto; display: flex; gap: 4px; }
+    .topbar .brand { font-size: 16px; font-weight: 800; color: #F5F7FA; letter-spacing: -0.02em; }
+    .topbar .brand em { color: #f07030; font-style: normal; }
+    .topbar nav { margin-left: auto; display: flex; gap: 2px; }
     .topbar nav a {
-      font-size: 12px; color: var(--text-dim); padding: 5px 10px;
-      border-radius: 6px; border: 1px solid transparent;
-      transition: all 0.15s;
+      font-size: 12px; font-weight: 500; color: #847d74; padding: 5px 11px;
+      border-radius: 7px; border: 1px solid transparent; transition: all 0.12s;
     }
-    .topbar nav a:hover { background: var(--surface); color: var(--text); }
-    .topbar nav a.active { background: var(--surface); color: var(--text); border-color: var(--border); }
+    .topbar nav a:hover { background: #161410; color: #F5F7FA; }
+    .topbar nav a.active { background: #1e1b16; color: #f07030; border-color: #272420; }
 
-    .page-body { max-width: 960px; margin: 0 auto; padding: 28px 24px; }
+    /* ── Page ── */
+    .page { max-width: 1020px; margin: 0 auto; padding: 28px 22px 80px; }
 
-    .page-head {
-      display: flex; align-items: flex-end; justify-content: space-between;
-      margin-bottom: 20px;
+    /* ── Stats row ── */
+    .stats-row { display: flex; gap: 10px; margin-bottom: 24px; }
+    .stat-card {
+      flex: 1; background: #161410; border: 1px solid #272420; border-radius: 10px;
+      padding: 14px 16px;
     }
-    .page-title { font-size: 22px; font-weight: 700; }
-    .page-title .sub { font-size: 13px; color: var(--text-dim); font-weight: 400; margin-left: 8px; }
+    .stat-card .val { font-size: 24px; font-weight: 800; color: #F5F7FA; line-height: 1; }
+    .stat-card .lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.10em; text-transform: uppercase; color: #4a4540; margin-top: 4px; }
 
-    .filter-row { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    /* ── Page head ── */
+    .page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .page-head h1 { font-size: 20px; font-weight: 800; color: #F5F7FA; }
+    .page-head .count { font-size: 12px; color: #4a4540; margin-left: 8px; font-weight: 500; }
+
+    .actions { display: flex; gap: 8px; }
+    .btn-new {
+      font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 9px;
+      background: linear-gradient(135deg, #d95f1e, #f07030); color: #fff; border: none;
+      cursor: pointer; transition: opacity 0.12s; display: inline-flex; align-items: center; gap: 6px;
+      text-decoration: none;
+    }
+    .btn-new:hover { opacity: 0.9; }
+    .btn-upload {
+      font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: 9px;
+      background: #1e1b16; border: 1px solid #272420; color: #a0a0c0;
+      cursor: pointer; transition: all 0.12s; display: inline-flex; align-items: center; gap: 6px;
+      text-decoration: none;
+    }
+    .btn-upload:hover { border-color: #d95f1e; color: #f07030; }
+
+    /* ── Filters ── */
+    .filters { display: flex; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
     .filter-btn {
-      font-size: 11px; padding: 5px 12px; border-radius: 20px;
-      border: 1px solid var(--border); background: var(--bg-card);
-      color: var(--text-dim); cursor: pointer; transition: all 0.15s;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+      padding: 5px 13px; border-radius: 20px; cursor: pointer;
+      border: 1px solid #272420; background: #161410; color: #847d74;
+      transition: all 0.12s;
     }
-    .filter-btn:hover { border-color: var(--orange-dim); color: var(--text); }
-    .filter-btn.active { border-color: var(--orange-hi); color: var(--orange-hi); background: var(--orange-mist); }
+    .filter-btn:hover { border-color: #352f28; color: #F5F7FA; }
+    .filter-btn.active { border-color: #d95f1e; color: #f07030; background: rgba(217,95,30,0.08); }
 
-    .projects-grid { display: flex; flex-direction: column; gap: 10px; }
+    /* ── Project cards ── */
+    .projects-list { display: flex; flex-direction: column; gap: 8px; }
 
     .project-card {
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 16px 18px;
-      display: grid; grid-template-columns: 1fr auto; gap: 8px;
-      cursor: pointer; transition: border-color 0.15s;
+      display: grid; grid-template-columns: 1fr auto;
+      align-items: center; gap: 16px;
+      background: #161410; border: 1px solid #272420; border-radius: 10px;
+      padding: 16px 18px; cursor: pointer; transition: all 0.12s;
       text-decoration: none; color: inherit;
     }
-    .project-card:hover { border-color: var(--orange-dim); }
-    .project-card.has-action { border-left: 3px solid var(--orange); }
+    .project-card:hover { border-color: #352f28; background: #1a1714; transform: translateY(-1px); }
+    .project-card.needs-action { border-left: 3px solid #d95f1e; }
+    .project-card.closed-card  { opacity: 0.6; }
+    .project-card.closed-card:hover { opacity: 1; }
 
-    .project-title { font-size: 15px; font-weight: 600; color: var(--text-pri); margin-bottom: 4px; }
-    .project-meta { font-size: 11px; color: var(--text-dim); display: flex; gap: 12px; flex-wrap: wrap; }
+    .card-left {}
+    .card-title { font-size: 15px; font-weight: 700; color: #F5F7FA; margin-bottom: 6px; line-height: 1.3; }
+    .card-meta  { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 
-    .status-badge {
-      display: inline-flex; align-items: center; gap: 4px;
-      font-size: 10px; font-weight: 600; letter-spacing: 0.4px;
-      padding: 3px 8px; border-radius: 10px; border: 1px solid;
-      text-transform: uppercase; white-space: nowrap;
+    /* Status badges */
+    .badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 3px 8px; border-radius: 5px; border: 1px solid;
+      white-space: nowrap;
     }
-    .status-recording_done { color: #7ec8e3; border-color: rgba(126,200,227,0.3); background: rgba(126,200,227,0.08); }
-    .status-processing     { color: #f0c040; border-color: rgba(240,192,64,0.3); background: rgba(240,192,64,0.08); }
-    .status-review         { color: var(--orange-hi); border-color: var(--orange-dim); background: var(--orange-mist); }
-    .status-scheduled      { color: #82d9a0; border-color: rgba(130,217,160,0.3); background: rgba(130,217,160,0.08); }
-    .status-closing        { color: #c9a0f5; border-color: rgba(201,160,245,0.3); background: rgba(201,160,245,0.08); }
-    .status-closed         { color: var(--text-dim); border-color: var(--border); background: transparent; }
-    .status-failed         { color: #d97070; border-color: rgba(217,112,112,0.3); background: rgba(217,112,112,0.08); }
-    .status-draft          { color: var(--text-dim); border-color: var(--border); background: transparent; }
+    .badge-draft          { color: #4a4540; border-color: #272420; background: transparent; }
+    .badge-recording_done { color: #7fb8e8; border-color: #1a3050; background: rgba(58,110,168,0.08); }
+    .badge-processing     { color: #c4961c; border-color: #5a4008; background: rgba(196,150,28,0.07); }
+    .badge-review         { color: #f07030; border-color: #6b2e0e; background: rgba(217,95,30,0.08); }
+    .badge-scheduled      { color: #c07ada; border-color: #4a2a5a; background: rgba(192,122,218,0.07); }
+    .badge-closing        { color: #c4961c; border-color: #5a4008; background: rgba(196,150,28,0.10); }
+    .badge-closed         { color: #52c47a; border-color: #1a3d28; background: rgba(61,140,92,0.10); }
+    .badge-failed         { color: #ff8080; border-color: #5a1010; background: rgba(160,56,56,0.10); }
 
-    .ship-btn {
-      font-size: 12px; font-weight: 600; padding: 7px 14px;
-      border-radius: 8px; border: none; cursor: pointer;
-      background: linear-gradient(135deg, var(--orange), #e07030);
-      color: #fff; white-space: nowrap; align-self: center;
-      transition: opacity 0.15s;
+    .meta-chip {
+      font-size: 11px; font-weight: 500; color: #4a4540; letter-spacing: 0.02em;
     }
-    .ship-btn:hover { opacity: 0.88; }
+    .meta-chip.has-content { color: #847d74; }
 
-    .empty-state {
-      text-align: center; padding: 60px 24px;
-      color: var(--text-dim); font-size: 14px;
+    /* Indicators — small pills for what's ready */
+    .indicators { display: flex; gap: 5px; margin-top: 7px; }
+    .indicator {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.04em;
+      padding: 2px 7px; border-radius: 4px; border: 1px solid;
     }
-    .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
-    .empty-state .cta { margin-top: 14px; }
-    .empty-state .cta a {
-      padding: 8px 18px; background: var(--orange);
-      color: #fff; border-radius: 8px; font-weight: 600; font-size: 13px;
+    .ind-done    { color: #52c47a; border-color: #1a3d28; background: rgba(61,140,92,0.08); }
+    .ind-missing { color: #4a4540; border-color: #272420; background: transparent; }
+
+    /* Action button */
+    .card-right {}
+    .action-btn {
+      font-size: 12px; font-weight: 700; padding: 8px 16px; border-radius: 8px;
+      border: none; cursor: pointer; white-space: nowrap; transition: all 0.12s;
     }
+    .action-ship   { background: linear-gradient(135deg, #d95f1e, #f07030); color: #fff; }
+    .action-review { background: rgba(240,112,48,0.12); border: 1px solid #6b2e0e; color: #f07030; }
+    .action-ship:hover, .action-review:hover { transform: translateY(-1px); opacity: 0.9; }
 
-    .loading { text-align: center; padding: 40px; color: var(--text-dim); }
+    /* ── Empty / loading ── */
+    .empty { padding: 60px 20px; text-align: center; color: #4a4540; }
+    .empty .icon { font-size: 40px; margin-bottom: 14px; }
+    .empty h3 { font-size: 16px; font-weight: 700; color: #847d74; margin-bottom: 8px; }
+    .empty p { font-size: 13px; margin-bottom: 18px; }
+    .loading { padding: 48px 20px; text-align: center; color: #4a4540; font-size: 14px; }
 
+    /* ── Toast ── */
     #toast {
       position: fixed; bottom: 24px; right: 24px;
-      background: var(--bg-raised); border: 1px solid var(--border);
-      border-radius: 10px; padding: 10px 16px;
-      font-size: 13px; color: var(--text); display: none; z-index: 9999;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      background: #1e1b16; border: 1px solid #352f28; border-radius: 9px;
+      padding: 11px 16px; font-size: 13px; color: #F5F7FA;
+      opacity: 0; transform: translateY(6px); transition: all 0.18s;
+      z-index: 200; max-width: 320px;
     }
-    #toast.info  { border-left: 3px solid var(--orange-dim); }
-    #toast.ok    { border-left: 3px solid #82d9a0; }
-    #toast.error { border-left: 3px solid #d97070; }
-    .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
-    .empty-crane { width: 80px; height: auto; opacity: 0.85; }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.ok    { border-color: #3d8c5c; }
+    #toast.error { border-color: #a03838; color: #f0c8c8; }
+
+    @media (max-width: 640px) {
+      .stats-row { display: none; }
+      .topbar nav { display: none; }
+      .project-card { grid-template-columns: 1fr; }
+      .card-right { display: none; }
+    }
   </style>
 </head>
 <body>
 
 <div class="topbar">
-  <div>
-    <div class="brand"><img src="/static/podclick-logo.png" alt="PodClick AI" class="nav-logo" onerror="this.style.display='none'"></div>
-    <div class="tagline">Job Site — active projects</div>
-  </div>
+  <div class="brand">Pod<em>Click</em></div>
   <nav>
     <a href="/walkthrough">Walk-through</a>
     <a href="/foundation">Foundation</a>
-    <a href="/permit">Permit</a>
     <a href="/calendar">Calendar</a>
     <a href="/studio">Studio</a>
     <a href="/projects" class="active">Job Site</a>
@@ -131,40 +173,53 @@
   </nav>
 </div>
 
-<div class="page-body">
+<div class="page">
+
+  <!-- Stats -->
+  <div class="stats-row" id="stats-row">
+    <div class="stat-card"><div class="val" id="stat-total">—</div><div class="lbl">Total Projects</div></div>
+    <div class="stat-card"><div class="val" id="stat-review">—</div><div class="lbl">Needs Review</div></div>
+    <div class="stat-card"><div class="val" id="stat-closed">—</div><div class="lbl">Closed</div></div>
+    <div class="stat-card"><div class="val" id="stat-clips">—</div><div class="lbl">Total Clips</div></div>
+  </div>
+
+  <!-- Head -->
   <div class="page-head">
-    <div class="page-title">
-      Job Site
-      <span class="sub" id="project-count"></span>
+    <h1>Job Site <span class="count" id="count-label"></span></h1>
+    <div class="actions">
+      <a href="/studio" class="btn-upload">↑ Upload Recording</a>
+      <a href="/studio" class="btn-new">+ New Recording</a>
     </div>
-    <a href="/studio" style="font-size:12px; padding:7px 14px; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; color:var(--text-dim);">
-      + New Recording
-    </a>
   </div>
 
-  <div class="filter-row">
-    <button class="filter-btn active" onclick="setFilter('', this)">All</button>
-    <button class="filter-btn" onclick="setFilter('review', this)">Needs Review</button>
-    <button class="filter-btn" onclick="setFilter('recording_done', this)">Recording Done</button>
-    <button class="filter-btn" onclick="setFilter('scheduled', this)">Scheduled</button>
-    <button class="filter-btn" onclick="setFilter('closed', this)">Closed</button>
+  <!-- Filters -->
+  <div class="filters">
+    <button class="filter-btn active" data-filter="">All</button>
+    <button class="filter-btn" data-filter="review">Needs Review</button>
+    <button class="filter-btn" data-filter="recording_done">Recording Done</button>
+    <button class="filter-btn" data-filter="processing">Processing</button>
+    <button class="filter-btn" data-filter="scheduled">Scheduled</button>
+    <button class="filter-btn" data-filter="closed">Closed</button>
+    <button class="filter-btn" data-filter="failed">Failed</button>
   </div>
 
-  <div id="projects-list" class="projects-grid">
-    <div class="loading">Loading projects…</div>
+  <!-- List -->
+  <div id="projects-list" class="projects-list">
+    <div class="loading">Loading your job site…</div>
   </div>
+
 </div>
 
 <div id="toast"></div>
 
 <script>
-  let _allProjects = [];
-  let _activeFilter = '';
+  let _all = [];
+  let _filter = '';
 
-  const STATUS_LABELS = {
+  const STATUS_LABEL = {
     draft:          'Draft',
     recording_done: 'Recording Done',
-    processing:     'Processing',
+    processing:     'Processing…',
     review:         'Needs Review',
     scheduled:      'Scheduled',
     closing:        'Closing',
@@ -172,95 +227,135 @@
     failed:         'Build Failed',
   };
 
-  const ACTION_STATUSES = new Set(['recording_done', 'review']);
-
-  function setFilter(status, btn) {
-    _activeFilter = status;
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    render();
-  }
-
-  function escHtml(str) {
-    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   function relTime(iso) {
     if (!iso) return '';
-    const d = new Date(iso);
-    const diff = (Date.now() - d.getTime()) / 1000;
-    if (diff < 60) return 'just now';
-    if (diff < 3600) return Math.floor(diff/60) + 'm ago';
-    if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
-    return Math.floor(diff/86400) + 'd ago';
+    const s = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (s < 60)    return 'just now';
+    if (s < 3600)  return Math.floor(s/60) + 'm ago';
+    if (s < 86400) return Math.floor(s/3600) + 'h ago';
+    return Math.floor(s/86400) + 'd ago';
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+
+  function setFilter(val) {
+    _filter = val;
+    document.querySelectorAll('.filter-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.filter === val);
+    });
+    render();
+  }
+
+  function updateStats() {
+    document.getElementById('stat-total').textContent  = _all.length;
+    document.getElementById('stat-review').textContent = _all.filter(p => p.status === 'review').length;
+    document.getElementById('stat-closed').textContent = _all.filter(p => p.status === 'closed').length;
+    const totalClips = _all.reduce((n, p) => n + (p.clip_count || 0), 0);
+    document.getElementById('stat-clips').textContent  = totalClips;
   }
 
   function render() {
     const list = document.getElementById('projects-list');
-    const filtered = _activeFilter
-      ? _allProjects.filter(p => p.status === _activeFilter)
-      : _allProjects;
+    const shown = _filter ? _all.filter(p => p.status === _filter) : _all;
 
-    document.getElementById('project-count').textContent =
-      filtered.length === _allProjects.length
-        ? `${_allProjects.length} project${_allProjects.length !== 1 ? 's' : ''}`
-        : `${filtered.length} of ${_allProjects.length}`;
+    document.getElementById('count-label').textContent =
+      shown.length === _all.length
+        ? `${_all.length} project${_all.length !== 1 ? 's' : ''}`
+        : `${shown.length} of ${_all.length}`;
 
-    if (filtered.length === 0) {
-      list.innerHTML = `<div class="empty-state">
-        <div class="icon"><img src="/static/podclick-crane.png" alt="No projects yet" class="empty-crane" onerror="this.outerHTML='🏗️'"></div>
-        <div>${_allProjects.length === 0 ? 'No projects yet.' : 'No projects match this filter.'}</div>
-        ${_allProjects.length === 0 ? '<div class="cta"><a href="/studio">Record your first episode →</a></div>' : ''}
+    if (!shown.length) {
+      list.innerHTML = `<div class="empty">
+        <div class="icon">🏗️</div>
+        <h3>${_all.length === 0 ? 'No projects yet.' : 'No projects match this filter.'}</h3>
+        <p>${_all.length === 0 ? 'Record your first episode to get started.' : 'Try a different filter.'}</p>
+        ${_all.length === 0 ? '<a href="/studio" class="btn-new">Record Now →</a>' : ''}
       </div>`;
       return;
     }
 
-    list.innerHTML = filtered.map(p => {
-      const hasAction = ACTION_STATUSES.has(p.status);
-      const actionLabel = p.status === 'recording_done' ? '⚡ Ship It' : '🔍 Review';
-      const clipCount = p.clip_count ? `${p.clip_count} clips` : '';
-      const epNum = p.episode_number ? `Ep ${p.episode_number}` : '';
-      const created = relTime(p.created_at);
-      const closingAt = p.closing_scheduled_at
-        ? `Closing ${new Date(p.closing_scheduled_at).toLocaleDateString()}`
-        : '';
+    list.innerHTML = shown.map(p => {
+      const needsAction = p.status === 'recording_done' || p.status === 'review';
+      const isClosed    = p.status === 'closed';
 
-      return `<a class="project-card${hasAction ? ' has-action' : ''}" href="/project/${escHtml(p.id)}">
-        <div>
-          <div class="project-title">${escHtml(p.title || 'Untitled Episode')}</div>
-          <div class="project-meta">
-            <span class="status-badge status-${escHtml(p.status)}">${escHtml(STATUS_LABELS[p.status] || p.status)}</span>
-            ${epNum ? `<span>${escHtml(epNum)}</span>` : ''}
-            ${clipCount ? `<span>${escHtml(clipCount)}</span>` : ''}
-            ${closingAt ? `<span>${escHtml(closingAt)}</span>` : ''}
-            ${created ? `<span>${created}</span>` : ''}
+      // Indicators — what content is ready
+      const inds = [
+        { label: 'Transcript', ok: !!(p.transcript && p.transcript.trim()) },
+        { label: 'Audio',      ok: !!p.mp3_url },
+        { label: 'Clips',      ok: (p.clip_count || 0) > 0 },
+        { label: 'Notes',      ok: !!p.show_notes },
+      ];
+      const indHtml = inds
+        .filter(i => i.ok) // only show what IS ready
+        .map(i => `<span class="indicator ind-done">${esc(i.label)}</span>`)
+        .join('');
+
+      // Meta line
+      const chips = [];
+      if (p.episode_number) chips.push(`Ep ${p.episode_number}`);
+      if (p.clip_count)     chips.push(`${p.clip_count} clip${p.clip_count !== 1 ? 's' : ''}`);
+      if (p.closing_scheduled_at) chips.push(`Closing ${fmtDate(p.closing_scheduled_at)}`);
+      if (p.closed_at)      chips.push(`Closed ${fmtDate(p.closed_at)}`);
+      chips.push(relTime(p.created_at));
+
+      // Action button
+      let actionBtn = '';
+      if (p.status === 'recording_done') {
+        actionBtn = `<button class="action-btn action-ship" onclick="event.preventDefault();goTo('${esc(p.id)}')">⚡ Ship It</button>`;
+      } else if (p.status === 'review') {
+        actionBtn = `<button class="action-btn action-review" onclick="event.preventDefault();goTo('${esc(p.id)}')">Review →</button>`;
+      }
+
+      return `<a class="project-card${needsAction ? ' needs-action' : ''}${isClosed ? ' closed-card' : ''}"
+                href="/project/${esc(p.id)}">
+        <div class="card-left">
+          <div class="card-title">${esc(p.title || 'Untitled Episode')}</div>
+          <div class="card-meta">
+            <span class="badge badge-${esc(p.status)}">${esc(STATUS_LABEL[p.status] || p.status)}</span>
+            ${chips.map(c => `<span class="meta-chip has-content">${esc(c)}</span>`).join('')}
           </div>
+          ${indHtml ? `<div class="indicators">${indHtml}</div>` : ''}
         </div>
-        ${hasAction ? `<button class="ship-btn" onclick="event.preventDefault(); window.location='/project/${escHtml(p.id)}';">${actionLabel}</button>` : ''}
+        ${actionBtn ? `<div class="card-right">${actionBtn}</div>` : ''}
       </a>`;
     }).join('');
   }
 
+  function goTo(id) {
+    window.location.href = '/project/' + id;
+  }
+
   async function load() {
     try {
-      const r = await fetch('/api/projects?limit=50');
-      if (!r.ok) throw new Error(r.statusText);
-      _allProjects = await r.json();
+      const r = await fetch('/api/projects?limit=100');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      _all = await r.json();
+      updateStats();
       render();
     } catch(e) {
       document.getElementById('projects-list').innerHTML =
-        `<div class="empty-state"><div class="icon">⚠️</div><div>Could not load projects: ${escHtml(e.message)}</div></div>`;
+        `<div class="empty"><div class="icon">⚠️</div><h3>Could not load projects</h3><p>${esc(e.message)}</p></div>`;
     }
   }
 
   function toast(msg, kind = 'info') {
     const el = document.getElementById('toast');
     el.textContent = msg;
-    el.className = kind;
-    el.style.display = 'block';
+    el.className = 'show ' + kind;
     clearTimeout(el._t);
-    el._t = setTimeout(() => el.style.display = 'none', 3000);
+    el._t = setTimeout(() => el.className = '', 3000);
   }
+
+  // Wire filter buttons
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.addEventListener('click', () => setFilter(b.dataset.filter));
+  });
 
   load();
 </script>

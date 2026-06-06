@@ -842,12 +842,33 @@ async def list_projects(status: str = "", limit: int = 20):
     from db.models import Project
     from sqlalchemy import select, desc
 
+    from db.models import Clip
+    from sqlalchemy import func, desc
+
     async with _async_session() as session:
         q = select(Project).order_by(desc(Project.created_at)).limit(limit)
         if status:
             q = q.where(Project.status == status)
         rows = (await session.execute(q)).scalars().all()
-        return JSONResponse([_project_to_dict(p) for p in rows])
+
+        # Batch-fetch clip counts — one query, not N
+        if rows:
+            project_ids = [r.id for r in rows]
+            count_rows = (await session.execute(
+                select(Clip.project_id, func.count(Clip.id).label("n"))
+                .where(Clip.project_id.in_(project_ids))
+                .group_by(Clip.project_id)
+            )).all()
+            clip_counts = {str(r.project_id): r.n for r in count_rows}
+        else:
+            clip_counts = {}
+
+        def _to_list_dict(p):
+            d = _project_to_dict(p)
+            d["clip_count"] = clip_counts.get(str(p.id), 0)
+            return d
+
+        return JSONResponse([_to_list_dict(p) for p in rows])
 
 
 @app.get("/api/projects/{project_id}")
