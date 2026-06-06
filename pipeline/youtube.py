@@ -115,11 +115,19 @@ def get_auth_url() -> str:
         scopes       = SCOPES,
         redirect_uri = REDIRECT_URI,
     )
-    auth_url, _ = flow.authorization_url(
-        access_type     = "offline",
+    auth_url, state = flow.authorization_url(
+        access_type            = "offline",
         include_granted_scopes = "true",
-        prompt          = "consent",
+        prompt                 = "consent",
     )
+    # Persist code_verifier (PKCE) and state so exchange_code can use them.
+    # Without this, the new Flow in exchange_code is missing the verifier →
+    # Google returns "Missing code verifier" (invalid_grant).
+    _flow_state = {
+        "state":          state,
+        "code_verifier":  getattr(flow, "code_verifier", None),
+    }
+    (DATA_DIR / "youtube_flow_state.json").write_text(json.dumps(_flow_state))
     return auth_url
 
 
@@ -141,6 +149,16 @@ def exchange_code(code: str) -> dict:
             scopes       = SCOPES,
             redirect_uri = REDIRECT_URI,
         )
+        # Restore PKCE code_verifier saved during get_auth_url()
+        _state_file = DATA_DIR / "youtube_flow_state.json"
+        if _state_file.exists():
+            try:
+                _saved = json.loads(_state_file.read_text())
+                if _saved.get("code_verifier"):
+                    flow.code_verifier = _saved["code_verifier"]
+                _state_file.unlink(missing_ok=True)
+            except Exception:
+                pass
         flow.fetch_token(code=code)
         _save_token(flow.credentials)
 
