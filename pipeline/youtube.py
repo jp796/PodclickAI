@@ -144,14 +144,13 @@ def exchange_code(code: str) -> dict:
         flow.fetch_token(code=code)
         _save_token(flow.credentials)
 
-        # Fetch channel info
-        yt     = build("youtube", "v3", credentials=flow.credentials)
-        result = yt.channels().list(part="snippet,statistics", mine=True).execute()
-        items  = result.get("items", [])
-        channel = {}
-        if items:
-            ch = items[0]
-            channel = {
+        # Fetch ALL channels on this account
+        yt      = build("youtube", "v3", credentials=flow.credentials)
+        result  = yt.channels().list(part="snippet,statistics", mine=True, maxResults=50).execute()
+        items   = result.get("items", [])
+        channels = []
+        for ch in items:
+            channels.append({
                 "id":          ch["id"],
                 "title":       ch["snippet"]["title"],
                 "description": ch["snippet"].get("description", ""),
@@ -159,15 +158,54 @@ def exchange_code(code: str) -> dict:
                 "subscribers": ch["statistics"].get("subscriberCount", "0"),
                 "videos":      ch["statistics"].get("videoCount", "0"),
                 "url":         f"https://www.youtube.com/channel/{ch['id']}",
-            }
-            # Cache channel info
-            channel_file = DATA_DIR / "youtube_channel.json"
-            channel_file.write_text(json.dumps(channel, indent=2))
+            })
 
-        return {"ok": True, "channel": channel}
+        # Save all channels
+        channels_file = DATA_DIR / "youtube_channels.json"
+        channels_file.write_text(json.dumps(channels, indent=2))
+
+        # Default active channel = first one (user can switch via picker)
+        active = channels[0] if channels else {}
+        _save_active_channel(active.get("id", ""))
+
+        # Keep legacy single-channel file for backwards compat
+        channel_file = DATA_DIR / "youtube_channel.json"
+        channel_file.write_text(json.dumps(active, indent=2))
+
+        return {"ok": True, "channel": active, "channels": channels}
 
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+_ACTIVE_CHANNEL_FILE = DATA_DIR / "youtube_active_channel.json"
+
+
+def _save_active_channel(channel_id: str) -> None:
+    _ACTIVE_CHANNEL_FILE.write_text(json.dumps({"channel_id": channel_id}))
+
+
+def get_active_channel_id() -> str:
+    """Return the stored active channel ID, or '' if not set."""
+    if _ACTIVE_CHANNEL_FILE.exists():
+        try:
+            return json.loads(_ACTIVE_CHANNEL_FILE.read_text()).get("channel_id", "")
+        except Exception:
+            pass
+    return ""
+
+
+def list_channels() -> list:
+    """Return the cached list of all channels for this account."""
+    f = DATA_DIR / "youtube_channels.json"
+    if f.exists():
+        try:
+            return json.loads(f.read_text())
+        except Exception:
+            pass
+    # Fall back to single channel
+    ch = get_channel_info()
+    return [ch] if ch else []
 
 
 def get_channel_info() -> dict:

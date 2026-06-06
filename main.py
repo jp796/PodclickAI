@@ -4824,15 +4824,48 @@ async def youtube_callback(code: str = "", error: str = "", state: str = ""):
     from pipeline.youtube import exchange_code
     result = exchange_code(code)
     if result.get("ok"):
-        ch    = result.get("channel", {})
-        title = ch.get("title", "Your channel")
-        subs  = ch.get("subscribers", "?")
-        return HTMLResponse(
-            f"<h2>✅ YouTube Connected!</h2>"
-            f"<p>Channel: <strong>{title}</strong> · {subs} subscribers</p>"
-            f"<p>You can close this tab and return to <a href='/'>Podcast OS</a></p>"
-            "<script>setTimeout(()=>window.close(),3000)</script>"
-        )
+        channels = result.get("channels", [result.get("channel", {})])
+        active   = result.get("channel", {})
+        # Build channel picker HTML
+        channel_rows = ""
+        for ch in channels:
+            is_active = ch.get("id") == active.get("id")
+            thumb = ch.get("thumbnail", "")
+            img = f'<img src="{thumb}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:10px;">' if thumb else "📺 "
+            checked = "checked" if is_active else ""
+            channel_rows += (
+                f'<label style="display:flex;align-items:center;gap:10px;padding:12px;'
+                f'border:1px solid {"#d95f1e" if is_active else "#333"};border-radius:8px;'
+                f'margin-bottom:8px;cursor:pointer;background:{"rgba(217,95,30,0.08)" if is_active else "#111"};">'
+                f'<input type="radio" name="ch" value="{ch["id"]}" {checked} style="accent-color:#d95f1e;">'
+                f'{img}'
+                f'<div><strong style="color:#F5F7FA;">{ch["title"]}</strong>'
+                f'<div style="font-size:12px;color:#847d74;">{int(ch.get("subscribers","0") or 0):,} subscribers · {ch.get("videos","0")} videos</div></div>'
+                f'</label>'
+            )
+        return HTMLResponse(f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>YouTube Connected · PodClick</title>
+<style>body{{background:#0b0a08;color:#F5F7FA;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;}}
+.card{{background:#161410;border:1px solid #272420;border-radius:12px;padding:32px;max-width:480px;width:100%;}}
+h2{{color:#52c47a;margin-bottom:6px;}} .sub{{color:#847d74;font-size:13px;margin-bottom:24px;}}
+.save-btn{{width:100%;padding:12px;background:linear-gradient(135deg,#d95f1e,#f07030);color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;cursor:pointer;margin-top:16px;}}
+.save-btn:hover{{opacity:.9;}} a{{color:#f07030;}}</style></head>
+<body><div class="card">
+  <h2>✅ YouTube Connected!</h2>
+  <p class="sub">Pick which channel PodClick uploads to by default. You can switch any time.</p>
+  <form id="f">{channel_rows}
+    <button class="save-btn" type="submit">Set Active Channel →</button>
+  </form>
+  <p style="margin-top:16px;font-size:12px;color:#4a4540;">Or <a href="/">skip — use first channel</a></p>
+</div>
+<script>
+document.getElementById('f').addEventListener('submit', async e => {{
+  e.preventDefault();
+  const id = document.querySelector('input[name=ch]:checked').value;
+  await fetch('/api/youtube/channels/select', {{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{channel_id:id}})}});
+  window.location.href = '/projects';
+}});
+</script></body></html>""")
     else:
         return HTMLResponse(
             f"<h2>Error connecting YouTube</h2>"
@@ -4846,6 +4879,39 @@ async def youtube_disconnect():
     from pipeline.youtube import revoke_token
     revoke_token()
     return JSONResponse({"ok": True})
+
+
+@app.get("/api/youtube/channels")
+async def youtube_list_channels():
+    """Return all YouTube channels available on the connected account."""
+    from pipeline.youtube import is_authorized, list_channels, get_active_channel_id
+    if not is_authorized():
+        return JSONResponse({"error": "YouTube not connected"}, status_code=401)
+    return JSONResponse({
+        "channels": list_channels(),
+        "active_channel_id": get_active_channel_id(),
+    })
+
+
+@app.post("/api/youtube/channels/select")
+async def youtube_select_channel(request: Request):
+    """Set the active upload channel by ID."""
+    from pipeline.youtube import list_channels, _save_active_channel
+    body = await request.json()
+    channel_id = body.get("channel_id", "").strip()
+    if not channel_id:
+        return JSONResponse({"error": "channel_id required"}, status_code=400)
+    channels = list_channels()
+    match = next((c for c in channels if c["id"] == channel_id), None)
+    if not match:
+        return JSONResponse({"error": "Channel not found in connected account"}, status_code=404)
+    _save_active_channel(channel_id)
+    # Update legacy channel cache
+    from pathlib import Path as _P
+    (_P(__file__).parent / "data" / "youtube_channel.json").write_text(
+        __import__("json").dumps(match, indent=2)
+    )
+    return JSONResponse({"ok": True, "active": match})
 
 
 @app.post("/api/studio/publish/telegram")
