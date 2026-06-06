@@ -125,15 +125,22 @@
       gap: 22px; align-items: start;
     }
 
-    /* Player column */
+    /* Player column — explicit pixel dimensions, no aspect-ratio ambiguity */
     .player-col { display: flex; flex-direction: column; align-items: center; }
     .player-frame {
-      position: relative; width: 100%; max-width: 380px;
-      aspect-ratio: 9/16; max-height: 75vh;
+      position: relative;
+      width: 320px; height: 569px;          /* 9:16 at 320px — fixed, no calculation */
       background: #000; border: 1px solid #272420; border-radius: 14px;
       overflow: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.55);
+      flex-shrink: 0;
     }
-    #clip-player { width: 100%; height: 100%; object-fit: contain; display: block; background: #000; }
+    #clip-player {
+      display: block; width: 320px; height: 569px;
+      object-fit: contain; background: #000;
+    }
+    /* Captions are BURNED INTO the video pixels via libass at render time —
+       no JS overlay needed. The burned-in text is white 48pt bold. */
+    #caption-overlay { display: none; }   /* kept in DOM but permanently hidden */
     .player-empty {
       position: absolute; inset: 0; display: flex; flex-direction: column;
       align-items: center; justify-content: center; gap: 10px;
@@ -141,22 +148,8 @@
     }
     .player-empty .big { font-size: 34px; }
 
-    /* Caption overlay */
-    #caption-overlay {
-      position: absolute; left: 50%; transform: translateX(-50%);
-      max-width: 88%; text-align: center; display: none;
-      font-weight: 800; font-size: 21px; line-height: 1.18; letter-spacing: 0.01em;
-      text-transform: uppercase; color: #FFD700;
-      padding: 7px 14px; border-radius: 12px;
-      background: rgba(0,0,0,0.55);
-      text-shadow: 0 2px 6px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.9);
-      pointer-events: none; word-break: break-word;
-    }
-    #caption-overlay.pos-bottom { bottom: 12%; }
-    #caption-overlay.pos-middle { top: 50%; transform: translate(-50%, -50%); }
-
     /* Custom controls */
-    .player-controls { width: 100%; max-width: 380px; margin-top: 14px; }
+    .player-controls { width: 320px; margin-top: 14px; }
     .controls-row { display: flex; align-items: center; gap: 12px; }
     .play-btn {
       flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%;
@@ -178,7 +171,7 @@
     .time-display { flex: 0 0 auto; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; color: #847d74; font-variant-numeric: tabular-nums; }
 
     /* Action buttons below player */
-    .player-actions { display: flex; gap: 8px; margin-top: 16px; width: 100%; max-width: 380px; }
+    .player-actions { display: flex; gap: 8px; margin-top: 16px; width: 320px; }
     .player-actions .btn { flex: 1; text-align: center; padding: 10px 12px; font-size: 12px; }
     .btn-download { background: #1e1b16; border: 1px solid #352f28; color: #F5F7FA; }
     .btn-download:hover:not(:disabled) { border-color: #d95f1e; color: #f07030; }
@@ -239,6 +232,7 @@
     .btn-publish-tt { background: #010101; border: 1px solid #25F4EE; box-shadow: inset 1px 0 0 #FE2C55; }
 
     .editor-empty { padding: 60px 20px; text-align: center; color: #4a4540; font-size: 14px; }
+    .tool-note { font-size: 11px; color: #4a4540; margin-top: 5px; line-height: 1.4; }
 
     /* ── Platform tiles (Step 4) ── */
     .platforms { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 10px; }
@@ -428,38 +422,28 @@
           <!-- Tools sidebar -->
           <div class="tools-sidebar">
 
+            <!-- Clip info block -->
             <div class="tool-section">
-              <div class="tool-title">Caption Style</div>
-              <div class="swatch-row" id="caption-swatches">
-                <div class="swatch active" data-color="#FFD700" title="Yellow"><span class="dot" style="background:#FFD700;"></span></div>
-                <div class="swatch" data-color="#FFFFFF" title="White"><span class="dot" style="background:#FFFFFF;"></span></div>
-                <div class="swatch" data-color="#00FF88" title="Green"><span class="dot" style="background:#00FF88;"></span></div>
-                <div class="swatch" data-color="#f07030" title="Orange"><span class="dot" style="background:#f07030;"></span></div>
-              </div>
-            </div>
-
-            <div class="tool-section">
-              <div class="tool-title">Caption Position</div>
-              <div class="pos-row" id="caption-positions">
-                <div class="pos-pill active" data-pos="bottom">Bottom</div>
-                <div class="pos-pill" data-pos="middle">Middle</div>
-              </div>
-            </div>
-
-            <div class="tool-section">
-              <div class="tool-title">Hook Text</div>
+              <div class="tool-title">Hook</div>
               <div id="hook-edit" contenteditable="true" spellcheck="true"></div>
+              <div class="tool-note">Edit the hook — auto-saves. Used as Short title.</div>
             </div>
 
             <div class="tool-section">
-              <div class="tool-title">Caption / Post Copy</div>
-              <textarea id="caption-edit" rows="4" placeholder="Foundation-generated caption…"></textarea>
+              <div class="tool-title">Time range</div>
+              <div id="clip-range-display" style="font-size:13px;color:#847d74;font-weight:600;"></div>
+            </div>
+
+            <div class="tool-section">
+              <div class="tool-title">Post Caption</div>
+              <textarea id="caption-edit" rows="5" placeholder="Foundation-generated caption for social posts…"></textarea>
+              <div class="tool-note">Edit before posting. Used for YouTube description + social copy.</div>
             </div>
 
             <div class="publish-section">
               <button class="publish-btn btn-publish-yt" id="post-yt-btn">▶ Post to YouTube</button>
-              <button class="publish-btn btn-publish-ig" id="post-ig-btn">📷 Post to Instagram</button>
-              <button class="publish-btn btn-publish-tt" id="post-tt-btn">🎵 Post to TikTok</button>
+              <button class="publish-btn btn-publish-ig" id="post-ig-btn">📋 Copy for Instagram</button>
+              <button class="publish-btn btn-publish-tt" id="post-tt-btn">📋 Copy for TikTok</button>
             </div>
 
           </div>
@@ -886,6 +870,8 @@
       // Populate sidebar fields.
       $('hook-edit').textContent = clip.hook_text || '';
       $('caption-edit').value = clip.clip_caption || clip.caption || '';
+      const rangeEl = $('clip-range-display');
+      if (rangeEl) rangeEl.textContent = fmtRange(clip.source_start_seconds, clip.source_end_seconds);
 
       syncActionButtons(clip);
     }
