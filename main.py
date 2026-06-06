@@ -1985,6 +1985,10 @@ async def _run_ship_it_async(
             proj = (await session.execute(select(Project).where(Project.id == project_uuid))).scalar_one_or_none()
             if proj and proj.status == "processing":
                 proj.status = "review"
+                # Land the wizard at Step 3 (clips) — transcript (1) and audio (2)
+                # were reviewed implicitly during recording; Ship It is the first
+                # time the user sees the assembled output, so drop them at clips.
+                proj.wizard_step = 3
                 await session.commit()
     except Exception as _trans_err:
         import logging

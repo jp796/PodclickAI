@@ -686,10 +686,11 @@
       }
       stopProcessingPoll();
 
-      // Pre-review states stay on the wizard at step 1
-      const wizardStep = (p.wizard_step != null && p.wizard_step >= 1 && p.wizard_step <= 4)
-        ? p.wizard_step
-        : (p.status === 'review' ? 1 : 1);
+      // If Ship It completed but wizard_step wasn't advanced (pre-fix projects),
+      // land at step 3 (clips) so the user sees the output — not the raw transcript.
+      const _storedStep = (p.wizard_step != null && p.wizard_step >= 1 && p.wizard_step <= 4)
+        ? p.wizard_step : 1;
+      const wizardStep = (p.status === 'review' && _storedStep === 1) ? 3 : _storedStep;
 
       renderWizardBar(wizardStep);
 
