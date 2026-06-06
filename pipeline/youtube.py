@@ -27,6 +27,7 @@ TOKEN_FILE = DATA_DIR / "youtube_token.json"
 SCOPES = [
     "https://www.googleapis.com/auth/youtube.upload",
     "https://www.googleapis.com/auth/youtube.readonly",
+    "https://www.googleapis.com/auth/yt-analytics.readonly",   # subscriber activity heatmap
 ]
 
 REDIRECT_URI = "http://localhost:8765/api/youtube/callback"
@@ -358,6 +359,55 @@ def upload_video(
 
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+def get_subscriber_activity() -> dict:
+    """
+    Fetch subscriber activity heatmap from YouTube Analytics API.
+    Returns {day_of_week: {hour_utc: view_count}} or {} if data unavailable.
+
+    Requires yt-analytics.readonly scope (added to SCOPES — needs re-auth if missing).
+    Falls back silently so AI optimizer can handle thin/missing data.
+    """
+    try:
+        from googleapiclient.discovery import build
+        from datetime import datetime, timedelta
+
+        creds = get_credentials()
+        # Check we have the analytics scope
+        if creds.scopes and "yt-analytics.readonly" not in " ".join(creds.scopes):
+            return {}
+
+        channel_id = get_active_channel_id()
+        if not channel_id:
+            info = get_channel_info()
+            channel_id = info.get("id", "")
+        if not channel_id:
+            return {}
+
+        yta = build("youtubeAnalytics", "v2", credentials=creds)
+        end   = datetime.utcnow().strftime("%Y-%m-%d")
+        start = (datetime.utcnow() - timedelta(days=90)).strftime("%Y-%m-%d")
+
+        result = yta.reports().query(
+            ids=f"channel=={channel_id}",
+            startDate=start,
+            endDate=end,
+            metrics="views",
+            dimensions="dayOfWeek,hour",
+            sort="-views",
+        ).execute()
+
+        # Build heatmap {day: {hour: views}}
+        heatmap = {}
+        for row in result.get("rows", []):
+            day, hour, views = int(row[0]), int(row[1]), int(row[2])
+            if day not in heatmap:
+                heatmap[day] = {}
+            heatmap[day][hour] = views
+        return heatmap
+    except Exception:
+        return {}
 
 
 def revoke_token() -> bool:

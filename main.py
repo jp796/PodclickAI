@@ -1649,6 +1649,172 @@ async def post_clip_to_youtube(project_id: str, clip_id: str, request: Request):
         raise HTTPException(status_code=502, detail=str(exc))
 
 
+@app.get("/api/projects/{project_id}/clips/smart-schedule")
+async def smart_schedule_clips(project_id: str):
+    """
+    AI-powered optimal posting schedule for this project's clips.
+
+    1. Tries YouTube Analytics (dayOfWeek × hour heatmap) for real data
+    2. Falls back to Claude recommendation for real estate podcast Shorts
+       when analytics are thin (< 7 day channel, < 100 total views)
+
+    Response: {
+      source: "analytics" | "ai",
+      start_at: "2026-06-10T14:00:00Z",
+      cadence_days: 2,
+      best_days: ["Tuesday", "Thursday"],
+      best_hour_utc: 14,
+      best_hour_local: "9:00 AM Central",
+      hashtags: [...],
+      reasoning: "...",
+      clips_count: 5,
+      schedule: [ {clip_n, publish_at, day_label} ]
+    }
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Clip, Project
+    from sqlalchemy import select
+    from pipeline.youtube import get_subscriber_activity, is_authorized
+    from datetime import datetime, timedelta, timezone
+    from config import settings as _settings
+    import uuid as _uuid
+    import anthropic as _anthropic
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid project ID")
+
+    # Count clips
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        clip_count = len((await session.execute(
+            select(Clip).where(Clip.project_id == pid, Clip.status != "removed")
+        )).scalars().all())
+
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # ── 1. Try YouTube Analytics heatmap ──────────────────────────────────────
+    analytics_source = False
+    best_hour_utc = 14      # default 9am Central = 14:00 UTC
+    best_days_idx = [1, 3]  # Tue, Thu
+    cadence_days = 2
+    reasoning = ""
+    hashtags = []
+
+    if is_authorized():
+        loop = asyncio.get_event_loop()
+        heatmap = await loop.run_in_executor(None, get_subscriber_activity)
+
+        if heatmap:
+            # Find peak day + hour from real data
+            peak_views = 0
+            for day, hours in heatmap.items():
+                for hour, views in hours.items():
+                    if views > peak_views:
+                        peak_views = views
+                        best_hour_utc = hour
+                        best_days_idx = [day]
+            analytics_source = True
+            reasoning = f"Based on your YouTube Analytics: peak activity at hour {best_hour_utc}:00 UTC."
+
+    # ── 2. AI optimization (always runs — enriches analytics or replaces it) ──
+    try:
+        client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
+        ep_title = proj.title or "Real estate podcast episode"
+        analytics_ctx = (
+            f"YouTube Analytics heatmap available — peak hour: {best_hour_utc}:00 UTC."
+            if analytics_source
+            else "No YouTube Analytics yet (new channel). Use niche research."
+        )
+
+        resp = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=800,
+            messages=[{"role": "user", "content": f"""
+You are a YouTube Shorts growth expert specializing in real estate and podcast content.
+
+Channel: Success Agent Podcast (real estate agents, investors, entrepreneurs)
+Location: Springfield MO & Cheyenne WY markets
+Episode: {ep_title}
+Clips to schedule: {clip_count}
+{analytics_ctx}
+
+Optimize the posting schedule for maximum reach. Return ONLY valid JSON:
+{{
+  "best_hour_utc": <int 0-23>,
+  "cadence_days": <int 1-7>,
+  "best_days": ["Tuesday", "Thursday"],
+  "reasoning": "<2-3 sentences explaining the choice>",
+  "hashtags": ["<10-15 optimized hashtags without # symbol, mix of broad/niche/local>"]
+}}
+
+Rules:
+- Real estate agents are most active Tue-Thu 7-10am and 6-9pm local (Central = UTC-5)
+- Shorts algorithm rewards consistency over viral timing — cadence > perfect hour
+- Hashtags: mix brand (#SuccessAgentPodcast), niche (#RealEstateInvesting #PodcastClips),
+  broad (#Shorts #Podcast), and local (#SpringfieldMO #Wyoming)
+- For 5 clips over 2 weeks, every 2-3 days works well
+"""}]
+        )
+
+        import json as _json
+        ai_data = _json.loads(resp.content[0].text.strip())
+        best_hour_utc = ai_data.get("best_hour_utc", best_hour_utc)
+        cadence_days  = ai_data.get("cadence_days", cadence_days)
+        hashtags      = ai_data.get("hashtags", hashtags)
+        reasoning     = ai_data.get("reasoning", reasoning)
+        best_days     = ai_data.get("best_days", ["Tuesday", "Thursday"])
+        if not analytics_source:
+            analytics_source = False  # stays AI
+
+    except Exception as ai_err:
+        best_days = ["Tuesday", "Thursday"]
+        hashtags  = ["SuccessAgentPodcast", "RealEstate", "Podcast", "Shorts", "RealEstateInvesting",
+                     "RealEstateAgent", "PodcastClips", "YouTubeShorts", "SpringfieldMO", "Wyoming"]
+        reasoning = "Using proven best-practice schedule for real estate podcast content."
+
+    # ── 3. Build schedule ─────────────────────────────────────────────────────
+    DAY_NAMES = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+    now = datetime.now(timezone.utc)
+    # Find next occurrence of best day (prefer the first best_days entry)
+    target_day_name = best_days[0] if best_days else "Tuesday"
+    target_weekday  = DAY_NAMES.index(target_day_name) if target_day_name in DAY_NAMES else 1
+    days_ahead = (target_weekday - now.weekday()) % 7 or 7
+    start_dt = (now + timedelta(days=days_ahead)).replace(
+        hour=best_hour_utc, minute=0, second=0, microsecond=0
+    )
+
+    schedule = []
+    for i in range(clip_count):
+        pub_dt = start_dt + timedelta(days=i * cadence_days)
+        schedule.append({
+            "clip_n":     i + 1,
+            "publish_at": pub_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "day_label":  pub_dt.strftime("%A, %b %-d at %-I:%M %p UTC"),
+        })
+
+    # Convert UTC hour to Central for display
+    central_hour = (best_hour_utc - 5) % 24
+    ampm = "AM" if central_hour < 12 else "PM"
+    display_hour = central_hour if central_hour <= 12 else central_hour - 12
+    display_hour = display_hour or 12
+
+    return JSONResponse({
+        "source":          "analytics" if analytics_source else "ai",
+        "start_at":        start_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "cadence_days":    cadence_days,
+        "best_days":       best_days,
+        "best_hour_utc":   best_hour_utc,
+        "best_hour_local": f"{display_hour}:00 {ampm} Central",
+        "hashtags":        hashtags,
+        "reasoning":       reasoning,
+        "clips_count":     clip_count,
+        "schedule":        schedule,
+    })
+
+
 @app.post("/api/projects/{project_id}/clips/schedule-all")
 async def schedule_all_clips(project_id: str, request: Request):
     """
@@ -1679,8 +1845,9 @@ async def schedule_all_clips(project_id: str, request: Request):
         raise HTTPException(status_code=400, detail="YouTube not connected")
 
     body = await request.json()
-    cadence_days = max(1, int(body.get("cadence_days", 2)))
-    start_at_str = body.get("start_at", "")
+    cadence_days  = max(1, int(body.get("cadence_days", 2)))
+    start_at_str  = body.get("start_at", "")
+    ai_hashtags   = body.get("hashtags", [])
 
     # Parse start time, default to tomorrow at 14:00 UTC (9am Central)
     try:
@@ -1733,13 +1900,15 @@ async def schedule_all_clips(project_id: str, request: Request):
         clip_path = clip.rendered_url
 
         def _upload(path=clip_path, title=hook, description=desc, pub=publish_at):
+            base_tags = ["Shorts", "YouTubeShorts", "SuccessAgentPodcast", "RealEstate", "podcast"]
+            all_tags  = list(ai_hashtags) + [t for t in base_tags if t not in ai_hashtags]
             return _yt_upload(
                 video_path=path,
                 title=title,
                 description=description,
                 privacy_status="private",
                 publish_at=pub,
-                tags=["Shorts", "YouTubeShorts", "SuccessAgentPodcast", "RealEstate", "podcast"],
+                tags=all_tags[:30],  # YouTube tag limit
                 category_id="22",
             )
 

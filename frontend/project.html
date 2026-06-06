@@ -393,8 +393,16 @@
 
       <!-- Schedule cadence panel (hidden by default) -->
       <div id="schedule-panel" style="display:none;background:#0d0c0a;border:1px solid #272420;border-radius:9px;padding:16px 18px;margin-bottom:16px;">
-        <div style="font-size:13px;font-weight:700;color:#F5F7FA;margin-bottom:12px;">Schedule All Clips to YouTube</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:end;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:#F5F7FA;">Schedule All Clips to YouTube</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" id="ai-optimize-btn" style="font-size:11px;padding:6px 12px;background:linear-gradient(135deg,#6b2e9e,#9b59d0);">🤖 AI Optimize</button>
+            <button class="btn btn-ghost" style="font-size:11px;padding:6px 10px;" onclick="document.getElementById('schedule-panel').style.display='none';">✕</button>
+          </div>
+        </div>
+        <!-- AI reasoning banner -->
+        <div id="ai-reasoning" style="display:none;background:rgba(107,46,158,0.12);border:1px solid rgba(155,89,208,0.3);border-radius:7px;padding:10px 12px;margin-bottom:12px;font-size:12px;color:#c0a0e0;line-height:1.5;"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:end;margin-bottom:12px;">
           <div>
             <label style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#847d74;display:block;margin-bottom:6px;">First clip publishes</label>
             <input type="datetime-local" id="sched-start" style="width:100%;background:#161410;border:1px solid #352f28;border-radius:7px;color:#F5F7FA;padding:8px 10px;font-size:13px;font-family:inherit;" />
@@ -408,12 +416,14 @@
               <option value="7">Weekly</option>
             </select>
           </div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-primary" id="sched-confirm-btn" style="flex:1;">Go — Upload &amp; Schedule</button>
-            <button class="btn btn-ghost" onclick="document.getElementById('schedule-panel').style.display='none';">✕</button>
-          </div>
         </div>
-        <div id="sched-result" style="margin-top:12px;font-size:12px;color:#847d74;"></div>
+        <!-- AI-suggested schedule preview -->
+        <div id="sched-preview" style="display:none;background:#161410;border:1px solid #272420;border-radius:7px;padding:10px 12px;margin-bottom:12px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4a4540;margin-bottom:8px;">Optimized Schedule Preview</div>
+          <div id="sched-preview-list" style="font-size:12px;color:#847d74;line-height:1.8;"></div>
+        </div>
+        <button class="btn btn-primary" id="sched-confirm-btn" style="width:100%;">Go — Upload &amp; Schedule All</button>
+        <div id="sched-result" style="margin-top:10px;font-size:12px;color:#847d74;"></div>
       </div>
 
       <!-- Empty state (no clips) -->
@@ -1408,6 +1418,7 @@
         }
       });
       $('sched-confirm-btn').addEventListener('click', scheduleAllClips);
+      $('ai-optimize-btn').addEventListener('click', aiOptimizeSchedule);
 
       // Wizard bar clicks
       bindWizardClicks();
@@ -1454,6 +1465,50 @@
     }
 
     // ── Boot ───────────────────────────────────────────────────────────────
+    async function aiOptimizeSchedule() {
+      const btn = $('ai-optimize-btn');
+      btn.disabled = true;
+      btn.textContent = '🤖 Thinking…';
+      try {
+        const data = await api('GET', '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/clips/smart-schedule');
+
+        // Fill in the form fields
+        // Convert ISO start_at to datetime-local format
+        const startDt = new Date(data.start_at);
+        const pad = n => String(n).padStart(2,'0');
+        $('sched-start').value = startDt.getFullYear()+'-'+pad(startDt.getMonth()+1)+'-'+
+          pad(startDt.getDate())+'T'+pad(startDt.getHours())+':'+pad(startDt.getMinutes());
+        $('sched-cadence').value = String(data.cadence_days);
+
+        // Show reasoning banner
+        const src = data.source === 'analytics' ? '📊 YouTube Analytics' : '🤖 AI Research';
+        $('ai-reasoning').style.display = '';
+        $('ai-reasoning').innerHTML =
+          `<strong style="color:#c0a0e0;">${src}</strong> · Best time: ${escHtml(data.best_hour_local)} · ` +
+          `Best days: ${escHtml((data.best_days||[]).join(', '))} · ` +
+          `Cadence: every ${data.cadence_days} day${data.cadence_days!==1?'s':''}<br>` +
+          `${escHtml(data.reasoning)}<br>` +
+          `<strong>Tags:</strong> ${escHtml((data.hashtags||[]).map(h=>'#'+h).join(' '))}`;
+
+        // Show schedule preview
+        if (data.schedule && data.schedule.length) {
+          $('sched-preview').style.display = '';
+          $('sched-preview-list').innerHTML = data.schedule
+            .map(s => `<div>Clip ${s.clip_n} → <strong style="color:#F5F7FA;">${escHtml(s.day_label)}</strong></div>`)
+            .join('');
+        }
+
+        // Store hashtags for use during upload
+        window._schedHashtags = data.hashtags || [];
+        toast(`Schedule optimized — ${data.source === 'analytics' ? 'from your analytics' : 'AI recommendation'}.`, 'success');
+      } catch(err) {
+        toast('Optimization failed — ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🤖 AI Optimize';
+      }
+    }
+
     async function scheduleAllClips() {
       const btn = $('sched-confirm-btn');
       const result = $('sched-result');
@@ -1472,7 +1527,7 @@
       try {
         const data = await api('POST',
           '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/clips/schedule-all',
-          { start_at: startUtc, cadence_days: cadence }
+          { start_at: startUtc, cadence_days: cadence, hashtags: window._schedHashtags || [] }
         );
         const ok = data.scheduled.filter(s => s.ok).length;
         const fail = data.scheduled.length - ok;
