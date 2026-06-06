@@ -1638,7 +1638,7 @@ async def post_clip_to_youtube(project_id: str, clip_id: str, request: Request):
                 video_path=clip_path,
                 title=title,
                 description=description + "\n\n#Shorts",
-                privacy="private",
+                privacy_status="private",
                 tags=["Shorts", "YouTubeShorts", "podcast"],
             )
 
