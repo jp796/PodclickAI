@@ -883,3 +883,62 @@ Items logged here are real inefficiencies that were intentionally deferred. Do n
 - `_maybeAutoTranscribe()` now returns early on `failed` status — user manually retries
 
 **Files:** `main.py`, `frontend/project.html`, `docs/BUGS_AND_FIXES.md`
+
+
+---
+
+## 2026-06-05 — Ship It steps d+e: show notes + clip captions never generated (silent failure)
+
+**Symptom:** After Ship It completes, `show_notes` is always null and clip `clip_caption` fields are always null. No error surfaced to the user. Steps 2 (audio) and 3 (clips) worked correctly.
+
+**Root cause (two bugs):**
+
+1. **Missing `session` parameter in `get_brand_context` calls.** `_run_ship_it_async` steps d and e called `get_brand_context(location_id=..., task_type=...)` — the function's first required positional argument is `session: AsyncSession`. The `TypeError` was silently caught by the outer `try/except` in each step.
+
+2. **Pydantic v2 dict-style access on a BaseModel.** After fixing the session issue, the code tried to access the `BrandContext` object via `.get("voice_profile", {})` and `ctx["brand_profile"]` — valid in Pydantic v1 but not in v2. Replaced with attribute access: `ctx.voice_profile`, `ctx.brand_profile`, `ctx.voice_samples`, `ctx.metadata.sample_count`.
+
+**Fix:**
+- Step d: `async with _async_session() as _f_session:` wrapping the `get_brand_context` call; `session=_f_session` passed; all access changed to attribute style
+- Step e: same fix per clip in the for loop
+- Audit log line: `ctx.get("metadata", {}).get("sample_count", 0)` → `ctx.metadata.sample_count`
+
+**Files:** `main.py` (`_run_ship_it_async` steps d and e)
+
+---
+
+## 2026-06-05 — YouTube chapters never persisted (SQLAlchemy JSONB mutation detection)
+
+**Symptom:** After fixing the Foundation session bug, show notes saved correctly but `youtube_chapters` remained absent from `project.legacy_metadata`. `_chapters_from_segments` correctly produced 8 chapters — confirmed via direct test — but they weren't written to DB.
+
+**Root cause:** SQLAlchemy JSONB column mutation tracking. When `existing_meta = proj.legacy_metadata` returns the dict and we mutate it in-place (`existing_meta["youtube_chapters"] = _chapters`), SQLAlchemy does not detect the change unless the column uses `MutableDict`. Reassigning `proj.legacy_metadata = existing_meta` reassigned the same dict object — SQLAlchemy saw no identity change and skipped the UPDATE.
+
+**Fix:**
+```python
+from sqlalchemy.orm.attributes import flag_modified
+new_meta = dict(proj.legacy_metadata or {})   # fresh copy, new object
+new_meta["youtube_chapters"] = _chapters
+proj.legacy_metadata = new_meta
+flag_modified(proj, "legacy_metadata")          # force dirty detection
+```
+
+Applied same pattern to all future legacy_metadata writes. Also added debug print: `segments={len(_segments)} → chapters={len(_chapters)}` to make this traceable.
+
+**Files:** `main.py` (`_run_ship_it_async` chapter persist block)
+
+---
+
+## 2026-06-05 — Duplicate clips accumulate on repeated Ship It runs
+
+**Symptom:** Each Ship It run on the same project appends new Clip DB rows. After 3 runs on the same episode, 15 clip rows exist (5 clips × 3 runs) — all with identical hook text and rendered files.
+
+**Root cause:** `_run_ship_it_async` step c renders clips and inserts rows without first clearing existing clips for the project. On re-run (fixing bugs, testing), clips accumulate.
+
+**Fix (pending):** Before inserting new Clip rows, delete existing rows for `project_id`. Add to `_run_ship_it_async`:
+```python
+await session.execute(delete(Clip).where(Clip.project_id == project_uuid))
+```
+
+**Status:** Not yet fixed — deferred. Low priority for JP's own use (he runs Ship It once per episode). Will cause UI clutter if multiple runs happen. Fix before multi-user beta.
+
+**Files:** `main.py` (`_run_ship_it_async` Clip persist block)
+

@@ -1793,21 +1793,24 @@ async def _run_ship_it_async(
     if transcript:
         try:
             _anthropic_client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
-            ctx = await get_brand_context(
-                location_id=str(location_id),
-                task_type=_TaskType.show_notes,
-                topic=transcript[:500],  # first 500 chars as topic signal
-            )
-            vp = ctx.get("voice_profile", {})
-            tone_list = vp.get("tone", [])
-            tone_str = ", ".join(tone_list) if isinstance(tone_list, list) else str(tone_list)
+            async with _async_session() as _f_session:
+                ctx = await get_brand_context(
+                    session=_f_session,
+                    location_id=str(location_id),
+                    task_type=_TaskType.show_notes,
+                    topic=transcript[:500],
+                )
+            # ctx is a BrandContext Pydantic model — use attribute access
+            vp = ctx.voice_profile
+            tone_list = vp.tone or []
+            tone_str = ", ".join(tone_list) if tone_list else ""
             voice_preamble = (
-                f"Write in the voice of {ctx['brand_profile'].get('full_name','the host')}, "
-                f"a {ctx['brand_profile'].get('niche_primary','real estate professional')} in "
-                f"{ctx['brand_profile'].get('market_city','their market')}.\n"
-                f"Tone: {tone_str}. {vp.get('cadence','')}\n\n"
+                f"Write in the voice of {ctx.brand_profile.full_name or 'the host'}, "
+                f"a {ctx.brand_profile.niche_primary or 'real estate professional'} in "
+                f"{ctx.brand_profile.market_city or 'their market'}.\n"
+                f"Tone: {tone_str}. {vp.cadence or ''}\n\n"
                 f"Voice examples:\n"
-                + "\n".join(f"- {s['text'][:200]}" for s in ctx.get("voice_samples", [])[:3])
+                + "\n".join(f"- {s.text[:200]}" for s in ctx.voice_samples[:3])
             )
 
             response = _anthropic_client.messages.create(
@@ -1836,15 +1839,18 @@ async def _run_ship_it_async(
             # Persist show notes + YouTube chapter markers
             _segments = job_data.get("segments", [])
             _chapters = _chapters_from_segments(_segments) if _segments else []
+            print(f"[ship_it.chapters] segments={len(_segments)} → chapters={len(_chapters)}")
             async with _async_session() as session:
                 proj = (await session.execute(select(Project).where(Project.id == project_uuid))).scalar_one_or_none()
                 if proj:
                     proj.show_notes = show_notes_text
                     if _chapters:
-                        import json as _jc
-                        existing_meta = proj.legacy_metadata or {}
-                        existing_meta["youtube_chapters"] = _chapters
-                        proj.legacy_metadata = existing_meta
+                        from sqlalchemy.orm.attributes import flag_modified as _flag_mod
+                        # Build new dict so SQLAlchemy detects the JSONB mutation
+                        new_meta = dict(proj.legacy_metadata or {})
+                        new_meta["youtube_chapters"] = _chapters
+                        proj.legacy_metadata = new_meta
+                        _flag_mod(proj, "legacy_metadata")
                         print(f"[ship_it.chapters] {len(_chapters)} chapter markers stored for project {project_uuid}")
                     await session.commit()
 
@@ -1857,7 +1863,7 @@ async def _run_ship_it_async(
                                  "VALUES (:id, :loc, 'project.show_notes', CAST(:p AS jsonb), now()) ON CONFLICT DO NOTHING"),
                         {"id": str(_uuid.uuid4()), "loc": str(location_id),
                          "p": _j.dumps({"project_id": str(project_uuid), "model": "claude-sonnet-4-5",
-                                        "sample_count": ctx.get("metadata", {}).get("sample_count", 0)})}
+                                        "sample_count": ctx.metadata.sample_count})}
                     )
                     await audit_s.commit()
             except Exception:
@@ -1880,20 +1886,22 @@ async def _run_ship_it_async(
             for clip_row in clip_rows:
                 try:
                     clip_topic = clip_row.hook_text or "podcast clip"
-                    ctx = await get_brand_context(
-                        location_id=str(location_id),
-                        task_type=_TaskType.clip_caption,
-                        topic=clip_topic,
-                    )
-                    vp = ctx.get("voice_profile", {})
-                    tone_list = vp.get("tone", [])
-                    tone_str = ", ".join(tone_list) if isinstance(tone_list, list) else str(tone_list)
+                    async with _async_session() as _fc_session:
+                        ctx = await get_brand_context(
+                            session=_fc_session,
+                            location_id=str(location_id),
+                            task_type=_TaskType.clip_caption,
+                            topic=clip_topic,
+                        )
+                    vp = ctx.voice_profile
+                    tone_list = vp.tone or []
+                    tone_str = ", ".join(tone_list) if tone_list else ""
                     voice_preamble = (
-                        f"Write in the voice of {ctx['brand_profile'].get('full_name','the host')}, "
-                        f"a {ctx['brand_profile'].get('niche_primary','real estate professional')}.\n"
+                        f"Write in the voice of {ctx.brand_profile.full_name or 'the host'}, "
+                        f"a {ctx.brand_profile.niche_primary or 'real estate professional'}.\n"
                         f"Tone: {tone_str}.\n\n"
                         f"Voice examples:\n"
-                        + "\n".join(f"- {s['text'][:150]}" for s in ctx.get("voice_samples", [])[:3])
+                        + "\n".join(f"- {s.text[:150]}" for s in ctx.voice_samples[:3])
                     )
 
                     caption_resp = _anthropic_client.messages.create(
