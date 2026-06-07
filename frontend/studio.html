@@ -309,7 +309,7 @@
       -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 14%, black 86%, transparent 100%);
     }
     #cam-overlay-track {
-      padding: 28% 8% 55%;
+      padding: 0 8% 100%;   /* top set dynamically in enterOverlay() to = overlayHeight/2 */
       font-size: 34px;
       font-weight: 500;
       color: #fff;
@@ -861,9 +861,9 @@
           <div id="cam-overlay-track"></div>
           <div id="cam-overlay-line"></div>
           <!-- Click-to-advance zone: pointer-events:all so mouse clicks reach it -->
-          <div id="cam-overlay-advance" title="Click to advance one line"
+          <div id="cam-overlay-advance" title="Click anywhere to advance · Space/↓ = forward · ↑ = back"
                onclick="prompterAdvanceLine()" style="
-            position:absolute; bottom:0; left:0; right:0; height:50%;
+            position:absolute; inset:0;
             cursor:pointer; pointer-events:all; z-index:12;
             display:flex; align-items:flex-end; justify-content:center;
             padding-bottom:8px;
@@ -1521,14 +1521,16 @@
     els.prompterTrack.style.transform = "translateY(0px)";
     els.prompterStatus.textContent = "paused";
     els.prompterStatus.className = "pill";
-    // If overlay is active, reposition so first line sits at the reading guide
+    // If overlay is active, re-apply dynamic padding and reset to top of script
     if (els.camOverlay.style.display !== 'none') {
       requestAnimationFrame(() => {
-        const trackStyle = window.getComputedStyle(els.camOverlayTrack);
-        const trackPaddingTop = parseFloat(trackStyle.paddingTop) || 0;
-        const readingLineY   = els.camOverlay.offsetHeight * 0.5;
-        state.promptScroll   = Math.max(0, trackPaddingTop - readingLineY);
-        els.camOverlayTrack.style.transform = `translateY(${-state.promptScroll}px)`;
+        const halfH = Math.round(els.camOverlay.offsetHeight * 0.5);
+        els.camOverlayTrack.style.paddingTop = halfH + 'px';
+        state.promptScroll = 0;
+        els.camOverlayTrack.style.transform = 'translateY(0px)';
+        state.promptMaxScroll = Math.max(0,
+          els.camOverlayTrack.scrollHeight - els.camOverlay.offsetHeight
+        );
       });
     }
   }
@@ -1785,32 +1787,30 @@
     els.camOverlayExit.style.display = 'block';
 
     requestAnimationFrame(() => {
-      // Max scroll: allow scrolling until last line reaches the reading guide
+      const overlayH = els.camOverlay.offsetHeight;
+
+      // ── Set padding-top = half overlay height in PIXELS ────────────────
+      // CSS `padding: 28%` is relative to CONTAINER WIDTH, not height.
+      // On a wide preview shell this pushes text far below visible area.
+      // Setting padding-top in px (= overlayH/2) places first line exactly
+      // at the orange reading guide (position: absolute; top: 50%).
+      const halfH = Math.round(overlayH * 0.5);
+      els.camOverlayTrack.style.paddingTop = halfH + 'px';
+
+      // Always reset scroll to 0 on overlay entry — first line starts at reading line
+      state.promptScroll = 0;
+      els.camOverlayTrack.style.transform = 'translateY(0px)';
+      els.prompterTrack.style.transform   = 'translateY(0px)';
+
+      // Max scroll: allow scrolling until text scrolls off the top
       state.promptMaxScroll = Math.max(0,
-        els.camOverlayTrack.scrollHeight - (els.camOverlay.offsetHeight * 0.5)
+        els.camOverlayTrack.scrollHeight - overlayH
       );
-
-      // ── Initial position: first line AT the 50% reading guide ──────────
-      // The track has padding-top (28% of parent width in CSS). We measure
-      // it directly so the calc works at any preview size.
-      // We want: (trackPaddingTop - initialScroll) = readingLineY
-      // → initialScroll = trackPaddingTop - readingLineY
-      const trackStyle = window.getComputedStyle(els.camOverlayTrack);
-      const trackPaddingTop = parseFloat(trackStyle.paddingTop) || 0;
-      const readingLineY   = els.camOverlay.offsetHeight * 0.5;
-      const initialScroll  = Math.max(0, trackPaddingTop - readingLineY);
-
-      // Only apply if this is a fresh start (scroll is at 0 = just reset)
-      if (state.promptScroll === 0) {
-        state.promptScroll = initialScroll;
-      }
-
-      els.camOverlayTrack.style.transform = `translateY(${-state.promptScroll}px)`;
     });
 
     els.btnOverlay.textContent = '⊡ Overlay On';
 
-    // Show the click-to-advance hint briefly on entry
+    // Show click-to-advance hint briefly
     const hint = document.getElementById('cam-advance-hint');
     if (hint) {
       hint.style.opacity = '1';
@@ -1838,6 +1838,16 @@
       zone.style.background = 'rgba(217,95,30,0.12)';
       setTimeout(() => { zone.style.background = ''; }, 120);
     }
+  }
+
+  function prompterRewindLine() {
+    // Go back one line
+    const lineHeight = parseFloat(
+      window.getComputedStyle(els.camOverlayTrack).lineHeight
+    ) || 51;
+    state.promptScroll = Math.max(0, state.promptScroll - lineHeight);
+    els.camOverlayTrack.style.transform = `translateY(${-state.promptScroll}px)`;
+    els.prompterTrack.style.transform   = `translateY(${-state.promptScroll}px)`;
   }
 
   function exitOverlay() {
@@ -1876,6 +1886,19 @@
         closePublishModal();
       } else if (els.camOverlay.style.display !== 'none') {
         exitOverlay();
+      }
+    }
+
+    // Teleprompter advance/rewind via keyboard — works in overlay AND fullscreen
+    const overlayActive = els.camOverlay.style.display !== 'none';
+    const fsActive = !!document.fullscreenElement;
+    if (overlayActive || fsActive) {
+      if (e.key === ' ' || e.key === 'ArrowDown' || e.key === 'PageDown') {
+        e.preventDefault();
+        prompterAdvanceLine();
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        e.preventDefault();
+        prompterRewindLine();
       }
     }
   });
