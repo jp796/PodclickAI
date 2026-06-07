@@ -350,23 +350,32 @@ _CROP_MODE_MAP = {
     "solo_bottom":  "solo_bottom",
 }
 
-# Cached layout per source video path — detect once, reuse for all clips
+# Cached layouts keyed by (source_path, orientation_bucket)
+# We round the timestamp to the nearest 300s (5-min window) so nearby clips
+# share one detection call, but a layout switch mid-recording gets caught.
 _LAYOUT_CACHE = {}
 
 
 def _get_layout(source_video: str, start_sec: float):
-    """Return cached LayoutInfo for source_video, detecting if needed."""
-    if source_video not in _LAYOUT_CACHE:
+    """
+    Return LayoutInfo for source_video at the given clip timestamp.
+
+    Detects at the midpoint of each 5-minute window so a recording that
+    switches layout mid-way (e.g. Zoom switching from top/bottom to side-by-side)
+    gets the correct crop params for each clip.
+    """
+    bucket = int(start_sec // 300) * 300     # 5-min bucket
+    cache_key = (source_video, bucket)
+    if cache_key not in _LAYOUT_CACHE:
         rc = _get_render_clip()
-        sample_t = max(start_sec + 2, 10.0)
-        _LAYOUT_CACHE[source_video] = rc.detect_layout(source_video, sample_time=sample_t)
-        lay = _LAYOUT_CACHE[source_video]
+        sample_t = max(start_sec + 5, 10.0)  # sample a few seconds into the clip
+        layout = rc.detect_layout(source_video, sample_time=sample_t)
+        _LAYOUT_CACHE[cache_key] = layout
         print(
-            f"[render_clip] Layout detected: content=({lay.content_x},{lay.content_y})"
-            f" {lay.content_w}x{lay.content_h}  v_split={lay.v_split}"
-            f"  top={lay.top_h}px  bot={lay.bot_h}px"
+            f"[render_clip] Layout @ t={start_sec:.0f}s: orientation={layout.orientation}"
+            f"  content=({layout.content_x},{layout.content_y}) {layout.content_w}x{layout.content_h}"
         )
-    return _LAYOUT_CACHE[source_video]
+    return _LAYOUT_CACHE[cache_key]
 
 
 def render_vertical_clip_from_video(
