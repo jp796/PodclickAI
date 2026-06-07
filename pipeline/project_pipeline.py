@@ -555,6 +555,7 @@ def run_ship_it(
         "clip_candidates": [],
         "rendered_clips": [],
         "assembled_mp3": None,
+        "audio_assembly": {},
         "errors": [],
     }
 
@@ -625,16 +626,27 @@ def run_ship_it(
     if mp3_path and os.path.exists(mp3_path):
         log("Assembling finished episode (intro → main → commercial → outro)…")
         try:
-            assembled = _assemble_episode(
+            assembly = _assemble_episode(
                 project_id=project_id,
                 main_mp3=mp3_path,
                 sponsor=result.get("sponsor_placement"),
                 word_timestamps=words,
                 log=log,
             )
-            result["assembled_mp3"] = assembled
-            if assembled:
-                log(f"  ✓ Assembled episode: {assembled}")
+            if assembly:
+                result["assembled_mp3"] = assembly["path"]
+                result["audio_assembly"] = {
+                    "has_intro":      assembly["has_intro"],
+                    "has_commercial": assembly["has_commercial"],
+                    "has_outro":      assembly["has_outro"],
+                    "commercial_inserted_at": assembly.get("commercial_inserted_at"),
+                    "sponsor_name":   (result.get("sponsor_placement") or {}).get("sponsor_name"),
+                    "sponsor_position_pct": (result.get("sponsor_placement") or {}).get("position_pct", 50),
+                }
+                log(f"  ✓ Assembled episode: {assembly['path']}"
+                    f"  intro={assembly['has_intro']} "
+                    f"commercial={assembly['has_commercial']} "
+                    f"outro={assembly['has_outro']}")
             else:
                 log("  Assembly skipped — no library assets found")
         except Exception as e:
@@ -740,4 +752,12 @@ def _assemble_episode(
         shutil.move(assembled_path, final_path)
         assembled_path = str(final_path)
 
-    return assembled_path
+    # Return path + assembly flags so callers can persist them
+    return {
+        "path":           assembled_path,
+        "has_intro":      assembly_result.get("has_intro", False),
+        "has_commercial": assembly_result.get("has_commercial", False),
+        "has_outro":      assembly_result.get("has_outro", False),
+        "commercial_inserted_at": assembly_result.get("commercial_inserted_at"),
+        "duration_saved": assembly_result.get("duration_saved", 0),
+    }

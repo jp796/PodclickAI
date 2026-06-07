@@ -2360,9 +2360,10 @@ async def _run_ship_it_inner(
         ship_result = await loop.run_in_executor(None, _sync)
 
         # Persist sponsor placement + assembled episode path to Project
-        _sponsor_pl = ship_result.get("sponsor_placement")
-        _assembled = ship_result.get("assembled_mp3")
-        if _sponsor_pl or _assembled:
+        _sponsor_pl   = ship_result.get("sponsor_placement")
+        _assembled    = ship_result.get("assembled_mp3")
+        _audio_asm    = ship_result.get("audio_assembly", {})
+        if _sponsor_pl or _assembled or _audio_asm:
             async with _async_session() as session:
                 proj = (await session.execute(select(Project).where(Project.id == project_uuid))).scalar_one_or_none()
                 if proj:
@@ -2370,6 +2371,10 @@ async def _run_ship_it_inner(
                         proj.sponsor_placement = _sponsor_pl
                     if _assembled:
                         proj.mp3_url = _assembled
+                    if _audio_asm:
+                        from sqlalchemy.orm.attributes import flag_modified as _fm
+                        proj.audio_assembly = dict(_audio_asm)
+                        _fm(proj, "audio_assembly")
                     await session.commit()
 
         # Persist Clip rows to DB — delete first to prevent accumulation from re-runs
