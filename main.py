@@ -3166,6 +3166,12 @@ async def serve_projects_list():
     return HTMLResponse((FRONTEND_DIR / "projects.html").read_text())
 
 
+@app.get("/vsl-editor", response_class=HTMLResponse)
+async def serve_vsl_editor():
+    """VSL Auto-Editor — script-driven video editing with graphics overlays."""
+    return HTMLResponse((FRONTEND_DIR / "vsl-editor.html").read_text())
+
+
 @app.get("/project/{project_id}", response_class=HTMLResponse)
 async def serve_project_wizard(project_id: str):
     """Phase 5 — Ship It wizard. 4-step review before Closing."""
@@ -5332,6 +5338,90 @@ async def delete_video_library_item(vid_id: str):
     lib = [i for i in _load_video_library() if i.get("id") != vid_id]
     _save_video_library(lib)
     return JSONResponse({"ok": True})
+
+
+@app.post("/api/vsl/parse")
+async def vsl_parse_script(request: Request):
+    """
+    Parse a VSL script and return the edit plan (sections, CTA, sign-off).
+    Body: { "script": "..." }
+    """
+    body = await request.json()
+    script = body.get("script", "")
+    if not script.strip():
+        raise HTTPException(status_code=400, detail="script is required")
+    from pipeline.vsl_editor import parse_vsl_script
+    plan = parse_vsl_script(script)
+    # Strip captions from parse preview (large)
+    preview = {**plan, "captions": len(plan.get("captions", []))}
+    return JSONResponse(preview)
+
+
+_VSL_JOBS: dict = {}
+
+@app.post("/api/vsl/render")
+async def vsl_render(
+    video: UploadFile = File(...),
+    script: str = Form(...),
+    style:  str = Form(default="bold"),
+):
+    """
+    Render a VSL video with auto-generated graphic overlays.
+
+    Multipart: video (MP4/WebM/MOV), script (text), style (bold)
+    Response: { job_id, status: 'running' }  → poll GET /api/vsl/render/{job_id}
+    """
+    import uuid as _uuid, asyncio as _asyncio, time as _time
+
+    job_id = str(_uuid.uuid4())
+    _VSL_JOBS[job_id] = {"status": "running", "progress": "Saving upload…", "output": None, "error": None}
+
+    # Save upload
+    vsl_dir = DATA_DIR / "vsl_renders"
+    vsl_dir.mkdir(exist_ok=True)
+    ext = Path(video.filename or "video.mp4").suffix or ".mp4"
+    src_path = vsl_dir / f"{job_id}_src{ext}"
+    src_path.write_bytes(await video.read())
+
+    async def _render_bg():
+        try:
+            from pipeline.vsl_editor import parse_vsl_script, render_vsl, VSL_STYLE_BOLD
+            loop = _asyncio.get_event_loop()
+            _VSL_JOBS[job_id]["progress"] = "Parsing script…"
+            plan = await loop.run_in_executor(None, parse_vsl_script, script)
+            _VSL_JOBS[job_id]["progress"] = "Rendering video with overlays…"
+            out_path = str(vsl_dir / f"{job_id}_vsl.mp4")
+            await loop.run_in_executor(
+                None, render_vsl, str(src_path), plan, out_path, VSL_STYLE_BOLD
+            )
+            _VSL_JOBS[job_id]["status"]   = "done"
+            _VSL_JOBS[job_id]["progress"] = "Complete"
+            _VSL_JOBS[job_id]["output"]   = f"/api/vsl/download/{job_id}"
+        except Exception as exc:
+            _VSL_JOBS[job_id]["status"] = "error"
+            _VSL_JOBS[job_id]["error"]  = str(exc)
+
+    asyncio.create_task(_render_bg())
+    return JSONResponse({"job_id": job_id, "status": "running"})
+
+
+@app.get("/api/vsl/render/{job_id}")
+async def vsl_render_status(job_id: str):
+    job = _VSL_JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return JSONResponse(job)
+
+
+@app.get("/api/vsl/download/{job_id}")
+async def vsl_download(job_id: str):
+    from fastapi.responses import FileResponse as _FR
+    if not all(c.isalnum() or c == '-' for c in job_id):
+        raise HTTPException(status_code=400, detail="Invalid job id")
+    path = DATA_DIR / "vsl_renders" / f"{job_id}_vsl.mp4"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Output not ready")
+    return _FR(path=str(path), media_type="video/mp4", filename="vsl_edited.mp4")
 
 
 @app.post("/api/screen-record/convert")

@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="/static/podclick-mark.png" type="image/png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VSL Editor · PodClick</title>
+  <script src="/static/podclick-nav.js" defer></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: #0b0a08; color: #F5F7FA; min-height: 100vh; font-family: 'Inter', sans-serif; }
+
+    .shell { max-width: 1080px; margin: 0 auto; padding: 28px 22px 80px; }
+    .page-head { margin-bottom: 24px; }
+    .page-head h1 { font-size: 22px; font-weight: 800; }
+    .page-head p  { font-size: 13px; color: #847d74; margin-top: 6px; }
+
+    .editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 820px) { .editor-grid { grid-template-columns: 1fr; } }
+
+    .panel { background: #161410; border: 1px solid #272420; border-radius: 10px; padding: 20px; }
+    .panel h2 { font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+                color: #f07030; margin-bottom: 14px; }
+
+    textarea {
+      width: 100%; background: #0d0c0a; border: 1px solid #352f28; border-radius: 8px;
+      color: #F5F7FA; padding: 12px 14px; font-family: 'Inter', sans-serif;
+      font-size: 13px; line-height: 1.6; resize: vertical; min-height: 420px;
+    }
+    textarea:focus { outline: none; border-color: #d95f1e; }
+
+    .upload-zone {
+      border: 2px dashed #272420; border-radius: 10px; padding: 32px 16px;
+      text-align: center; cursor: pointer; transition: all .15s; margin-bottom: 14px;
+    }
+    .upload-zone:hover, .upload-zone.dragover { border-color: #d95f1e; background: rgba(217,95,30,0.05); }
+    .upload-zone .icon { font-size: 32px; margin-bottom: 8px; }
+    .upload-zone .label { font-size: 13px; color: #847d74; }
+    .upload-zone .label em { color: #f07030; font-style: normal; }
+    .upload-zone .file-name { font-size: 12px; color: #f07030; font-weight: 600; margin-top: 8px; }
+
+    .btn-primary {
+      width: 100%; padding: 13px; font-size: 14px; font-weight: 700;
+      background: linear-gradient(135deg, #d95f1e, #f07030); color: #fff;
+      border: none; border-radius: 9px; cursor: pointer; transition: opacity .12s;
+      letter-spacing: .02em;
+    }
+    .btn-primary:hover:not(:disabled) { opacity: .9; }
+    .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+
+    .btn-ghost {
+      padding: 9px 14px; font-size: 12px; font-weight: 600; border-radius: 8px;
+      background: #1e1b16; border: 1px solid #272420; color: #a0a0c0; cursor: pointer;
+      transition: all .12s;
+    }
+    .btn-ghost:hover { border-color: #d95f1e; color: #f07030; }
+
+    /* Timeline preview */
+    .timeline { margin-top: 18px; }
+    .tl-row {
+      display: flex; align-items: center; gap: 10px; padding: 8px 0;
+      border-bottom: 1px solid #1a1714; font-size: 12px;
+    }
+    .tl-time { font-variant-numeric: tabular-nums; color: #f07030; font-weight: 700; min-width: 42px; }
+    .tl-label { font-weight: 600; color: #F5F7FA; flex: 1; }
+    .tl-note  { color: #4a4540; font-size: 11px; }
+    .tl-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
+    }
+    .tl-cta     { background: rgba(217,95,30,0.2); color: #f07030; border: 1px solid #6b2e0e; }
+    .tl-signoff { background: rgba(82,196,122,0.12); color: #52c47a; border: 1px solid #1a3d28; }
+
+    /* Progress */
+    .progress-card {
+      background: #161410; border: 1px solid #272420; border-radius: 10px;
+      padding: 20px; margin-top: 20px; display: none;
+    }
+    .progress-card.show { display: block; }
+    .prog-bar-wrap { background: #272420; border-radius: 4px; height: 6px; overflow: hidden; margin: 12px 0; }
+    .prog-bar { height: 100%; background: linear-gradient(90deg, #d95f1e, #f07030);
+                border-radius: 4px; width: 0%; transition: width 0.3s; }
+    .prog-msg  { font-size: 13px; color: #847d74; }
+    .prog-done { font-size: 13px; font-weight: 700; color: #52c47a; display: none; }
+    .prog-err  { font-size: 13px; color: #ff8080; display: none; }
+
+    .download-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 11px 20px; border-radius: 9px; font-size: 14px; font-weight: 700;
+      background: #3d8c5c; color: #fff; border: none; cursor: pointer;
+      text-decoration: none; margin-top: 12px; transition: opacity .12s;
+    }
+    .download-btn:hover { opacity: .9; }
+
+    .parse-preview {
+      margin-top: 14px; background: #0d0c0a; border: 1px solid #272420;
+      border-radius: 8px; padding: 12px; font-size: 12px; color: #847d74;
+      display: none;
+    }
+    .parse-preview.show { display: block; }
+
+    #toast {
+      position: fixed; bottom: 24px; right: 24px; background: #1e1b16;
+      border: 1px solid #352f28; border-radius: 9px; padding: 11px 16px;
+      font-size: 13px; color: #F5F7FA; opacity: 0; transform: translateY(6px);
+      transition: all .18s; z-index: 200; max-width: 320px;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.error { border-color: #a03838; color: #f0c8c8; }
+    #toast.ok    { border-color: #3d8c5c; }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <div class="page-head">
+    <h1>🎬 VSL Auto-Editor</h1>
+    <p>Paste your VSL script with <code>[MM:SS — SECTION]</code> markers · upload your raw video · get a fully edited MP4 with graphics, captions, and a CTA card.</p>
+  </div>
+
+  <div class="editor-grid">
+
+    <!-- Left: Script -->
+    <div class="panel">
+      <h2>VSL Script</h2>
+      <textarea id="script-input" placeholder="Paste your VSL script here.
+
+Format section markers like:
+[0:00 — HOOK · DELIVERY NOTE]
+[2:30 — CTA · DIRECT EYE CONTACT]
+[4:50 — SIGN-OFF · SMILE]
+
+Dollar amounts in the CTA section are auto-detected for the pricing card."></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn-ghost" onclick="parseScript()" style="flex:1;">🔍 Preview Timeline</button>
+      </div>
+      <div class="parse-preview" id="parse-preview"></div>
+    </div>
+
+    <!-- Right: Upload + Render -->
+    <div class="panel">
+      <h2>Raw Video</h2>
+
+      <div class="upload-zone" id="upload-zone"
+           onclick="document.getElementById('video-input').click()"
+           ondragover="ev.preventDefault();this.classList.add('dragover')"
+           ondragleave="this.classList.remove('dragover')"
+           ondrop="handleDrop(event)">
+        <div class="icon">🎥</div>
+        <div class="label">Drop your raw VSL recording or <em>browse</em></div>
+        <div class="label" style="margin-top:4px;font-size:11px;">MP4 · MOV · WebM</div>
+        <div class="file-name" id="file-name" style="display:none;"></div>
+      </div>
+      <input type="file" id="video-input" accept=".mp4,.mov,.webm" style="display:none;" onchange="fileSelected(this)">
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#847d74;display:block;margin-bottom:6px;">
+          Graphic Style
+        </label>
+        <select id="style-select" style="width:100%;background:#0d0c0a;border:1px solid #352f28;border-radius:8px;color:#F5F7FA;padding:8px 12px;font-size:13px;font-family:inherit;">
+          <option value="bold">Bold — orange accents, dark overlays</option>
+        </select>
+      </div>
+
+      <button class="btn-primary" id="render-btn" onclick="startRender()" disabled>
+        ⚡ Auto-Edit VSL
+      </button>
+
+      <p style="font-size:11px;color:#4a4540;margin-top:10px;text-align:center;">
+        Adds section titles · CTA pricing card · sign-off · captions
+      </p>
+
+      <!-- Timeline preview (from parse) -->
+      <div class="timeline" id="timeline" style="display:none;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#4a4540;margin-bottom:8px;">Edit Timeline</div>
+        <div id="timeline-rows"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="progress-card" id="progress-card">
+    <div style="font-size:14px;font-weight:700;color:#F5F7FA;margin-bottom:4px;">Rendering VSL…</div>
+    <div class="prog-msg" id="prog-msg">Starting…</div>
+    <div class="prog-bar-wrap"><div class="prog-bar" id="prog-bar"></div></div>
+    <div class="prog-done" id="prog-done">
+      ✓ VSL edited successfully!
+      <a id="download-link" class="download-btn" href="#" download="vsl_edited.mp4">⬇ Download Edited VSL</a>
+    </div>
+    <div class="prog-err" id="prog-err"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  let _videoFile = null;
+  let _pollTimer = null;
+
+  function toast(msg, kind) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show ' + (kind || '');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.className = '', 3200);
+  }
+
+  function fileSelected(input) {
+    const f = input.files[0];
+    if (!f) return;
+    _videoFile = f;
+    const nm = document.getElementById('file-name');
+    nm.textContent = `${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`;
+    nm.style.display = '';
+    checkReady();
+  }
+
+  function handleDrop(ev) {
+    ev.preventDefault();
+    document.getElementById('upload-zone').classList.remove('dragover');
+    const f = ev.dataTransfer.files[0];
+    if (f) { document.getElementById('video-input').files = ev.dataTransfer.files; fileSelected(document.getElementById('video-input')); }
+  }
+
+  function checkReady() {
+    const script = document.getElementById('script-input').value.trim();
+    document.getElementById('render-btn').disabled = !(_videoFile && script);
+  }
+
+  document.getElementById('script-input').addEventListener('input', checkReady);
+
+  async function parseScript() {
+    const script = document.getElementById('script-input').value.trim();
+    if (!script) { toast('Paste your script first.', 'error'); return; }
+    const resp = await fetch('/api/vsl/parse', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({script}),
+    });
+    if (!resp.ok) { toast('Parse failed', 'error'); return; }
+    const plan = await resp.json();
+
+    // Show parse preview
+    const pre = document.getElementById('parse-preview');
+    pre.className = 'parse-preview show';
+    pre.innerHTML = `<strong style="color:#F5F7FA">${plan.sections.length} sections detected</strong> · `
+      + (plan.cta ? `CTA @ ${fmtSec(plan.cta.start_sec)} ` : '')
+      + (plan.signoff ? `· Sign-off @ ${fmtSec(plan.signoff.start_sec)}` : '')
+      + ` · ${plan.captions} caption segments`;
+
+    // Render timeline
+    const rows = document.getElementById('timeline-rows');
+    rows.innerHTML = plan.sections.map(s => {
+      const isCTA     = s.label.includes('CTA');
+      const isSignoff = s.label.includes('SIGN');
+      const badge = isCTA ? '<span class="tl-badge tl-cta">CTA</span>' :
+                    isSignoff ? '<span class="tl-badge tl-signoff">Sign-off</span>' : '';
+      return `<div class="tl-row">
+        <span class="tl-time">${fmtSec(s.start_sec)}</span>
+        <span class="tl-label">${s.label}</span>
+        ${badge}
+        <span class="tl-note">${s.delivery_note || ''}</span>
+      </div>`;
+    }).join('');
+
+    document.getElementById('timeline').style.display = '';
+    checkReady();
+  }
+
+  function fmtSec(s) {
+    const m = Math.floor(s/60), ss = Math.floor(s%60);
+    return `${m}:${String(ss).padStart(2,'0')}`;
+  }
+
+  async function startRender() {
+    const script = document.getElementById('script-input').value.trim();
+    if (!_videoFile || !script) return;
+
+    const btn = document.getElementById('render-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Uploading…';
+
+    const card = document.getElementById('progress-card');
+    card.className = 'progress-card show';
+    document.getElementById('prog-done').style.display = 'none';
+    document.getElementById('prog-err').style.display  = 'none';
+    document.getElementById('prog-bar').style.width    = '5%';
+
+    const fd = new FormData();
+    fd.append('video', _videoFile, _videoFile.name);
+    fd.append('script', script);
+    fd.append('style', document.getElementById('style-select').value);
+
+    let resp;
+    try {
+      resp = await fetch('/api/vsl/render', { method: 'POST', body: fd });
+    } catch(e) {
+      showError('Upload failed: ' + e.message);
+      return;
+    }
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({detail:'Unknown error'}));
+      showError(err.detail || 'Render failed');
+      return;
+    }
+
+    const { job_id } = await resp.json();
+    btn.textContent = '⚡ Auto-Edit VSL';
+
+    // Poll
+    let pct = 10;
+    const msgs = ['Parsing script…','Building filter chain…','Rendering overlays…','Encoding…','Finalizing…'];
+    let msgIdx = 0;
+    _pollTimer = setInterval(async () => {
+      pct = Math.min(pct + 8, 90);
+      document.getElementById('prog-bar').style.width = pct + '%';
+      document.getElementById('prog-msg').textContent = msgs[Math.min(msgIdx++, msgs.length-1)];
+
+      const s = await fetch('/api/vsl/render/' + job_id).then(r => r.json()).catch(() => null);
+      if (!s) return;
+      if (s.status === 'done') {
+        clearInterval(_pollTimer);
+        document.getElementById('prog-bar').style.width = '100%';
+        document.getElementById('prog-msg').style.display = 'none';
+        const done = document.getElementById('prog-done');
+        done.style.display = 'block';
+        document.getElementById('download-link').href = s.output;
+        btn.disabled = false;
+        toast('VSL edited! Ready to download.', 'ok');
+      } else if (s.status === 'error') {
+        clearInterval(_pollTimer);
+        showError(s.error || 'Render failed');
+        btn.disabled = false;
+      } else if (s.progress) {
+        document.getElementById('prog-msg').textContent = s.progress;
+      }
+    }, 2500);
+  }
+
+  function showError(msg) {
+    const err = document.getElementById('prog-err');
+    err.style.display = 'block';
+    err.textContent = '✗ ' + msg;
+    document.getElementById('prog-msg').style.display = 'none';
+    document.getElementById('prog-bar').style.width = '0%';
+    document.getElementById('render-btn').disabled = false;
+    toast(msg, 'error');
+  }
+</script>
+</body>
+</html>
