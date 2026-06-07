@@ -329,6 +329,46 @@ def render_vertical_clip(
     return output_path
 
 
+def _get_render_clip():
+    """Import render_clip from the vertical-clip-render skill."""
+    import sys, importlib
+    skill_path = str(Path.home() / ".claude/skills/vertical-clip-render")
+    if skill_path not in sys.path:
+        sys.path.insert(0, skill_path)
+    return importlib.import_module("render_clip")
+
+
+# Map UI button names → render_clip modes
+_CROP_MODE_MAP = {
+    "stack":  "split",
+    "left":   "solo_top",     # top speaker = guest (left in old side-by-side thinking)
+    "right":  "solo_bottom",  # bottom speaker = host
+    "center": "center",
+    # Also accept render_clip native names directly
+    "split":        "split",
+    "solo_top":     "solo_top",
+    "solo_bottom":  "solo_bottom",
+}
+
+# Cached layout per source video path — detect once, reuse for all clips
+_LAYOUT_CACHE = {}
+
+
+def _get_layout(source_video: str, start_sec: float):
+    """Return cached LayoutInfo for source_video, detecting if needed."""
+    if source_video not in _LAYOUT_CACHE:
+        rc = _get_render_clip()
+        sample_t = max(start_sec + 2, 10.0)
+        _LAYOUT_CACHE[source_video] = rc.detect_layout(source_video, sample_time=sample_t)
+        lay = _LAYOUT_CACHE[source_video]
+        print(
+            f"[render_clip] Layout detected: content=({lay.content_x},{lay.content_y})"
+            f" {lay.content_w}x{lay.content_h}  v_split={lay.v_split}"
+            f"  top={lay.top_h}px  bot={lay.bot_h}px"
+        )
+    return _LAYOUT_CACHE[source_video]
+
+
 def render_vertical_clip_from_video(
     source_video: str,
     start_sec: float,
@@ -352,70 +392,25 @@ def render_vertical_clip_from_video(
       "right"  — Portrait crop of the RIGHT half only (guest).
       "center" — Original center-crop of full frame. Good for wide single-speaker.
 
-    Captions are burned in via libass at correct scale.
-    Returns output_path. Raises RuntimeError on FFmpeg failure.
+    Routed through render_clip.py (vertical-clip-render skill).
+    FILL not PAD — every cell uses force_original_aspect_ratio=increase,crop.
+    Returns output_path. Raises RuntimeError on failure.
     """
-    duration = end_sec - start_sec
+    rc      = _get_render_clip()
+    layout  = _get_layout(source_video, start_sec)
+    mode    = _CROP_MODE_MAP.get(crop_mode, "split")
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmp = Path(tmpdir)
-        srt_path = str(tmp / "clip.srt")
-        with open(srt_path, "w") as f:
-            f.write(srt_content)
-
-        if crop_mode == "stack":
-            # Vertical stack: top = left half, bottom = right half
-            # Each half: iw/2 × ih → scale to 1080 × 960 → vstack → 1080×1920
-            half_h = height // 2  # 960
-            filter_complex = (
-                f"[0:v]crop=iw/2:ih:0:0,scale={width}:{half_h}[top];"
-                f"[0:v]crop=iw/2:ih:iw/2:0,scale={width}:{half_h}[bot];"
-                f"[top][bot]vstack=inputs=2,"
-                f"subtitles='{srt_path}':force_style='{_CAPTION_STYLE}'[v]"
-            )
-            cmd = [
-                "ffmpeg", "-y",
-                "-ss", str(start_sec), "-t", str(duration),
-                "-i", source_video,
-                "-filter_complex", filter_complex,
-                "-map", "[v]", "-map", "0:a",
-                "-t", str(duration),
-                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                "-c:a", "aac", "-b:a", "128k",
-                output_path,
-            ]
-        else:
-            # Single-person crop modes
-            if crop_mode == "left":
-                crop_vf = "crop=iw/2:ih:0:0"
-            elif crop_mode == "right":
-                crop_vf = "crop=iw/2:ih:iw/2:0"
-            else:  # center
-                crop_vf = "crop=ih*9/16:ih:(iw-ih*9/16)/2:0"
-
-            vf = (
-                f"{crop_vf},"
-                f"scale={width}:{height},"
-                f"subtitles='{srt_path}':force_style='{_CAPTION_STYLE}'"
-            )
-            cmd = [
-                "ffmpeg", "-y",
-                "-ss", str(start_sec), "-t", str(duration),
-                "-i", source_video,
-                "-vf", vf,
-                "-t", str(duration),
-                "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-                "-c:a", "aac", "-b:a", "128k",
-                output_path,
-            ]
-
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"FFmpeg clip render ({crop_mode}) failed: {result.stderr[-400:]}"
-            )
-
-    return output_path
+    return rc.render_clip(
+        source=source_video,
+        start=start_sec,
+        end=end_sec,
+        srt_content=srt_content,
+        output=output_path,
+        layout=layout,
+        mode=mode,
+        out_w=width,
+        out_h=height,
+    )
 
 
 def render_all_clips(
