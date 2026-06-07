@@ -326,6 +326,9 @@
       background: linear-gradient(90deg, transparent, rgba(217,95,30,0.55), transparent);
       pointer-events: none;
     }
+    /* Click-to-advance zone hover */
+    #cam-overlay-advance:hover #cam-advance-hint { opacity: 1 !important; }
+
     /* Exit button sits inside preview, always reachable */
     #cam-overlay-exit {
       position: absolute;
@@ -857,6 +860,22 @@
         <div id="cam-overlay" style="display:none;">
           <div id="cam-overlay-track"></div>
           <div id="cam-overlay-line"></div>
+          <!-- Click-to-advance zone: pointer-events:all so mouse clicks reach it -->
+          <div id="cam-overlay-advance" title="Click to advance one line"
+               onclick="prompterAdvanceLine()" style="
+            position:absolute; bottom:0; left:0; right:0; height:50%;
+            cursor:pointer; pointer-events:all; z-index:12;
+            display:flex; align-items:flex-end; justify-content:center;
+            padding-bottom:8px;
+          ">
+            <span id="cam-advance-hint" style="
+              font-family:system-ui,sans-serif; font-size:11px; font-weight:600;
+              letter-spacing:.06em; text-transform:uppercase;
+              color:rgba(255,255,255,0.25); padding:4px 10px;
+              background:rgba(0,0,0,0.3); border-radius:4px;
+              opacity:0; transition:opacity .3s; pointer-events:none;
+            ">click to advance</span>
+          </div>
         </div>
         <!-- Exit button sits inside preview box, always reachable -->
         <button id="cam-overlay-exit" onclick="exitOverlay()">⊡ Exit Overlay</button>
@@ -1425,6 +1444,16 @@
     els.prompterTrack.style.transform = "translateY(0px)";
     els.prompterStatus.textContent = "paused";
     els.prompterStatus.className = "pill";
+    // If overlay is active, reposition so first line sits at the reading guide
+    if (els.camOverlay.style.display !== 'none') {
+      requestAnimationFrame(() => {
+        const trackStyle = window.getComputedStyle(els.camOverlayTrack);
+        const trackPaddingTop = parseFloat(trackStyle.paddingTop) || 0;
+        const readingLineY   = els.camOverlay.offsetHeight * 0.5;
+        state.promptScroll   = Math.max(0, trackPaddingTop - readingLineY);
+        els.camOverlayTrack.style.transform = `translateY(${-state.promptScroll}px)`;
+      });
+    }
   }
 
   function startPrompterLoop() {
@@ -1675,14 +1704,63 @@
   function enterOverlay() {
     // Mirror the current prompter content into the camera-view overlay
     els.camOverlayTrack.innerHTML = els.prompterTrack.innerHTML;
-    els.camOverlayTrack.style.transform = `translateY(${-state.promptScroll}px)`;
     els.camOverlay.style.display = 'block';
     els.camOverlayExit.style.display = 'block';
-    // Recalc max scroll for the camera view dimensions
+
     requestAnimationFrame(() => {
-      state.promptMaxScroll = Math.max(0, els.camOverlayTrack.scrollHeight - (els.camOverlay.offsetHeight * 0.5));
+      // Max scroll: allow scrolling until last line reaches the reading guide
+      state.promptMaxScroll = Math.max(0,
+        els.camOverlayTrack.scrollHeight - (els.camOverlay.offsetHeight * 0.5)
+      );
+
+      // ── Initial position: first line AT the 50% reading guide ──────────
+      // The track has padding-top (28% of parent width in CSS). We measure
+      // it directly so the calc works at any preview size.
+      // We want: (trackPaddingTop - initialScroll) = readingLineY
+      // → initialScroll = trackPaddingTop - readingLineY
+      const trackStyle = window.getComputedStyle(els.camOverlayTrack);
+      const trackPaddingTop = parseFloat(trackStyle.paddingTop) || 0;
+      const readingLineY   = els.camOverlay.offsetHeight * 0.5;
+      const initialScroll  = Math.max(0, trackPaddingTop - readingLineY);
+
+      // Only apply if this is a fresh start (scroll is at 0 = just reset)
+      if (state.promptScroll === 0) {
+        state.promptScroll = initialScroll;
+      }
+
+      els.camOverlayTrack.style.transform = `translateY(${-state.promptScroll}px)`;
     });
+
     els.btnOverlay.textContent = '⊡ Overlay On';
+
+    // Show the click-to-advance hint briefly on entry
+    const hint = document.getElementById('cam-advance-hint');
+    if (hint) {
+      hint.style.opacity = '1';
+      setTimeout(() => { hint.style.opacity = '0'; }, 2500);
+    }
+  }
+
+  function prompterAdvanceLine() {
+    // Manually advance the teleprompter by one line (~1.5× the font line-height).
+    // Font is 34px × line-height 1.5 = 51px per line. Advance 1 line.
+    const lineHeight = parseFloat(
+      window.getComputedStyle(els.camOverlayTrack).lineHeight
+    ) || 51;
+    state.promptScroll = Math.min(
+      state.promptScroll + lineHeight,
+      state.promptMaxScroll
+    );
+    els.camOverlayTrack.style.transform = `translateY(${-state.promptScroll}px)`;
+    // Also sync the side-panel prompter
+    els.prompterTrack.style.transform = `translateY(${-state.promptScroll}px)`;
+
+    // Flash the advance zone to confirm
+    const zone = document.getElementById('cam-overlay-advance');
+    if (zone) {
+      zone.style.background = 'rgba(217,95,30,0.12)';
+      setTimeout(() => { zone.style.background = ''; }, 120);
+    }
   }
 
   function exitOverlay() {
