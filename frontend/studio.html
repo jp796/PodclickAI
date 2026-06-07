@@ -899,6 +899,24 @@
         <span class="duration" id="duration">00:00</span>
       </div>
 
+      <!-- ── Recording Mode Switcher ─────────────────────────────────── -->
+      <div class="panel" style="padding:10px 14px;">
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);">Mode:</span>
+          <button id="mode-podcast-btn" onclick="setStudioMode('podcast')"
+            style="flex:1;padding:7px 10px;font-size:12px;font-weight:700;border-radius:7px;border:1px solid #d95f1e;background:rgba(217,95,30,0.15);color:#f07030;cursor:pointer;transition:all .12s;">
+            📻 Podcast Episode
+          </button>
+          <button id="mode-direct-btn" onclick="setStudioMode('direct')"
+            style="flex:1;padding:7px 10px;font-size:12px;font-weight:700;border-radius:7px;border:1px solid #2a2a3a;background:transparent;color:#888;cursor:pointer;transition:all .12s;">
+            🎬 Direct Video
+          </button>
+        </div>
+        <div id="mode-hint" style="font-size:11px;color:#555;margin-top:6px;text-align:center;">
+          Podcast — Ship It pipeline, clips, chapters, show notes
+        </div>
+      </div>
+
       <div class="panel">
         <h3>Status</h3>
         <div class="status-line">
@@ -945,6 +963,65 @@
           <button class="btn ghost" style="font-size:12px; padding:5px 12px;" onclick="trayDownload()">⬇ Download</button>
           <button class="btn ghost" style="font-size:12px; padding:5px 14px;" onclick="openPublishModal()">🚀 Legacy Publish</button>
         </div>
+      </div>
+
+      <!-- ── Direct Video Tray (ads / VSLs / promos — NOT podcast pipeline) ── -->
+      <div class="panel" id="direct-tray" style="display:none;">
+        <h3>🎬 Direct Video</h3>
+        <div style="display:flex; gap:6px; margin-bottom:8px; font-size:12px; color:var(--text-dim);">
+          <span id="direct-tray-filesize">—</span>
+          <span>·</span>
+          <span id="direct-tray-duration">—</span>
+        </div>
+        <video id="direct-tray-video" controls playsinline
+          style="width:100%; border-radius:8px; background:#000; max-height:180px; display:block; margin-bottom:10px;">
+        </video>
+
+        <!-- Video type -->
+        <div style="margin-bottom:10px;">
+          <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.06em;">Video Type</label>
+          <select id="direct-video-type"
+            style="width:100%;margin-top:4px;background:#13131a;border:1px solid #2a2a3a;border-radius:8px;padding:8px 12px;color:#fff;font-size:14px;box-sizing:border-box;">
+            <option value="ad">📢 Ad</option>
+            <option value="vsl">📽 VSL (Video Sales Letter)</option>
+            <option value="intro">🎬 Intro</option>
+            <option value="promo">🌟 Promo</option>
+            <option value="b-roll">🎥 B-Roll</option>
+            <option value="tutorial">📚 Tutorial</option>
+            <option value="other">🎞 Other</option>
+          </select>
+        </div>
+
+        <!-- Title -->
+        <div style="margin-bottom:10px;">
+          <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.06em;">Title / Label</label>
+          <input type="text" id="direct-video-title"
+            style="width:100%;margin-top:4px;background:#13131a;border:1px solid #2a2a3a;border-radius:8px;padding:8px 12px;color:#fff;font-size:14px;box-sizing:border-box;"
+            placeholder="e.g. HNL Springfield Ad — June 2026" />
+        </div>
+
+        <!-- Save to Library -->
+        <button id="btn-direct-save"
+          style="width:100%;padding:11px;font-size:15px;font-weight:700;letter-spacing:.03em;background:#d95f1e;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-bottom:8px;"
+          onclick="directVideoSave()">
+          💾 Save to Video Library
+        </button>
+        <div id="direct-save-status" style="font-size:12px;color:#888;text-align:center;display:none;margin-bottom:8px;"></div>
+
+        <!-- Download MP4 -->
+        <div style="display:flex;gap:8px;">
+          <button class="btn ghost" style="flex:1;font-size:12px;" onclick="directVideoDownload()">⬇ Download MP4</button>
+          <button class="btn ghost" style="flex:1;font-size:12px;" onclick="document.getElementById('direct-tray').style.display='none'">✕ Discard</button>
+        </div>
+      </div>
+
+      <!-- ── Video Library (direct videos) ─────────────────────────────── -->
+      <div class="panel" id="video-library-panel" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <h3 style="margin:0;">📚 Video Library</h3>
+          <button class="btn ghost" style="font-size:11px;padding:4px 10px;" onclick="loadVideoLibrary()">↺ Refresh</button>
+        </div>
+        <div id="video-library-list" style="font-size:13px;color:#888;">Loading…</div>
       </div>
 
       <!-- ── Upload Pre-Recorded File ─────────────────────────────────── -->
@@ -1927,14 +2004,172 @@
       const ss = (s % 60).toString().padStart(2, '0');
       trayDuration.textContent = `${m}:${ss}`;
     };
+    // ── Route to the right tray based on current mode ──────────────────
+    if (typeof _studioMode !== 'undefined' && _studioMode === 'direct') {
+      // Direct video mode — show direct tray, hide podcast tray
+      tray.style.display = 'none';
+      _showDirectTray(blob);
+      toast(`Take captured (${mb} MB). Choose a type and save to library.`, "success");
+    } else {
+      // Podcast mode — show normal podcast recording tray
+      tray.style.display = '';
+      tray.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Show post-episode tools panel
+      const postEp = document.getElementById('post-ep-panel');
+      if (postEp) postEp.style.display = '';
+      toast(`Recording saved (${mb} MB). Review in the tray below, then publish.`, "success");
+    }
+  }
+
+  // ── Studio Mode: "podcast" | "direct" ──────────────────────────────────
+  let _studioMode = 'podcast';
+
+  function setStudioMode(mode) {
+    _studioMode = mode;
+    const pb = document.getElementById('mode-podcast-btn');
+    const db = document.getElementById('mode-direct-btn');
+    const hint = document.getElementById('mode-hint');
+
+    if (mode === 'podcast') {
+      pb.style.borderColor = '#d95f1e';
+      pb.style.background  = 'rgba(217,95,30,0.15)';
+      pb.style.color       = '#f07030';
+      db.style.borderColor = '#2a2a3a';
+      db.style.background  = 'transparent';
+      db.style.color       = '#888';
+      hint.textContent     = 'Podcast — Ship It pipeline, clips, chapters, show notes';
+      // Show video library if already visible
+      document.getElementById('video-library-panel').style.display = 'none';
+    } else {
+      db.style.borderColor = '#d95f1e';
+      db.style.background  = 'rgba(217,95,30,0.15)';
+      db.style.color       = '#f07030';
+      pb.style.borderColor = '#2a2a3a';
+      pb.style.background  = 'transparent';
+      pb.style.color       = '#888';
+      hint.textContent     = 'Direct Video — ads, VSLs, promos. Saves as MP4 to library.';
+      loadVideoLibrary();
+    }
+  }
+
+  // ── Direct video tray: shown instead of recording-tray in direct mode ──
+  function _showDirectTray(blob) {
+    const tray = document.getElementById('direct-tray');
+    const vid  = document.getElementById('direct-tray-video');
+    const fs   = document.getElementById('direct-tray-filesize');
+    const dur  = document.getElementById('direct-tray-duration');
+    const mb   = (blob.size / 1024 / 1024).toFixed(1);
+    fs.textContent = `${mb} MB`;
+    if (vid._blobUrl) URL.revokeObjectURL(vid._blobUrl);
+    vid._blobUrl = URL.createObjectURL(blob);
+    vid.src = vid._blobUrl;
+    vid.onloadedmetadata = () => {
+      const s = Math.round(vid.duration);
+      const m = Math.floor(s/60), ss = String(s%60).padStart(2,'0');
+      dur.textContent = `${m}:${ss}`;
+    };
     tray.style.display = '';
-    tray.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    tray.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    document.getElementById('direct-save-status').style.display = 'none';
+    document.getElementById('video-library-panel').style.display = '';
+    loadVideoLibrary();
+  }
 
-    // Show post-episode tools panel
-    const postEp = document.getElementById('post-ep-panel');
-    if (postEp) postEp.style.display = '';
+  async function directVideoDownload() {
+    if (!state.recordingBlob) return;
+    const btn = document.querySelector('[onclick="directVideoDownload()"]');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Converting…'; }
+    try {
+      const fd = new FormData();
+      fd.append('file', state.recordingBlob, 'recording.webm');
+      const resp = await fetch('/api/screen-record/convert', { method: 'POST', body: fd });
+      if (!resp.ok) throw new Error('Conversion failed');
+      const blob = await resp.blob();
+      const a    = document.createElement('a');
+      const type = document.getElementById('direct-video-type').value;
+      const ts   = new Date().toISOString().slice(0,10);
+      a.href     = URL.createObjectURL(blob);
+      a.download = `podclick-${type}-${ts}.mp4`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    } catch(err) {
+      alert('Download failed: ' + err.message);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '⬇ Download MP4'; }
+    }
+  }
 
-    toast(`Recording saved (${mb} MB). Review in the tray below, then publish.`, "success");
+  async function directVideoSave() {
+    if (!state.recordingBlob) return;
+    const btn    = document.getElementById('btn-direct-save');
+    const status = document.getElementById('direct-save-status');
+    const type   = document.getElementById('direct-video-type').value;
+    const title  = document.getElementById('direct-video-title').value.trim();
+
+    btn.disabled  = true;
+    btn.textContent = '⏳ Converting & Saving…';
+    status.style.display = 'block';
+    status.style.color   = '#888';
+    status.textContent   = 'Converting WebM → MP4…';
+
+    try {
+      const fd = new FormData();
+      fd.append('video',      state.recordingBlob, 'recording.webm');
+      fd.append('title',      title);
+      fd.append('video_type', type);
+      const resp = await fetch('/api/studio/save-direct-video', { method:'POST', body:fd });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({detail:'Unknown error'}));
+        throw new Error(err.detail || 'Save failed');
+      }
+      const data = await resp.json();
+      status.style.color = '#52c47a';
+      status.textContent = `✓ Saved to library — ${data.size_mb} MB`;
+      btn.textContent = '✓ Saved';
+      loadVideoLibrary();
+    } catch(err) {
+      status.style.color   = '#d97070';
+      status.textContent   = '✗ ' + err.message;
+      btn.disabled         = false;
+      btn.textContent      = '💾 Save to Video Library';
+    }
+  }
+
+  async function loadVideoLibrary() {
+    const panel = document.getElementById('video-library-panel');
+    const list  = document.getElementById('video-library-list');
+    panel.style.display = '';
+    list.textContent    = 'Loading…';
+    try {
+      const data = await fetch('/api/studio/video-library').then(r => r.json());
+      if (!data.length) {
+        list.innerHTML = '<div style="color:#555;font-size:12px;padding:8px 0;">No videos saved yet.</div>';
+        return;
+      }
+      const TYPE_LABELS = { ad:'📢 Ad', vsl:'📽 VSL', intro:'🎬 Intro', promo:'🌟 Promo',
+        'b-roll':'🎥 B-Roll', tutorial:'📚 Tutorial', other:'🎞 Other' };
+      list.innerHTML = data.map(v => `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1a1a2a;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:600;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(v.title)}</div>
+            <div style="font-size:11px;color:#555;margin-top:2px;">${TYPE_LABELS[v.video_type]||v.video_type} · ${v.size_mb} MB · ${new Date(v.created_at).toLocaleDateString()}</div>
+          </div>
+          <a href="${escHtml(v.url)}" download style="font-size:20px;color:#888;text-decoration:none;" title="Download">⬇</a>
+          <button onclick="deleteDirectVideo('${escHtml(v.id)}')" style="background:none;border:none;color:#555;font-size:16px;cursor:pointer;padding:0;" title="Delete">🗑</button>
+        </div>`).join('');
+    } catch(err) {
+      list.textContent = 'Could not load library.';
+    }
+  }
+
+  async function deleteDirectVideo(id) {
+    if (!confirm('Delete this video?')) return;
+    await fetch(`/api/studio/video-library/${id}`, { method:'DELETE' });
+    loadVideoLibrary();
+  }
+
+  function escHtml(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   function trayDownload() {

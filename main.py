@@ -5214,6 +5214,121 @@ async def serve_recorder_widget():
 
 # ── Screen Recording Conversion ──────────────────────────────────────────────
 
+_VIDEO_LIBRARY_DIR = DATA_DIR / "video_library"
+_VIDEO_LIBRARY_DIR.mkdir(exist_ok=True)
+_VIDEO_LIBRARY_INDEX = DATA_DIR / "video_library.json"
+
+
+def _load_video_library() -> list:
+    if _VIDEO_LIBRARY_INDEX.exists():
+        try:
+            return json.loads(_VIDEO_LIBRARY_INDEX.read_text())
+        except Exception:
+            pass
+    return []
+
+
+def _save_video_library(items: list) -> None:
+    _VIDEO_LIBRARY_INDEX.write_text(json.dumps(items, indent=2))
+
+
+@app.post("/api/studio/save-direct-video")
+async def save_direct_video(
+    video: UploadFile = File(...),
+    title:     str = Form(default=""),
+    video_type: str = Form(default="other"),
+):
+    """
+    Convert a browser WebM recording to MP4 and save to the video library.
+    Used for ads, VSLs, intros, promos — NOT the podcast pipeline.
+
+    video_type options: ad | vsl | intro | promo | b-roll | tutorial | other
+    Returns: { id, title, video_type, url, size_mb, created_at }
+    """
+    import tempfile, subprocess as _sp, uuid as _uuid
+    from datetime import datetime, timezone
+
+    vid_id = str(_uuid.uuid4())
+    raw = await video.read()
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        src = tmp / "input.webm"
+        src.write_bytes(raw)
+
+        out = _VIDEO_LIBRARY_DIR / f"{vid_id}.mp4"
+
+        result = _sp.run([
+            "ffmpeg", "-y", "-i", str(src),
+            "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+            "-c:a", "aac", "-b:a", "128k",
+            "-movflags", "+faststart",
+            str(out),
+        ], capture_output=True)
+
+        if result.returncode != 0:
+            err = result.stderr.decode(errors="replace")[-300:]
+            raise HTTPException(status_code=500, detail=f"ffmpeg failed: {err}")
+
+    safe_type = video_type.strip().lower() or "other"
+    auto_name = f"{safe_type.title()} — {datetime.now(timezone.utc).strftime('%b %-d %Y')}"
+    final_title = title.strip() or auto_name
+    size_mb = round(out.stat().st_size / 1024 / 1024, 1)
+
+    entry = {
+        "id":         vid_id,
+        "title":      final_title,
+        "video_type": safe_type,
+        "filename":   out.name,
+        "size_mb":    size_mb,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    lib = _load_video_library()
+    lib.insert(0, entry)
+    _save_video_library(lib)
+
+    return JSONResponse({**entry, "url": f"/api/studio/video-library/{vid_id}"})
+
+
+@app.get("/api/studio/video-library")
+async def list_video_library():
+    """List all saved direct videos (ads, VSLs, etc.)."""
+    items = _load_video_library()
+    # Add URL + existence check
+    out = []
+    for item in items:
+        path = _VIDEO_LIBRARY_DIR / item.get("filename", f"{item['id']}.mp4")
+        if path.exists():
+            out.append({**item, "url": f"/api/studio/video-library/{item['id']}"})
+    return JSONResponse(out)
+
+
+@app.get("/api/studio/video-library/{vid_id}")
+async def serve_video_library_item(vid_id: str):
+    """Stream a saved direct video."""
+    from fastapi.responses import FileResponse as _FR
+    # Basic safety — only alphanumeric + hyphens
+    if not all(c.isalnum() or c == '-' for c in vid_id):
+        raise HTTPException(status_code=400, detail="Invalid ID")
+    path = _VIDEO_LIBRARY_DIR / f"{vid_id}.mp4"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Video not found")
+    return _FR(path=str(path), media_type="video/mp4", filename=f"{vid_id}.mp4")
+
+
+@app.delete("/api/studio/video-library/{vid_id}")
+async def delete_video_library_item(vid_id: str):
+    """Delete a video from the library."""
+    if not all(c.isalnum() or c == '-' for c in vid_id):
+        raise HTTPException(status_code=400, detail="Invalid ID")
+    path = _VIDEO_LIBRARY_DIR / f"{vid_id}.mp4"
+    if path.exists():
+        path.unlink()
+    lib = [i for i in _load_video_library() if i.get("id") != vid_id]
+    _save_video_library(lib)
+    return JSONResponse({"ok": True})
+
+
 @app.post("/api/screen-record/convert")
 async def screen_record_convert(file: UploadFile = File(...)):
     """Convert a WebM screen recording to MP4 using ffmpeg."""
