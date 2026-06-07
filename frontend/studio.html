@@ -861,9 +861,9 @@
           <div id="cam-overlay-track"></div>
           <div id="cam-overlay-line"></div>
           <!-- Click-to-advance zone: pointer-events:all so mouse clicks reach it -->
-          <div id="cam-overlay-advance" title="Click anywhere to advance · Space/↓ = forward · ↑ = back"
+          <div id="cam-overlay-advance" title="Click bottom half to advance · Space/↓ = forward · ↑ = back"
                onclick="prompterAdvanceLine()" style="
-            position:absolute; inset:0;
+            position:absolute; bottom:0; left:0; right:0; height:55%;
             cursor:pointer; pointer-events:all; z-index:12;
             display:flex; align-items:flex-end; justify-content:center;
             padding-bottom:8px;
@@ -1850,36 +1850,40 @@
     }
   }
 
-  function prompterAdvanceLine() {
-    // Manually advance the teleprompter by one line (~1.5× the font line-height).
-    // Font is 34px × line-height 1.5 = 51px per line. Advance 1 line.
-    const lineHeight = parseFloat(
-      window.getComputedStyle(els.camOverlayTrack).lineHeight
-    ) || 51;
-    state.promptScroll = Math.min(
-      state.promptScroll + lineHeight,
-      state.promptMaxScroll
-    );
-    els.camOverlayTrack.style.transform = `translateY(${-state.promptScroll}px)`;
-    // Also sync the side-panel prompter
-    els.prompterTrack.style.transform = `translateY(${-state.promptScroll}px)`;
+  function _overlayLineHeight() {
+    const lh = parseFloat(window.getComputedStyle(els.camOverlayTrack).lineHeight);
+    return (lh && lh > 0) ? lh : 51;
+  }
+  function _overlayMaxScroll() {
+    // Recalculate live — never stale, works even if RAF hasn't fired yet
+    const overlayH = els.camOverlay.offsetHeight || 0;
+    const trackH   = els.camOverlayTrack.scrollHeight || 0;
+    // Allow scrolling until the last line is at the reading guide (~50% from top)
+    return Math.max(0, trackH - overlayH + overlayH * 0.5);
+  }
 
-    // Flash the advance zone to confirm
+  function prompterAdvanceLine() {
+    const step  = _overlayLineHeight();
+    const maxS  = _overlayMaxScroll();
+    state.promptScroll = Math.min(state.promptScroll + step, maxS);
+    // Update both overlay track and side-panel in sync
+    const tx = `translateY(${-state.promptScroll}px)`;
+    els.camOverlayTrack.style.transform = tx;
+    els.prompterTrack.style.transform   = tx;
+    // Visual flash to confirm click registered
     const zone = document.getElementById('cam-overlay-advance');
     if (zone) {
-      zone.style.background = 'rgba(217,95,30,0.12)';
-      setTimeout(() => { zone.style.background = ''; }, 120);
+      zone.style.background = 'rgba(217,95,30,0.15)';
+      setTimeout(() => { zone.style.background = ''; }, 150);
     }
   }
 
   function prompterRewindLine() {
-    // Go back one line
-    const lineHeight = parseFloat(
-      window.getComputedStyle(els.camOverlayTrack).lineHeight
-    ) || 51;
-    state.promptScroll = Math.max(0, state.promptScroll - lineHeight);
-    els.camOverlayTrack.style.transform = `translateY(${-state.promptScroll}px)`;
-    els.prompterTrack.style.transform   = `translateY(${-state.promptScroll}px)`;
+    const step = _overlayLineHeight();
+    state.promptScroll = Math.max(0, state.promptScroll - step);
+    const tx = `translateY(${-state.promptScroll}px)`;
+    els.camOverlayTrack.style.transform = tx;
+    els.prompterTrack.style.transform   = tx;
   }
 
   function exitOverlay() {
