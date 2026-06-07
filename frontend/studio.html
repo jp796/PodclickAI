@@ -894,9 +894,40 @@
         <button class="btn" id="btn-screen" disabled>Share Screen</button>
         <button class="btn primary" id="btn-record" disabled>● Record</button>
         <button class="btn danger" id="btn-stop" disabled>■ Stop</button>
+        <button class="btn ghost" id="btn-punch" disabled
+          title="Stop, rewind 5 seconds, re-record from there"
+          style="background:rgba(196,150,28,0.12);border-color:#5a4008;color:#c4961c;display:none;">
+          ⏮ Punch In
+        </button>
         <button class="btn ghost" id="btn-download" disabled>↓ Download</button>
         <button class="btn primary" id="btn-publish" disabled>Publish →</button>
         <span class="duration" id="duration">00:00</span>
+      </div>
+
+      <!-- ── Punch-In panel (shown during punch-in editing) ─────────────── -->
+      <div class="panel" id="punch-panel" style="display:none;padding:12px 14px;background:rgba(196,150,28,0.07);border-color:#5a4008;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <span style="font-size:13px;font-weight:700;color:#c4961c;">⏮ Punch-In Mode</span>
+          <span style="font-size:11px;color:#847d74;">Listen to context, then re-record from the punch point.</span>
+        </div>
+        <video id="punch-preview" controls style="width:100%;border-radius:8px;background:#000;max-height:100px;display:block;margin-bottom:10px;"></video>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <span style="font-size:12px;color:#847d74;">Rewind:</span>
+          <select id="punch-rewind-sec" style="background:#13131a;border:1px solid #2a2a3a;border-radius:6px;padding:4px 8px;color:#fff;font-size:12px;">
+            <option value="3">3 seconds</option>
+            <option value="5" selected>5 seconds</option>
+            <option value="10">10 seconds</option>
+            <option value="15">15 seconds</option>
+          </select>
+          <button id="btn-punch-record"
+            style="flex:1;padding:9px;font-size:13px;font-weight:700;background:linear-gradient(135deg,#d95f1e,#f07030);color:#fff;border:none;border-radius:8px;cursor:pointer;"
+            onclick="punchStartRecording()">● Re-record from here</button>
+          <button onclick="cancelPunch()"
+            style="padding:9px 14px;font-size:12px;font-weight:600;background:#1e1b16;border:1px solid #272420;color:#888;border-radius:8px;cursor:pointer;">
+            ✕ Cancel
+          </button>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:#4a4540;" id="punch-segment-count"></div>
       </div>
 
       <!-- ── Recording Mode Switcher ─────────────────────────────────── -->
@@ -1232,6 +1263,7 @@
     btnScreen:   $("btn-screen"),
     btnRecord:   $("btn-record"),
     btnStop:     $("btn-stop"),
+    btnPunch:    $("btn-punch"),
     btnDownload: $("btn-download"),
     btnPublish:  $("btn-publish"),
     duration:    $("duration"),
@@ -1936,6 +1968,121 @@
     return "";
   }
 
+  // ── Punch-In Recording ─────────────────────────────────────────────────
+  // Segments: [{blob, mimeType, usableEndSec}] — last segment has no usableEndSec
+  const _punchSegments = [];
+  let   _punchActive   = false;
+
+  function punchIn() {
+    if (!state.recorder || state.recorder.state === 'inactive') return;
+
+    // 1. Stop current recording — onRecorderStop will NOT show the tray (punch mode)
+    _punchActive = true;
+    state.recorder.stop();
+    // Actual work continues in onRecorderStop → punchHandleStop()
+  }
+
+  function punchHandleStop(blob, mimeType) {
+    // Called from onRecorderStop when _punchActive = true
+    const rewindSec  = parseInt(document.getElementById('punch-rewind-sec').value || '5', 10);
+    const totalSec   = state.elapsedSeconds || 0;
+    const usableEnd  = Math.max(0, totalSec - rewindSec);
+    const playFrom   = Math.max(0, usableEnd - 1); // 1s before punch for audio cue
+
+    // Save segment up to usableEnd
+    _punchSegments.push({ blob, mimeType, usableEndSec: usableEnd });
+
+    // Update segment count display
+    const cnt = document.getElementById('punch-segment-count');
+    if (cnt) cnt.textContent = `${_punchSegments.length} segment${_punchSegments.length !== 1 ? 's' : ''} recorded · will be stitched on save`;
+
+    // Show punch panel with preview at the punch point
+    const panel   = document.getElementById('punch-panel');
+    const preview = document.getElementById('punch-preview');
+    if (state.recordingBlob) {
+      // Build a merged blob from existing segments + new segment for preview
+      const allBlobs = [..._punchSegments.map(s => s.blob)];
+      const previewBlob = new Blob(allBlobs, { type: mimeType });
+      if (preview._blobUrl) URL.revokeObjectURL(preview._blobUrl);
+      preview._blobUrl = URL.createObjectURL(previewBlob);
+      preview.src = preview._blobUrl;
+      preview.onloadedmetadata = () => {
+        preview.currentTime = playFrom;
+        preview.play().catch(() => {});
+      };
+    }
+    panel.style.display = '';
+    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // Reset main transport for re-record
+    els.btnRecord.disabled = true;
+    els.btnStop.disabled   = true;
+    els.btnPunch.style.display = 'none';
+    document.getElementById('btn-punch-record').disabled = false;
+  }
+
+  function punchStartRecording() {
+    document.getElementById('punch-panel').style.display = 'none';
+    _punchActive = false;
+
+    // Pause playback
+    const preview = document.getElementById('punch-preview');
+    preview.pause();
+
+    // Start fresh segment
+    startRecording();
+    toast('Re-recording from punch point — speak when ready.', 'success');
+  }
+
+  function cancelPunch() {
+    document.getElementById('punch-panel').style.display = 'none';
+    _punchActive = false;
+
+    // Remove the segment we just added (cancel means keep the original take)
+    if (_punchSegments.length > 0) {
+      _punchSegments.pop();
+    }
+
+    // Restore tray if we have any blob
+    if (state.recordingBlob) {
+      const tray = document.getElementById('recording-tray');
+      tray.style.display = '';
+    }
+    els.btnRecord.disabled = false;
+    els.btnPunch.style.display = 'none';
+    toast('Punch cancelled — original take restored.', 'success');
+  }
+
+  function _buildFinalBlob() {
+    // Merge all punch segments + current recording into one blob
+    if (_punchSegments.length === 0) {
+      return state.recordingBlob; // no punches, use raw blob
+    }
+    const mime  = state.recordingMime || 'video/webm';
+    const parts = [..._punchSegments.map(s => s.blob)];
+    if (state.recordingBlob) parts.push(state.recordingBlob);
+    return new Blob(parts, { type: mime });
+  }
+
+  // Upload punch segments for server-side stitch (called from saveAndContinue)
+  async function _uploadPunchedSegments() {
+    if (_punchSegments.length === 0) return null; // no punch, use normal blob
+    const fd   = new FormData();
+    const mime = state.recordingMime || 'video/webm';
+    const ext  = mime.includes('mp4') ? 'mp4' : 'webm';
+    _punchSegments.forEach((seg, i) => {
+      fd.append('segments', seg.blob, `seg_${i}.${ext}`);
+      fd.append('usable_end', String(seg.usableEndSec));
+    });
+    if (state.recordingBlob) {
+      fd.append('segments', state.recordingBlob, `seg_final.${ext}`);
+      fd.append('usable_end', '-1'); // -1 = keep full segment
+    }
+    const resp = await fetch('/api/studio/stitch-segments', { method: 'POST', body: fd });
+    if (!resp.ok) throw new Error('Stitch failed');
+    return await resp.blob();
+  }
+
   function startRecording() {
     if (!state.camStream) {
       toast("Start camera first.", "error");
@@ -1967,6 +2114,9 @@
     els.btnDownload.disabled = true;
     els.recBadge.classList.remove("idle");
     els.recLabel.textContent = "REC";
+    // Show punch-in button while recording
+    const punchBtn = document.getElementById('btn-punch');
+    if (punchBtn) { punchBtn.style.display = ''; punchBtn.disabled = false; }
     els.duration.classList.add("recording");
     startDurationTimer();
     resetPrompter();
@@ -1985,6 +2135,20 @@
     const blob = new Blob(state.chunks, { type: state.recordingMime });
     state.recordingBlob = blob;
     state.recorder = null;
+
+    // Hide punch button whenever recording stops
+    const punchBtn = document.getElementById('btn-punch');
+    if (punchBtn) { punchBtn.style.display = 'none'; punchBtn.disabled = true; }
+
+    // If we're in punch-in mode, hand off to the punch handler instead of normal stop
+    if (_punchActive) {
+      stopDurationTimer();
+      stopSpeechRecognition();
+      stopPrompterLoop();
+      punchHandleStop(blob, state.recordingMime);
+      return;
+    }
+
     els.btnRecord.disabled = false;
     els.btnStop.disabled = true;
     els.btnPublish.disabled = false;
@@ -2841,6 +3005,7 @@
   });
   els.btnRecord.addEventListener("click", startRecording);
   els.btnStop.addEventListener("click", stopRecording);
+  els.btnPunch.addEventListener("click", punchIn);
   els.btnDownload.addEventListener("click", downloadRecording);
   els.btnPublish.addEventListener("click", openPublishModal);
   els.btnReset.addEventListener("click", () => { state.promptScroll = 0; els.prompterTrack.style.transform = "translateY(0px)"; });

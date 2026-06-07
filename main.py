@@ -5340,6 +5340,84 @@ async def delete_video_library_item(vid_id: str):
     return JSONResponse({"ok": True})
 
 
+@app.post("/api/studio/stitch-segments")
+async def stitch_segments(
+    segments: list[UploadFile] = File(...),
+    usable_end: list[str] = Form(...),
+):
+    """
+    Stitch punch-in recording segments into one MP4.
+
+    Each segment has a corresponding usable_end seconds value:
+      -1  = keep the full segment (last segment, no trim)
+      N   = trim segment to N seconds from start
+
+    Returns the stitched MP4 as a download.
+    """
+    import tempfile, subprocess as _sp
+    from fastapi.responses import FileResponse as _FR
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        trimmed_paths = []
+
+        for i, (upload, end_str) in enumerate(zip(segments, usable_end)):
+            raw = await upload.read()
+            ext = Path(upload.filename or "seg.webm").suffix or ".webm"
+            raw_path = tmp / f"raw_{i}{ext}"
+            raw_path.write_bytes(raw)
+
+            out_path = tmp / f"seg_{i}.mp4"
+            end_sec  = float(end_str)
+
+            if end_sec < 0:
+                # Keep full segment
+                cmd = [
+                    "ffmpeg", "-y", "-i", str(raw_path),
+                    "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+                    "-c:a", "aac", "-b:a", "128k",
+                    str(out_path),
+                ]
+            else:
+                cmd = [
+                    "ffmpeg", "-y", "-i", str(raw_path),
+                    "-t", str(end_sec),
+                    "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+                    "-c:a", "aac", "-b:a", "128k",
+                    str(out_path),
+                ]
+            r = _sp.run(cmd, capture_output=True)
+            if r.returncode != 0:
+                raise HTTPException(status_code=500, detail=f"Segment {i} encode failed")
+            trimmed_paths.append(out_path)
+
+        if len(trimmed_paths) == 1:
+            final = trimmed_paths[0]
+        else:
+            # Concat with FFmpeg
+            concat_list = tmp / "concat.txt"
+            concat_list.write_text(
+                "\n".join(f"file '{p}'" for p in trimmed_paths)
+            )
+            final = tmp / "stitched.mp4"
+            r = _sp.run([
+                "ffmpeg", "-y", "-f", "concat", "-safe", "0",
+                "-i", str(concat_list),
+                "-c", "copy",
+                str(final),
+            ], capture_output=True)
+            if r.returncode != 0:
+                raise HTTPException(status_code=500, detail="Concat failed: " + r.stderr.decode()[-300:])
+
+        # Return stitched file — keep tmpdir alive via FileResponse background task
+        return _FR(
+            path=str(final),
+            media_type="video/mp4",
+            filename="recording_stitched.mp4",
+            background=None,
+        )
+
+
 @app.post("/api/vsl/parse")
 async def vsl_parse_script(request: Request):
     """
