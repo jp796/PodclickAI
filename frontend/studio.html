@@ -2281,6 +2281,9 @@
       if (tryNow()) {
         clearTimeout(timeout);
         videoEl.removeEventListener('durationchange', onDurationChange);
+        // Rewind to first frame — without this the player parks on the last
+        // frame (black/end) because currentTime = 1e101 triggered the scan.
+        videoEl.currentTime = 0;
       }
     }
 
@@ -2381,15 +2384,24 @@
       }
       const TYPE_LABELS = { ad:'📢 Ad', vsl:'📽 VSL', intro:'🎬 Intro', promo:'🌟 Promo',
         'b-roll':'🎥 B-Roll', tutorial:'📚 Tutorial', other:'🎞 Other' };
-      list.innerHTML = data.map(v => `
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1a1a2a;">
+      list.innerHTML = data.map(v => {
+        const durLabel = (v.duration && v.duration > 0)
+          ? (() => { const m = Math.floor(v.duration/60), s = Math.floor(v.duration%60);
+                     return `${m}:${String(s).padStart(2,'0')} · `; })()
+          : '';
+        return `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #1a1a2a;">
           <div style="flex:1;min-width:0;">
             <div style="font-size:13px;font-weight:600;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(v.title)}</div>
-            <div style="font-size:11px;color:#555;margin-top:2px;">${TYPE_LABELS[v.video_type]||v.video_type} · ${v.size_mb} MB · ${new Date(v.created_at).toLocaleDateString()}</div>
+            <div style="font-size:11px;color:#555;margin-top:2px;">${TYPE_LABELS[v.video_type]||v.video_type} · ${durLabel}${v.size_mb} MB · ${new Date(v.created_at).toLocaleDateString()}</div>
           </div>
-          <a href="${escHtml(v.url)}" download style="font-size:20px;color:#888;text-decoration:none;" title="Download">⬇</a>
-          <button onclick="deleteDirectVideo('${escHtml(v.id)}')" style="background:none;border:none;color:#555;font-size:16px;cursor:pointer;padding:0;" title="Delete">🗑</button>
-        </div>`).join('');
+          <a href="/editor/${escHtml(v.id)}"
+             style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;background:rgba(217,95,30,0.12);border:1px solid #6b2e0e;color:#f07030;text-decoration:none;white-space:nowrap;"
+             title="Open in transcript editor">✂ Edit</a>
+          <a href="${escHtml(v.url)}" download style="font-size:18px;color:#555;text-decoration:none;" title="Download">⬇</a>
+          <button onclick="deleteDirectVideo('${escHtml(v.id)}')" style="background:none;border:none;color:#444;font-size:15px;cursor:pointer;padding:0;" title="Delete">🗑</button>
+        </div>`;
+      }).join('');
     } catch(err) {
       list.textContent = 'Could not load library.';
     }

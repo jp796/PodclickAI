@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="/static/podclick-mark.png" type="image/png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Editor · PodClick</title>
+  <script src="/static/podclick-nav.js" defer></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: #0b0a08; color: #F5F7FA; min-height: 100vh; font-family: 'Inter', sans-serif; }
+
+    .shell { max-width: 1200px; margin: 0 auto; padding: 24px 22px 60px; }
+
+    /* ── Header ── */
+    .editor-header {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 22px;
+      padding-bottom: 16px; border-bottom: 1px solid #272420;
+    }
+    .editor-title {
+      font-size: 20px; font-weight: 800; color: #F5F7FA;
+      outline: none; border-radius: 6px; padding: 2px 6px; margin: -2px -6px;
+      transition: background .15s;
+    }
+    .editor-title[contenteditable]:hover { background: rgba(255,255,255,.04); cursor: text; }
+    .editor-title[contenteditable]:focus { background: #0d0c0a; box-shadow: 0 0 0 2px #d95f1e; }
+    .meta-chip { font-size: 12px; color: #4a4540; font-weight: 500; }
+
+    /* ── Two-panel layout ── */
+    .editor-grid {
+      display: grid; grid-template-columns: 320px 1fr;
+      gap: 18px; align-items: start;
+    }
+    @media (max-width: 900px) { .editor-grid { grid-template-columns: 1fr; } }
+
+    /* ── Video panel ── */
+    .video-panel { position: sticky; top: 60px; }
+    .video-wrap {
+      background: #000; border-radius: 10px; overflow: hidden;
+      aspect-ratio: 16/9; position: relative;
+    }
+    #editor-video {
+      width: 100%; height: 100%; display: block; object-fit: contain; background: #000;
+    }
+    .video-meta {
+      background: #161410; border: 1px solid #272420; border-top: none;
+      border-radius: 0 0 10px 10px; padding: 10px 14px;
+    }
+    .duration-badge {
+      font-size: 11px; font-weight: 700; letter-spacing: .06em;
+      color: #847d74; text-transform: uppercase;
+    }
+    .duration-badge.ok { color: #52c47a; }
+    .duration-badge.bad { color: #ff8080; }
+
+    /* ── Transcript panel ── */
+    .transcript-panel {}
+    .panel-card {
+      background: #161410; border: 1px solid #272420; border-radius: 10px;
+      padding: 20px; margin-bottom: 14px;
+    }
+    .panel-card h2 {
+      font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      color: #f07030; margin-bottom: 14px;
+    }
+
+    /* ── Transcribe button ── */
+    .btn-transcribe {
+      width: 100%; padding: 13px; font-size: 14px; font-weight: 700;
+      background: linear-gradient(135deg, #d95f1e, #f07030); color: #fff;
+      border: none; border-radius: 9px; cursor: pointer; transition: opacity .12s;
+    }
+    .btn-transcribe:hover:not(:disabled) { opacity: .9; }
+    .btn-transcribe:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── State cards ── */
+    .state-loading  { padding: 40px 20px; text-align: center; color: #4a4540; }
+    .state-error    { padding: 20px; background: rgba(160,56,56,.08); border: 1px solid #5a1010;
+                      border-radius: 8px; color: #ff8080; font-size: 13px; }
+    .state-ready    { font-size: 13px; color: #847d74; line-height: 1.6; }
+
+    /* ── Transcript placeholder (Phase 1 slot) ── */
+    #transcript-area {
+      min-height: 300px; background: #0d0c0a; border: 1px solid #272420;
+      border-radius: 8px; padding: 16px; font-size: 14px; line-height: 1.8;
+      color: #F5F7FA; outline: none;
+    }
+    .word {
+      display: inline; cursor: pointer; border-radius: 3px; padding: 1px 2px;
+      transition: background .1s;
+    }
+    .word:hover            { background: rgba(240,112,48,.18); }
+    .word.playing          { background: rgba(240,112,48,.30); }
+    .word.deleted          { text-decoration: line-through; color: #4a4540; cursor: default; }
+    .word.strikethrough    { text-decoration: line-through; color: #4a4540; }
+
+    .transcript-placeholder {
+      padding: 40px 20px; text-align: center; color: #4a4540;
+    }
+    .transcript-placeholder h3 { font-size: 15px; font-weight: 700; color: #847d74; margin-bottom: 8px; }
+    .transcript-placeholder p  { font-size: 13px; }
+
+    /* ── Phase 0 notice ── */
+    .phase-notice {
+      background: rgba(217,95,30,.07); border: 1px solid #6b2e0e; border-radius: 8px;
+      padding: 12px 14px; font-size: 12px; color: #f07030; line-height: 1.5;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 24px; right: 24px; background: #1e1b16;
+      border: 1px solid #352f28; border-radius: 9px; padding: 11px 16px;
+      font-size: 13px; color: #F5F7FA; opacity: 0; transform: translateY(6px);
+      transition: all .18s; z-index: 200; max-width: 320px;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+    #toast.ok   { border-color: #3d8c5c; }
+    #toast.err  { border-color: #a03838; color: #f0c8c8; }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- Header -->
+  <div class="editor-header">
+    <div>
+      <div class="editor-title" id="editor-title" contenteditable="true" spellcheck="false">Loading…</div>
+      <div class="meta-chip" id="editor-meta"></div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px;">
+      <a href="/projects" style="font-size:12px;padding:7px 13px;background:#1e1b16;border:1px solid #272420;border-radius:8px;color:#847d74;text-decoration:none;">
+        ← Job Site
+      </a>
+    </div>
+  </div>
+
+  <!-- Loading state -->
+  <div id="state-loading" class="state-loading">Loading video…</div>
+  <div id="state-error" class="state-error" style="display:none;"></div>
+
+  <!-- Editor grid (shown once media is ready) -->
+  <div class="editor-grid" id="editor-grid" style="display:none;">
+
+    <!-- Left: Video + meta -->
+    <div class="video-panel">
+      <div class="video-wrap">
+        <video id="editor-video" controls preload="metadata" playsinline></video>
+      </div>
+      <div class="video-meta">
+        <div class="duration-badge" id="duration-badge">—</div>
+        <div style="font-size:11px;color:#4a4540;margin-top:3px;" id="video-type-label"></div>
+      </div>
+
+      <!-- Export (Phase 1 — wired in Step 2 but active in Phase 1) -->
+      <div class="panel-card" style="margin-top:14px;">
+        <h2>Export</h2>
+        <button
+          id="btn-export"
+          disabled
+          style="width:100%;padding:10px;font-size:13px;font-weight:700;background:#1e1b16;border:1px solid #272420;color:#4a4540;border-radius:8px;cursor:not-allowed;"
+          title="Available after transcription (Phase 1)">
+          ⬇ Export Edited Cut
+        </button>
+        <p style="font-size:11px;color:#4a4540;margin-top:8px;">
+          Transcribe first → edit transcript → export frame-accurate cut.
+        </p>
+      </div>
+    </div>
+
+    <!-- Right: Transcript -->
+    <div class="transcript-panel">
+
+      <div class="panel-card">
+        <h2>Transcript</h2>
+        <div id="transcript-state-idle">
+          <div class="transcript-placeholder">
+            <h3>No transcript yet</h3>
+            <p>Transcribing to word-level timestamps powers the edit.<br>
+               Select words in the transcript to delete, reorder, or correct them.</p>
+          </div>
+          <button class="btn-transcribe" id="btn-transcribe" onclick="startTranscription()">
+            🎙 Transcribe with WhisperX
+          </button>
+          <div class="phase-notice" style="margin-top:12px;">
+            <strong>Phase 0 notice:</strong> WhisperX transcription wired in Phase 1.
+            The button is ready — transcription will run server-side and return
+            <code>Word[]</code> with word-level timestamps. Editing UI builds on top.
+          </div>
+        </div>
+
+        <div id="transcript-state-running" style="display:none;">
+          <div class="state-loading">
+            <div style="font-size:28px;margin-bottom:10px;">🎙</div>
+            <div style="font-size:14px;font-weight:600;color:#F5F7FA;">Transcribing…</div>
+            <div style="font-size:12px;color:#4a4540;margin-top:6px;" id="transcribe-progress">Running WhisperX…</div>
+          </div>
+        </div>
+
+        <div id="transcript-state-done" style="display:none;">
+          <!-- Phase 1: word-level editing surface goes here -->
+          <div id="transcript-area" spellcheck="false"></div>
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <button class="btn-transcribe" id="btn-retranscribe" onclick="startTranscription()"
+              style="background:#1e1b16;border:1px solid #272420;color:#847d74;font-size:12px;padding:8px 12px;flex:0;">
+              ↺ Re-transcribe
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /transcript-panel -->
+  </div><!-- /editor-grid -->
+
+</div><!-- /shell -->
+<div id="toast"></div>
+
+<script>
+  // ── Phase 0 bootstrap ─────────────────────────────────────────────────────
+  // Reads the mediaId from the URL, calls /meta to lazy-backfill duration,
+  // then shows the editor grid with a finite-duration video ready to play.
+
+  const VID_ID = (function () {
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    return parts[parts.length - 1] || '';
+  })();
+
+  let _meta = null;  // will hold the full Library item meta
+
+  function toast(msg, kind) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show ' + (kind || '');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => el.className = '', 3500);
+  }
+
+  function showError(msg) {
+    document.getElementById('state-loading').style.display = 'none';
+    const err = document.getElementById('state-error');
+    err.textContent = msg;
+    err.style.display = 'block';
+  }
+
+  async function boot() {
+    if (!VID_ID) { showError('No video id in URL.'); return; }
+
+    // Phase 0 Step 2 / C: call /meta which lazy-probes duration for legacy items
+    let meta;
+    try {
+      const resp = await fetch(`/api/studio/video-library/${VID_ID}/meta`);
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({ detail: 'Unknown error' }));
+        showError(`Could not load video: ${body.detail || resp.statusText}`);
+        return;
+      }
+      meta = await resp.json();
+    } catch (e) {
+      showError('Network error loading video: ' + e.message);
+      return;
+    }
+
+    _meta = meta;
+
+    // Populate header
+    const titleEl = document.getElementById('editor-title');
+    titleEl.textContent = meta.title || 'Untitled';
+    document.title = (meta.title || 'Editor') + ' · PodClick';
+    document.getElementById('editor-meta').textContent =
+      `${meta.video_type || 'video'} · ${meta.size_mb || '?'} MB`;
+
+    // Inline title save
+    titleEl.addEventListener('blur', async () => {
+      // no save path yet — title edit is UI-only until Phase 1 PATCH endpoint
+    });
+
+    // Duration badge
+    const durBadge = document.getElementById('duration-badge');
+    const dur = meta.duration;
+    if (dur && dur > 0 && isFinite(dur)) {
+      const m = Math.floor(dur / 60), s = Math.floor(dur % 60);
+      durBadge.textContent = `${m}:${String(s).padStart(2,'0')}`;
+      durBadge.className = 'duration-badge ok';
+    } else {
+      durBadge.textContent = 'Duration unknown';
+      durBadge.className = 'duration-badge bad';
+    }
+    document.getElementById('video-type-label').textContent =
+      (meta.video_type || '').toUpperCase();
+
+    // Wire video
+    const video = document.getElementById('editor-video');
+    video.src = meta.url;
+
+    // Phase 0 client-side duration fix — same as studio.html _setFiniteDuration
+    // Needed here in case the Meta endpoint returns a probed value but the
+    // browser-loaded blob still has no container duration (rare for stored MP4s,
+    // but keeps the contract clean).
+    if (!isFinite(video.duration) || video.duration <= 0) {
+      video.addEventListener('durationchange', function fix() {
+        if (isFinite(video.duration) && video.duration > 0) {
+          video.removeEventListener('durationchange', fix);
+          video.currentTime = 0;  // rewind to first frame after scan
+          const m = Math.floor(video.duration / 60), s = Math.floor(video.duration % 60);
+          durBadge.textContent = `${m}:${String(s).padStart(2,'0')}`;
+          durBadge.className = 'duration-badge ok';
+        }
+      });
+      video.currentTime = 1e101;
+    }
+
+    // Show grid
+    document.getElementById('state-loading').style.display = 'none';
+    document.getElementById('editor-grid').style.display = 'grid';
+  }
+
+  // ── Transcription (Phase 0 stub — Phase 1 wires the real call) ─────────────
+  async function startTranscription() {
+    if (!_meta) return;
+
+    document.getElementById('transcript-state-idle').style.display = 'none';
+    document.getElementById('transcript-state-running').style.display = '';
+
+    // Phase 1: call POST /api/editor/transcribe with { vid_id, media_uri }
+    // Returns { words: Word[] } (see packages/editor-core/src/types.ts)
+    // For now, surface the placeholder with a note.
+    await new Promise(r => setTimeout(r, 800)); // simulate async
+
+    document.getElementById('transcript-state-running').style.display = 'none';
+    document.getElementById('transcript-state-done').style.display = '';
+    document.getElementById('transcript-area').innerHTML =
+      '<div class="transcript-placeholder" style="padding:20px 0;">' +
+      '<h3>Transcription endpoint (Phase 1)</h3>' +
+      '<p>POST /api/editor/transcribe will return Word[] from WhisperX.<br>' +
+      'Word-level editing surface builds here in Phase 1.</p></div>';
+
+    document.getElementById('btn-export').disabled = false;
+    document.getElementById('btn-export').style.cssText =
+      'width:100%;padding:10px;font-size:13px;font-weight:700;' +
+      'background:linear-gradient(135deg,#d95f1e,#f07030);color:#fff;' +
+      'border:none;border-radius:8px;cursor:pointer;';
+    toast('Transcription complete (Phase 1 stub — real WhisperX wired next).', 'ok');
+  }
+
+  document.addEventListener('DOMContentLoaded', boot);
+</script>
+</body>
+</html>

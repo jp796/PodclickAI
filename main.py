@@ -3172,6 +3172,16 @@ async def serve_vsl_editor():
     return HTMLResponse((FRONTEND_DIR / "vsl-editor.html").read_text())
 
 
+@app.get("/editor/{vid_id}", response_class=HTMLResponse)
+async def serve_editor(vid_id: str):
+    """
+    Transcript-driven editor — Phase 0 entry point.
+    Opens a Library video in the word-level editor.
+    vid_id is the Video Library item id (UUID).
+    """
+    return HTMLResponse((FRONTEND_DIR / "editor.html").read_text())
+
+
 @app.get("/project/{project_id}", response_class=HTMLResponse)
 async def serve_project_wizard(project_id: str):
     """Phase 5 — Ship It wizard. 4-step review before Closing."""
@@ -5408,6 +5418,59 @@ async def serve_video_library_item(vid_id: str):
     if not path.exists():
         raise HTTPException(status_code=404, detail="Video not found")
     return _FR(path=str(path), media_type="video/mp4", filename=f"{vid_id}.mp4")
+
+
+@app.get("/api/studio/video-library/{vid_id}/meta")
+async def video_library_item_meta(vid_id: str):
+    """
+    Return metadata for one Library item.
+
+    Phase 0 — lazy duration backfill for items saved before the duration fix.
+    If `duration` is absent or non-finite in the stored entry, probes the MP4
+    now and persists the result so subsequent opens are fast.
+
+    Returns the full entry including `duration` (always finite after this call,
+    or raises 422 if the file is genuinely unreadable).
+    """
+    if not all(c.isalnum() or c == '-' for c in vid_id):
+        raise HTTPException(status_code=400, detail="Invalid ID")
+
+    lib = _load_video_library()
+    entry = next((i for i in lib if i.get("id") == vid_id), None)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    mp4_path = _VIDEO_LIBRARY_DIR / entry.get("filename", f"{vid_id}.mp4")
+    if not mp4_path.exists():
+        raise HTTPException(status_code=404, detail="MP4 not found on disk")
+
+    stored_dur = entry.get("duration", -1)
+    needs_probe = (
+        stored_dur is None
+        or not isinstance(stored_dur, (int, float))
+        or stored_dur <= 0
+        or stored_dur == float("inf")
+    )
+
+    if needs_probe:
+        # Lazy backfill — probe now, write back to library JSON
+        probed = _probe_duration(str(mp4_path))
+        if probed <= 0:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Cannot determine duration for {mp4_path.name}. "
+                       f"File may be corrupt. Re-save the recording.",
+            )
+        entry = {**entry, "duration": round(probed, 3)}
+        # Write back so next open is instant
+        updated = [entry if i.get("id") == vid_id else i for i in lib]
+        _save_video_library(updated)
+
+    return JSONResponse({
+        **entry,
+        "url":       f"/api/studio/video-library/{vid_id}",
+        "media_uri": str(mp4_path),   # absolute path for the Python render pipeline
+    })
 
 
 @app.delete("/api/studio/video-library/{vid_id}")
