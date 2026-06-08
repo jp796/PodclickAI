@@ -5244,55 +5244,138 @@ def _save_video_library(items: list) -> None:
 
 
 @app.post("/api/studio/save-direct-video")
+def _probe_duration(path: str) -> float:
+    """
+    Return a guaranteed-finite duration in seconds, or -1.0 on failure.
+    Mirrors media.ts probeDuration — Python implementation.
+    """
+    import subprocess as _sp
+    r = _sp.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=noprint_wrappers=1:nokey=1", path],
+        capture_output=True, text=True,
+    )
+    if r.returncode != 0:
+        return -1.0
+    try:
+        d = float(r.stdout.strip())
+        return d if (d > 0 and d != float("inf")) else -1.0
+    except ValueError:
+        return -1.0
+
+
+def _fix_and_remux(src: str, out: str) -> tuple:
+    """
+    Mirror of media.ts fixWebmDuration + remuxToMp4.
+    Attempts:
+      1. Direct remux to MP4 (fast path — works for most captured WebM)
+      2. If output duration is still non-finite: fix WebM cues then remux
+    Returns (success: bool, duration: float, error_msg: str)
+    Always keeps src intact — a captured take is irreplaceable.
+    """
+    import subprocess as _sp
+
+    # Attempt 1: direct remux (covers well-formed WebM and all other formats)
+    r = _sp.run([
+        "ffmpeg", "-y", "-i", src,
+        "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+        "-c:a", "aac", "-b:a", "128k",
+        "-movflags", "+faststart",
+        out,
+    ], capture_output=True)
+
+    if r.returncode == 0:
+        dur = _probe_duration(out)
+        if dur > 0:
+            return True, dur, ""
+
+    # Attempt 2: rewrite WebM cues first (MediaRecorder WebM with missing duration header)
+    fixed_webm = out + ".cue-fixed.webm"
+    r2 = _sp.run([
+        "ffmpeg", "-y", "-fflags", "+genpts", "-i", src,
+        "-c", "copy", fixed_webm,
+    ], capture_output=True)
+
+    if r2.returncode == 0:
+        r3 = _sp.run([
+            "ffmpeg", "-y", "-i", fixed_webm,
+            "-c:v", "libx264", "-preset", "fast", "-crf", "22",
+            "-c:a", "aac", "-b:a", "128k",
+            "-movflags", "+faststart",
+            out,
+        ], capture_output=True)
+        try:
+            Path(fixed_webm).unlink(missing_ok=True)
+        except Exception:
+            pass
+        if r3.returncode == 0:
+            dur = _probe_duration(out)
+            if dur > 0:
+                return True, dur, ""
+
+    # Both attempts failed — surface error, keep original
+    err_detail = r.stderr.decode(errors="replace")[-200:]
+    return False, -1.0, f"remux failed: {err_detail}"
+
+
 async def save_direct_video(
     video: UploadFile = File(...),
     title:     str = Form(default=""),
     video_type: str = Form(default="other"),
 ):
     """
-    Convert a browser WebM recording to MP4 and save to the video library.
-    Used for ads, VSLs, intros, promos — NOT the podcast pipeline.
+    Save a browser recording to the Video Library with a guaranteed finite duration.
 
-    video_type options: ad | vsl | intro | promo | b-roll | tutorial | other
-    Returns: { id, title, video_type, url, size_mb, created_at }
+    Phase 0 — media.ts contract (Python mirror):
+      1. Save raw original permanently (NEVER discard a captured take)
+      2. Remux to MP4 (fixWebmDuration → remuxToMp4)
+      3. probeDuration on output — must be finite
+      4. If non-finite after remux: retry with WebM cue repair, still keep original
+      5. Only surface an error if BOTH remux attempts fail — and still keep the raw
+
+    video_type: ad | vsl | intro | promo | b-roll | tutorial | other
+    Returns: { id, title, video_type, url, duration, size_mb, created_at }
     """
-    import tempfile, subprocess as _sp, uuid as _uuid
+    import uuid as _uuid
     from datetime import datetime, timezone
 
     vid_id = str(_uuid.uuid4())
     raw = await video.read()
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmp = Path(tmpdir)
-        src = tmp / "input.webm"
-        src.write_bytes(raw)
+    # ── 1. Save raw original permanently ─────────────────────────────────────
+    # Original filename: {vid_id}_raw.{ext}  — immutable, never deleted
+    orig_ext = Path(video.filename or "recording.webm").suffix or ".webm"
+    orig_path = _VIDEO_LIBRARY_DIR / f"{vid_id}_raw{orig_ext}"
+    orig_path.write_bytes(raw)
 
-        out = _VIDEO_LIBRARY_DIR / f"{vid_id}.mp4"
+    # ── 2–4. Remux to MP4, probe duration, retry on non-finite ───────────────
+    out = _VIDEO_LIBRARY_DIR / f"{vid_id}.mp4"
+    ok, duration, err_msg = _fix_and_remux(str(orig_path), str(out))
 
-        result = _sp.run([
-            "ffmpeg", "-y", "-i", str(src),
-            "-c:v", "libx264", "-preset", "fast", "-crf", "22",
-            "-c:a", "aac", "-b:a", "128k",
-            "-movflags", "+faststart",
-            str(out),
-        ], capture_output=True)
+    if not ok:
+        # Both remux attempts failed. Keep the raw file (already saved).
+        # Raise so the client knows something went wrong, but we did NOT lose data.
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not remux recording to a playable format. "
+                   f"Raw file preserved at {orig_path.name}. {err_msg}",
+        )
 
-        if result.returncode != 0:
-            err = result.stderr.decode(errors="replace")[-300:]
-            raise HTTPException(status_code=500, detail=f"ffmpeg failed: {err}")
-
-    safe_type = video_type.strip().lower() or "other"
-    auto_name = f"{safe_type.title()} — {datetime.now(timezone.utc).strftime('%b %-d %Y')}"
+    # ── 5. Build library entry with finite duration ───────────────────────────
+    safe_type  = video_type.strip().lower() or "other"
+    auto_name  = f"{safe_type.title()} — {datetime.now(timezone.utc).strftime('%b %-d %Y')}"
     final_title = title.strip() or auto_name
-    size_mb = round(out.stat().st_size / 1024 / 1024, 1)
+    size_mb    = round(out.stat().st_size / 1024 / 1024, 1)
 
     entry = {
-        "id":         vid_id,
-        "title":      final_title,
-        "video_type": safe_type,
-        "filename":   out.name,
-        "size_mb":    size_mb,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "id":           vid_id,
+        "title":        final_title,
+        "video_type":   safe_type,
+        "filename":     out.name,
+        "raw_filename": orig_path.name,      # kept for recovery / editor open
+        "duration":     round(duration, 3),  # seconds — guaranteed finite
+        "size_mb":      size_mb,
+        "created_at":   datetime.now(timezone.utc).isoformat(),
     }
     lib = _load_video_library()
     lib.insert(0, entry)

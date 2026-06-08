@@ -2189,12 +2189,9 @@
     const blobUrl = URL.createObjectURL(blob);
     trayVideo._blobUrl = blobUrl;
     trayVideo.src = blobUrl;
-    trayVideo.onloadedmetadata = () => {
-      const s = Math.round(trayVideo.duration);
-      const m = Math.floor(s / 60);
-      const ss = (s % 60).toString().padStart(2, '0');
-      trayDuration.textContent = `${m}:${ss}`;
-    };
+    // media.ts Phase 0 client-side fix: MediaRecorder WebM has no duration header
+    // until repaired server-side. Use the seek-past-end trick to get finite duration.
+    _setFiniteDuration(trayVideo, trayDuration);
     // ── Route to the right tray based on current mode ──────────────────
     if (typeof _studioMode !== 'undefined' && _studioMode === 'direct') {
       // Direct video mode — show direct tray, hide podcast tray
@@ -2244,6 +2241,55 @@
   }
 
   // ── Direct video tray: shown instead of recording-tray in direct mode ──
+  /**
+   * Phase 0 — client-side duration fix (mirrors media.ts note).
+   *
+   * MediaRecorder WebM has no duration header until server-side remux.
+   * In the live preview the Blob reports Infinity → "Infinity:NaN" in the UI.
+   *
+   * Fix: seek the video element past the end (currentTime = 1e101). The browser
+   * scans to the real end, fires 'durationchange' with the correct finite value.
+   * Bail out after 3 s to avoid hanging on genuinely corrupt blobs.
+   *
+   * @param {HTMLVideoElement} videoEl
+   * @param {HTMLElement} displayEl  — receives "M:SS" text
+   */
+  function _setFiniteDuration(videoEl, displayEl) {
+    function writeDur(secs) {
+      const s = Math.round(secs);
+      const m = Math.floor(s / 60), ss = String(s % 60).padStart(2, '0');
+      if (displayEl) displayEl.textContent = `${m}:${ss}`;
+    }
+
+    function tryNow() {
+      if (Number.isFinite(videoEl.duration) && videoEl.duration > 0) {
+        writeDur(videoEl.duration);
+        return true;
+      }
+      return false;
+    }
+
+    if (tryNow()) return;  // already finite — fast path
+
+    const timeout = setTimeout(() => {
+      // Give up after 3 s; write whatever we have (even Infinity is better than blank)
+      videoEl.removeEventListener('durationchange', onDurationChange);
+      if (displayEl) displayEl.textContent = '?:??';
+    }, 3000);
+
+    function onDurationChange() {
+      if (tryNow()) {
+        clearTimeout(timeout);
+        videoEl.removeEventListener('durationchange', onDurationChange);
+      }
+    }
+
+    videoEl.addEventListener('durationchange', onDurationChange);
+    videoEl.addEventListener('loadedmetadata', () => tryNow(), { once: true });
+    // Trigger the seek-past-end scan
+    videoEl.currentTime = 1e101;
+  }
+
   function _showDirectTray(blob) {
     const tray = document.getElementById('direct-tray');
     const vid  = document.getElementById('direct-tray-video');
@@ -2254,11 +2300,7 @@
     if (vid._blobUrl) URL.revokeObjectURL(vid._blobUrl);
     vid._blobUrl = URL.createObjectURL(blob);
     vid.src = vid._blobUrl;
-    vid.onloadedmetadata = () => {
-      const s = Math.round(vid.duration);
-      const m = Math.floor(s/60), ss = String(s%60).padStart(2,'0');
-      dur.textContent = `${m}:${ss}`;
-    };
+    _setFiniteDuration(vid, dur);
     tray.style.display = '';
     tray.scrollIntoView({ behavior:'smooth', block:'nearest' });
     document.getElementById('direct-save-status').style.display = 'none';
