@@ -2417,10 +2417,16 @@
     return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  function trayDownload() {
+  async function trayDownload() {
     if (!state.recordingBlob) return;
+    let blob = state.recordingBlob;
+    if (_punchSegments.length > 0) {
+      toast('Stitching your takes…', 'success');
+      try { blob = await _uploadPunchedSegments(); }
+      catch (e) { toast('Stitch failed — downloading last take only.', 'error'); }
+    }
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(state.recordingBlob);
+    a.href = URL.createObjectURL(blob);
     const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     a.download = `podclick-take-${ts}.webm`;
     a.click();
@@ -2589,8 +2595,16 @@
       const ts = new Date().toISOString();
       const filename = `studio-${ts.replace(/[:.]/g,'-').slice(0,19)}.webm`;
 
+      // Punch-in takes: stitch all segments server-side so the full
+      // recording (not just the last segment) is what gets saved.
+      let uploadBlob = state.recordingBlob;
+      if (_punchSegments.length > 0) {
+        status.textContent = 'Stitching your takes…';
+        uploadBlob = await _uploadPunchedSegments();
+      }
+
       const form = new FormData();
-      form.append('video', state.recordingBlob, filename);
+      form.append('video', uploadBlob, filename);
       form.append('title', title.trim());
       form.append('recorded_at', ts);
 
@@ -2721,6 +2735,7 @@
     if (state.durationTimer) clearInterval(state.durationTimer);
     state.durationTimer = setInterval(() => {
       const s = Math.floor((Date.now() - state.startedAt) / 1000);
+      state.elapsedSeconds = s;
       const m = Math.floor(s / 60);
       const ss = (s % 60).toString().padStart(2, "0");
       els.duration.textContent = `${m.toString().padStart(2,"0")}:${ss}`;
@@ -2863,7 +2878,7 @@
       try {
         if (key === 'podcast') {
           await _doPodcastPublishRaw();
-          setStatus(key, '✅ Sent to Buzzsprout', '#2EE49C');
+          setStatus(key, '✅ Build saved — Ship It from the Job Site', '#2EE49C');
         } else if (key === 'telegram') {
           await _doTelegramPublishRaw();
           setStatus(key, '✅ Sent to Telegram', '#2EE49C');
@@ -2887,25 +2902,28 @@
 
   // ── Raw publish helpers (no modal close, no toast) ───────────────────
   async function _doPodcastPublishRaw() {
+    // Podcast publish runs through the Project pipeline: save the recording
+    // as a Project, then Ship It → schedule a Closing handles Buzzsprout.
     if (!state.recordingBlob) throw new Error('No recording');
-    showFileXfer('🎤️', 'Uploading to Buzzsprout…', '→ Podcast feed · Spotify · Apple Music');
+    showFileXfer('🎤️', 'Starting your build…', '→ Project pipeline · transcription · Ship It → Closing');
+    let blob = state.recordingBlob;
+    if (_punchSegments.length > 0) {
+      try { blob = await _uploadPunchedSegments(); } catch (e) {}
+    }
     const form = new FormData();
     const ts = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
-    form.append("audio", state.recordingBlob, `studio-${ts}.webm`);
-    form.append("clip_types", "main");
-    form.append("podcast_name", els.podcastName.value || "");
-    form.append("studio_mode", "both");
-    form.append("subtitle_style", "youtube");
-    form.append("episode_number_override", "0");
-    form.append("model_size", "base");
+    form.append("video", blob, `studio-${ts}.webm`);
+    form.append("title", (document.getElementById('build-title')||{}).value
+      || (document.getElementById('topic-title')||{}).value || "");
     try {
-      const res = await fetch("/api/run", { method:"POST", body:form });
+      const res = await fetch("/api/projects/from-recording", { method:"POST", body:form });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || res.statusText);
-      completeFileXfer(true, 'Sent to Buzzsprout');
+      completeFileXfer(true, 'Build saved — opening the Job Site');
+      setTimeout(() => { window.location.href = '/project/' + data.project_id; }, 800);
       return data;
     } catch(e) {
-      completeFileXfer(false, 'Upload failed');
+      completeFileXfer(false, 'Save failed');
       throw e;
     }
   }
@@ -2953,7 +2971,7 @@
   // ── Legacy single-destination publish wrappers ───────────────────────
   function publishToPodcast() {
     closePublishModal();
-    _doPodcastPublishRaw().then(() => toast('✅ Sent to Buzzsprout', 'success')).catch(e => toast('Failed: ' + e.message, 'error'));
+    _doPodcastPublishRaw().then(() => toast('✅ Build saved — Ship It from the Job Site', 'success')).catch(e => toast('Failed: ' + e.message, 'error'));
   }
 
   async function publishToTelegram() {

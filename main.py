@@ -2225,6 +2225,28 @@ def _ship_it_whisper_words(audio_path: str, api_key: str) -> dict:
     }
 
 
+def _clip_transcript_text(job_data, clip_row, full_transcript):
+    """Actual spoken text inside the clip's window, from word timestamps.
+
+    Falls back to the first 500 chars of the full transcript when word
+    timestamps are unavailable (pre-fix projects).
+    """
+    try:
+        words = (job_data or {}).get("words") or []
+        start = float(clip_row.source_start_seconds or 0)
+        end = float(clip_row.source_end_seconds or 0)
+        text = " ".join(
+            (w.get("word") or w.get("text") or "").strip()
+            for w in words
+            if w.get("start") is not None and start <= float(w["start"]) <= end
+        ).strip()
+        if text:
+            return text[:1500]
+    except Exception:
+        pass
+    return (full_transcript or "")[:500]
+
+
 async def _run_ship_it_async(
     project_uuid,
     project_id: str,
@@ -2538,7 +2560,7 @@ async def _run_ship_it_inner(
                                 f"Max 3 sentences. Hook first. No hashtags (they'll be added separately). "
                                 f"Sound like a real person sharing something valuable, not a brand post.\n\n"
                                 f"CLIP HOOK: {clip_row.hook_text}\n"
-                                f"CLIP TRANSCRIPT: {clip_row.virality_score}"
+                                f"CLIP TRANSCRIPT: {_clip_transcript_text(job_data, clip_row, transcript)}"
                             )
                         }],
                     )
@@ -2854,7 +2876,10 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
             async with _async_session() as _cs:
                 _clips = (
                     await _cs.execute(
-                        _clip_select(_Clip).where(_Clip.project_id == pid)
+                        _clip_select(_Clip).where(
+                            _Clip.project_id == pid,
+                            _Clip.status != "removed",
+                        )
                     )
                 ).scalars().all()
 
@@ -5253,7 +5278,6 @@ def _save_video_library(items: list) -> None:
     _VIDEO_LIBRARY_INDEX.write_text(json.dumps(items, indent=2))
 
 
-@app.post("/api/studio/save-direct-video")
 def _probe_duration(path: str) -> float:
     """
     Return a guaranteed-finite duration in seconds, or -1.0 on failure.
@@ -5328,6 +5352,7 @@ def _fix_and_remux(src: str, out: str) -> tuple:
     return False, -1.0, f"remux failed: {err_detail}"
 
 
+@app.post("/api/studio/save-direct-video")
 async def save_direct_video(
     video: UploadFile = File(...),
     title:     str = Form(default=""),

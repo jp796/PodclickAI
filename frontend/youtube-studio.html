@@ -3608,6 +3608,22 @@ async function runCoverForge() {
 }
 
 // ── Lead Page Generator ────────────────────────────────────────────────────────
+let _leadPageData = null;
+
+function downloadLeadEmailSequence() {
+  const emails = (_leadPageData && _leadPageData.email_sequence) || [];
+  if (!emails.length) { ysToast('Generate a lead page first.', 'error'); return; }
+  const txt = emails.map(em =>
+    `=== ${em.day || ''} — ${em.purpose || ''} ===\nSubject: ${em.subject || ''}\nPreview: ${em.preview_text || ''}\n\n${em.body || ''}\n`
+  ).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([txt], { type: 'text/plain' }));
+  a.download = 'lead-email-sequence.txt';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  ysToast('Email sequence exported.', 'success');
+}
+
 async function runLeadPageGenerator() {
   const topic      = document.getElementById('lp-topic').value.trim();
   const market     = document.getElementById('lp-market').value.trim();
@@ -3663,6 +3679,21 @@ async function runLeadPageGenerator() {
 
     // 2 — Description CTA
     document.getElementById('lp-description-cta').textContent = data.description_cta || '';
+
+    // 3 — Email Sequence
+    _leadPageData = data;
+    const emailsEl = document.getElementById('lp-email-sequence');
+    const emails   = data.email_sequence || [];
+    emailsEl.innerHTML = emails.map(em => `
+      <div style="background:#111009; border:1px solid #272420; border-radius:8px; padding:14px;">
+        <div class="flex items-center gap-2 mb-1">
+          <span style="font-size:10px;font-weight:700;color:#f07030;letter-spacing:.06em;text-transform:uppercase;">${escHtml(em.day || '')}</span>
+          <span style="font-size:10px;color:#5a5a7a;">· ${escHtml(em.purpose || '')}</span>
+        </div>
+        <div class="text-sm font-bold text-white mb-1">${escHtml(em.subject || '')}</div>
+        <div class="text-xs" style="color:#c0c0d8; line-height:1.6; white-space:pre-wrap;">${escHtml(em.body || '')}</div>
+      </div>
+    `).join('');
 
     // 3 — GHL Steps
     const stepsEl = document.getElementById('lp-ghl-steps');

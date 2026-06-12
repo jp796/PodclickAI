@@ -942,3 +942,23 @@ await session.execute(delete(Clip).where(Clip.project_id == project_uuid))
 
 **Files:** `main.py` (`_run_ship_it_async` Clip persist block)
 
+
+---
+
+## 2026-06-11 — Full SaaS Audit: 9 fixes across nav, studio, clips, automations (+ Loom parity)
+
+Four parallel audit agents swept all 16 pages, ~150 API routes, and the studio/clips/automation pipelines. Fixes shipped:
+
+1. **Site-wide nav 404 (CRITICAL).** `podclick-nav.js` lived in `static/` (project root) but the server mounts `/static` from `frontend/static/` — every page silently loaded no nav. Fixed: copied to `frontend/static/`, added Brand/VSL/Permit entries + `/editor/` active matcher, added nav to `index.html`. **Files:** `static/podclick-nav.js`, `frontend/static/podclick-nav.js`, `frontend/index.html`
+2. **`save-direct-video` route dead (CRITICAL).** The `@app.post("/api/studio/save-direct-video")` decorator sat on `_probe_duration()` instead of `save_direct_video()` — every Direct Video save 422'd. Moved decorator to the right function. **File:** `main.py`
+3. **Studio podcast publish dead.** `_doPodcastPublishRaw` POSTed to `/api/run` (no such route). Rerouted through `POST /api/projects/from-recording` → redirects to `/project/{id}` (Ship It pipeline). Stale "Sent to Buzzsprout" copy updated. **File:** `frontend/studio.html`
+4. **Punch-in data loss.** `state.elapsedSeconds` was never set (usable_end always 0) and `_uploadPunchedSegments()` had zero callers — any punch-in silently discarded everything before the punch on save/download/publish. Fixed: timer now writes `elapsedSeconds`; `saveAndContinue`, `trayDownload`, and podcast publish stitch segments via `POST /api/studio/stitch-segments` when punches exist. **File:** `frontend/studio.html`
+5. **Caption styling controls never rendered.** `initEditorTools()` bound `#caption-swatches`/`#caption-positions` but the markup didn't exist. Added both to the clip editor tools sidebar (5 color swatches, bottom/middle pills). **File:** `frontend/project.html`
+6. **Removed clips still uploaded as Shorts.** `_distribute_project` Shorts query had no `status != 'removed'` filter. Added. **File:** `main.py`
+7. **Clip captions generated from a float.** Step e sent `clip_row.virality_score` as "CLIP TRANSCRIPT". Added `_clip_transcript_text()` — slices actual words inside the clip window from word timestamps, falls back to transcript head. **File:** `main.py`
+8. **Lead Page "Export .txt" threw ReferenceError.** `downloadLeadEmailSequence()` didn't exist and `email_sequence` was never rendered. Added render block + export function (`_leadPageData` global). **File:** `frontend/youtube-studio.html`
+9. **Loom parity (screen recorder, Social Studio Panel 6).** Added camera bubble PIP (canvas composite, circular bottom-left), pause/resume (`MediaRecorder.pause()`), Save to Library (POSTs to fixed `save-direct-video`, surfaces copyable `/editor/{id}` link), and AudioContext/track cleanup. **File:** `frontend/social-studio.html`
+
+**Verified:** all 15 routes 200; OpenAPI operationId `save_direct_video_...` confirms rebind; nav renders with all 11 entries (Chrome screenshot); Studio device-check live with camera; zero console errors on /studio and /social-studio.
+
+**Known stale doc:** the 2026-06-05 "Duplicate clips" entry says "Not yet fixed" — it IS fixed (delete-before-insert at `_run_ship_it_async`, live-verified 5 rows).

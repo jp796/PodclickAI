@@ -514,6 +514,52 @@
     .rec-action-row {
       display: flex; gap: 10px; flex-wrap: wrap;
     }
+    .btn-secondary {
+      padding: 12px 16px; border-radius: 10px; font-size: 14px; font-weight: 700;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text); cursor: pointer; transition: all .15s;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
+    /* Pause/Resume control — visible only while recording */
+    .rec-pause-btn {
+      padding: 9px 18px; border-radius: 999px; font-size: 13px; font-weight: 700;
+      border: 1px solid var(--yellow); background: rgba(255,179,64,0.10);
+      color: var(--yellow); cursor: pointer; transition: all .15s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .rec-pause-btn:hover { background: rgba(255,179,64,0.20); }
+    /* Live camera-bubble preview while recording (circular PIP) */
+    .rec-bubble-preview {
+      width: 120px; height: 120px; border-radius: 50%;
+      object-fit: cover; background: #000;
+      border: 2px solid var(--accent2);
+      box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+    }
+    /* Share / library link surfaced after a save */
+    .rec-share-box {
+      margin-top: 14px; padding: 14px 16px;
+      background: var(--surface2); border: 1px solid var(--accent2);
+      border-radius: 10px; text-align: left;
+    }
+    .rec-share-box .rec-share-label {
+      font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+      color: var(--accent2); margin-bottom: 8px; font-weight: 700;
+    }
+    .rec-share-row { display: flex; gap: 8px; align-items: center; }
+    .rec-share-input {
+      flex: 1; padding: 9px 11px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--bg);
+      color: var(--text); font-size: 13px; font-family: var(--font);
+    }
+    .rec-share-input:focus { border-color: var(--accent); outline: none; }
+    .rec-save-title {
+      width: 100%; padding: 10px 12px; margin-bottom: 12px;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text); font-size: 13px; font-family: var(--font);
+    }
+    .rec-save-title:focus { border-color: var(--accent); outline: none; }
     .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
   </style>
   <script src="/static/podclick-nav.js" defer></script>
@@ -813,10 +859,23 @@
             <span id="rec-btn-icon">⏺</span>
           </button>
           <div class="rec-timer" id="rec-timer">00:00</div>
+
+          <!-- Live camera bubble (only visible while recording with bubble ON) -->
+          <video id="rec-bubble-preview" class="rec-bubble-preview hidden" autoplay muted playsinline></video>
+
+          <!-- Pause / Resume — only visible while recording -->
+          <button class="rec-pause-btn hidden" id="rec-pause-btn" onclick="recTogglePause()">
+            <span id="rec-pause-icon">⏸</span><span id="rec-pause-label">Pause</span>
+          </button>
+
           <div class="rec-options">
             <label class="rec-toggle-label">
               <input type="checkbox" id="rec-mic" checked>
               🎙️ Include microphone
+            </label>
+            <label class="rec-toggle-label">
+              <input type="checkbox" id="rec-camera">
+              📹 Camera bubble
             </label>
           </div>
           <p class="rec-hint">Click record → share your screen → click stop when done.</p>
@@ -827,10 +886,22 @@
       <div id="rec-preview-state" class="hidden">
         <p class="section-heading" style="margin-top:0">Recording Preview</p>
         <video id="rec-video" controls class="rec-video-preview"></video>
+        <input type="text" id="rec-save-title" class="rec-save-title" placeholder="Title for the library">
         <div class="rec-action-row">
           <button class="btn-primary" onclick="recDownloadWebM()">⬇ Download WebM</button>
           <button class="btn-secondary" id="rec-convert-btn" onclick="recConvertMP4()">🎬 Convert to MP4</button>
+          <button class="btn-secondary" id="rec-save-btn" onclick="recSaveToLibrary()">💾 Save to Library</button>
           <button class="btn-secondary" onclick="recReset()">🔄 Record Again</button>
+        </div>
+
+        <!-- Share / edit link — populated after a successful library save -->
+        <div id="rec-share-box" class="rec-share-box hidden">
+          <div class="rec-share-label">🔗 Share / edit link</div>
+          <div class="rec-share-row">
+            <input type="text" id="rec-share-input" class="rec-share-input" readonly>
+            <button class="btn-sm accent" onclick="recCopyShareLink()">Copy</button>
+          </div>
+          <p class="rec-hint" style="margin-top:8px;">Open it anytime from the Video Library on the Job Site.</p>
         </div>
         <div class="conn-note-box" style="margin-top:14px;">
           <strong>TikTok App Review:</strong> Download the MP4 and upload it at
@@ -1833,15 +1904,131 @@ async function quickPublish(platform, text, btn) {
 let _recMediaRecorder = null;
 let _recChunks = [];
 let _recBlob = null;
-let _recStream = null;
+let _recStream = null;       // the exact stream handed to MediaRecorder
+let _recScreenStream = null; // raw getDisplayMedia stream
+let _recCamStream = null;    // raw getUserMedia (webcam) stream
+let _recMicStream = null;    // raw getUserMedia (mic) stream
+let _recAudioCtx = null;     // AudioContext used for the mic+system mix
+let _recCanvas = null;       // offscreen compositing canvas (bubble mode only)
+let _recCompositeRaf = null; // requestAnimationFrame handle for the compositor
 let _recTimerInterval = null;
 let _recSeconds = 0;
 let _recActive = false;
+let _recPaused = false;
+let _recObjectUrl = null;    // tracked so we can revoke and avoid leaks
 
 function _recFmtTime(s) {
   const m = Math.floor(s / 60);
   const sec = s % 60;
   return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+}
+
+// Pick the best supported recording MIME type, or '' to let the browser decide.
+function _recPickMime() {
+  return ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm']
+    .find(m => MediaRecorder.isTypeSupported(m)) || '';
+}
+
+// Tear down every capture resource. Safe to call repeatedly (idempotent).
+// This is the single cleanup path — closes the AudioContext and stops camera,
+// mic, screen, and composite-output tracks so nothing leaks between recordings.
+function _recCleanupCapture() {
+  if (_recCompositeRaf) { cancelAnimationFrame(_recCompositeRaf); _recCompositeRaf = null; }
+  // _recStream may be the canvas captureStream; stopping it releases the canvas track.
+  if (_recStream) { _recStream.getTracks().forEach(t => t.stop()); _recStream = null; }
+  if (_recScreenStream) { _recScreenStream.getTracks().forEach(t => t.stop()); _recScreenStream = null; }
+  if (_recCamStream) { _recCamStream.getTracks().forEach(t => t.stop()); _recCamStream = null; }
+  if (_recMicStream) { _recMicStream.getTracks().forEach(t => t.stop()); _recMicStream = null; }
+  if (_recAudioCtx) {
+    // close() returns a promise; swallow rejection (already-closed contexts throw)
+    _recAudioCtx.close().catch(() => {});
+    _recAudioCtx = null;
+  }
+  _recCanvas = null;
+  // Detach the live bubble preview and hide it
+  const bubble = document.getElementById('rec-bubble-preview');
+  if (bubble) { bubble.srcObject = null; bubble.classList.add('hidden'); }
+}
+
+// Build the audio destination: mixes screen audio + mic when requested.
+// Returns { audioTracks: MediaStreamTrack[] } — empty when no audio is available.
+// Creates _recAudioCtx ONLY when a real mix is needed (so cleanup always has
+// something concrete to close, and we don't spin up a context for nothing).
+function _recBuildAudioTracks(screenStream, micStream) {
+  const screenAudio = screenStream.getAudioTracks();
+  if (!micStream) {
+    return screenAudio; // system audio only (or none) — no mixing context needed
+  }
+  // Mix mic + system audio through a single AudioContext destination.
+  _recAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const dest = _recAudioCtx.createMediaStreamDestination();
+  if (screenAudio.length) {
+    _recAudioCtx.createMediaStreamSource(new MediaStream(screenAudio)).connect(dest);
+  }
+  _recAudioCtx.createMediaStreamSource(micStream).connect(dest);
+  return dest.stream.getAudioTracks();
+}
+
+// Draw screen + circular webcam bubble onto _recCanvas every frame, then
+// return a 30fps captureStream of the canvas. Adapted from studio.html
+// ensureCompositeRunning — bubble sits bottom-left, ~180px, subtle border.
+function _recStartComposite(screenVideoEl, camVideoEl) {
+  _recCanvas = document.createElement('canvas');
+  const ctx = _recCanvas.getContext('2d');
+
+  function frame() {
+    const sv = screenVideoEl;
+    const cv = camVideoEl;
+    const hasScreen = sv && sv.readyState >= 2 && sv.videoWidth > 0;
+
+    if (!hasScreen) {
+      _recCompositeRaf = requestAnimationFrame(frame);
+      return;
+    }
+
+    // Match the canvas to the screen's native resolution so text stays crisp.
+    if (_recCanvas.width !== sv.videoWidth || _recCanvas.height !== sv.videoHeight) {
+      _recCanvas.width = sv.videoWidth;
+      _recCanvas.height = sv.videoHeight;
+    }
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, _recCanvas.width, _recCanvas.height);
+    ctx.drawImage(sv, 0, 0, _recCanvas.width, _recCanvas.height);
+
+    // Circular camera bubble, bottom-left, ~180px diameter, subtle border.
+    if (cv && cv.readyState >= 2 && cv.videoWidth > 0) {
+      const diameter = Math.round(Math.min(180, _recCanvas.width * 0.18));
+      const pad = Math.round(diameter * 0.22);
+      const cx = pad + diameter / 2;
+      const cy = _recCanvas.height - pad - diameter / 2;
+      const radius = diameter / 2;
+
+      // Source-rect crop so the webcam fills the circle without distortion.
+      const camAR = cv.videoWidth / cv.videoHeight;
+      let sx = 0, sy = 0, sw = cv.videoWidth, sh = cv.videoHeight;
+      if (camAR > 1) { sw = cv.videoHeight; sx = (cv.videoWidth - sw) / 2; }
+      else if (camAR < 1) { sh = cv.videoWidth; sy = (cv.videoHeight - sh) / 2; }
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(cv, sx, sy, sw, sh, cx - radius, cy - radius, diameter, diameter);
+      ctx.restore();
+
+      // Subtle border ring.
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.lineWidth = Math.max(3, Math.round(diameter * 0.03));
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.stroke();
+    }
+
+    _recCompositeRaf = requestAnimationFrame(frame);
+  }
+  _recCompositeRaf = requestAnimationFrame(frame);
+  return _recCanvas.captureStream(30);
 }
 
 async function recToggle() {
@@ -1853,44 +2040,95 @@ async function recToggle() {
 }
 
 async function recStart() {
+  // Screen capture must succeed first; if the user cancels the picker we bail
+  // silently (NotAllowedError) without having acquired any other device.
+  let screenStream;
   try {
-    const wantMic = document.getElementById('rec-mic').checked;
-
-    // Get screen stream
-    const screenStream = await navigator.mediaDevices.getDisplayMedia({
+    screenStream = await navigator.mediaDevices.getDisplayMedia({
       video: { frameRate: 30 },
       audio: true,
     });
+  } catch (err) {
+    if (err.name !== 'NotAllowedError') {
+      ssToast('Screen share failed: ' + err.message, 'error');
+    }
+    return;
+  }
+  _recScreenStream = screenStream;
 
-    let finalStream = screenStream;
+  try {
+    const wantMic = document.getElementById('rec-mic').checked;
+    const wantCamera = document.getElementById('rec-camera').checked;
 
-    // Optionally mix in mic
+    // Optional mic — denial is non-fatal, we just record without it.
+    let micStream = null;
     if (wantMic) {
       try {
-        const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const ctx = new AudioContext();
-        const dest = ctx.createMediaStreamDestination();
-        const screenAudio = ctx.createMediaStreamSource(new MediaStream(screenStream.getAudioTracks()));
-        const micAudio = ctx.createMediaStreamSource(micStream);
-        screenAudio.connect(dest);
-        micAudio.connect(dest);
-        const mixed = new MediaStream([
-          ...screenStream.getVideoTracks(),
-          ...dest.stream.getAudioTracks(),
-        ]);
-        finalStream = mixed;
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        _recMicStream = micStream;
       } catch (_) {
-        // mic permission denied — continue without mic
-        finalStream = screenStream;
+        ssToast('Mic blocked — recording screen audio only.', 'info');
+        micStream = null;
       }
+    }
+
+    // Optional webcam for the bubble — denial is non-fatal, we fall back to
+    // direct screen recording (no canvas overhead, exactly like before).
+    let camVideoEl = null;
+    let useBubble = false;
+    if (wantCamera) {
+      try {
+        const camStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false,
+        });
+        _recCamStream = camStream;
+        // Off-DOM video element drives the compositor.
+        camVideoEl = document.createElement('video');
+        camVideoEl.muted = true;
+        camVideoEl.playsInline = true;
+        camVideoEl.srcObject = camStream;
+        await camVideoEl.play().catch(() => {});
+        // Live circular preview for the user.
+        const bubble = document.getElementById('rec-bubble-preview');
+        bubble.srcObject = camStream;
+        bubble.classList.remove('hidden');
+        useBubble = true;
+      } catch (_) {
+        ssToast('Camera blocked — recording screen only.', 'info');
+        useBubble = false;
+      }
+    }
+
+    // Build the audio tracks once (shared by both bubble and direct paths).
+    const audioTracks = _recBuildAudioTracks(screenStream, micStream);
+
+    let finalStream;
+    if (useBubble) {
+      // Drive the compositor off a hidden video element bound to the screen.
+      const screenVideoEl = document.createElement('video');
+      screenVideoEl.muted = true;
+      screenVideoEl.playsInline = true;
+      screenVideoEl.srcObject = new MediaStream(screenStream.getVideoTracks());
+      await screenVideoEl.play().catch(() => {});
+      const canvasStream = _recStartComposite(screenVideoEl, camVideoEl);
+      finalStream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...audioTracks,
+      ]);
+    } else {
+      finalStream = new MediaStream([
+        ...screenStream.getVideoTracks(),
+        ...audioTracks,
+      ]);
     }
 
     _recStream = finalStream;
     _recChunks = [];
     _recSeconds = 0;
+    _recPaused = false;
 
-    // Pick supported MIME type
-    const mimeType = ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '';
+    const mimeType = _recPickMime();
     _recMediaRecorder = new MediaRecorder(finalStream, mimeType ? { mimeType } : {});
     _recMediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) _recChunks.push(e.data); };
     _recMediaRecorder.onstop = () => {
@@ -1906,33 +2144,63 @@ async function recStart() {
     document.getElementById('rec-btn-icon').textContent = '⏹';
     document.getElementById('rec-status-text').textContent = 'Recording…';
     document.getElementById('rec-timer').style.color = 'var(--coral)';
+    const pauseBtn = document.getElementById('rec-pause-btn');
+    pauseBtn.classList.remove('hidden');
+    document.getElementById('rec-pause-icon').textContent = '⏸';
+    document.getElementById('rec-pause-label').textContent = 'Pause';
 
+    // Timer only advances on un-paused ticks, so paused time is excluded.
     _recTimerInterval = setInterval(() => {
+      if (_recPaused) return;
       _recSeconds++;
       document.getElementById('rec-timer').textContent = _recFmtTime(_recSeconds);
     }, 1000);
 
-    // Auto-stop when user stops screen share
-    finalStream.getVideoTracks()[0].addEventListener('ended', () => { if (_recActive) recStop(); });
+    // Auto-stop when the user ends the screen share from the browser chrome.
+    screenStream.getVideoTracks()[0].addEventListener('ended', () => { if (_recActive) recStop(); });
 
   } catch (err) {
-    if (err.name !== 'NotAllowedError') {
-      ssToast('Recording failed: ' + err.message, 'error');
-    }
+    // Any failure after screen capture: clean up everything we acquired.
+    _recCleanupCapture();
+    ssToast('Recording failed: ' + err.message, 'error');
+  }
+}
+
+// Pause/resume the active recording. Timer freezes via the _recPaused flag.
+function recTogglePause() {
+  if (!_recMediaRecorder || !_recActive) return;
+  if (!_recPaused && _recMediaRecorder.state === 'recording') {
+    _recMediaRecorder.pause();
+    _recPaused = true;
+    document.getElementById('rec-pause-icon').textContent = '▶';
+    document.getElementById('rec-pause-label').textContent = 'Resume';
+    document.getElementById('rec-status-text').textContent = 'Paused';
+  } else if (_recPaused && _recMediaRecorder.state === 'paused') {
+    _recMediaRecorder.resume();
+    _recPaused = false;
+    document.getElementById('rec-pause-icon').textContent = '⏸';
+    document.getElementById('rec-pause-label').textContent = 'Pause';
+    document.getElementById('rec-status-text').textContent = 'Recording…';
   }
 }
 
 function recStop() {
   if (!_recMediaRecorder) return;
   _recActive = false;
+  _recPaused = false;
   clearInterval(_recTimerInterval);
-  _recMediaRecorder.stop();
-  if (_recStream) { _recStream.getTracks().forEach(t => t.stop()); _recStream = null; }
+  _recTimerInterval = null;
 
-  // Reset btn UI (preview will show after onstop fires)
+  // Stop the recorder first so the final dataavailable flushes, THEN release
+  // capture devices. onstop builds the blob and shows the preview.
+  try { _recMediaRecorder.stop(); } catch (_) {}
+  _recCleanupCapture();
+
+  // Reset record-button UI; preview appears once onstop fires.
   document.getElementById('rec-btn').classList.remove('recording');
   document.getElementById('rec-btn-icon').textContent = '⏺';
   document.getElementById('rec-status-text').textContent = 'Processing…';
+  document.getElementById('rec-pause-btn').classList.add('hidden');
 }
 
 function _recShowPreview() {
@@ -1940,16 +2208,31 @@ function _recShowPreview() {
   const previewEl = document.getElementById('rec-preview-state');
   previewEl.classList.remove('hidden');
   const videoEl = document.getElementById('rec-video');
-  videoEl.src = URL.createObjectURL(_recBlob);
+  if (_recObjectUrl) { URL.revokeObjectURL(_recObjectUrl); }
+  _recObjectUrl = URL.createObjectURL(_recBlob);
+  videoEl.src = _recObjectUrl;
+
+  // Pre-fill a sensible default library title.
+  const dateStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  document.getElementById('rec-save-title').value = 'Screen recording — ' + dateStr;
+  // Reset share box + save button for a fresh take.
+  document.getElementById('rec-share-box').classList.add('hidden');
+  const saveBtn = document.getElementById('rec-save-btn');
+  saveBtn.disabled = false;
+  saveBtn.textContent = '💾 Save to Library';
+
   ssToast('✅ Recording complete — ' + _recFmtTime(_recSeconds), 'success');
 }
 
 function recDownloadWebM() {
   if (!_recBlob) return;
+  const url = URL.createObjectURL(_recBlob);
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(_recBlob);
+  a.href = url;
   a.download = 'screen-recording-' + Date.now() + '.webm';
   a.click();
+  // Defer revoke so the download has time to start.
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
 async function recConvertMP4() {
@@ -1964,10 +2247,12 @@ async function recConvertMP4() {
     const res = await fetch('/api/screen-record/convert', { method: 'POST', body: fd });
     if (!res.ok) { throw new Error('Server error ' + res.status); }
     const mp4Blob = await res.blob();
+    const url = URL.createObjectURL(mp4Blob);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(mp4Blob);
+    a.href = url;
     a.download = 'screen-recording-' + Date.now() + '.mp4';
     a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
     ssToast('✅ MP4 ready — check your downloads!', 'success');
   } catch (err) {
     ssToast('Conversion failed: ' + err.message, 'error');
@@ -1977,14 +2262,78 @@ async function recConvertMP4() {
   }
 }
 
+// Save the recording to the Video Library and surface an editable share link.
+// Endpoint contract: multipart form { video, title, video_type } → JSON with an
+// `id`. Another worker owns this route; we treat HTTP 200 + an id as success and
+// don't hard-depend on an `ok` field (it may or may not be present).
+async function recSaveToLibrary() {
+  if (!_recBlob) return;
+  const btn = document.getElementById('rec-save-btn');
+  const title = (document.getElementById('rec-save-title').value || '').trim()
+    || ('Screen recording — ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+  btn.disabled = true;
+  btn.textContent = '⏳ Saving…';
+  ssToast('Saving to the library…', 'info');
+  try {
+    const fd = new FormData();
+    fd.append('video', _recBlob, 'screen-recording.webm');
+    fd.append('title', title);
+    fd.append('video_type', 'screen');
+    const res = await fetch('/api/studio/save-direct-video', { method: 'POST', body: fd });
+
+    let data = {};
+    try { data = await res.json(); } catch (_) { data = {}; }
+
+    if (!res.ok || data.error || !data.id) {
+      const reason = data.error || ('Server error ' + res.status);
+      throw new Error(reason);
+    }
+
+    const editUrl = window.location.origin + '/editor/' + data.id;
+    const shareInput = document.getElementById('rec-share-input');
+    shareInput.value = editUrl;
+    document.getElementById('rec-share-box').classList.remove('hidden');
+
+    ssToast('✅ Saved to the library — share link ready.', 'success');
+    btn.textContent = '✓ Saved';
+  } catch (err) {
+    ssToast('Save failed: ' + err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = '💾 Save to Library';
+  }
+}
+
+async function recCopyShareLink() {
+  const input = document.getElementById('rec-share-input');
+  const link = input.value;
+  if (!link) return;
+  try {
+    await navigator.clipboard.writeText(link);
+    ssToast('📋 Link copied to clipboard.', 'success');
+  } catch (_) {
+    // Fallback for browsers without clipboard API / insecure context.
+    input.removeAttribute('readonly');
+    input.select();
+    try { document.execCommand('copy'); ssToast('📋 Link copied.', 'success'); }
+    catch (e2) { ssToast('Copy failed — select and copy manually.', 'error'); }
+    input.setAttribute('readonly', '');
+  }
+}
+
 function recReset() {
+  // Belt-and-suspenders: ensure no capture survives a reset.
+  _recCleanupCapture();
+  if (_recObjectUrl) { URL.revokeObjectURL(_recObjectUrl); _recObjectUrl = null; }
   _recBlob = null;
   _recChunks = [];
   _recSeconds = 0;
+  _recPaused = false;
   document.getElementById('rec-timer').textContent = '00:00';
   document.getElementById('rec-timer').style.color = '';
   document.getElementById('rec-status-text').textContent = 'Ready to record';
   document.getElementById('rec-video').src = '';
+  document.getElementById('rec-pause-btn').classList.add('hidden');
+  document.getElementById('rec-share-box').classList.add('hidden');
   document.getElementById('rec-preview-state').classList.add('hidden');
   document.getElementById('rec-idle-state').classList.remove('hidden');
 }

@@ -481,6 +481,23 @@
               <button class="btn btn-ghost" id="rerender-btn" style="width:100%;margin-top:8px;font-size:11px;padding:7px;">↺ Re-render with this crop</button>
             </div>
 
+            <!-- Caption styling (preview overlay) -->
+            <div class="tool-section">
+              <div class="tool-title">Caption Style</div>
+              <div class="pos-row" id="caption-swatches" style="display:flex;gap:6px;margin-bottom:8px;">
+                <div class="swatch active" data-color="#FFD700" title="Gold" style="width:22px;height:22px;border-radius:50%;background:#FFD700;cursor:pointer;border:2px solid transparent;"></div>
+                <div class="swatch" data-color="#FFFFFF" title="White" style="width:22px;height:22px;border-radius:50%;background:#FFFFFF;cursor:pointer;border:2px solid transparent;"></div>
+                <div class="swatch" data-color="#2EE49C" title="Green" style="width:22px;height:22px;border-radius:50%;background:#2EE49C;cursor:pointer;border:2px solid transparent;"></div>
+                <div class="swatch" data-color="#FF6B6B" title="Red" style="width:22px;height:22px;border-radius:50%;background:#FF6B6B;cursor:pointer;border:2px solid transparent;"></div>
+                <div class="swatch" data-color="#7FB8E8" title="Blue" style="width:22px;height:22px;border-radius:50%;background:#7FB8E8;cursor:pointer;border:2px solid transparent;"></div>
+              </div>
+              <div class="pos-row" id="caption-positions">
+                <div class="pos-pill active" data-pos="bottom" title="Captions near the bottom">⬇ Bottom</div>
+                <div class="pos-pill" data-pos="middle" title="Captions centered">◎ Middle</div>
+              </div>
+              <div class="tool-note">Preview styling — applies to the player overlay.</div>
+            </div>
+
             <!-- Clip info block -->
             <div class="tool-section">
               <div class="tool-title">Hook</div>
