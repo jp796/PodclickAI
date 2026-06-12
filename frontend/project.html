@@ -1629,6 +1629,7 @@
         applyProjectState();
         await _maybeAutoTranscribe(p);
       } catch(err) {
+        console.error('[project] boot failed:', err);
         $('header-title').textContent = 'Could not load project.';
         toast('Load failed — ' + err.message, 'error');
       }

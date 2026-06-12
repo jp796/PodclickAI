@@ -962,3 +962,19 @@ Four parallel audit agents swept all 16 pages, ~150 API routes, and the studio/c
 **Verified:** all 15 routes 200; OpenAPI operationId `save_direct_video_...` confirms rebind; nav renders with all 11 entries (Chrome screenshot); Studio device-check live with camera; zero console errors on /studio and /social-studio.
 
 **Known stale doc:** the 2026-06-05 "Duplicate clips" entry says "Not yet fixed" — it IS fixed (delete-before-insert at `_run_ship_it_async`, live-verified 5 rows).
+
+---
+
+## 2026-06-12 — Project page "Could not load project" (nav replaced page-local topbar)
+
+**Symptom:** /project/{id} showed "Could not load project." even though `GET /api/projects/{id}` returned 200.
+
+**Root cause:** `podclick-nav.js` replaces ANY element with class `.topbar`. On project.html, `.topbar` is a page-local header containing `#crumbs` and the back link — not a site nav. The injected nav deleted `#crumbs`, so `renderHeader()` threw `Cannot set properties of null` and boot()'s catch swallowed it (no console.error).
+
+**Fix:**
+- `podclick-nav.js` `inject()`: only replace a `.topbar` that contains a `nav` element or `.brand` (a genuine site nav); otherwise prepend the nav above it and leave page content alone.
+- `project.html` boot() catch now logs `console.error('[project] boot failed:', err)` so failures are diagnosable.
+
+**Note:** browsers cache the nav script — hard-refresh (Cmd+Shift+R) once per page after nav updates.
+
+**Files:** `static/podclick-nav.js`, `frontend/static/podclick-nav.js`, `frontend/project.html`

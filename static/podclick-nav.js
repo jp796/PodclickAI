@@ -96,8 +96,15 @@
   function inject() {
     if (document.getElementById('pc-topbar')) return; // already injected
 
-    // Check if there's an existing topbar to replace
-    const existing = document.querySelector('.topbar');
+    // Check if there's an existing topbar to replace.
+    // Only replace a .topbar that is actually a site nav (has nav links or a
+    // brand) — some pages (e.g. project.html) use .topbar for page-local
+    // headers with breadcrumbs that JS depends on. Those get the nav
+    // prepended ABOVE them instead of being replaced.
+    let existing = document.querySelector('.topbar');
+    if (existing && !existing.querySelector('nav') && !existing.querySelector('.brand')) {
+      existing = null;
+    }
     let extraHtml = '';
 
     if (existing) {
