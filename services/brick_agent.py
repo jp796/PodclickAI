@@ -61,6 +61,7 @@ ACTION_TIER_MAP: Dict[str, str] = {
     "cut_clip":             "foreman",
     "write_show_notes":     "foreman",
     "adjust_calendar":      "foreman",
+    "guest_asset_package":  "draftsman",
     "send_guest_email":     "gc",
     "pitch_sponsor":        "gc",
     "adjust_vyral_mix":     "gc",
@@ -1251,6 +1252,33 @@ class BrickAgent:
                 post.id, topic,
             )
             return {"post_id": str(post.id), "topic": topic, "status": "draft", "caption": caption}
+
+        if action_type == "guest_asset_package":
+            # The package (Drive folder + uploads + drafted email) was already built
+            # at Closing by _build_guest_asset_package; the punch-list payload carries
+            # the draft + Drive link. Approving it stamps the guest as delivered.
+            # When Gmail send-as lands (Phase 6), the actual send happens HERE.
+            gid = payload.get("guest_id", "")
+            try:
+                from pathlib import Path as _P
+                import json as _json2
+                gfile = _P(__file__).resolve().parent.parent / "data" / "guests.json"
+                if gfile.exists():
+                    arr = _json2.loads(gfile.read_text())
+                    for g in arr:
+                        if g.get("id") == gid:
+                            g["assets_sent_at"] = datetime.utcnow().isoformat()
+                    gfile.write_text(_json2.dumps(arr, indent=2))
+            except Exception as ferr:
+                logger.warning("[brick.action] asset_package guest stamp failed: %s", ferr)
+            return {
+                "guest_id": gid,
+                "guest_name": payload.get("guest_name", ""),
+                "recipient": payload.get("recipient", ""),
+                "drive_url": payload.get("drive_url", ""),
+                "email": payload.get("email", ""),
+                "status": "delivered",
+            }
 
         logger.warning("[brick.action] Unknown action_type %r — no-op", action_type)
         return {"action_type": action_type, "status": "no_op"}

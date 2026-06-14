@@ -978,3 +978,30 @@ Four parallel audit agents swept all 16 pages, ~150 API routes, and the studio/c
 **Note:** browsers cache the nav script — hard-refresh (Cmd+Shift+R) once per page after nav updates.
 
 **Files:** `static/podclick-nav.js`, `frontend/static/podclick-nav.js`, `frontend/project.html`
+
+---
+
+## 2026-06-14 — Guest Asset Package (auto-build on Closing → Drive + drafted email → Punch List)
+
+**What shipped:** The draft-for-one-tap-approve guest asset flow. When an episode closes (or on demand), PodClick builds each linked guest's promotional package and surfaces a drafted email for approval — no Gmail send-as required yet (Phase 6 plugs into the same dispatch branch).
+
+**Backend (`main.py`):**
+- `_build_guest_asset_package(project_id)` — for each linked guest: creates a Drive folder (`pipeline/drive.create_episode_folder`), uploads assembled MP3 (`mp3_url`), source video (`recording_path`), `transcript.txt`, show notes `.md`, and the top-2 Shorts by `virality_score` (`Clip.rendered_url`, skips `status='removed'`); writes `assets_drive_url` (+ episode metadata) back to the guest in `guests.json`; drafts the email via `_compose_guest_asset_email`; creates a `guest_asset_package` BrickAction (Punch List) with the draft + Drive link + upload manifest in `payload`. Non-fatal per guest. Degrades when `drive.is_configured()` is False (uploads skipped, email still drafts with episode links).
+- `_compose_guest_asset_email(guest)` — Foundation-voiced email composer (claude-sonnet-4-5), returns `(text, used_foundation, sample_count)`, falls back to a plain template on any failure (never raises). Shares the prompt with the existing `GET /api/guests/{id}/asset_email` endpoint (endpoint left intact; minor duplication noted as cleanup).
+- `POST /api/projects/{id}/build-asset-package` — manual fire-and-forget trigger (same routine). Returns `guests_targeted` + message; graceful when no guests linked.
+- `schedule_closing` now fires a 4th background task: `_build_guest_asset_package`.
+
+**Brick (`services/brick_agent.py`):**
+- `ACTION_TIER_MAP["guest_asset_package"] = "draftsman"` — approvable at the current tier today (vs `send_guest_email` which is gated to `gc`).
+- `_dispatch_action` branch for `guest_asset_package`: stamps `guest.assets_sent_at`, returns `{status: "delivered", email, drive_url, recipient}`. This is where Gmail send-as will hook in at Phase 6.
+
+**Verified live (server on :8765, Drive `configured:false`):**
+- No-guest project → `{ok:true, guests_targeted:0, "No guests linked…"}`.
+- Linked John Smith to a throwaway project → `POST build-asset-package` → background task created a `guest_asset_package` Punch List item: recipient `john@smartrealestatecoach.com`, `drive_configured:false`, skipped reason surfaced, email **drafted in JP's Foundation voice** (not the template) with real Spotify/YouTube/Apple links + existing Drive folder pulled from the guest record.
+- One-tap `POST /api/brick/actions/{id}/approve` → dispatch returned `status:"delivered"` + full email; `guest.assets_sent_at` stamped. Test project `guest_ids` reverted to `[]` after.
+
+**Still gated on JP (for live Drive uploads):** drop a Google service account JSON at `data/service_account.json` (or set `GOOGLE_SERVICE_ACCOUNT_JSON`), set `GOOGLE_DRIVE_PARENT_ID`, share the target Drive folder with the service-account email. Until then the email + episode links go out; the Drive folder/uploads are skipped gracefully.
+
+**Known cleanup (non-blocking):** `_compose_guest_asset_email` duplicates the prompt from the `asset_email` endpoint — fold the endpoint onto the helper in a later pass. Poster asset still not generated (Cover Forge repurpose or manual upload — deferred).
+
+**Files:** `main.py`, `services/brick_agent.py`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`

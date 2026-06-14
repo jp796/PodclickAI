@@ -780,6 +780,7 @@ Notes:    Triggers the same logic as the 4am cron. Useful for manual testing.
 | POST | `/api/projects/{id}/ship-it` | Hero button — trigger full pipeline |
 | POST | `/api/projects/from-upload` | Phase C — upload pre-recorded file → project + transcription |
 | POST | `/api/projects/{id}/schedule-closing` | Step 4 — schedule publish + create posts |
+| POST | `/api/projects/{id}/build-asset-package` | Build guest asset package(s) → Drive folder + uploads + drafted email → Punch List |
 
 ### GET /api/projects
 ```json
@@ -822,12 +823,19 @@ Response: { ...project dict..., "message": "Closing lined up for June 1 at 8:00 
 Errors:   400 — Project must be in 'review' | 404 — Not found
 Notes:    Transitions project to 'scheduled'.
           Auto-assigns episode_number = MAX(episode_number)+1 if not already set (starts at 101).
-          Fires three background tasks:
+          Fires four background tasks:
             1. _update_guest_statuses — advances linked guests → 'recorded'
             2. _create_closing_posts  — creates Post+PostVariant rows per platform with stagger
             3. _distribute_project   — uploads to Buzzsprout (private draft) + YouTube (private),
                persists buzzsprout_url/buzzsprout_episode_id/youtube_url/youtube_video_id,
                adds entry to pipeline/scheduler queue so flip_to_public() fires at closing_at.
+            4. _build_guest_asset_package — per linked guest: creates a Drive folder + uploads
+               (assembled MP3, source video, transcript.txt, show notes, top-2 Shorts by virality),
+               writes assets_drive_url back to the guest, drafts the asset email in JP's voice
+               (Foundation), and drops a 'guest_asset_package' item on the Punch List for one-tap
+               approve. Degrades gracefully when Drive isn't configured (email still drafts with
+               episode links; uploads skipped). Approving stamps guest.assets_sent_at; Gmail
+               send-as (Phase 6) plugs into the same dispatch branch later.
           Show notes converted from Markdown → HTML before Buzzsprout upload.
           YouTube always uploads as 'private' — JP reviews before making public.
 Response fields added (Phase B): buzzsprout_url, buzzsprout_episode_id, youtube_url,

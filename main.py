@@ -3062,11 +3062,348 @@ async def schedule_closing(project_id: str, request: Request):
         closing_at_ts=closing_at_ts,
     ))
 
+    # Guest asset package: Drive folder + uploads + drafted email → Punch List
+    asyncio.create_task(_build_guest_asset_package(project_id=project_id))
+
     return JSONResponse({
         **project_data,
         "message": f"Closing lined up for {closing_at.strftime('%B %d at %-I:%M %p')}. "
                    f"Posts go up across {len(platforms)} platforms. "
                    f"Episode uploading to Buzzsprout and YouTube in the background.",
+    })
+
+
+async def _compose_guest_asset_email(guest: dict):
+    """
+    Compose the guest asset-delivery email in JP's voice via Foundation.
+    Returns (email_text, used_foundation, sample_count).
+
+    Never raises — falls back to a plain template on any failure so the
+    asset-package pipeline always has something to surface. The Foundation
+    voice path mirrors the GET /api/guests/{id}/asset_email endpoint.
+    """
+    store        = _load_profiles_store()
+    active_id    = store.get("active_id")
+    profile      = next((p for p in store.get("profiles", []) if p["id"] == active_id), {})
+    podcast_name = profile.get("name", "Success Agent Podcast")
+    apple_url    = profile.get("apple_podcasts_url", "")
+
+    spotify_url  = guest.get("episode_url_spotify", "")
+    youtube_url  = guest.get("episode_url_youtube", "")
+    apple_ep_url = guest.get("episode_url_apple", apple_url)
+    drive_url    = guest.get("assets_drive_url", "")
+    ep_num       = guest.get("episode_number", "")
+    ep_title     = guest.get("episode_title", "")
+    instagram    = guest.get("instagram", "")
+
+    prompt = f"""Podcast: {podcast_name}
+Guest name: {guest['name']}
+Episode: {"EP. " + str(ep_num) + " — " + ep_title if ep_num else ep_title or "recent episode"}
+{"Spotify: " + spotify_url if spotify_url else ""}
+{"YouTube: " + youtube_url if youtube_url else ""}
+{"Apple Podcasts: " + apple_ep_url if apple_ep_url else ""}
+{"Google Drive assets folder: " + drive_url if drive_url else ""}
+{"Host Instagram handle: @" + instagram.lstrip("@") if instagram else ""}
+
+Write a warm, friendly email from the host to the guest with:
+1. Subject line (first line)
+2. Blank line
+3. Opening: thank them, mention the episode aired
+4. Share the episode links as a bullet list (only include platforms where URL provided)
+{"5. Share the promotional assets Drive link" if drive_url else ""}
+6. Ask them to share on social — include the host's Instagram handle if provided
+7. Close with an offer to collaborate again
+8. Sign with the podcast name
+
+Keep it short and warm — 4-6 paragraphs max. Do NOT use placeholder brackets [like this] — write it ready to send."""
+
+    # ── Foundation-powered generation (graceful: any failure → template) ──────
+    try:
+        import anthropic as _anthropic
+        from db.engine import async_session as _async_session
+        from config import get_current_location_id as _get_loc, settings as _settings
+        from services.foundation import get_brand_context as _get_brand_ctx
+        from schemas.foundation import BrandContextTaskType as _TaskType
+
+        location_id = _get_loc()
+        async with _async_session() as session:
+            ctx = await _get_brand_ctx(
+                session=session,
+                location_id=location_id,
+                task_type=_TaskType.guest_asset_email,
+                topic=f"guest asset email for {guest['name']}",
+                platform=None,
+                audience=None,
+            )
+
+        vp = ctx.voice_profile
+        vocab = ctx.vocabulary
+        tone_str = ", ".join(vp.tone if isinstance(vp.tone, list) else [vp.tone]) if vp.tone else "direct, genuine"
+        cadence_str = vp.cadence or "natural, punchy"
+        vocab_yes = "Use naturally: " + ", ".join(vocab.use if isinstance(vocab.use, list) else [vocab.use]) if vocab.use else ""
+        vocab_no  = "Avoid entirely: " + ", ".join(vocab.avoid if isinstance(vocab.avoid, list) else [vocab.avoid]) if vocab.avoid else ""
+        voice_examples = ""
+        if ctx.voice_samples:
+            examples = [f'  — "{s.text[:300]}"' for s in ctx.voice_samples[:3]]
+            voice_examples = "Voice samples (match this style):\n" + "\n".join(examples)
+        voice_preamble = f"VOICE PROFILE:\n- Tone: {tone_str}\n- Cadence: {cadence_str}\n- POV: {vp.pov or 'first-person'}\n"
+        if vocab_yes: voice_preamble += f"- {vocab_yes}\n"
+        if vocab_no:  voice_preamble += f"- {vocab_no}\n"
+        if voice_examples: voice_preamble += f"\n{voice_examples}\n"
+
+        system_prompt = voice_preamble + "\nYou are a podcast host writing warm, professional follow-up emails to podcast guests after their episodes air. Write in first person in the host's authentic voice."
+
+        client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
+        message = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=600,
+            temperature=0.75,
+            system=system_prompt,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = (message.content[0].text if message.content else "").strip()
+        if text:
+            return text, True, ctx.metadata.sample_count
+    except Exception as _gen_err:
+        import logging
+        logging.getLogger("podclick.projects").info(
+            "[asset_package] Foundation email unavailable, using template: %s", _gen_err
+        )
+
+    # ── Fallback template ─────────────────────────────────────────────────────
+    lines = [
+        f"Subject: Your Episode Is Live — {podcast_name}!",
+        "",
+        f"Hey {guest['name'].split()[0]},",
+        "",
+        f"Your episode just dropped on {podcast_name} and we couldn't be more excited to share it with the world!",
+        "",
+        "Here are your episode links:",
+    ]
+    if spotify_url:  lines.append(f"• Spotify: {spotify_url}")
+    if youtube_url:  lines.append(f"• YouTube: {youtube_url}")
+    if apple_ep_url: lines.append(f"• Apple Podcasts: {apple_ep_url}")
+    if drive_url:
+        lines += ["", "All your promotional assets (audio, video, poster, clips) are here:", drive_url]
+    lines += [
+        "",
+        "If you haven't already, we'd love if you shared the episode with your audience!",
+        f"Tag us {('@' + instagram.lstrip('@')) if instagram else 'on Instagram'} and we'll reshare you.",
+        "",
+        "Thanks again for being on the show — let's do it again sometime!",
+        "",
+        f"— {podcast_name}",
+    ]
+    return "\n".join(lines), False, 0
+
+
+async def _build_guest_asset_package(project_id: str) -> None:
+    """
+    On Closing: build each linked guest's promotional asset package.
+
+      1. Create a Google Drive folder and upload the assembled MP3, the source
+         video, transcript.txt, the show notes, and the top 2 Shorts (ranked by
+         virality score). Skipped gracefully if Drive isn't configured.
+      2. Write the shareable Drive link back onto the guest record.
+      3. Draft the asset email in JP's voice (Foundation, template fallback).
+      4. Drop a 'guest_asset_package' item on the Punch List for one-tap approval.
+
+    Non-fatal throughout — a failure on one guest never blocks the others or the
+    closing. Fired as a background task from schedule_closing (and on demand via
+    POST /api/projects/{id}/build-asset-package).
+    """
+    import logging
+    import os as _os
+    import tempfile as _tempfile
+    log = logging.getLogger("podclick.projects")
+
+    from db.engine import async_session as _async_session
+    from db.models import Project, Clip, BrickAction
+    from sqlalchemy import select
+    from datetime import datetime as _dt, timedelta as _td
+    import uuid as _uuid
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        return
+
+    async with _async_session() as session:
+        project = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if not project:
+            return
+        guest_ids = list(project.guest_ids or [])
+        title = project.title or "Episode"
+        ep_num = project.episode_number or 0
+        location_id = str(project.location_id)
+        mp3_url = project.mp3_url or ""
+        recording_path = project.recording_path or ""
+        transcript = project.transcript or ""
+        show_notes = project.show_notes or ""
+        youtube_url = project.youtube_url or ""
+        clip_rows = (await session.execute(select(Clip).where(Clip.project_id == pid))).scalars().all()
+
+    if not guest_ids:
+        log.info("[asset_package] project %s has no linked guests — skipping", project_id)
+        return
+
+    # Top 2 rendered Shorts by virality score (skip removed)
+    rendered = [c for c in clip_rows if (c.rendered_url and c.status != "removed")]
+    rendered.sort(key=lambda c: (c.virality_score or 0), reverse=True)
+    top_clips = rendered[:2]
+
+    from pipeline import drive as _drive
+    drive_configured = _drive.is_configured()
+
+    guests = _load_guests()
+    by_id = {g.get("id"): g for g in guests}
+
+    for gid in guest_ids:
+        guest = by_id.get(gid)
+        if not guest:
+            log.info("[asset_package] guest %s not found in guests.json — skipping", gid)
+            continue
+
+        uploaded, skipped = [], []
+        drive_url = guest.get("assets_drive_url", "")
+
+        if drive_configured:
+            try:
+                folder = _drive.create_episode_folder(title, ep_num)
+                if folder.get("ok"):
+                    fid = folder["folder_id"]
+                    drive_url = folder["folder_url"]
+
+                    def _push(path, mime, fname):
+                        if path and _os.path.exists(path):
+                            r = _drive.upload_file_to_folder(fid, path, mime, fname)
+                            (uploaded if r.get("ok") else skipped).append(fname)
+                        else:
+                            skipped.append(fname)
+
+                    _push(mp3_url, "audio/mpeg", f"EP{ep_num} - {title}.mp3")
+                    _vext = (_os.path.splitext(recording_path)[1] or ".mp4") if recording_path else ".mp4"
+                    _push(recording_path, "video/mp4", f"EP{ep_num} - {title} (full video){_vext}")
+
+                    if transcript:
+                        _tf = _tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8")
+                        _tf.write(transcript); _tf.close()
+                        _r = _drive.upload_file_to_folder(fid, _tf.name, "text/plain", f"EP{ep_num} - transcript.txt")
+                        (uploaded if _r.get("ok") else skipped).append("transcript.txt")
+                        _os.unlink(_tf.name)
+                    if show_notes:
+                        _sf = _tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8")
+                        _sf.write(show_notes); _sf.close()
+                        _r = _drive.upload_file_to_folder(fid, _sf.name, "text/markdown", f"EP{ep_num} - show notes.md")
+                        (uploaded if _r.get("ok") else skipped).append("show notes.md")
+                        _os.unlink(_sf.name)
+
+                    for _i, _c in enumerate(top_clips, 1):
+                        _push(_c.rendered_url, "video/mp4", f"EP{ep_num} - Short {_i}.mp4")
+                else:
+                    skipped.append("drive folder (" + str(folder.get("error", "error")) + ")")
+            except Exception as derr:
+                log.warning("[asset_package] drive build failed for guest %s: %s", gid, derr)
+                skipped.append(f"drive ({derr})")
+        else:
+            skipped = ["Drive not configured — add the service account to enable uploads"]
+
+        # Persist Drive link + episode metadata back to the guest record
+        guest["assets_drive_url"] = drive_url
+        if ep_num and not guest.get("episode_number"):
+            guest["episode_number"] = ep_num
+        if title and not guest.get("episode_title"):
+            guest["episode_title"] = title
+        if youtube_url and not guest.get("episode_url_youtube"):
+            guest["episode_url_youtube"] = youtube_url
+
+        # Draft the email in JP's voice (never raises)
+        try:
+            email_text, _used, _sc = await _compose_guest_asset_email(guest)
+        except Exception as cerr:
+            log.warning("[asset_package] email compose failed for guest %s: %s", gid, cerr)
+            email_text = ""
+
+        # Drop the punch-list item (Brick voice rationale)
+        try:
+            n_up = len(uploaded)
+            gname = guest.get("name", "Guest")
+            if drive_configured and n_up:
+                rationale = (f"Ep. {ep_num} closed. {gname}'s package is built — "
+                             f"{n_up} file{'s' if n_up != 1 else ''} in Drive, email drafted in your voice. "
+                             f"Approve to mark it sent.")
+            else:
+                rationale = (f"Ep. {ep_num} closed. {gname}'s asset email is drafted in your voice. "
+                             f"Drive uploads are off until the service account's in — the episode links still go out. "
+                             f"Approve to mark it sent.")
+            async with _async_session() as session:
+                action = BrickAction(
+                    location_id=_uuid.UUID(location_id),
+                    action_type="guest_asset_package",
+                    status="pending",
+                    payload={
+                        "guest_id": gid,
+                        "guest_name": gname,
+                        "recipient": guest.get("email", ""),
+                        "email": email_text,
+                        "drive_url": drive_url,
+                        "drive_configured": drive_configured,
+                        "uploaded": uploaded,
+                        "skipped": skipped,
+                        "episode_number": ep_num,
+                        "project_id": project_id,
+                    },
+                    rationale=rationale,
+                    actor_type="brick",
+                    expires_at=_dt.utcnow() + _td(days=30),
+                )
+                session.add(action)
+                await session.commit()
+            log.info("[asset_package] punch-list item created for guest %s (uploaded=%d)", gid, n_up)
+        except Exception as aerr:
+            log.warning("[asset_package] punch-list create failed for guest %s: %s", gid, aerr)
+
+    # Persist all guest mutations in one write
+    try:
+        _save_guests(guests)
+    except Exception as serr:
+        log.warning("[asset_package] guest save failed: %s", serr)
+
+
+@app.post("/api/projects/{project_id}/build-asset-package")
+async def build_asset_package(project_id: str):
+    """
+    Manually build the guest asset package(s) for a project — the same routine
+    that fires automatically on Closing. Creates the Drive folder + uploads,
+    drafts each guest's email in JP's voice, and drops it on the Punch List.
+    Fire-and-forget; check the Punch List a moment later.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    import uuid as _uuid
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        return JSONResponse({"error": "Invalid project ID"}, status_code=400)
+
+    async with _async_session() as session:
+        project = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if not project:
+            return JSONResponse({"error": "Project not found"}, status_code=404)
+        guest_ids = list(project.guest_ids or [])
+
+    asyncio.create_task(_build_guest_asset_package(project_id=project_id))
+    return JSONResponse({
+        "ok": True,
+        "project_id": project_id,
+        "guests_targeted": len(guest_ids),
+        "message": (
+            f"Building the asset package for {len(guest_ids)} guest(s). Check the Punch List in a moment."
+            if guest_ids else
+            "No guests linked to this project — link a guest first, then rebuild."
+        ),
     })
 
 
