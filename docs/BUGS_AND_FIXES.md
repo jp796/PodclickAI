@@ -1005,3 +1005,24 @@ Four parallel audit agents swept all 16 pages, ~150 API routes, and the studio/c
 **Known cleanup (non-blocking):** `_compose_guest_asset_email` duplicates the prompt from the `asset_email` endpoint — fold the endpoint onto the helper in a later pass. Poster asset still not generated (Cover Forge repurpose or manual upload — deferred).
 
 **Files:** `main.py`, `services/brick_agent.py`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-14 — Guest asset email: hallucinated links + no review surface (two fixes)
+
+**Symptom 1 (caught during a live preview):** The guest asset email asked the LLM to write the episode links as a bullet list. When the episode had no real URLs yet, the model **invented** them — e.g. a fake `open.spotify.com/show/…` and `youtube.com/@…`. Sending a guest a fabricated link is a trust-killer.
+
+**Fix 1 — deterministic links, never LLM-generated (`main.py`):**
+- `_compose_guest_asset_email` now instructs the model to write the note with a literal `{{LINKS}}` token and **never** to write any URL. Code builds the link block from ONLY real values (Buzzsprout, Spotify, YouTube, Apple, Drive) and replaces the token. A regex guard (`_strip_stray_urls`) removes any URL the model emits that isn't in the allowed set. Verified: with no real URLs on the guest, the email comes back with ZERO links.
+- `GET /api/guests/{id}/asset_email` refactored to delegate to `_compose_guest_asset_email` (one source of truth; the endpoint had a duplicate prompt that drifted).
+- Ordering: `_build_guest_asset_package` now chains off the END of `_distribute_project` (B5) instead of racing it from `schedule_closing`, so the email carries the real Buzzsprout + YouTube links. Guest record gets `episode_url_youtube` + `episode_url_buzzsprout` from the project authoritatively.
+
+**Symptom 2:** The Punch List (`/walkthrough`) only rendered Brick's one-line rationale + an Approve button. A `guest_asset_package` item gave no way to actually READ the email before approving — so a user could send something to a guest sight-unseen.
+
+**Fix 2 — inline email preview in the Punch List (`frontend/walkthrough.html`):**
+- `renderPunchItem` now detects `action_type === 'guest_asset_package'` and renders a preview block: a "🔒 Draft only — nothing has been sent" banner, the `To:` recipient, the Drive status line, the full email body in a scrollable `<pre>`, and a "📋 Copy email" button. Approve button relabels to "✓ Looks good — mark sent." Data already came through `/api/brick/walkthrough` `payload.email` — this was purely a render gap.
+- Reassurance the architecture already guaranteed: nothing auto-sends to a guest. The email is always a `pending` draft; Gmail send-as isn't built, so delivery today = user copies it and sends from their own inbox. Approving only stamps `assets_sent_at`.
+
+**Verified:** Built a live `guest_asset_package` item for Neal Bawa (linked guest); `/api/brick/walkthrough` returns it with the full 839-char email; served `walkthrough.html` contains the preview render code (asset-preview, copy button, banner). (Interceptor CLI not installed on this box — verified via served markup + API payload rather than a screenshot.)
+
+**Files:** `main.py`, `frontend/walkthrough.html`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`

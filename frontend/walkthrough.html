@@ -250,6 +250,30 @@
     .punch-badge-icon {
       width: 13px; height: 13px; object-fit: contain; vertical-align: middle; flex-shrink: 0;
     }
+    .asset-preview {
+      margin-top: 12px; padding: 12px; border-radius: 10px;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    }
+    .asset-preview-note {
+      font-size: 12px; line-height: 1.5; color: var(--text);
+      background: rgba(46,228,156,0.08); border: 1px solid rgba(46,228,156,0.25);
+      border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;
+    }
+    .asset-preview-meta {
+      font-size: 12px; color: var(--text-dim, #9aa); margin-bottom: 4px;
+    }
+    .asset-preview-body {
+      white-space: pre-wrap; word-break: break-word; font-family: inherit;
+      font-size: 13px; line-height: 1.55; color: var(--text);
+      background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px; margin: 10px 0; max-height: 360px; overflow-y: auto;
+    }
+    .btn-copy-email {
+      padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;
+      border: 1px solid var(--accent); background: rgba(217,95,30,0.1);
+      color: var(--accent); cursor: pointer; transition: all .12s;
+    }
+    .btn-copy-email:hover { background: rgba(217,95,30,0.22); }
     .punch-actions {
       display: flex; align-items: center; gap: 8px; margin-top: 12px;
     }
@@ -641,13 +665,36 @@ function renderPunchItem(action) {
   el.className = 'punch-item';
   el.dataset.id = action.id;
 
+  // Guest asset package → show the FULL drafted email for review before anything goes out
+  let previewHtml = '';
+  let approveLabel = '✓ Approve';
+  if (action.action_type === 'guest_asset_package') {
+    const p = action.payload || {};
+    const recipient = p.recipient || '(no email on the guest record yet — add it before sending)';
+    const driveLine = p.drive_configured
+      ? ('Drive folder: ' + (p.drive_url || '(building…)'))
+      : 'Drive uploads: OFF until the Google service account is added (episode links still included)';
+    const emailText = p.email || '(email not generated)';
+    approveLabel = '✓ Looks good — mark sent';
+    previewHtml = `
+      <div class="asset-preview">
+        <div class="asset-preview-note">🔒 Draft only — <strong>nothing has been sent to the guest.</strong> Read it, hit Copy, and send it from your own inbox. "Mark sent" just clears it off your list.</div>
+        <div class="asset-preview-meta">📧 To: <strong>${escHtml(recipient)}</strong></div>
+        <div class="asset-preview-meta">📁 ${escHtml(driveLine)}</div>
+        <pre class="asset-preview-body">${escHtml(emailText)}</pre>
+        <button class="btn-copy-email" data-id="${id}">📋 Copy email</button>
+      </div>
+    `;
+  }
+
   el.innerHTML = `
     <div class="punch-item-top">
       <div class="punch-rationale">${rationale}</div>
       <span class="punch-action-badge"><img src="/static/brick-icon.png" class="punch-badge-icon" alt="" onerror="this.style.display='none'">${actionType}</span>
     </div>
+    ${previewHtml}
     <div class="punch-actions">
-      <button class="btn-approve" data-id="${id}">✓ Approve</button>
+      <button class="btn-approve" data-id="${id}">${approveLabel}</button>
       <button class="btn-reject" data-id="${id}">✗ Reject</button>
     </div>
     <div class="reject-expand" id="reject-${id}">
@@ -655,6 +702,19 @@ function renderPunchItem(action) {
       <button class="btn-reject-confirm" data-id="${id}">Confirm Reject</button>
     </div>
   `;
+
+  // Copy email (guest asset package preview)
+  const _copyBtn = el.querySelector('.btn-copy-email');
+  if (_copyBtn) {
+    _copyBtn.addEventListener('click', function () {
+      const txt = (action.payload && action.payload.email) || '';
+      const btn = this;
+      navigator.clipboard.writeText(txt).then(function () {
+        btn.textContent = '✓ Copied';
+        setTimeout(function () { btn.textContent = '📋 Copy email'; }, 1500);
+      }).catch(function () { wtToast("Couldn't copy — select and copy manually.", 'error'); });
+    });
+  }
 
   // Approve
   el.querySelector('.btn-approve').addEventListener('click', function () {
