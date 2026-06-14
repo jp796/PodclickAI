@@ -3293,6 +3293,18 @@ async def _build_guest_asset_package(project_id: str) -> None:
     rendered.sort(key=lambda c: (c.virality_score or 0), reverse=True)
     top_clips = rendered[:2]
 
+    # Asset manifest — what's bundled in the package (shown in the Punch List
+    # preview even before Drive is connected, so the list is never a mystery).
+    _manifest = [
+        {"label": "Episode audio (MP3)", "present": bool(mp3_url and _os.path.exists(mp3_url))},
+        {"label": "Full video (MP4)", "present": bool(recording_path and _os.path.exists(recording_path))},
+        {"label": "Transcript (.txt)", "present": bool(transcript)},
+        {"label": "Show notes", "present": bool(show_notes)},
+    ]
+    for _mi, _mc in enumerate(top_clips, 1):
+        _manifest.append({"label": f"Short {_mi} (9:16)", "present": bool(_mc.rendered_url and _os.path.exists(_mc.rendered_url))})
+    _manifest.append({"label": "Episode poster", "present": False, "note": "not generated yet"})
+
     from pipeline import drive as _drive
     drive_configured = _drive.is_configured()
 
@@ -3392,6 +3404,7 @@ async def _build_guest_asset_package(project_id: str) -> None:
                         "email": email_text,
                         "drive_url": drive_url,
                         "drive_configured": drive_configured,
+                        "assets": _manifest,
                         "uploaded": uploaded,
                         "skipped": skipped,
                         "episode_number": ep_num,

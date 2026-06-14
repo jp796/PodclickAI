@@ -262,6 +262,12 @@
     .asset-preview-meta {
       font-size: 12px; color: var(--text-dim, #9aa); margin-bottom: 4px;
     }
+    .asset-list {
+      margin: 6px 0 10px; padding-left: 4px; list-style: none;
+      font-size: 13px; line-height: 1.7; color: var(--text);
+    }
+    .asset-list li { white-space: nowrap; }
+    .asset-note { color: var(--text-dim, #9aa); font-size: 12px; }
     .asset-preview-body {
       white-space: pre-wrap; word-break: break-word; font-family: inherit;
       font-size: 13px; line-height: 1.55; color: var(--text);
@@ -673,13 +679,30 @@ function renderPunchItem(action) {
     const recipient = p.recipient || '(no email on the guest record yet — add it before sending)';
     const driveLine = p.drive_configured
       ? ('Drive folder: ' + (p.drive_url || '(building…)'))
-      : 'Drive uploads: OFF until the Google service account is added (episode links still included)';
+      : 'Drive folder not created yet — connect Google Drive (service account) to upload these and add the share link';
     const emailText = p.email || '(email not generated)';
     approveLabel = '✓ Looks good — mark sent';
+
+    // Asset manifest — what's bundled (delivered as a Drive folder link, not attachments)
+    const assets = p.assets || [];
+    let assetsHtml = '';
+    if (assets.length) {
+      const readyCount = assets.filter(function (a) { return a.present; }).length;
+      const rows = assets.map(function (a) {
+        const mark = a.present ? '✅' : (a.note ? '⏳' : '❌');
+        const note = a.note ? ' <span class="asset-note">(' + escHtml(a.note) + ')</span>' : '';
+        return '<li>' + mark + ' ' + escHtml(a.label) + note + '</li>';
+      }).join('');
+      assetsHtml =
+        '<div class="asset-preview-meta">📎 Assets in this package (' + readyCount + '/' + assets.length + ' ready) — delivered as a Drive folder link, not attachments:</div>' +
+        '<ul class="asset-list">' + rows + '</ul>';
+    }
+
     previewHtml = `
       <div class="asset-preview">
         <div class="asset-preview-note">🔒 Draft only — <strong>nothing has been sent to the guest.</strong> Read it, hit Copy, and send it from your own inbox. "Mark sent" just clears it off your list.</div>
         <div class="asset-preview-meta">📧 To: <strong>${escHtml(recipient)}</strong></div>
+        ${assetsHtml}
         <div class="asset-preview-meta">📁 ${escHtml(driveLine)}</div>
         <pre class="asset-preview-body">${escHtml(emailText)}</pre>
         <button class="btn-copy-email" data-id="${id}">📋 Copy email</button>
