@@ -2954,6 +2954,15 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
         except Exception as _persist_err:
             _logger.error("_distribute_project: failed to persist distribution links: %s", _persist_err)
 
+    # ── B5: Guest asset package (runs LAST, after URLs persist) ───────────────
+    # Chained here — not fired in parallel from schedule_closing — so the drafted
+    # guest email carries the real Buzzsprout + YouTube links instead of racing
+    # ahead of distribution and going out with empty URLs.
+    try:
+        await _build_guest_asset_package(project_id)
+    except Exception as _pkg_err:
+        _logger.error("_distribute_project: guest asset package build failed: %s", _pkg_err)
+
 
 @app.post("/api/projects/{project_id}/schedule-closing")
 async def schedule_closing(project_id: str, request: Request):
@@ -3057,13 +3066,12 @@ async def schedule_closing(project_id: str, request: Request):
     # Distribution: upload to Buzzsprout (private draft) + YouTube (private)
     # _distribute_project persists buzzsprout_url, buzzsprout_episode_id,
     # youtube_url, youtube_video_id back to the project record.
+    # _distribute_project chains _build_guest_asset_package at its end (B5), so
+    # the guest email is drafted with the real Buzzsprout + YouTube URLs.
     asyncio.create_task(_distribute_project(
         project_id=project_id,
         closing_at_ts=closing_at_ts,
     ))
-
-    # Guest asset package: Drive folder + uploads + drafted email → Punch List
-    asyncio.create_task(_build_guest_asset_package(project_id=project_id))
 
     return JSONResponse({
         **project_data,
@@ -3088,34 +3096,59 @@ async def _compose_guest_asset_email(guest: dict):
     podcast_name = profile.get("name", "Success Agent Podcast")
     apple_url    = profile.get("apple_podcasts_url", "")
 
-    spotify_url  = guest.get("episode_url_spotify", "")
-    youtube_url  = guest.get("episode_url_youtube", "")
-    apple_ep_url = guest.get("episode_url_apple", apple_url)
-    drive_url    = guest.get("assets_drive_url", "")
-    ep_num       = guest.get("episode_number", "")
-    ep_title     = guest.get("episode_title", "")
-    instagram    = guest.get("instagram", "")
+    import re as _re
+
+    spotify_url    = guest.get("episode_url_spotify", "")
+    youtube_url    = guest.get("episode_url_youtube", "")
+    apple_ep_url   = guest.get("episode_url_apple", apple_url)
+    buzzsprout_url = guest.get("episode_url_buzzsprout", "")
+    drive_url      = guest.get("assets_drive_url", "")
+    ep_num         = guest.get("episode_number", "")
+    ep_title       = guest.get("episode_title", "")
+    instagram      = guest.get("instagram", "")
+
+    # ── Deterministic links — ONLY real URLs, NEVER LLM-generated ─────────────
+    _links = []
+    if buzzsprout_url: _links.append(("Listen", buzzsprout_url))
+    if spotify_url:    _links.append(("Spotify", spotify_url))
+    if youtube_url:    _links.append(("YouTube", youtube_url))
+    if apple_ep_url:   _links.append(("Apple Podcasts", apple_ep_url))
+    allowed_urls = {u for _, u in _links}
+    if drive_url:
+        allowed_urls.add(drive_url)
+
+    def _links_block():
+        parts = []
+        if _links:
+            parts.append("Here's where folks can tune in:")
+            parts += [f"• {label}: {url}" for label, url in _links]
+        if drive_url:
+            if parts:
+                parts.append("")
+            parts.append("All your promotional assets (audio, video, clips) are here:")
+            parts.append(drive_url)
+        return "\n".join(parts)
+
+    def _strip_stray_urls(s):
+        # Remove any URL the model emitted that isn't an approved one.
+        return _re.sub(
+            r'https?://\S+',
+            lambda m: m.group(0) if m.group(0).rstrip('.,);]') in allowed_urls else "",
+            s,
+        )
 
     prompt = f"""Podcast: {podcast_name}
 Guest name: {guest['name']}
 Episode: {"EP. " + str(ep_num) + " — " + ep_title if ep_num else ep_title or "recent episode"}
-{"Spotify: " + spotify_url if spotify_url else ""}
-{"YouTube: " + youtube_url if youtube_url else ""}
-{"Apple Podcasts: " + apple_ep_url if apple_ep_url else ""}
-{"Google Drive assets folder: " + drive_url if drive_url else ""}
-{"Host Instagram handle: @" + instagram.lstrip("@") if instagram else ""}
 
-Write a warm, friendly email from the host to the guest with:
-1. Subject line (first line)
-2. Blank line
-3. Opening: thank them, mention the episode aired
-4. Share the episode links as a bullet list (only include platforms where URL provided)
-{"5. Share the promotional assets Drive link" if drive_url else ""}
-6. Ask them to share on social — include the host's Instagram handle if provided
-7. Close with an offer to collaborate again
-8. Sign with the podcast name
+Write a warm, friendly email from the host to the guest:
+1. Subject line (first line), then a blank line
+2. Greet them by first name, thank them, mention the episode is live
+3. On its own line, write the EXACT token {{{{LINKS}}}} where the episode links and asset folder belong — do NOT write any URLs, links, or platform list yourself; the system fills that token in
+4. Ask them to share it with their audience{(" and tag @" + instagram.lstrip("@")) if instagram else ""}
+5. Close with an offer to have them back on, then sign with the podcast name
 
-Keep it short and warm — 4-6 paragraphs max. Do NOT use placeholder brackets [like this] — write it ready to send."""
+CRITICAL: Never write, invent, guess, or recall any URL or web address. The ONLY links come from the {{{{LINKS}}}} token. Keep it short and warm — 4-6 short paragraphs. No placeholder brackets like [this]."""
 
     # ── Foundation-powered generation (graceful: any failure → template) ──────
     try:
@@ -3151,7 +3184,7 @@ Keep it short and warm — 4-6 paragraphs max. Do NOT use placeholder brackets [
         if vocab_no:  voice_preamble += f"- {vocab_no}\n"
         if voice_examples: voice_preamble += f"\n{voice_examples}\n"
 
-        system_prompt = voice_preamble + "\nYou are a podcast host writing warm, professional follow-up emails to podcast guests after their episodes air. Write in first person in the host's authentic voice."
+        system_prompt = voice_preamble + "\nYou are a podcast host writing warm, professional follow-up emails to podcast guests after their episodes air. Write in first person in the host's authentic voice. You NEVER fabricate URLs — links are inserted by the system."
 
         client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
         message = client.messages.create(
@@ -3163,6 +3196,15 @@ Keep it short and warm — 4-6 paragraphs max. Do NOT use placeholder brackets [
         )
         text = (message.content[0].text if message.content else "").strip()
         if text:
+            block = _links_block()
+            if "{{LINKS}}" in text:
+                text = text.replace("{{LINKS}}", block)
+            elif block:
+                text = text + "\n\n" + block
+            # Safety net: strip any URL the model invented despite instructions.
+            text = _strip_stray_urls(text)
+            # Collapse any blank-line gaps left by token/URL removal.
+            text = _re.sub(r'\n{3,}', '\n\n', text).strip()
             return text, True, ctx.metadata.sample_count
     except Exception as _gen_err:
         import logging
@@ -3170,27 +3212,25 @@ Keep it short and warm — 4-6 paragraphs max. Do NOT use placeholder brackets [
             "[asset_package] Foundation email unavailable, using template: %s", _gen_err
         )
 
-    # ── Fallback template ─────────────────────────────────────────────────────
+    # ── Fallback template (deterministic links built in) ──────────────────────
+    first = guest['name'].split()[0] if guest.get('name') else "there"
     lines = [
         f"Subject: Your Episode Is Live — {podcast_name}!",
         "",
-        f"Hey {guest['name'].split()[0]},",
+        f"Hey {first},",
         "",
-        f"Your episode just dropped on {podcast_name} and we couldn't be more excited to share it with the world!",
+        f"Your episode just dropped on {podcast_name} and we're excited to get it out into the world.",
         "",
-        "Here are your episode links:",
     ]
-    if spotify_url:  lines.append(f"• Spotify: {spotify_url}")
-    if youtube_url:  lines.append(f"• YouTube: {youtube_url}")
-    if apple_ep_url: lines.append(f"• Apple Podcasts: {apple_ep_url}")
-    if drive_url:
-        lines += ["", "All your promotional assets (audio, video, poster, clips) are here:", drive_url]
+    block = _links_block()
+    if block:
+        lines.append(block)
+        lines.append("")
     lines += [
+        "If you haven't already, we'd love for you to share it with your audience"
+        + (f" — tag us @{instagram.lstrip('@')} and we'll reshare you." if instagram else "."),
         "",
-        "If you haven't already, we'd love if you shared the episode with your audience!",
-        f"Tag us {('@' + instagram.lstrip('@')) if instagram else 'on Instagram'} and we'll reshare you.",
-        "",
-        "Thanks again for being on the show — let's do it again sometime!",
+        "Thanks again for coming on — let's do it again sometime.",
         "",
         f"— {podcast_name}",
     ]
@@ -3241,6 +3281,7 @@ async def _build_guest_asset_package(project_id: str) -> None:
         transcript = project.transcript or ""
         show_notes = project.show_notes or ""
         youtube_url = project.youtube_url or ""
+        buzzsprout_url = project.buzzsprout_url or ""
         clip_rows = (await session.execute(select(Clip).where(Clip.project_id == pid))).scalars().all()
 
     if not guest_ids:
@@ -3314,8 +3355,11 @@ async def _build_guest_asset_package(project_id: str) -> None:
             guest["episode_number"] = ep_num
         if title and not guest.get("episode_title"):
             guest["episode_title"] = title
-        if youtube_url and not guest.get("episode_url_youtube"):
+        # Distribution is authoritative for this closing — overwrite stale/empty links
+        if youtube_url:
             guest["episode_url_youtube"] = youtube_url
+        if buzzsprout_url:
+            guest["episode_url_buzzsprout"] = buzzsprout_url
 
         # Draft the email in JP's voice (never raises)
         try:
@@ -4803,61 +4847,23 @@ async def delete_guest(guest_id: str):
 @app.get("/api/guests/{guest_id}/asset_email")
 async def generate_asset_email(guest_id: str):
     """
-    Generate the guest asset-delivery email using GPT-4o.
-    Merges episode URLs, Drive link, social handles, and a CTA.
+    Generate the guest asset-delivery email in JP's voice (Foundation).
+    Links are injected deterministically — the model never writes URLs.
+    Delegates to _compose_guest_asset_email (single source of truth).
     """
-    items  = _load_guests()
-    guest  = next((g for g in items if g["id"] == guest_id), None)
+    import json as _json
+    items = _load_guests()
+    guest = next((g for g in items if g["id"] == guest_id), None)
     if not guest:
         return JSONResponse({"error": "Not found"}, status_code=404)
 
-    store        = _load_profiles_store()
-    active_id    = store.get("active_id")
-    profile      = next((p for p in store.get("profiles", []) if p["id"] == active_id), {})
-    podcast_name = profile.get("name", "Success Agent Podcast")
-    apple_url    = profile.get("apple_podcasts_url", "")
-
-    spotify_url  = guest.get("episode_url_spotify", "")
-    youtube_url  = guest.get("episode_url_youtube", "")
-    apple_ep_url = guest.get("episode_url_apple", apple_url)
-    drive_url    = guest.get("assets_drive_url", "")
-    ep_num       = guest.get("episode_number", "")
-    ep_title     = guest.get("episode_title", "")
-    instagram    = guest.get("instagram", "")
-
-    prompt = f"""Podcast: {podcast_name}
-Guest name: {guest['name']}
-Episode: {"EP. " + str(ep_num) + " — " + ep_title if ep_num else ep_title or "recent episode"}
-{"Spotify: " + spotify_url if spotify_url else ""}
-{"YouTube: " + youtube_url if youtube_url else ""}
-{"Apple Podcasts: " + apple_ep_url if apple_ep_url else ""}
-{"Google Drive assets folder: " + drive_url if drive_url else ""}
-{"Host Instagram handle: @" + instagram.lstrip("@") if instagram else ""}
-
-Write a warm, friendly email from the host to the guest with:
-1. Subject line (first line)
-2. Blank line
-3. Opening: thank them, mention the episode aired
-4. Share the episode links as a bullet list (only include platforms where URL provided)
-{"5. Share the promotional assets Drive link" if drive_url else ""}
-6. Ask them to share on social — include the host's Instagram handle if provided
-7. Close with an offer to collaborate again
-8. Sign with the podcast name
-
-Keep it short and warm — 4-6 paragraphs max. Do NOT use placeholder brackets [like this] — write it ready to send."""
-
-    # ── Foundation gate (after 404 check above) ─────────────────────────────
-    import json as _json
-    import re as _re
-    import anthropic as _anthropic
+    # Foundation gate → 422 (preserves existing endpoint behavior)
     from db.engine import async_session as _async_session
-    from config import get_current_location_id as _get_loc, settings as _settings
+    from config import get_current_location_id as _get_loc
     from services.foundation import (
         assert_foundation_ready as _assert_ready,
-        get_brand_context as _get_brand_ctx,
         BrandContextError as _BrandContextError,
     )
-    from schemas.foundation import BrandContextTaskType as _TaskType
 
     location_id = _get_loc()
     async with _async_session() as session:
@@ -4865,104 +4871,40 @@ Keep it short and warm — 4-6 paragraphs max. Do NOT use placeholder brackets [
             await _assert_ready(session=session, location_id=location_id)
         except _BrandContextError as exc:
             return JSONResponse({"error": str(exc), "foundation_not_ready": True}, status_code=422)
-        try:
-            ctx = await _get_brand_ctx(
-                session=session,
-                location_id=location_id,
-                task_type=_TaskType.guest_asset_email,
-                topic=f"guest asset email for {guest['name']}",
-                platform=None,
-                audience=None,
-            )
-        except _BrandContextError as exc:
-            return JSONResponse({"error": str(exc)}, status_code=422)
 
-    bp = ctx.brand_profile
-    vp = ctx.voice_profile
-    vocab = ctx.vocabulary
-    tone_str = ", ".join(vp.tone if isinstance(vp.tone, list) else [vp.tone]) if vp.tone else "direct, genuine"
-    cadence_str = vp.cadence or "natural, punchy"
-    vocab_yes = "Use naturally: " + ", ".join(vocab.use if isinstance(vocab.use, list) else [vocab.use]) if vocab.use else ""
-    vocab_no  = "Avoid entirely: " + ", ".join(vocab.avoid if isinstance(vocab.avoid, list) else [vocab.avoid]) if vocab.avoid else ""
-    voice_examples = ""
-    if ctx.voice_samples:
-        examples = [f'  — "{s.text[:300]}"' for s in ctx.voice_samples[:3]]
-        voice_examples = "Voice samples (match this style):\n" + "\n".join(examples)
-    voice_preamble = f"VOICE PROFILE:\n- Tone: {tone_str}\n- Cadence: {cadence_str}\n- POV: {vp.pov or 'first-person'}\n"
-    if vocab_yes: voice_preamble += f"- {vocab_yes}\n"
-    if vocab_no:  voice_preamble += f"- {vocab_no}\n"
-    if voice_examples: voice_preamble += f"\n{voice_examples}\n"
+    email_text, used_foundation, sample_count = await _compose_guest_asset_email(guest)
 
-    system_prompt = voice_preamble + "\nYou are a podcast host writing warm, professional follow-up emails to podcast guests after their episodes air. Write in first person in the host's authentic voice."
-
+    # Audit log (non-blocking)
     try:
-        client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
-        message = client.messages.create(
-            model="claude-sonnet-4-5",
-            max_tokens=600,
-            temperature=0.75,
-            system=system_prompt,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        text = (message.content[0].text if message.content else "").strip()
-
-        # Audit log (non-blocking)
-        try:
-            import uuid as _uuid
-            async with _async_session() as _audit:
-                await _audit.execute(
-                    __import__("sqlalchemy").text("""
-                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
-                        VALUES (:id, :loc_id, 'guest_asset_email', CAST(:payload AS jsonb), now())
-                        ON CONFLICT DO NOTHING
-                    """),
-                    {
-                        "id": str(_uuid.uuid4()),
-                        "loc_id": location_id,
-                        "payload": _json.dumps({
-                            "topic": f"guest asset email for {guest['name']}",
-                            "model": "claude-sonnet-4-5",
-                            "sample_count": ctx.metadata.sample_count,
-                        }),
-                    },
-                )
-                await _audit.commit()
-        except Exception:
-            pass
-
-        return JSONResponse({
-            "email": text,
-            "foundation": True,
-            "guest_email": guest.get("email", ""),
-            "_foundation_thin": ctx.metadata.sample_count < 15,
-            "_sample_count": ctx.metadata.sample_count,
-        })
+        import uuid as _uuid
+        async with _async_session() as _audit:
+            await _audit.execute(
+                __import__("sqlalchemy").text("""
+                    INSERT INTO audit_log (id, location_id, action, payload, created_at)
+                    VALUES (:id, :loc_id, 'guest_asset_email', CAST(:payload AS jsonb), now())
+                    ON CONFLICT DO NOTHING
+                """),
+                {
+                    "id": str(_uuid.uuid4()),
+                    "loc_id": location_id,
+                    "payload": _json.dumps({
+                        "topic": f"guest asset email for {guest['name']}",
+                        "model": "claude-sonnet-4-5",
+                        "sample_count": sample_count,
+                    }),
+                },
+            )
+            await _audit.commit()
     except Exception:
-        # Fallback template
-        lines = [
-            f"Subject: Your Episode Is Live — {podcast_name}!",
-            "",
-            f"Hey {guest['name'].split()[0]},",
-            "",
-            f"Your episode just dropped on {podcast_name} and we couldn't be more excited to share it with the world!",
-            "",
-            "Here are your episode links:",
-        ]
-        if spotify_url:  lines.append(f"• Spotify: {spotify_url}")
-        if youtube_url:  lines.append(f"• YouTube: {youtube_url}")
-        if apple_ep_url: lines.append(f"• Apple Podcasts: {apple_ep_url}")
-        if drive_url:
-            lines += ["", f"All your promotional assets (audio, video, poster, clips) are here:", drive_url]
-        lines += [
-            "",
-            "If you haven't already, we'd love if you shared the episode with your audience!",
-            f"Tag us {('@' + instagram.lstrip('@')) if instagram else 'on Instagram'} and we'll reshare you.",
-            "",
-            f"Thanks again for being on the show — let's do it again sometime!",
-            "",
-            f"— {podcast_name}",
-        ]
-        return JSONResponse({"email": "\n".join(lines), "gpt": False, "guest_email": guest.get("email", "")})
+        pass
+
+    return JSONResponse({
+        "email": email_text,
+        "foundation": used_foundation,
+        "guest_email": guest.get("email", ""),
+        "_foundation_thin": sample_count < 15,
+        "_sample_count": sample_count,
+    })
 
 
 @app.websocket("/ws/clip/{job_id}")
