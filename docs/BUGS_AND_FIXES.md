@@ -1058,3 +1058,17 @@ Four parallel audit agents swept all 16 pages, ~150 API routes, and the studio/c
 **Verified:** Neal's project → `POST /generate-title` → `"Neal Bawa: Revolutionizing Real Estate with Data Science"` (from the real transcript), persisted to the project.
 
 **Files:** `main.py`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-14 — Studio: use iPhone as a webcam (Continuity Camera surfacing)
+
+**What shipped:** The Device Check modal now makes the iPhone selectable as the studio camera. macOS **Continuity Camera** already exposes the iPhone as a normal `videoinput` to `getUserMedia`/`enumerateDevices` — the gaps were that it needed a re-scan when connected mid-setup, and wasn't obvious.
+
+- `frontend/studio.html` — added a 🔄 **re-scan** button beside the camera dropdown (`dcRefreshDevices()` → re-runs `_dcPopulateDevices()`), so a just-connected iPhone appears without a page reload.
+- `_dcPopulateDevices()` now flags any camera whose label matches `/iphone|continuity/i` with a 📱 prefix and shows a `#dc-cam-hint` line: detected → "pick it above"; not detected → Continuity setup tip (same Apple ID, Wi-Fi+Bluetooth, phone nearby & locked, or USB) + tap 🔄.
+- Selecting it routes through existing `dcSwitchDevice()`; no backend change — the recording pipeline already records whatever `state.camStream` carries.
+
+**Verified:** served `/studio` contains the new markup + `dcRefreshDevices` (7 matches), no boot errors. Live iPhone selection requires JP's physical phone + Continuity Camera (can't headless-test the device itself).
+
+**Files:** `frontend/studio.html`, `docs/FRONTEND.md`, `docs/BUGS_AND_FIXES.md`

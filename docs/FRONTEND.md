@@ -257,7 +257,8 @@ btn.addEventListener('click', () => copyText(btn, btn.dataset.text));
 | Function | Description |
 |----------|-------------|
 | `dcInit()` | Called on page load — requests `getUserMedia`, populates device dropdowns, shows preview in `#dc-video` |
-| `_dcPopulateDevices()` | `enumerateDevices()` → fill `#dc-cam-select` and `#dc-mic-select` |
+| `_dcPopulateDevices()` | `enumerateDevices()` → fill `#dc-cam-select` and `#dc-mic-select`. Flags iPhone/Continuity cameras with 📱 and sets the `#dc-cam-hint` setup tip. |
+| `dcRefreshDevices()` | Re-runs `_dcPopulateDevices()` (🔄 button) — use after connecting an iPhone mid-setup so it appears without a page reload. |
 | `dcSwitchDevice()` | Stop current `_dcStream`, restart with selected `deviceId` from dropdowns |
 | `dcToggleCam()` | Enable/disable video tracks in `_dcStream`; show/hide `#dc-video` preview |
 | `dcToggleMic()` | Enable/disable audio tracks in `_dcStream` |

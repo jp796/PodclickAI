@@ -676,7 +676,11 @@
       <!-- Camera select -->
       <div style="margin-bottom:14px;">
         <label style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">📷 Camera</label>
-        <select id="dc-cam-select" onchange="dcSwitchDevice()" style="width:100%;background:#0f0f1e;border:1px solid #1e1e2e;border-radius:10px;color:#d0d0e0;font-size:13px;padding:11px 14px;outline:none;cursor:pointer;"></select>
+        <div style="display:flex;gap:8px;align-items:stretch;">
+          <select id="dc-cam-select" onchange="dcSwitchDevice()" style="flex:1;min-width:0;background:#0f0f1e;border:1px solid #1e1e2e;border-radius:10px;color:#d0d0e0;font-size:13px;padding:11px 14px;outline:none;cursor:pointer;"></select>
+          <button onclick="dcRefreshDevices()" title="Re-scan cameras — tap after connecting your iPhone" style="flex-shrink:0;background:#141422;border:1px solid #2a2a3e;border-radius:10px;color:#d0d0e0;font-size:15px;padding:0 13px;cursor:pointer;">🔄</button>
+        </div>
+        <div id="dc-cam-hint" style="font-size:11px;color:#6a6a80;margin-top:7px;line-height:1.4;display:none;"></div>
       </div>
 
       <!-- Mic select -->
@@ -3266,8 +3270,27 @@
     const curMic  = _dcStream?.getAudioTracks()[0]?.getSettings().deviceId || '';
     const cams = devices.filter(d => d.kind === 'videoinput');
     const mics = devices.filter(d => d.kind === 'audioinput');
-    camSel.innerHTML = cams.map((d, i) => `<option value="${d.deviceId}" ${d.deviceId === curCam ? 'selected' : ''}>${d.label || 'Camera ' + (i + 1)}</option>`).join('');
+    const isPhone = l => /iphone|continuity/i.test(l || '');
+    camSel.innerHTML = cams.map((d, i) => {
+      const label  = d.label || ('Camera ' + (i + 1));
+      const pretty = isPhone(label) ? ('📱 ' + label) : label;
+      return `<option value="${d.deviceId}" ${d.deviceId === curCam ? 'selected' : ''}>${pretty}</option>`;
+    }).join('');
     micSel.innerHTML = mics.map((d, i) => `<option value="${d.deviceId}" ${d.deviceId === curMic ? 'selected' : ''}>${d.label || 'Microphone ' + (i + 1)}</option>`).join('');
+    // iPhone / Continuity Camera hint
+    const hint = document.getElementById('dc-cam-hint');
+    if (hint) {
+      const phoneCam = cams.find(d => isPhone(d.label));
+      hint.style.display = 'block';
+      hint.textContent = phoneCam
+        ? '📱 iPhone detected — pick it above for a sharper shot.'
+        : '📱 Using your iPhone? Continuity Camera: same Apple ID, Wi‑Fi + Bluetooth on, phone nearby & locked (or plug in via USB). Then tap 🔄.';
+    }
+  }
+
+  async function dcRefreshDevices() {
+    try { await _dcPopulateDevices(); toast('Cameras re-scanned', 'info'); }
+    catch (e) { toast("Couldn't re-scan devices", 'error'); }
   }
 
   async function dcSwitchDevice() {
