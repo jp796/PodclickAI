@@ -3296,12 +3296,21 @@
   async function dcSwitchDevice() {
     const camId = document.getElementById('dc-cam-select').value;
     const micId = document.getElementById('dc-mic-select').value;
-    try {
+    const hint  = document.getElementById('dc-cam-hint');
+    const audio = { deviceId: { exact: micId }, echoCancellation: true, noiseSuppression: true, channelCount: 1 };
+    async function _grab(videoConstraints) {
       if (_dcStream) { _dcStream.getTracks().forEach(t => t.stop()); _dcStream = null; }
-      _dcStream = await navigator.mediaDevices.getUserMedia({
-        video: { deviceId: { exact: camId }, width: 1280, height: 720, frameRate: 30 },
-        audio: { deviceId: { exact: micId }, echoCancellation: true, noiseSuppression: true, channelCount: 1 },
-      });
+      return await navigator.mediaDevices.getUserMedia({ video: videoConstraints, audio });
+    }
+    try {
+      try {
+        // Preferred: 720p30
+        _dcStream = await _grab({ deviceId: { exact: camId }, width: 1280, height: 720, frameRate: 30 });
+      } catch (e1) {
+        // iPhone / Continuity Camera frequently rejects fixed res/fps — retry at native settings
+        _dcStream = await _grab({ deviceId: { exact: camId } });
+        if (hint) { hint.style.display = 'block'; hint.textContent = '📱 Connected at the camera’s native settings.'; }
+      }
       const v = document.getElementById('dc-video');
       v.srcObject = _dcStream;
       if (_dcCamOn) { v.style.display = 'block'; document.getElementById('dc-no-cam').style.display = 'none'; document.getElementById('dc-res-badge').style.display = 'block'; }
@@ -3310,7 +3319,20 @@
       camBtn.style.background = '#141422'; camBtn.style.borderColor = '#2a2a3e';
       const micBtn = document.getElementById('dc-btn-mic');
       micBtn.style.background = '#141422'; micBtn.style.borderColor = '#2a2a3e'; micBtn.textContent = '🎤';
-    } catch(e) { /* device busy or denied — keep existing stream */ }
+    } catch (e) {
+      // Surface the REAL reason instead of silently keeping the old stream
+      const name = (e && e.name) ? e.name : 'error';
+      const msg = ({
+        NotReadableError:     "That camera's busy — close FaceTime / Photo Booth / Zoom / the iPhone's Camera app, then tap 🔄.",
+        NotAllowedError:      'Camera permission is blocked — allow camera access in the browser, then tap 🔄.',
+        OverconstrainedError: "That camera can't match the requested settings — tap 🔄 to retry.",
+        NotFoundError:        'Camera not found — reconnect the iPhone (unlock it, keep it nearby), then tap 🔄.',
+        AbortError:           'Camera failed to start — unlock the iPhone and tap 🔄.',
+      })[name] || ('Could not start that camera (' + name + ').');
+      if (hint) { hint.style.display = 'block'; hint.textContent = '⚠️ ' + msg; }
+      try { toast(msg, 'error'); } catch (_) {}
+      console.error('[studio] dcSwitchDevice failed:', e);
+    }
   }
 
   function dcToggleCam() {
