@@ -61,11 +61,13 @@ async def upload_episode(
     cmd = [
         "curl", "-s", "-w", "\n__HTTP_STATUS__%{http_code}",
         "-H", f"Authorization: Token token={api_key}",
-        "-F", f"title={title}",
-        "-F", f"description={description or ''}",
-        "-F", f"episode_number={episode_number}",
-        "-F", f"private={private_str}",
-        "-F", "explicit=false",
+        # --form-string for text fields: -F treats a value starting with '<' or
+        # '@' as "load from file", and description is HTML (starts with '<h2>').
+        "--form-string", f"title={title}",
+        "--form-string", f"description={description or ''}",
+        "--form-string", f"episode_number={episode_number}",
+        "--form-string", f"private={private_str}",
+        "--form-string", "explicit=false",
         "-F", f"audio_file=@{mp3_path};type=audio/mpeg",
         ep_url,
     ]

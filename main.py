@@ -2780,6 +2780,8 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
         show_notes_md  = proj.show_notes or ""
         episode_number = proj.episode_number or 0
         _meta          = proj.legacy_metadata or {}
+        _existing_bz   = proj.buzzsprout_url or ""        # idempotency: skip if already distributed
+        _existing_yt   = proj.youtube_video_id or ""
 
     # ── Vyral hashtags (from Hashtag Lab saved sets) ──────────────────────────
     import json as _json
@@ -2865,7 +2867,9 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
     # ── B2: Buzzsprout upload (private draft → scheduler flips public) ────────
     buzzsprout_url     = None
     buzzsprout_ep_id   = None
-    if mp3_ready:
+    if _existing_bz:
+        _logger.info("_distribute_project: Buzzsprout already done (%s) — skipping re-upload", _existing_bz)
+    if mp3_ready and not _existing_bz:
         try:
             from pipeline.upload import upload_episode
             bz_result = await upload_episode(
@@ -2899,7 +2903,9 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
     youtube_url    = None
     youtube_vid_id = None
     video_path = recording_path or mp3_path
-    if video_path and Path(video_path).exists():
+    if _existing_yt:
+        _logger.info("_distribute_project: YouTube already done (%s) — skipping re-upload", _existing_yt)
+    if video_path and Path(video_path).exists() and not _existing_yt:
         try:
             from pipeline.youtube import upload_video, is_authorized
             if is_authorized():
@@ -3431,7 +3437,13 @@ async def _build_guest_asset_package(project_id: str) -> None:
         uploaded, skipped = [], []
         drive_url = guest.get("assets_drive_url", "")
 
-        if drive_configured:
+        _existing_drive = guest.get("assets_drive_url", "")
+        if drive_configured and _existing_drive:
+            # Folder already built this episode — reuse it (no 265MB re-upload on retries)
+            drive_url = _existing_drive
+            uploaded = [m["label"] for m in _manifest if m.get("present")]
+            skipped = []
+        elif drive_configured:
             # ALL Drive I/O runs off the event loop — synchronous googleapiclient
             # calls on the loop corrupt asyncpg/SQLAlchemy async (MissingGreenlet).
             loop = asyncio.get_event_loop()
@@ -3507,6 +3519,39 @@ async def _build_guest_asset_package(project_id: str) -> None:
         _save_guests(guests)
     except Exception as serr:
         log.warning("[asset_package] guest save failed: %s", serr)
+
+
+@app.post("/api/projects/{project_id}/redistribute")
+async def redistribute_project(project_id: str):
+    """
+    Re-run distribution only (Buzzsprout + YouTube + chained asset package) for an
+    already-scheduled project — a clean retry after a failed closing, without
+    re-creating closing social posts or re-advancing guest status. Uses the
+    project's existing closing_scheduled_at for the flip-to-public time.
+    """
+    import time as _time
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    import uuid as _uuid
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        return JSONResponse({"error": "Invalid project ID"}, status_code=400)
+
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if not proj:
+            return JSONResponse({"error": "Project not found"}, status_code=404)
+        closing_at = proj.closing_scheduled_at
+
+    closing_ts = closing_at.timestamp() if closing_at else _time.time()
+    asyncio.create_task(_distribute_project(project_id=project_id, closing_at_ts=closing_ts))
+    return JSONResponse({
+        "ok": True,
+        "message": "Re-distributing (Buzzsprout + YouTube + asset package) in the background.",
+    })
 
 
 @app.post("/api/projects/{project_id}/generate-title")
