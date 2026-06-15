@@ -679,7 +679,7 @@ function renderPunchItem(action) {
     const recipient = p.recipient || '(no email on the guest record yet — add it before sending)';
     const driveLine = p.drive_configured
       ? ('Drive folder: ' + (p.drive_url || '(building…)'))
-      : 'Drive folder not created yet — connect Google Drive (service account) to upload these and add the share link';
+      : 'Drive folder not created yet — connect Google Drive at /api/drive/auth to upload these and add the share link';
     const emailText = p.email || '(email not generated)';
     approveLabel = '✓ Looks good — mark sent';
 

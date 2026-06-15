@@ -3359,7 +3359,7 @@ async def _build_guest_asset_package(project_id: str) -> None:
                 log.warning("[asset_package] drive build failed for guest %s: %s", gid, derr)
                 skipped.append(f"drive ({derr})")
         else:
-            skipped = ["Drive not configured — add the service account to enable uploads"]
+            skipped = ["Drive not connected — visit /api/drive/auth to enable uploads"]
 
         # Persist Drive link + episode metadata back to the guest record
         guest["assets_drive_url"] = drive_url
@@ -3390,8 +3390,8 @@ async def _build_guest_asset_package(project_id: str) -> None:
                              f"Approve to mark it sent.")
             else:
                 rationale = (f"Ep. {ep_num} closed. {gname}'s asset email is drafted in your voice. "
-                             f"Drive uploads are off until the service account's in — the episode links still go out. "
-                             f"Approve to mark it sent.")
+                             f"Drive's not connected yet — connect it at /api/drive/auth and rebuild. "
+                             f"The episode links still go out. Approve to mark it sent.")
             async with _async_session() as session:
                 action = BrickAction(
                     location_id=_uuid.UUID(location_id),
