@@ -3302,6 +3302,52 @@ CRITICAL: Never write, invent, guess, or recall any URL or web address. The ONLY
     return "\n".join(lines), False, 0
 
 
+def _drive_build_and_upload(title, ep_num, mp3_url, recording_path, transcript, show_notes, clip_paths):
+    """
+    SYNC — all blocking Google Drive I/O for one episode's asset folder.
+    MUST run via run_in_executor; synchronous googleapiclient calls on the
+    asyncio loop corrupt asyncpg/SQLAlchemy async (MissingGreenlet).
+    Returns (drive_url, uploaded:list[str], skipped:list[str]).
+    """
+    import os as _os2, tempfile as _tf2
+    from pipeline import drive as _drive
+    uploaded, skipped, drive_url = [], [], ""
+    try:
+        folder = _drive.create_episode_folder(title, ep_num)
+        if not folder.get("ok"):
+            return "", [], ["drive folder (" + str(folder.get("error", "error")) + ")"]
+        fid = folder["folder_id"]
+        drive_url = folder["folder_url"]
+
+        def _push(path, mime, fname):
+            if path and _os2.path.exists(path):
+                r = _drive.upload_file_to_folder(fid, path, mime, fname)
+                (uploaded if r.get("ok") else skipped).append(fname)
+            else:
+                skipped.append(fname)
+
+        _push(mp3_url, "audio/mpeg", f"EP{ep_num} - {title}.mp3")
+        _vext = (_os2.path.splitext(recording_path)[1] or ".mp4") if recording_path else ".mp4"
+        _push(recording_path, "video/mp4", f"EP{ep_num} - {title} (full video){_vext}")
+
+        if transcript:
+            _t = _tf2.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8")
+            _t.write(transcript); _t.close()
+            _r = _drive.upload_file_to_folder(fid, _t.name, "text/plain", f"EP{ep_num} - transcript.txt")
+            (uploaded if _r.get("ok") else skipped).append("transcript.txt"); _os2.unlink(_t.name)
+        if show_notes:
+            _s = _tf2.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8")
+            _s.write(show_notes); _s.close()
+            _r = _drive.upload_file_to_folder(fid, _s.name, "text/markdown", f"EP{ep_num} - show notes.md")
+            (uploaded if _r.get("ok") else skipped).append("show notes.md"); _os2.unlink(_s.name)
+
+        for _i, _cp in enumerate(clip_paths, 1):
+            _push(_cp, "video/mp4", f"EP{ep_num} - Short {_i}.mp4")
+        return drive_url, uploaded, skipped
+    except Exception as _e:
+        return drive_url, uploaded, skipped + [f"drive ({_e})"]
+
+
 async def _build_guest_asset_package(project_id: str) -> None:
     """
     On Closing: build each linked guest's promotional asset package.
@@ -3386,43 +3432,14 @@ async def _build_guest_asset_package(project_id: str) -> None:
         drive_url = guest.get("assets_drive_url", "")
 
         if drive_configured:
-            try:
-                folder = _drive.create_episode_folder(title, ep_num)
-                if folder.get("ok"):
-                    fid = folder["folder_id"]
-                    drive_url = folder["folder_url"]
-
-                    def _push(path, mime, fname):
-                        if path and _os.path.exists(path):
-                            r = _drive.upload_file_to_folder(fid, path, mime, fname)
-                            (uploaded if r.get("ok") else skipped).append(fname)
-                        else:
-                            skipped.append(fname)
-
-                    _push(mp3_url, "audio/mpeg", f"EP{ep_num} - {title}.mp3")
-                    _vext = (_os.path.splitext(recording_path)[1] or ".mp4") if recording_path else ".mp4"
-                    _push(recording_path, "video/mp4", f"EP{ep_num} - {title} (full video){_vext}")
-
-                    if transcript:
-                        _tf = _tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8")
-                        _tf.write(transcript); _tf.close()
-                        _r = _drive.upload_file_to_folder(fid, _tf.name, "text/plain", f"EP{ep_num} - transcript.txt")
-                        (uploaded if _r.get("ok") else skipped).append("transcript.txt")
-                        _os.unlink(_tf.name)
-                    if show_notes:
-                        _sf = _tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8")
-                        _sf.write(show_notes); _sf.close()
-                        _r = _drive.upload_file_to_folder(fid, _sf.name, "text/markdown", f"EP{ep_num} - show notes.md")
-                        (uploaded if _r.get("ok") else skipped).append("show notes.md")
-                        _os.unlink(_sf.name)
-
-                    for _i, _c in enumerate(top_clips, 1):
-                        _push(_c.rendered_url, "video/mp4", f"EP{ep_num} - Short {_i}.mp4")
-                else:
-                    skipped.append("drive folder (" + str(folder.get("error", "error")) + ")")
-            except Exception as derr:
-                log.warning("[asset_package] drive build failed for guest %s: %s", gid, derr)
-                skipped.append(f"drive ({derr})")
+            # ALL Drive I/O runs off the event loop — synchronous googleapiclient
+            # calls on the loop corrupt asyncpg/SQLAlchemy async (MissingGreenlet).
+            loop = asyncio.get_event_loop()
+            drive_url, uploaded, skipped = await loop.run_in_executor(
+                None, _drive_build_and_upload,
+                title, ep_num, mp3_url, recording_path, transcript, show_notes,
+                [c.rendered_url for c in top_clips],
+            )
         else:
             skipped = ["Drive not connected — visit /api/drive/auth to enable uploads"]
 
