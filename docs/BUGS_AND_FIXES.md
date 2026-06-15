@@ -1026,3 +1026,19 @@ Four parallel audit agents swept all 16 pages, ~150 API routes, and the studio/c
 **Verified:** Built a live `guest_asset_package` item for Neal Bawa (linked guest); `/api/brick/walkthrough` returns it with the full 839-char email; served `walkthrough.html` contains the preview render code (asset-preview, copy button, banner). (Interceptor CLI not installed on this box — verified via served markup + API payload rather than a screenshot.)
 
 **Files:** `main.py`, `frontend/walkthrough.html`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-14 — Drive integration switched from service-account key → OAuth
+
+**Why:** The Google Workspace org policy `iam.disableServiceAccountKeyCreation` blocks downloadable service-account JSON keys (Secure-by-Default). The old `pipeline/drive.py` relied on `GOOGLE_SERVICE_ACCOUNT_JSON` → dead end. OAuth (user-delegated) is the path Google recommends and needs no key file.
+
+**What shipped (`pipeline/drive.py` rewrite + `main.py` routes):**
+- `pipeline/drive.py` now uses OAuth user credentials, mirroring the working YouTube flow exactly. **Reuses the same OAuth client** (`data/youtube_client_secrets.json`) — no new credentials. Token stored at `data/drive_token.json`, auto-refreshed. Scope: `https://www.googleapis.com/auth/drive`.
+- Helpers: `_secrets_path`, `is_authorized`, `is_configured` (now = "connected via OAuth"), `get_credentials`, `_save_token`, `get_auth_url`, `exchange_code`, `account_email`. `create_episode_folder` / `upload_file_to_folder` / `make_folder_public` keep identical signatures (so `_build_guest_asset_package` is untouched) — they just call the OAuth-backed `_get_service()`.
+- New routes: `GET /api/drive/auth` (redirect to Google consent), `GET /api/drive/callback` (exchange + store token, success page), `POST /api/drive/disconnect`. `GET /api/drive/status` now returns `{configured, authorized, email, auth_url}`.
+- The OAuth client is type **"installed" (Desktop)**, so the loopback redirect `http://localhost:8765/api/drive/callback` works without pre-registration in most cases. If Google returns `redirect_uri_mismatch`, add that URI to the client's Authorized redirect URIs.
+
+**Verified:** `/api/drive/auth` 307-redirects to `accounts.google.com/o/oauth2/auth` with the correct client_id, `redirect_uri=…/api/drive/callback`, and `scope=…/auth/drive`. `/api/drive/status` → `authorized:false` until the user completes consent. Full upload path can only be verified live after JP grants consent (one click).
+
+**Files:** `pipeline/drive.py`, `main.py`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`

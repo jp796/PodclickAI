@@ -93,7 +93,10 @@
 | GET | `/api/youtube/callback` | YouTube OAuth callback |
 | POST | `/api/youtube/disconnect` | Disconnect YouTube account |
 | POST | `/api/youtube/upload` | Upload video to YouTube |
-| GET | `/api/drive/status` | Google Drive connection status |
+| GET | `/api/drive/status` | Google Drive connection status (`{configured, authorized, email, auth_url}`) |
+| GET | `/api/drive/auth` | Start Drive OAuth — redirects to Google consent (reuses YouTube OAuth client, scope `drive`) |
+| GET | `/api/drive/callback` | Drive OAuth callback — exchanges code, stores `data/drive_token.json` |
+| POST | `/api/drive/disconnect` | Remove the stored Drive OAuth token |
 | POST | `/api/drive/create_folder` | Create Drive folder |
 
 ## Click Studio (YouTube Intelligence)

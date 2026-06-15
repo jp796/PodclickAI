@@ -4630,8 +4630,66 @@ Rules:
 
 @app.get("/api/drive/status")
 async def drive_status():
-    from pipeline.drive import is_configured
-    return JSONResponse({"configured": is_configured()})
+    from pipeline import drive as _drive
+    authorized = _drive.is_authorized()
+    email = _drive.account_email() if authorized else ""
+    return JSONResponse({
+        "configured": authorized,   # back-compat: "configured" now means "connected via OAuth"
+        "authorized": authorized,
+        "email": email,
+        "auth_url": "/api/drive/auth",
+    })
+
+
+@app.get("/api/drive/auth")
+async def drive_auth():
+    """Redirect the user to Google's consent screen to connect Drive."""
+    from pipeline import drive as _drive
+    try:
+        url = _drive.get_auth_url()
+    except FileNotFoundError as exc:
+        return HTMLResponse(
+            f"<h3>Google OAuth client not found</h3><p>{exc}</p>",
+            status_code=400,
+        )
+    return RedirectResponse(url)
+
+
+@app.get("/api/drive/callback")
+async def drive_callback(code: str = "", error: str = "", state: str = ""):
+    """OAuth callback — exchange the code for tokens and store them."""
+    from pipeline import drive as _drive
+    if error:
+        return HTMLResponse(f"<h3>Drive connection cancelled</h3><p>{error}</p><p><a href='/api/drive/auth'>Try again</a></p>")
+    if not code:
+        return HTMLResponse("<h3>Missing authorization code</h3><p><a href='/api/drive/auth'>Try again</a></p>", status_code=400)
+    result = _drive.exchange_code(code)
+    if result.get("ok"):
+        who = result.get("email") or "your Google account"
+        return HTMLResponse(
+            "<div style='font-family:system-ui;max-width:520px;margin:60px auto;text-align:center'>"
+            "<h2>✅ Google Drive connected</h2>"
+            f"<p>PodClick can now build episode folders and upload assets as <strong>{who}</strong>.</p>"
+            "<p>You can close this tab and head back to the Walk-through.</p>"
+            "<p><a href='/walkthrough'>← Back to the Punch List</a></p>"
+            "</div>"
+        )
+    return HTMLResponse(
+        f"<h3>Drive connection failed</h3><p>{result.get('error')}</p><p><a href='/api/drive/auth'>Try again</a></p>",
+        status_code=500,
+    )
+
+
+@app.post("/api/drive/disconnect")
+async def drive_disconnect():
+    """Remove the stored Drive OAuth token."""
+    from pipeline.drive import TOKEN_FILE
+    try:
+        if TOKEN_FILE.exists():
+            TOKEN_FILE.unlink()
+        return JSONResponse({"ok": True})
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
 @app.post("/api/drive/create_folder")
