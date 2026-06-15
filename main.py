@@ -2247,6 +2247,57 @@ def _clip_transcript_text(job_data, clip_row, full_transcript):
     return (full_transcript or "")[:500]
 
 
+def _looks_like_auto_title(title) -> bool:
+    """True if the title is an auto/placeholder name (safe to overwrite with a generated one)."""
+    if not title:
+        return True
+    import re as _re
+    t = (title or "").strip()
+    low = t.lower()
+    if low.startswith(("new build", "untitled", "new recording", "new episode")):
+        return True
+    # Upload/recording auto-names carry a date stamp like 2026-06-03
+    if _re.search(r"\d{4}-\d{2}-\d{2}", t):
+        return True
+    return False
+
+
+def _generate_episode_title(transcript: str, guest_name: str = "", show_name: str = "Success Agent Podcast") -> str:
+    """
+    Generate one clean, specific episode title from the transcript via GPT-4o.
+    Returns the title, or "" on failure (caller keeps the existing title).
+    Sync — call via run_in_executor from async contexts.
+    """
+    if not transcript or not transcript.strip():
+        return ""
+    try:
+        import openai as _openai
+        client = _openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        guest_line = (
+            f"This is an interview with guest {guest_name}. Lead with the guest's name. "
+            if guest_name else ""
+        )
+        prompt = (
+            f"{guest_line}Write ONE compelling, specific podcast episode title for {show_name} "
+            f"from the transcript below. 50-70 characters. No clickbait, no quotation marks, "
+            f"no episode number, no emojis. Capture the single most valuable idea. "
+            f"Return ONLY the title.\n\nTRANSCRIPT (excerpt):\n{transcript[:4000]}"
+        )
+        resp = client.chat.completions.create(
+            model="gpt-4o",
+            max_tokens=40,
+            temperature=0.7,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        title = (resp.choices[0].message.content or "").strip().strip('"').strip()
+        title = title.splitlines()[0].strip() if title else ""
+        return title[:120]
+    except Exception as _e:
+        import logging
+        logging.getLogger("podclick.projects").info("[ship_it.title] generation failed: %s", _e)
+        return ""
+
+
 async def _run_ship_it_async(
     project_uuid,
     project_id: str,
@@ -2489,6 +2540,20 @@ async def _run_ship_it_inner(
                 proj = (await session.execute(select(Project).where(Project.id == project_uuid))).scalar_one_or_none()
                 if proj:
                     proj.show_notes = show_notes_text
+                    # Auto-title from transcript — only overwrite auto/placeholder names
+                    if _looks_like_auto_title(proj.title):
+                        _gn = ""
+                        try:
+                            _gids = list(proj.guest_ids or [])
+                            if _gids:
+                                _gmap = {g.get("id"): g for g in _load_guests()}
+                                _gn = (_gmap.get(_gids[0], {}) or {}).get("name", "")
+                        except Exception:
+                            pass
+                        _new_title = _generate_episode_title(proj.transcript or "", _gn)
+                        if _new_title:
+                            proj.title = _new_title
+                            print(f"[ship_it.title] auto-title set → {_new_title!r}")
                     if _chapters:
                         from sqlalchemy.orm.attributes import flag_modified as _flag_mod
                         # Build new dict so SQLAlchemy detects the JSONB mutation
@@ -3425,6 +3490,51 @@ async def _build_guest_asset_package(project_id: str) -> None:
         _save_guests(guests)
     except Exception as serr:
         log.warning("[asset_package] guest save failed: %s", serr)
+
+
+@app.post("/api/projects/{project_id}/generate-title")
+async def generate_project_title(project_id: str):
+    """
+    Generate a clean episode title from the project's transcript (GPT-4o) and
+    save it. Same generator Ship It runs automatically — exposed so a title can
+    be regenerated on demand. Returns {ok, title}.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    import uuid as _uuid
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        return JSONResponse({"error": "Invalid project ID"}, status_code=400)
+
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if not proj:
+            return JSONResponse({"error": "Project not found"}, status_code=404)
+        transcript = proj.transcript or ""
+        guest_ids = list(proj.guest_ids or [])
+
+    if not transcript.strip():
+        return JSONResponse({"error": "No transcript yet — can't generate a title."}, status_code=400)
+
+    guest_name = ""
+    if guest_ids:
+        _gmap = {g.get("id"): g for g in _load_guests()}
+        guest_name = (_gmap.get(guest_ids[0], {}) or {}).get("name", "")
+
+    loop = asyncio.get_event_loop()
+    title = await loop.run_in_executor(None, lambda: _generate_episode_title(transcript, guest_name))
+    if not title:
+        return JSONResponse({"error": "Title generation failed"}, status_code=502)
+
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if proj:
+            proj.title = title
+            await session.commit()
+    return JSONResponse({"ok": True, "title": title})
 
 
 @app.post("/api/projects/{project_id}/build-asset-package")

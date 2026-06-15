@@ -783,6 +783,7 @@ Notes:    Triggers the same logic as the 4am cron. Useful for manual testing.
 | POST | `/api/projects/{id}/ship-it` | Hero button — trigger full pipeline |
 | POST | `/api/projects/from-upload` | Phase C — upload pre-recorded file → project + transcription |
 | POST | `/api/projects/{id}/schedule-closing` | Step 4 — schedule publish + create posts |
+| POST | `/api/projects/{id}/generate-title` | Generate a clean episode title from the transcript (GPT-4o); saves `project.title` |
 | POST | `/api/projects/{id}/build-asset-package` | Build guest asset package(s) → Drive folder + uploads + drafted email → Punch List |
 
 ### GET /api/projects

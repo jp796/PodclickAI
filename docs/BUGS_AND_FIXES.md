@@ -1042,3 +1042,19 @@ Four parallel audit agents swept all 16 pages, ~150 API routes, and the studio/c
 **Verified:** `/api/drive/auth` 307-redirects to `accounts.google.com/o/oauth2/auth` with the correct client_id, `redirect_uri=…/api/drive/callback`, and `scope=…/auth/drive`. `/api/drive/status` → `authorized:false` until the user completes consent. Full upload path can only be verified live after JP grants consent (one click).
 
 **Files:** `pipeline/drive.py`, `main.py`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-14 — Episode title never auto-generated from transcript
+
+**Symptom:** Projects kept their upload/recording filename as the title (e.g. `Neal  Bawa— 2026-06-03 17:35`), which would become the Buzzsprout + YouTube episode title at closing. Ship It generated show notes + chapters but never a title — the automation was simply missing.
+
+**Fix (`main.py`):**
+- `_generate_episode_title(transcript, guest_name, show_name)` — GPT-4o, returns one clean 50–70-char title from the transcript excerpt; leads with the guest name for interviews; empty string on failure (caller keeps existing title).
+- `_looks_like_auto_title()` — detects placeholder/auto names ("New build…", "Untitled", or anything carrying a `YYYY-MM-DD` stamp) so generation only overwrites auto-titles, never a hand-set one.
+- Wired into `_run_ship_it_async` show-notes persist block: every Ship It run now auto-titles the episode when the current title is a placeholder.
+- `POST /api/projects/{id}/generate-title` — regenerate on demand from the stored transcript (runs the sync GPT call via `run_in_executor`), saves `project.title`.
+
+**Verified:** Neal's project → `POST /generate-title` → `"Neal Bawa: Revolutionizing Real Estate with Data Science"` (from the real transcript), persisted to the project.
+
+**Files:** `main.py`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`
