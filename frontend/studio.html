@@ -3289,8 +3289,29 @@
   }
 
   async function dcRefreshDevices() {
-    try { await _dcPopulateDevices(); toast('Cameras re-scanned', 'info'); }
-    catch (e) { toast("Couldn't re-scan devices", 'error'); }
+    const hint = document.getElementById('dc-cam-hint');
+    try {
+      // Re-request permission so a newly-connected camera surfaces with a real label
+      try { const s = await navigator.mediaDevices.getUserMedia({ video: true }); s.getTracks().forEach(t => t.stop()); } catch (_) {}
+      await _dcPopulateDevices();
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cams = devices.filter(d => d.kind === 'videoinput');
+      const names = cams.map(d => d.label || 'Unnamed camera');
+      const hasPhone = cams.some(d => /iphone|continuity/i.test(d.label || ''));
+      if (hint) {
+        hint.style.display = 'block';
+        hint.innerHTML = hasPhone
+          ? '📱 iPhone found — select it in the dropdown above.'
+          : '🔍 Found ' + cams.length + ' camera' + (cams.length === 1 ? '' : 's') + ': ' + (names.join(', ') || 'none') +
+            '. No iPhone yet — Continuity Camera is reliable in <b>Safari</b>; in Chrome, fully quit &amp; reopen Chrome with the phone already connected, then tap 🔄.';
+      }
+      toast(hasPhone ? '📱 iPhone found!' : ('Re-scanned — ' + cams.length + ' camera(s), no iPhone'), hasPhone ? 'success' : 'info');
+    } catch (e) {
+      const name = (e && e.name) ? e.name : 'error';
+      if (hint) { hint.style.display = 'block'; hint.textContent = '⚠️ Re-scan failed: ' + name + '. Allow camera access in the browser, then retry.'; }
+      try { toast("Couldn't re-scan devices", 'error'); } catch (_) {}
+      console.error('[studio] dcRefreshDevices failed:', e);
+    }
   }
 
   async function dcSwitchDevice() {
