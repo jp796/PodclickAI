@@ -1072,3 +1072,41 @@ Four parallel audit agents swept all 16 pages, ~150 API routes, and the studio/c
 **Verified:** served `/studio` contains the new markup + `dcRefreshDevices` (7 matches), no boot errors. Live iPhone selection requires JP's physical phone + Continuity Camera (can't headless-test the device itself).
 
 **Files:** `frontend/studio.html`, `docs/FRONTEND.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-16 — Episode poster auto-generated into the guest asset package (last ⏳ closed)
+
+**What it was:** The asset package manifest carried a permanent placeholder —
+`{"label": "Episode poster", "present": false, "note": "not generated yet"}`. The
+poster was the only asset never produced (6/7 real). Closing the loop required a
+guest headshot, which the deferred GHL intake form will supply.
+
+**What shipped (`main.py`):**
+- `_generate_episode_poster(out_path, ep_num, title, guest_name, guest_headshot, guest_tagline, host_name=None, host_headshot=None)` — SYNC PIL builder, run via `run_in_executor` (CPU work off the event loop). Renders a 1080×1080 poster: show kicker (`PODCLICK_SHOW_NAME`), `EP. {n}` badge, two gold-ringed circular avatars (host + guest), names + roles, wrapped title, "A conversation with {guest}", gold base bar. Returns `(ok, note)`.
+  - **Graceful headshot fallback:** missing headshot → a gold-on-navy **initials circle** (e.g. "JD"), so a poster ALWAYS renders. The manifest note records when the placeholder was used.
+  - **Title de-dup:** strips a leading `"{Guest Name}:"` prefix from the episode title (names are already on the poster) — `"Neal Bawa: Revolutionizing…"` → `"Revolutionizing…"`.
+- `_resolve_headshot(name)` — finds `data/headshots/{slug}.{jpg,jpeg,png,webp}` by name slug. Convention: drop a headshot named by slug (the future guest-intake form writes here). Host resolves `jp_fluellen.png`.
+- `_slugify_name()` helper + `POSTER_SHOW_NAME` / `POSTER_HOST_NAME` env overrides (`PODCLICK_SHOW_NAME`, `PODCLICK_HOST_NAME`) for white-label installs.
+- `_drive_build_and_upload(...)` gained a `poster_path=None` param → uploads `EP{n} - poster.png` (image/png) into the guest's Drive folder alongside the other assets.
+- `_build_guest_asset_package`: the poster is **guest-specific** (uses that guest's headshot), so it's generated per-guest inside the loop (not in the shared manifest). Each guest gets `g_manifest = base + poster entry`; the per-guest manifest flows into the Punch List payload and the reuse branch. Poster path: `data/posters/EP{ep}_{slug}.png`.
+
+**Verified (server not required — direct function test):**
+- `_resolve_headshot("Neal Bawa")` → `data/headshots/neal_bawa.jpg`; `("JP Fluellen")` → `jp_fluellen.png`.
+- Neal poster (both real headshots) → `ok=True`, no note.
+- Fallback (guest headshot absent) → `ok=True`, note `"guest headshot missing — initials placeholder used"`, renders JP's real photo + a clean "JD" initials circle.
+- `main.py` parses; test artifacts removed.
+
+**Headshot convention going forward:** `data/headshots/{name-slug}.{jpg,png}`. Neal + JP staged. The deferred GHL guest-intake form will write guest headshots here automatically — until then, a guest with no headshot still gets a poster (initials), and dropping a file named by slug upgrades it on the next build.
+
+**Files:** `main.py`, `docs/BUGS_AND_FIXES.md`
+
+**Reuse-branch backfill (follow-up, same day):** Neal's Drive folder was built
+*before* the poster existed, so his rebuild hit the reuse branch (which skips
+re-uploading the large MP3/MP4). Added `_drive_upload_one(folder_url, path, mime,
+fname)` — extracts the folder id from the stored Drive URL and uploads a single
+late-added file. The reuse branch now backfills the poster (small PNG) into the
+existing folder; on failure it drops "Episode poster" from `uploaded` and records
+`"Episode poster (Drive backfill failed)"` in `skipped`. **Live-verified:** Neal's
+folder (`1ND1rqdpBD0TBYESdr56k`) now contains all 7 assets including
+`EP101 - poster.png`; rebuild reported `uploaded` incl. Episode poster, `skipped: []`.

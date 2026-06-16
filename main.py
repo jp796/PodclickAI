@@ -3308,7 +3308,183 @@ CRITICAL: Never write, invent, guess, or recall any URL or web address. The ONLY
     return "\n".join(lines), False, 0
 
 
-def _drive_build_and_upload(title, ep_num, mp3_url, recording_path, transcript, show_notes, clip_paths):
+def _slugify_name(name):
+    import re as _re
+    return _re.sub(r"[^a-z0-9]+", "_", (name or "").strip().lower()).strip("_")
+
+
+# Episode poster branding — override per-install via env without code changes.
+POSTER_SHOW_NAME = os.getenv("PODCLICK_SHOW_NAME", "THE SUCCESS AGENT PODCAST")
+POSTER_HOST_NAME = os.getenv("PODCLICK_HOST_NAME", "JP Fluellen")
+
+
+def _resolve_headshot(name):
+    """Find a headshot file for a person by name slug in data/headshots/.
+    Convention: drop `data/headshots/{slug}.{jpg,png}` (the future guest-intake
+    form writes here). Returns a path or "" if none on disk."""
+    import os as _o
+    slug = _slugify_name(name)
+    base = _o.path.join("data", "headshots")
+    for ext in (".jpg", ".jpeg", ".png", ".webp"):
+        p = _o.path.join(base, slug + ext)
+        if _o.path.exists(p):
+            return p
+    return ""
+
+
+def _generate_episode_poster(out_path, ep_num, title, guest_name, guest_headshot,
+                             guest_tagline, host_name=None, host_headshot=None):
+    """SYNC — render a 1080x1080 episode poster (host + guest circles, EP badge,
+    title). Run via run_in_executor (PIL is CPU work). Missing headshots fall
+    back to an initials circle so a poster always renders.
+    Returns (ok: bool, note: str)."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont, ImageOps
+        import os as _o
+        _o.makedirs(_o.path.dirname(out_path) or ".", exist_ok=True)
+        host_name = host_name or POSTER_HOST_NAME
+        if host_headshot is None:
+            host_headshot = _resolve_headshot(host_name) or _o.path.join("data", "headshots", "jp_fluellen.png")
+
+        W = H = 1080
+        AB = "/System/Library/Fonts/Supplemental/Arial Black.ttf"
+        ABD = "/System/Library/Fonts/Supplemental/Arial Bold.ttf"
+
+        def f(p, s):
+            try:
+                return ImageFont.truetype(p, s)
+            except Exception:
+                return ImageFont.load_default()
+
+        GOLD = (232, 177, 76); WHITE = (255, 255, 255); MUTE = (159, 179, 200)
+        top = (11, 31, 58); bot = (6, 14, 26)
+        bg = Image.new("RGB", (W, H)); px = bg.load()
+        for y in range(H):
+            t = y / H
+            px_row = (int(top[0] + (bot[0] - top[0]) * t),
+                      int(top[1] + (bot[1] - top[1]) * t),
+                      int(top[2] + (bot[2] - top[2]) * t))
+            for x in range(W):
+                px[x, y] = px_row
+        d = ImageDraw.Draw(bg)
+
+        def ctext(y, txt, font, fill, ls=0):
+            if ls:
+                ws = [d.textlength(c, font=font) for c in txt]
+                total = sum(ws) + ls * (len(txt) - 1); x = (W - total) / 2
+                for c, w in zip(txt, ws):
+                    d.text((x, y), c, font=font, fill=fill); x += w + ls
+                return
+            w = d.textlength(txt, font=font); d.text(((W - w) / 2, y), txt, font=font, fill=fill)
+
+        ctext(70, POSTER_SHOW_NAME, f(ABD, 30), GOLD, ls=8)
+        badge = f"EP. {ep_num}" if ep_num else "EPISODE"
+        bf = f(AB, 30); bw = d.textlength(badge, font=bf)
+        pw, ph = bw + 50, 58; bx = (W - pw) / 2; by = 120
+        d.rounded_rectangle([bx, by, bx + pw, by + ph], radius=ph / 2, fill=GOLD)
+        d.text((bx + 25, by + 11), badge, font=bf, fill=(11, 31, 58))
+
+        def initials(name):
+            parts = [p for p in (name or "").split() if p]
+            return ("".join(p[0] for p in parts[:2]) or "?").upper()
+
+        note = ""
+
+        def circle(path, dia, name, cen=(0.5, 0.42)):
+            if path and _o.path.exists(path):
+                im = Image.open(path).convert("RGB")
+                im = ImageOps.fit(im, (dia, dia), Image.LANCZOS, centering=cen)
+            else:
+                im = Image.new("RGB", (dia, dia), (30, 52, 84))
+                dd = ImageDraw.Draw(im); inits = initials(name); inf = f(AB, int(dia * 0.42))
+                iw = dd.textlength(inits, font=inf)
+                dd.text(((dia - iw) / 2, dia * 0.24), inits, font=inf, fill=GOLD)
+            mask = Image.new("L", (dia, dia), 0)
+            ImageDraw.Draw(mask).ellipse([0, 0, dia, dia], fill=255)
+            return im, mask
+
+        if not (guest_headshot and _o.path.exists(guest_headshot)):
+            note = "guest headshot missing — initials placeholder used"
+
+        DIA = 360; gap = 70; total = DIA * 2 + gap
+        left_x = int((W - total) / 2); right_x = left_x + DIA + gap; cy = 300
+        host_av, host_mask = circle(host_headshot, DIA, host_name, cen=(0.5, 0.45))
+        guest_av, guest_mask = circle(guest_headshot, DIA, guest_name)
+
+        def place(av, mask, x):
+            ring = 14
+            d.ellipse([x - ring, cy - ring, x + DIA + ring, cy + DIA + ring], fill=GOLD)
+            bg.paste(av, (x, cy), mask)
+
+        place(host_av, host_mask, left_x); place(guest_av, guest_mask, right_x)
+
+        ny = cy + DIA + 34
+
+        def name_under(txt, cx):
+            nf = f(AB, 34); w = d.textlength(txt, font=nf); d.text((cx - w / 2, ny), txt, font=nf, fill=WHITE)
+
+        name_under(host_name.upper(), left_x + DIA / 2)
+        name_under((guest_name or "GUEST").upper(), right_x + DIA / 2)
+
+        rf = f(ABD, 22); ry = ny + 44
+
+        def role_under(txt, cx):
+            txt = (txt or "")[:40]
+            w = d.textlength(txt, font=rf); d.text((cx - w / 2, ry), txt, font=rf, fill=MUTE)
+
+        role_under("HOST", left_x + DIA / 2)
+        role_under((guest_tagline or "GUEST").upper(), right_x + DIA / 2)
+
+        def wrap(txt, font, maxw):
+            words = txt.split(); lines = []; cur = ""
+            for w in words:
+                t = (cur + " " + w).strip()
+                if d.textlength(t, font=font) <= maxw:
+                    cur = t
+                else:
+                    lines.append(cur); cur = w
+            if cur:
+                lines.append(cur)
+            return lines
+
+        # Drop a redundant "Guest Name:" prefix — names are already on the poster.
+        poster_title = title or "New Episode"
+        if ":" in poster_title:
+            head, tail = poster_title.split(":", 1)
+            if guest_name and _slugify_name(guest_name) in _slugify_name(head):
+                poster_title = tail.strip() or poster_title
+
+        tf = f(AB, 64); ty = 830
+        for ln in wrap(poster_title, tf, W - 140):
+            w = d.textlength(ln, font=tf); d.text(((W - w) / 2, ty), ln, font=tf, fill=WHITE); ty += 74
+        ctext(ty + 8, f"A conversation with {guest_name}" if guest_name else "New episode", f(ABD, 30), GOLD)
+        d.rectangle([0, H - 14, W, H], fill=GOLD)
+        bg.save(out_path, "PNG")
+        return True, note
+    except Exception as e:
+        return False, f"poster gen failed: {e}"
+
+
+def _drive_upload_one(folder_url, path, mime, fname):
+    """SYNC — upload a single file into an EXISTING Drive folder (by its URL).
+    Used to backfill a newly-added asset (e.g. the poster) into a folder that was
+    already built on a prior run, without re-pushing the large media. Run via
+    run_in_executor. Returns True on success."""
+    import os as _o, re as _re
+    from pipeline import drive as _drive
+    try:
+        if not (path and _o.path.exists(path)):
+            return False
+        m = _re.search(r"/folders/([A-Za-z0-9_-]+)", folder_url or "")
+        if not m:
+            return False
+        r = _drive.upload_file_to_folder(m.group(1), path, mime, fname)
+        return bool(r.get("ok"))
+    except Exception:
+        return False
+
+
+def _drive_build_and_upload(title, ep_num, mp3_url, recording_path, transcript, show_notes, clip_paths, poster_path=None):
     """
     SYNC — all blocking Google Drive I/O for one episode's asset folder.
     MUST run via run_in_executor; synchronous googleapiclient calls on the
@@ -3349,6 +3525,8 @@ def _drive_build_and_upload(title, ep_num, mp3_url, recording_path, transcript, 
 
         for _i, _cp in enumerate(clip_paths, 1):
             _push(_cp, "video/mp4", f"EP{ep_num} - Short {_i}.mp4")
+        if poster_path:
+            _push(poster_path, "image/png", f"EP{ep_num} - poster.png")
         return drive_url, uploaded, skipped
     except Exception as _e:
         return drive_url, uploaded, skipped + [f"drive ({_e})"]
@@ -3420,7 +3598,8 @@ async def _build_guest_asset_package(project_id: str) -> None:
     ]
     for _mi, _mc in enumerate(top_clips, 1):
         _manifest.append({"label": f"Short {_mi} (9:16)", "present": bool(_mc.rendered_url and _os.path.exists(_mc.rendered_url))})
-    _manifest.append({"label": "Episode poster", "present": False, "note": "not generated yet"})
+    # NOTE: the Episode poster is guest-specific (uses the guest's headshot), so it
+    # is generated + appended per-guest inside the loop below, not here.
 
     from pipeline import drive as _drive
     drive_configured = _drive.is_configured()
@@ -3436,21 +3615,53 @@ async def _build_guest_asset_package(project_id: str) -> None:
 
         uploaded, skipped = [], []
         drive_url = guest.get("assets_drive_url", "")
+        gname = guest.get("name", "Guest")
+
+        # --- Episode poster (guest-specific: host + this guest's headshot) ---
+        loop = asyncio.get_event_loop()
+        _gh = _resolve_headshot(gname)
+        _gtag = (guest.get("company") or guest.get("title") or "GUEST")
+        _poster_path = _os.path.join("data", "posters", f"EP{ep_num or 0}_{_slugify_name(gname)}.png")
+        try:
+            _poster_ok, _poster_note = await loop.run_in_executor(
+                None, _generate_episode_poster,
+                _poster_path, ep_num, title, gname, _gh, _gtag,
+            )
+        except Exception as perr:
+            _poster_ok, _poster_note = False, f"poster gen failed: {perr}"
+            log.warning("[asset_package] poster gen failed for guest %s: %s", gid, perr)
+
+        # Per-guest manifest = shared base + this guest's poster entry
+        g_manifest = list(_manifest)
+        _poster_entry = {"label": "Episode poster", "present": bool(_poster_ok)}
+        if _poster_note:
+            _poster_entry["note"] = _poster_note
+        g_manifest.append(_poster_entry)
 
         _existing_drive = guest.get("assets_drive_url", "")
         if drive_configured and _existing_drive:
             # Folder already built this episode — reuse it (no 265MB re-upload on retries)
             drive_url = _existing_drive
-            uploaded = [m["label"] for m in _manifest if m.get("present")]
+            uploaded = [m["label"] for m in g_manifest if m.get("present")]
             skipped = []
+            # The poster is a late-added asset — backfill it into the existing
+            # folder (small file) so reuse doesn't leave Drive missing the poster.
+            if _poster_ok:
+                _pup = await loop.run_in_executor(
+                    None, _drive_upload_one,
+                    drive_url, _poster_path, "image/png", f"EP{ep_num} - poster.png",
+                )
+                if not _pup:
+                    uploaded = [u for u in uploaded if u != "Episode poster"]
+                    skipped.append("Episode poster (Drive backfill failed)")
         elif drive_configured:
             # ALL Drive I/O runs off the event loop — synchronous googleapiclient
             # calls on the loop corrupt asyncpg/SQLAlchemy async (MissingGreenlet).
-            loop = asyncio.get_event_loop()
             drive_url, uploaded, skipped = await loop.run_in_executor(
                 None, _drive_build_and_upload,
                 title, ep_num, mp3_url, recording_path, transcript, show_notes,
                 [c.rendered_url for c in top_clips],
+                (_poster_path if _poster_ok else None),
             )
         else:
             skipped = ["Drive not connected — visit /api/drive/auth to enable uploads"]
@@ -3477,7 +3688,6 @@ async def _build_guest_asset_package(project_id: str) -> None:
         # Drop the punch-list item (Brick voice rationale)
         try:
             n_up = len(uploaded)
-            gname = guest.get("name", "Guest")
             if drive_configured and n_up:
                 rationale = (f"Ep. {ep_num} closed. {gname}'s package is built — "
                              f"{n_up} file{'s' if n_up != 1 else ''} in Drive, email drafted in your voice. "
@@ -3498,7 +3708,7 @@ async def _build_guest_asset_package(project_id: str) -> None:
                         "email": email_text,
                         "drive_url": drive_url,
                         "drive_configured": drive_configured,
-                        "assets": _manifest,
+                        "assets": g_manifest,
                         "uploaded": uploaded,
                         "skipped": skipped,
                         "episode_number": ep_num,
