@@ -5074,6 +5074,69 @@ async def drive_disconnect():
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
+# ── Gmail send-as (Phase 6) — connect once, then "Approve & Send" emails guests ─
+
+@app.get("/api/gmail/status")
+async def gmail_status():
+    from pipeline import gmail_send as _gm
+    authorized = _gm.is_authorized()
+    email = _gm.account_email() if authorized else ""
+    return JSONResponse({
+        "configured": authorized,
+        "authorized": authorized,
+        "email": email,
+        "auth_url": "/api/gmail/auth",
+    })
+
+
+@app.get("/api/gmail/auth")
+async def gmail_auth():
+    """Redirect the user to Google's consent screen to connect Gmail (send-only)."""
+    from pipeline import gmail_send as _gm
+    try:
+        url = _gm.get_auth_url()
+    except FileNotFoundError as exc:
+        return HTMLResponse(f"<h3>Google OAuth client not found</h3><p>{exc}</p>", status_code=400)
+    return RedirectResponse(url)
+
+
+@app.get("/api/gmail/callback")
+async def gmail_callback(code: str = "", error: str = "", state: str = ""):
+    """OAuth callback — exchange the code for tokens and store them."""
+    from pipeline import gmail_send as _gm
+    if error:
+        return HTMLResponse(f"<h3>Gmail connection cancelled</h3><p>{error}</p><p><a href='/api/gmail/auth'>Try again</a></p>")
+    if not code:
+        return HTMLResponse("<h3>Missing authorization code</h3><p><a href='/api/gmail/auth'>Try again</a></p>", status_code=400)
+    result = _gm.exchange_code(code)
+    if result.get("ok"):
+        who = result.get("email") or "your Gmail account"
+        return HTMLResponse(
+            "<div style='font-family:system-ui;max-width:520px;margin:60px auto;text-align:center'>"
+            "<h2>✅ Gmail connected</h2>"
+            f"<p>PodClick can now send guest emails from <strong>{who}</strong> — only when you click <strong>Approve &amp; Send</strong>.</p>"
+            "<p>You can close this tab and head back to the Walk-through.</p>"
+            "<p><a href='/walkthrough'>← Back to the Punch List</a></p>"
+            "</div>"
+        )
+    return HTMLResponse(
+        f"<h3>Gmail connection failed</h3><p>{result.get('error')}</p><p><a href='/api/gmail/auth'>Try again</a></p>",
+        status_code=500,
+    )
+
+
+@app.post("/api/gmail/disconnect")
+async def gmail_disconnect():
+    """Remove the stored Gmail OAuth token."""
+    from pipeline.gmail_send import TOKEN_FILE
+    try:
+        if TOKEN_FILE.exists():
+            TOKEN_FILE.unlink()
+        return JSONResponse({"ok": True})
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
 @app.post("/api/drive/create_folder")
 async def drive_create_folder(request: Request):
     """
@@ -11488,6 +11551,109 @@ async def brick_approve_action(action_id: str):
         return JSONResponse({"error": str(e)}, status_code=403)
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
+
+
+@app.post("/api/brick/actions/{action_id}/approve-send")
+async def brick_approve_send_action(action_id: str, request: Request):
+    """
+    Checks-and-balances send for a guest_asset_package: the user reviews (and may
+    edit) the drafted email, then this ACTUALLY emails it via Gmail send-as before
+    marking the action approved. Nothing leaves the building until this is called.
+
+    Body (all optional): { "email_body": "<edited full email incl. Subject: line>",
+                           "send": true }
+      - send=false → mark sent manually WITHOUT emailing (user sends it themselves).
+      - send=true (default) + Gmail not connected → returns needs_gmail + auth_url,
+        nothing is sent or marked.
+    """
+    from services.brick_agent import BrickAgent as _BA_cls
+    from db.engine import async_session as _async_session
+    from db.models import BrickAction as _BA
+    from config import get_current_location_id
+    from pipeline import gmail_send as _gm
+    from sqlalchemy.orm.attributes import flag_modified
+    from sqlalchemy import select as _select
+    import uuid as _uuid
+
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    edited = (body.get("email_body") or "").strip()
+    do_send = body.get("send", True)
+
+    location_id = get_current_location_id()
+
+    # Load the action + validate
+    try:
+        aid = _uuid.UUID(action_id)
+    except ValueError:
+        return JSONResponse({"error": "Bad action id"}, status_code=400)
+
+    async with _async_session() as session:
+        action = (await session.execute(_select(_BA).where(_BA.id == aid))).scalar_one_or_none()
+        if not action:
+            return JSONResponse({"error": "Action not found"}, status_code=400)
+        if action.action_type != "guest_asset_package":
+            return JSONResponse({"error": "approve-send is only for guest asset packages"}, status_code=400)
+        if action.status != "pending":
+            return JSONResponse({"error": f"Action already {action.status}"}, status_code=400)
+
+        payload = dict(action.payload or {})
+        recipient = (payload.get("recipient") or "").strip()
+        email_full = edited or (payload.get("email") or "")
+
+        # Persist an edit so the record matches what was sent
+        if edited and edited != payload.get("email"):
+            payload["email"] = edited
+            action.payload = payload
+            flag_modified(action, "payload")
+            await session.commit()
+
+    if do_send:
+        if not recipient:
+            return JSONResponse({"error": "No recipient email on this guest."}, status_code=400)
+        if not _gm.is_authorized():
+            return JSONResponse({
+                "ok": False,
+                "needs_gmail": True,
+                "auth_url": "/api/gmail/auth",
+                "message": "Connect your Gmail once, then Approve & Send.",
+            }, status_code=409)
+
+        # Split "Subject: ..." header off the top of the drafted email.
+        subject = ""
+        body_text = email_full
+        for i, line in enumerate(email_full.splitlines()):
+            if line.lower().startswith("subject:"):
+                subject = line.split(":", 1)[1].strip()
+                body_text = "\n".join(email_full.splitlines()[i + 1:]).lstrip("\n")
+                break
+
+        loop = asyncio.get_event_loop()
+        send_res = await loop.run_in_executor(
+            None, _gm.send_message, recipient, subject, body_text, POSTER_HOST_NAME,
+        )
+        if not send_res.get("ok"):
+            return JSONResponse({"ok": False, "error": f"Gmail send failed: {send_res.get('error')}"}, status_code=502)
+
+    # Mark approved/executed + stamp the guest (existing dispatch bookkeeping)
+    agent = _BA_cls()
+    try:
+        result = await agent.approve_action(action_id, location_id)
+    except PermissionError as e:
+        return JSONResponse({"error": str(e)}, status_code=403)
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+    return JSONResponse({
+        "ok": True,
+        "sent": bool(do_send),
+        "to": recipient if do_send else "",
+        "gmail_email": _gm.account_email() if do_send else "",
+        "result": result,
+    })
 
 
 @app.post("/api/brick/actions/{action_id}/reject")

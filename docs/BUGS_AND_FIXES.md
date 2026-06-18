@@ -1110,3 +1110,59 @@ existing folder; on failure it drops "Episode poster" from `uploaded` and record
 `"Episode poster (Drive backfill failed)"` in `skipped`. **Live-verified:** Neal's
 folder (`1ND1rqdpBD0TBYESdr56k`) now contains all 7 assets including
 `EP101 - poster.png`; rebuild reported `uploaded` incl. Episode poster, `skipped: []`.
+
+---
+
+## 2026-06-16 — Phase 6: Gmail send-as + "Approve & Send" review gate (guest emails actually send)
+
+**What it was:** The guest asset email was a draft only. Approving a `guest_asset_package`
+stamped `assets_sent_at` but **never emailed the guest** — the user had to copy-paste and send
+from their own inbox. JP asked to (a) actually wire the send, (b) make it fifth-grader simple,
+and (c) add a review→approve→send checks-and-balances so nothing goes out unseen.
+
+**What shipped:**
+
+**`pipeline/gmail_send.py` (new)** — Gmail send-as via OAuth, mirrors `pipeline/drive.py`.
+Reuses the SAME Google OAuth client (`data/youtube_client_secrets.json`); token at
+`data/gmail_token.json`, auto-refreshed. Scopes: `gmail.send` + `openid` + `userinfo.email`.
+Helpers: `is_authorized`, `is_configured`, `get_auth_url`, `exchange_code`, `account_email`,
+`send_message(to, subject, body_text, from_name)` (MIME + base64url → `users().messages().send`).
+
+**Routes (`main.py`):**
+- `GET /api/gmail/status` → `{configured, authorized, email, auth_url}`
+- `GET /api/gmail/auth` → Google consent redirect; `GET /api/gmail/callback` → store token, success page
+- `POST /api/gmail/disconnect` → delete token
+- `POST /api/brick/actions/{id}/approve-send` — the **only** path that emails a guest. Accepts
+  `{email_body?, send?}`. `send=false` marks sent without emailing. `send=true` + Gmail not
+  connected → `409 {needs_gmail, auth_url}` (nothing sent/marked). Splits the `Subject:` line off
+  the top, sends the body via `gmail_send.send_message` (run_in_executor), persists an edited body
+  back to the action payload, then calls `BrickAgent.approve_action` (stamps `assets_sent_at`).
+  `_dispatch_action` was left UNCHANGED — the plain `/approve` stays a pure "mark sent manually."
+
+**Frontend (`frontend/walkthrough.html`):**
+- `loadGmailStatus()` fetched before the punch list renders → drives button state.
+- guest_asset_package card now shows: a Gmail-connection line, the full email in an **editable
+  `<textarea>`** (review + tweak before sending), and three buttons:
+  **✅ Approve & Send Email** (confirm dialog → `approve-send {send:true}`; if not connected, the
+  button reads "🔗 Connect Gmail to Send" and opens `/api/gmail/auth`), **Mark sent manually**
+  (`approve-send {send:false}`, confirm), and **✗ Reject**. Copy button copies the edited text.
+- `doApproveSend()` handles the 409→connect-Gmail flow and disables all buttons mid-send.
+
+**Checks-and-balances:** review (read/edit the email) → Approve & Send (explicit confirm naming the
+recipient + sender) → only then does it email. Nothing auto-sends; Brick never emails on its own.
+
+**Verified (server on :8765):**
+- `/api/gmail/status` → `authorized:false`; `/api/gmail/auth` → 307 to Google consent with correct
+  client_id + `redirect_uri=…/api/gmail/callback` + `gmail.send` scope.
+- Served `/walkthrough` contains all new markup/functions (loadGmailStatus, btn-approve-send,
+  doApproveSend, editable textarea, Mark sent manually).
+- `/api/brick/walkthrough` still returns Neal's pending item (recipient ashley@grocapitus.com,
+  7 assets, email present). Deduped stale duplicate punch items → 1 pending.
+- **Live send requires JP's one-time Gmail consent** (one click at /api/gmail/auth) — can't be
+  completed headless. Until connected, the button routes to connect; after, Approve & Send emails.
+
+**One-time setup for JP:** open `http://localhost:8765/api/gmail/auth`, grant send access. (If Google
+returns `redirect_uri_mismatch`, add `http://localhost:8765/api/gmail/callback` to the OAuth client's
+Authorized redirect URIs — same client as Drive/YouTube.)
+
+**Files:** `pipeline/gmail_send.py`, `main.py`, `frontend/walkthrough.html`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`

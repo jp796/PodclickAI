@@ -274,12 +274,32 @@
       background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 8px;
       padding: 12px; margin: 10px 0; max-height: 360px; overflow-y: auto;
     }
+    .asset-email-edit {
+      width: 100%; box-sizing: border-box; resize: vertical; min-height: 180px;
+      white-space: pre-wrap; word-break: break-word; font-family: inherit;
+      font-size: 13px; line-height: 1.55; color: var(--text);
+      background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 8px;
+      padding: 12px; margin: 10px 0;
+    }
+    .asset-email-edit:focus { outline: none; border-color: var(--accent); }
+    .gmail-line { font-size: 12.5px; }
     .btn-copy-email {
       padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700;
       border: 1px solid var(--accent); background: rgba(217,95,30,0.1);
       color: var(--accent); cursor: pointer; transition: all .12s;
     }
     .btn-copy-email:hover { background: rgba(217,95,30,0.22); }
+    .btn-approve-send {
+      padding: 9px 18px; border-radius: 8px; font-size: 14px; font-weight: 800;
+      border: none; background: var(--accent); color: #fff; cursor: pointer; transition: all .12s;
+    }
+    .btn-approve-send:hover { filter: brightness(1.08); }
+    .btn-approve-send:disabled { opacity: .55; cursor: default; }
+    .btn-mark-manual {
+      padding: 9px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 600;
+      border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer;
+    }
+    .btn-mark-manual:hover { color: var(--text); border-color: var(--muted); }
     .punch-actions {
       display: flex; align-items: center; gap: 8px; margin-top: 12px;
     }
@@ -587,6 +607,15 @@
 <script>
 'use strict';
 
+/* Gmail send-as connection status — drives the "Approve & Send" button. */
+let _gmailStatus = { authorized: false, email: '', auth_url: '/api/gmail/auth' };
+async function loadGmailStatus() {
+  try {
+    const res = await fetch('/api/gmail/status');
+    if (res.ok) _gmailStatus = await res.json();
+  } catch (e) { /* leave default (not connected) */ }
+}
+
 /* ── Helpers ─────────────────────────────────────────────────── */
 function escHtml(str) {
   if (str == null) return '';
@@ -698,16 +727,38 @@ function renderPunchItem(action) {
         '<ul class="asset-list">' + rows + '</ul>';
     }
 
+    const gmailLine = _gmailStatus.authorized
+      ? ('✅ Connected to Gmail as <strong>' + escHtml(_gmailStatus.email || 'your account') + '</strong> — Approve &amp; Send will email it for you.')
+      : '⚠️ Gmail not connected yet. Connect it once and PodClick can send for you — until then, hit Copy and send from your own inbox.';
+
     previewHtml = `
       <div class="asset-preview">
-        <div class="asset-preview-note">🔒 Draft only — <strong>nothing has been sent to the guest.</strong> Read it, hit Copy, and send it from your own inbox. "Mark sent" just clears it off your list.</div>
+        <div class="asset-preview-note">🔒 <strong>Nothing has been sent yet.</strong> Read it below (you can edit it right here), then hit <strong>Approve &amp; Send</strong>. That's the only thing that emails the guest.</div>
         <div class="asset-preview-meta">📧 To: <strong>${escHtml(recipient)}</strong></div>
         ${assetsHtml}
         <div class="asset-preview-meta">📁 ${escHtml(driveLine)}</div>
-        <pre class="asset-preview-body">${escHtml(emailText)}</pre>
+        <div class="asset-preview-meta gmail-line">${gmailLine}</div>
+        <textarea class="asset-email-edit" data-id="${id}" rows="12" spellcheck="true">${escHtml(emailText)}</textarea>
         <button class="btn-copy-email" data-id="${id}">📋 Copy email</button>
       </div>
     `;
+  }
+
+  let actionsHtml;
+  if (action.action_type === 'guest_asset_package') {
+    const sendLabel = _gmailStatus.authorized ? '✅ Approve &amp; Send Email' : '🔗 Connect Gmail to Send';
+    actionsHtml = `
+    <div class="punch-actions">
+      <button class="btn-approve-send" data-id="${id}">${sendLabel}</button>
+      <button class="btn-mark-manual" data-id="${id}">Mark sent manually</button>
+      <button class="btn-reject" data-id="${id}">✗ Reject</button>
+    </div>`;
+  } else {
+    actionsHtml = `
+    <div class="punch-actions">
+      <button class="btn-approve" data-id="${id}">${approveLabel}</button>
+      <button class="btn-reject" data-id="${id}">✗ Reject</button>
+    </div>`;
   }
 
   el.innerHTML = `
@@ -716,10 +767,7 @@ function renderPunchItem(action) {
       <span class="punch-action-badge"><img src="/static/brick-icon.png" class="punch-badge-icon" alt="" onerror="this.style.display='none'">${actionType}</span>
     </div>
     ${previewHtml}
-    <div class="punch-actions">
-      <button class="btn-approve" data-id="${id}">${approveLabel}</button>
-      <button class="btn-reject" data-id="${id}">✗ Reject</button>
-    </div>
+    ${actionsHtml}
     <div class="reject-expand" id="reject-${id}">
       <textarea class="reject-input" placeholder="Reason (optional)…" rows="2"></textarea>
       <button class="btn-reject-confirm" data-id="${id}">Confirm Reject</button>
@@ -730,7 +778,8 @@ function renderPunchItem(action) {
   const _copyBtn = el.querySelector('.btn-copy-email');
   if (_copyBtn) {
     _copyBtn.addEventListener('click', function () {
-      const txt = (action.payload && action.payload.email) || '';
+      const ta = el.querySelector('.asset-email-edit');
+      const txt = (ta && ta.value) || (action.payload && action.payload.email) || '';
       const btn = this;
       navigator.clipboard.writeText(txt).then(function () {
         btn.textContent = '✓ Copied';
@@ -739,10 +788,40 @@ function renderPunchItem(action) {
     });
   }
 
-  // Approve
-  el.querySelector('.btn-approve').addEventListener('click', function () {
-    doApprove(action.id, el, this);
-  });
+  // Approve (generic items)
+  const _approveBtn = el.querySelector('.btn-approve');
+  if (_approveBtn) {
+    _approveBtn.addEventListener('click', function () {
+      doApprove(action.id, el, this);
+    });
+  }
+
+  // Approve & Send (guest asset package)
+  const _sendBtn = el.querySelector('.btn-approve-send');
+  if (_sendBtn) {
+    _sendBtn.addEventListener('click', function () {
+      if (!_gmailStatus.authorized) {
+        // Not connected → send them to connect Gmail (opens consent in a new tab)
+        window.open('/api/gmail/auth', '_blank');
+        wtToast('Connect your Gmail in the new tab, then come back and hit Approve & Send.', 'info');
+        return;
+      }
+      const recipient = (action.payload && action.payload.recipient) || '';
+      if (!confirm('Send this email now to ' + recipient + ' from your Gmail (' + (_gmailStatus.email || 'connected account') + ')?')) return;
+      const edited = (el.querySelector('.asset-email-edit') || {}).value || '';
+      doApproveSend(action.id, el, this, true, edited);
+    });
+  }
+
+  // Mark sent manually — no email goes out (user sends it themselves)
+  const _manualBtn = el.querySelector('.btn-mark-manual');
+  if (_manualBtn) {
+    _manualBtn.addEventListener('click', function () {
+      if (!confirm("Mark this as sent without emailing? Use this only if you've already sent it yourself.")) return;
+      const edited = (el.querySelector('.asset-email-edit') || {}).value || '';
+      doApproveSend(action.id, el, this, false, edited);
+    });
+  }
 
   // Reject (toggle inline input)
   el.querySelector('.btn-reject').addEventListener('click', function () {
@@ -778,6 +857,37 @@ async function doApprove(id, el, btn) {
     wtToast('Couldn\'t approve — check server.', 'error');
     btn.disabled = false;
     el.querySelector('.btn-reject').disabled = false;
+  }
+}
+
+async function doApproveSend(id, el, btn, send, emailBody) {
+  // The ONLY path that emails a guest. send=false marks sent without emailing.
+  const buttons = el.querySelectorAll('button');
+  buttons.forEach(function (b) { b.disabled = true; });
+  const original = btn.innerHTML;
+  btn.innerHTML = send ? 'Sending…' : 'Marking…';
+  try {
+    const res = await fetch('/api/brick/actions/' + encodeURIComponent(id) + '/approve-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email_body: emailBody || '', send: !!send }),
+    });
+    const data = await res.json().catch(function () { return {}; });
+    if (res.status === 409 && data.needs_gmail) {
+      window.open(data.auth_url || '/api/gmail/auth', '_blank');
+      wtToast('Connect your Gmail in the new tab, then hit Approve & Send again.', 'info');
+      buttons.forEach(function (b) { b.disabled = false; });
+      btn.innerHTML = original;
+      return;
+    }
+    if (!res.ok || !data.ok) throw new Error(data.error || ('Server returned ' + res.status));
+    wtToast(send ? ('✅ Sent to ' + (data.to || 'the guest') + '.') : 'Marked as sent.', 'success');
+    removePunchItem(el);
+  } catch (e) {
+    console.error('[Walk-through] approve-send error:', e);
+    wtToast(send ? ("Couldn't send — " + e.message) : ("Couldn't mark sent — " + e.message), 'error');
+    buttons.forEach(function (b) { b.disabled = false; });
+    btn.innerHTML = original;
   }
 }
 
@@ -865,6 +975,7 @@ async function computeFoundationScore() {
 /* ── Main load ────────────────────────────────────────────────── */
 async function loadWalkthrough() {
   try {
+    await loadGmailStatus();   // so Approve & Send knows if Gmail is connected
     const res = await fetch('/api/brick/walkthrough');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();

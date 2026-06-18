@@ -98,6 +98,10 @@
 | GET | `/api/drive/callback` | Drive OAuth callback — exchanges code, stores `data/drive_token.json` |
 | POST | `/api/drive/disconnect` | Remove the stored Drive OAuth token |
 | POST | `/api/drive/create_folder` | Create Drive folder |
+| GET | `/api/gmail/status` | Gmail send-as status (`{configured, authorized, email, auth_url}`) |
+| GET | `/api/gmail/auth` | Start Gmail OAuth — Google consent (reuses YouTube OAuth client, scope `gmail.send` + `userinfo.email`) |
+| GET | `/api/gmail/callback` | Gmail OAuth callback — exchanges code, stores `data/gmail_token.json` |
+| POST | `/api/gmail/disconnect` | Remove the stored Gmail OAuth token |
 
 ## Click Studio (YouTube Intelligence)
 
@@ -643,7 +647,8 @@ Notes:    Cascading delete via FK — removes PostVariants and PostAttempts.
 | GET | `/permit` | Serve Brick's permit screen (frontend/permit.html) |
 | GET | `/api/brick/walkthrough` | Today's walk-through data (greeting, punch list, recent actions, stats) |
 | GET | `/api/brick/actions` | List pending punch list actions for location |
-| POST | `/api/brick/actions/{id}/approve` | Approve + execute a punch list item |
+| POST | `/api/brick/actions/{id}/approve` | Approve + execute a punch list item (no email — "mark sent manually") |
+| POST | `/api/brick/actions/{id}/approve-send` | **Approve & Send** a guest_asset_package — emails the (optionally edited) draft via Gmail send-as, then marks sent |
 | POST | `/api/brick/actions/{id}/reject` | Reject punch list item with optional reason |
 | GET | `/api/brick/permit` | Current tier + track record stats |
 | POST | `/api/brick/permit/promote` | Advance permit tier one step |
@@ -853,4 +858,20 @@ Response: { ...updated project dict... }
 State machine: draft→recording_done | recording_done→processing|review |
                processing→review|failed | review→scheduled|closing |
                scheduled→closing | closing→closed|failed | failed→review
+```
+
+### POST /api/brick/actions/{action_id}/approve-send
+```json
+Request:  { "email_body": "<edited full email incl. 'Subject:' line>", "send": true }   (both optional)
+Response: { "ok": true, "sent": true, "to": "guest@x.com", "gmail_email": "jp@titanreteam.com", "result": {...} }
+Errors:
+  409 { "ok": false, "needs_gmail": true, "auth_url": "/api/gmail/auth" } — Gmail not connected (nothing sent/marked)
+  400 — wrong action_type / already actioned / no recipient
+  502 — Gmail send failed
+Notes:
+  The ONLY path that emails a guest. send=false → marks sent WITHOUT emailing (user sent it themselves).
+  send=true (default) + Gmail not connected → 409 needs_gmail. Splits the "Subject:" line off the
+  top of the drafted/edited email; sends the rest as the body via pipeline/gmail_send.send_message
+  (run_in_executor). On success calls BrickAgent.approve_action (stamps guest.assets_sent_at, marks executed).
+  An edited email_body is persisted back to the action payload before sending so the record matches.
 ```
