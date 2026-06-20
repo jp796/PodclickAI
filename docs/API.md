@@ -846,7 +846,7 @@ Notes:    Transitions project to 'scheduled'.
                episode links; uploads skipped). Approving stamps guest.assets_sent_at; Gmail
                send-as (Phase 6) plugs into the same dispatch branch later.
           Show notes converted from Markdown → HTML before Buzzsprout upload.
-          YouTube always uploads as 'private' — JP reviews before making public.
+          YouTube uploads PUBLIC by default (env override PODCLICK_YOUTUBE_PRIVACY=private|unlisted|public).
 Response fields added (Phase B): buzzsprout_url, buzzsprout_episode_id, youtube_url,
           youtube_video_id, legacy_metadata (all nullable until distribution completes).
 ```

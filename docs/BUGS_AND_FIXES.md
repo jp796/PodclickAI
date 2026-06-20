@@ -1166,3 +1166,26 @@ returns `redirect_uri_mismatch`, add `http://localhost:8765/api/gmail/callback` 
 Authorized redirect URIs — same client as Drive/YouTube.)
 
 **Files:** `pipeline/gmail_send.py`, `main.py`, `frontend/walkthrough.html`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-19 — YouTube episodes now publish PUBLIC by default (+ Neal EP.101 shipped via Gmail)
+
+**What it was:** `_distribute_project` uploaded the main episode video to YouTube as
+`privacy_status="private"` (a deliberate review gate). JP wants episodes public on closing.
+
+**Fix (`main.py`):** main upload privacy is now `os.getenv("PODCLICK_YOUTUBE_PRIVACY", "public")`
+— defaults to **public**, override per-install with `PODCLICK_YOUTUBE_PRIVACY=private|unlisted|public`.
+Shorts (B3b) stay `private` (promotional clips JP reviews). B3 header comment + API.md note updated.
+
+**Also this session:** Phase 6 Gmail send-as went live end-to-end. Connected as
+`james.fluellen@gmail.com` (consumer account — Workspace `jp@titanreteam.com` blocked the restricted
+`gmail.send` scope at domain policy; no Success Agent domain email exists yet). Test send to JP's inbox
+confirmed (msg `19ee72b24da71486`), then **Neal Bawa's EP.101 package sent for real** via
+`POST /api/brick/actions/{id}/approve-send` → `to: ashley@grocapitus.com`, `sent: true`,
+`assets_sent_at` stamped. Full loop verified: poster → package → Drive → Foundation email → one-button send.
+
+**Note:** Gmail consent screen is in Testing mode → refresh token expires ~7 days; reconnect at
+`/api/gmail/auth` when it lapses (same pattern as YouTube).
+
+**Files:** `main.py`, `docs/API.md`, `docs/BUGS_AND_FIXES.md` (+ `~/.claude/skills/PodClick/SKILL.md` updated)

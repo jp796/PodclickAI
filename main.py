@@ -2899,7 +2899,7 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
         except Exception as _bz_err:
             _logger.error("_distribute_project: Buzzsprout upload exception: %s", _bz_err)
 
-    # ── B3: YouTube main upload (private, with chapters + Vyral hashtags) ─────
+    # ── B3: YouTube main upload (PUBLIC by default, with chapters + Vyral hashtags) ─
     youtube_url    = None
     youtube_vid_id = None
     video_path = recording_path or mp3_path
@@ -2916,7 +2916,9 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
                         video_path=video_path,
                         title=title,
                         description=_yt_description,
-                        privacy_status="private",
+                        # Episodes publish PUBLIC by default now (was 'private').
+                        # Override per-install with PODCLICK_YOUTUBE_PRIVACY=private|unlisted|public.
+                        privacy_status=os.getenv("PODCLICK_YOUTUBE_PRIVACY", "public"),
                         tags=_yt_tags,
                     ),
                 )
