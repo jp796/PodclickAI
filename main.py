@@ -2171,14 +2171,47 @@ def _ship_it_extract_audio(recording_path: str) -> str:
     out_path = str(_Path(recording_path).with_suffix("")) + ".ship_audio.mp3"
     if _Path(out_path).exists() and _Path(out_path).stat().st_size > 0:
         return out_path  # already extracted from a previous attempt
-    cmd = [
-        "ffmpeg", "-y",
-        "-i", recording_path,
-        "-q:a", "2",          # VBR ~190 kbps — good quality for Whisper
-        "-map", "a",           # audio track only
+    # Loudness-normalize to podcast standard (-16 LUFS, -1.5 dBTP). Camera-mic audio
+    # pulled from video runs ~-24 LUFS (quiet/suppressed); this lifts it to broadcast
+    # level. TWO-PASS loudnorm (measure → correct) hits the target exactly; single-pass
+    # only estimates and undershoots ~2 dB. Override target with PODCLICK_LOUDNORM_I.
+    import json as _json
+    target_i = os.getenv("PODCLICK_LOUDNORM_I", "-16")
+    base_filter = f"loudnorm=I={target_i}:TP=-1.5:LRA=11"
+
+    def _run(cmd):
+        return subprocess.run(cmd, capture_output=True, text=True)
+
+    # Pass 1 — measure
+    measured = None
+    try:
+        p1 = _run([
+            "ffmpeg", "-hide_banner", "-nostats", "-i", recording_path,
+            "-map", "a", "-af", base_filter + ":print_format=json",
+            "-f", "null", "-",
+        ])
+        blob = p1.stderr[p1.stderr.rfind("{"): p1.stderr.rfind("}") + 1]
+        measured = _json.loads(blob) if blob else None
+    except Exception:
+        measured = None
+
+    if measured and all(k in measured for k in
+                        ("input_i", "input_tp", "input_lra", "input_thresh", "target_offset")):
+        af = (base_filter +
+              f":measured_I={measured['input_i']}"
+              f":measured_TP={measured['input_tp']}"
+              f":measured_LRA={measured['input_lra']}"
+              f":measured_thresh={measured['input_thresh']}"
+              f":offset={measured['target_offset']}:linear=true")
+    else:
+        af = base_filter  # fall back to single-pass if measurement failed
+
+    result = _run([
+        "ffmpeg", "-y", "-i", recording_path,
+        "-map", "a", "-af", af,
+        "-ar", "48000", "-q:a", "2",
         out_path,
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    ])
     if result.returncode != 0:
         raise RuntimeError(
             f"FFmpeg audio extraction failed for {recording_path}: "

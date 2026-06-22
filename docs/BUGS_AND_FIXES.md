@@ -1189,3 +1189,30 @@ confirmed (msg `19ee72b24da71486`), then **Neal Bawa's EP.101 package sent for r
 `/api/gmail/auth` when it lapses (same pattern as YouTube).
 
 **Files:** `main.py`, `docs/API.md`, `docs/BUGS_AND_FIXES.md` (+ `~/.claude/skills/PodClick/SKILL.md` updated)
+
+---
+
+## 2026-06-19 — Episode audio shipped quiet/suppressed (no loudness normalization)
+
+**Symptom (JP):** "The remastering of the audio being pulled from the video sounds very suppressed and quiet."
+
+**Root cause:** `_ship_it_extract_audio()` extracted the video's audio track with a plain
+copy (`-q:a 2`, no gain). Camera-mic / Continuity-Camera audio at conversational distance
+runs quiet — **measured -24.4 LUFS** on a real episode vs. the **-16 LUFS** podcast standard
+(~8 dB low). Nothing in the Ship It chain normalized loudness, so episodes shipped suppressed.
+
+**Fix (`main.py`, `_ship_it_extract_audio`):** Added **two-pass EBU R128 `loudnorm`**
+(measure → correct) targeting **-16 LUFS, -1.5 dBTP, LRA 11**, output at 48 kHz.
+Two-pass (not single-pass) because single-pass only estimates and undershot ~2 dB in testing.
+Falls back to single-pass if the measurement JSON can't be parsed. Target overridable via
+`PODCLICK_LOUDNORM_I`.
+
+**Verified:** Ran the real `_ship_it_extract_audio()` on a -24.4 LUFS source →
+output measured **-16.9 LUFS** (single-pass had only reached -17.9; two-pass lands on target).
+On a full-quality video source it sits right at -16.
+
+**Scope:** Applies to all FUTURE Ship It runs. Already-published episodes (e.g. Neal EP.101)
+keep their original audio unless re-shipped — offer a re-master (re-extract + re-assemble +
+re-upload) if JP wants a back-catalog pass.
+
+**Files:** `main.py`, `docs/BUGS_AND_FIXES.md`
