@@ -1250,3 +1250,36 @@ script to the Studio teleprompter via localStorage → opens `/studio`), 📋 Co
 min for longer. Tunable later by firming the length instruction.
 
 **Files:** `main.py`, `frontend/calendar.html`, `docs/API.md`, `docs/FRONTEND.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-23 — Smart cleanup: auto-remove stutters / false starts / dead air (Descript-style "remove retakes")
+
+**What shipped (B):** Layered disfluency removal on top of the existing filler-word cut, so
+Ship It now cleans fumbles automatically — not just "um/uh."
+
+**`pipeline/audio.py` — `detect_disfluency_regions(duration, words)`** (deterministic, no LLM):
+- **Stutters:** a function word repeated back-to-back (`the the`, `I-I`) → cut the earlier copy.
+  Restricted to a `_STUTTER_WORDS` set (articles/pronouns/conjunctions) so rhetorical repeats
+  like "no no no" / "very very" are NEVER cut.
+- **False starts / restarts:** a 2–5 word phrase immediately re-spoken within ≤1.6 s
+  ("I think we should— I think we should buy") → cut the FIRST instance, keep the clean take.
+  Longest-window-first so the biggest restart wins; claimed words can't be double-cut.
+- **Dead air:** inter-word silence > `PODCLICK_DEADAIR_SEC` (default 1.2 s) trimmed to a natural
+  ~0.35 s pause.
+- Gated by `PODCLICK_CLEANUP_DISFLUENCY` (default on); dead-air sub-gated by `PODCLICK_TRIM_DEADAIR`.
+
+**Integration:** `build_keep_segments()` now appends these regions to the filler regions before
+the merge/invert — so cleanup rides the **same cut + crossfade machinery as fillers** and applies
+everywhere fillers already do (`process_audio`, `pipeline/assemble.py`). Zero call-site changes.
+
+**Verified (synthetic transcript):** "the the market" → one "the" cut; "I think we should— I think
+we should buy" → first take cut, "buy" take kept; **"no no no" fully preserved**; a 2.5 s gap →
+trimmed, both surrounding words kept. `audio.py` parses; server restarted.
+
+**Scope/limit:** deterministic — catches verbatim repeats, stutters, and dead air (the bulk of
+real disfluency). Semantic fumbles with *different* wording ("the real— the actual problem") are
+NOT caught; that needs an LLM transcript pass (easy follow-on if wanted). Conservative by design:
+when unsure, it keeps the audio.
+
+**Files:** `pipeline/audio.py`, `docs/BUGS_AND_FIXES.md`

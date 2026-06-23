@@ -154,13 +154,94 @@ def normalize_loudness(audio: np.ndarray, rate: int, target_lufs: float = -16.0)
     return normalized.astype(np.float32)
 
 
+# Function words that are commonly stuttered ("I-I", "the the", "we we").
+# Restricted set so we never cut rhetorical repeats like "no no no" / "very very".
+_STUTTER_WORDS = {
+    "i", "a", "the", "and", "but", "so", "you", "we", "it", "it's", "that",
+    "to", "of", "is", "was", "like", "my", "he", "she", "they", "this", "im",
+    "i'm", "well", "just", "in", "on", "for",
+}
+
+
+def _norm_word(w: str) -> str:
+    return w.strip().lower().strip(".,!?;:'\"—-")
+
+
+def detect_disfluency_regions(duration: float, words: list[dict]) -> list[tuple[float, float]]:
+    """
+    Deterministic disfluency detector — returns (start, end) regions to CUT for:
+      • Stutters: a function word repeated back-to-back ("the the", "I-I").
+      • False starts / restarts: a 2–5 word phrase immediately re-spoken
+        ("I think we should— I think we should") → cut the first instance.
+      • Dead air: inter-word silence longer than PODCLICK_DEADAIR_SEC, trimmed
+        down to a natural ~0.35 s pause.
+    Conservative by design (only high-confidence patterns) so real content is
+    never cut. Gated by env PODCLICK_CLEANUP_DISFLUENCY (default on);
+    dead-air sub-gated by PODCLICK_TRIM_DEADAIR (default on).
+    """
+    import os as _os
+    if _os.getenv("PODCLICK_CLEANUP_DISFLUENCY", "1").lower() in ("0", "false", "no"):
+        return []
+
+    regions: list[tuple[float, float]] = []
+    n = len(words)
+    norms = [_norm_word(w["word"]) for w in words]
+    used = [False] * n  # words already claimed by a cut (avoid double/overlap)
+
+    # ── False starts / phrase restarts (longest window first: 5→2) ──
+    for k in range(5, 1, -1):
+        i = 0
+        while i + 2 * k <= n:
+            if any(used[j] for j in range(i, i + 2 * k)):
+                i += 1
+                continue
+            first = norms[i:i + k]
+            second = norms[i + k:i + 2 * k]
+            if first and first == second and all(first):
+                gap = words[i + k]["start"] - words[i + k - 1]["end"]
+                if gap <= 1.6:  # restart must follow promptly to count as a fumble
+                    s = max(0.0, words[i]["start"] - FILLER_PAD)
+                    e = min(duration, words[i + k - 1]["end"] + FILLER_PAD)
+                    regions.append((s, e))
+                    for j in range(i, i + k):
+                        used[j] = True
+                    i += k
+                    continue
+            i += 1
+
+    # ── Stutters: consecutive identical function words → cut earlier copies ──
+    i = 0
+    while i < n - 1:
+        if not used[i] and norms[i] and norms[i] == norms[i + 1] and norms[i] in _STUTTER_WORDS:
+            s = max(0.0, words[i]["start"] - FILLER_PAD)
+            e = min(duration, words[i]["end"] + FILLER_PAD)
+            regions.append((s, e))
+            used[i] = True
+        i += 1
+
+    # ── Dead air: trim long silences between words to a natural pause ──
+    if _os.getenv("PODCLICK_TRIM_DEADAIR", "1").lower() not in ("0", "false", "no"):
+        dead_thresh = float(_os.getenv("PODCLICK_DEADAIR_SEC", "1.2"))
+        keep_pause = 0.35
+        for a, b in zip(words, words[1:]):
+            gap = b["start"] - a["end"]
+            if gap > dead_thresh:
+                cut_s = a["end"] + keep_pause
+                cut_e = b["start"] - 0.05
+                if cut_e - cut_s > 0.1:
+                    regions.append((cut_s, cut_e))
+
+    return regions
+
+
 def build_keep_segments(
     duration: float,
     word_timestamps: list[dict],
 ) -> list[tuple[float, float]]:
     """
     Given a list of {word, start, end} dicts, return a list of (start, end)
-    segments to KEEP (i.e., everything that is NOT a filler word).
+    segments to KEEP (i.e., everything that is NOT a filler word OR a detected
+    disfluency — stutter / false start / dead air).
     Adjacent keep segments are merged when the gap between them is < FILLER_PAD*2.
     """
     # Mark filler regions
@@ -171,6 +252,9 @@ def build_keep_segments(
             start = max(0.0, w["start"] - FILLER_PAD)
             end = min(duration, w["end"] + FILLER_PAD)
             filler_regions.append((start, end))
+
+    # Add disfluency regions (stutters, false starts, dead air) — same cut machinery
+    filler_regions.extend(detect_disfluency_regions(duration, word_timestamps))
 
     if not filler_regions:
         return [(0.0, duration)]
