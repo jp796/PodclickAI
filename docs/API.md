@@ -875,3 +875,18 @@ Notes:
   (run_in_executor). On success calls BrickAgent.approve_action (stamps guest.assets_sent_at, marks executed).
   An edited email_body is persisted back to the action payload before sending so the record matches.
 ```
+
+### POST /api/studio/re-daily-brief
+```json
+Request:  { "topic": "", "length_min": 20, "add_to_board": true, "date": "YYYY-MM-DD" }  (all optional)
+Response: { "ok": true, "title", "hook", "script", "word_count", "est_minutes",
+            "used_foundation", "sample_count", "post_id" }
+Notes:
+  Generates a teleprompter-ready 15–30 min RE Daily Brief podcast script in the host's
+  Foundation voice (get_brand_context, task_type=podcast_script_outline, claude-sonnet-4-5,
+  run_in_executor). Cold-open hook → 3-4 industry segments → tactical takeaway → CTA.
+  Does NOT invent stats/sources (trends only). add_to_board=true creates a draft Post
+  (bucket='podcast', source='manual') dated today 09:00 on the 30-day board.
+  Frontend: 🎙️ RE Daily Brief button on /calendar → modal → "🎬 Film This Now" hands the
+  (editable) script to the Studio teleprompter via localStorage(podclick_teleprompter_script).
+```

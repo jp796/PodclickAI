@@ -389,3 +389,17 @@ btn.addEventListener('click', () => copyText(btn, btn.dataset.text));
 |----------|-------------|
 | `ssToast(msg, kind)` | Show notification toast (info/success/error) in Social Studio; kind defaults to `'info'` |
 | `escHtml(str)` | HTML-encode `& < > "` — used for all dynamic content injected into DOM |
+
+---
+
+## calendar.html — RE Daily Brief generator (2026-06-23)
+
+| Function | Description |
+|----------|-------------|
+| `openBriefModal()` | Open the 🎙️ RE Daily Brief modal (resets inputs/result/buttons) |
+| `closeBriefModal()` | Hide the brief modal |
+| `runDailyBrief()` | POST `/api/studio/re-daily-brief` {topic,length_min,add_to_board} → fills editable `#brief-script` + meta; reloads board if added. Also the Regenerate handler. |
+| `filmBriefNow()` | Hands the (edited) `#brief-script` to the Studio teleprompter via localStorage `podclick_teleprompter_script`/`_title`, opens `/studio` |
+| `copyBrief()` | Copy the script textarea to clipboard |
+
+State: `_briefData` (last generated brief). Button lives in `.head-actions` beside Auto-plan.

@@ -10641,6 +10641,176 @@ import logging as _cal_logging
 _cal_logger = _cal_logging.getLogger("podclick.calendar")
 
 
+@app.post("/api/studio/re-daily-brief")
+async def re_daily_brief(request: Request):
+    """
+    Generate a teleprompter-ready RE Daily Brief podcast script in JP's Foundation
+    voice — a 15–30 min daily real-estate-industry briefing, ready to film.
+
+    Body (all optional): { "topic": str, "length_min": int (default 20),
+                           "add_to_board": bool, "date": "YYYY-MM-DD" }
+    Returns: { ok, title, hook, script, word_count, est_minutes,
+               used_foundation, sample_count, post_id? }
+    """
+    from services.foundation import get_brand_context
+    from schemas.foundation import BrandContextTaskType as _TaskType
+    import anthropic as _anthropic
+    from config import settings as _settings
+    from db.engine import async_session as _async_session
+    from config import get_current_location_id
+    from datetime import datetime as _dt
+
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    topic = (body.get("topic") or "").strip()
+    try:
+        length_min = int(body.get("length_min") or 20)
+    except Exception:
+        length_min = 20
+    length_min = max(10, min(35, length_min))
+    add_to_board = bool(body.get("add_to_board"))
+    date_str = (body.get("date") or "").strip()
+
+    location_id = get_current_location_id()
+    today_label = _dt.utcnow().strftime("%A, %B %-d, %Y")
+    seed = topic or ("the most important real estate industry story or trend professionals "
+                     "should understand right now (rates, inventory, policy, market shifts, or tech)")
+
+    # ── Foundation voice context ──────────────────────────────────────────────
+    used_foundation, sample_count = False, 0
+    voice_preamble = (
+        "Write in the voice of a real estate industry expert and host — direct, "
+        "confident, plain-spoken, no fluff, no corporate-speak."
+    )
+    try:
+        async with _async_session() as _f_session:
+            ctx = await get_brand_context(
+                session=_f_session,
+                location_id=str(location_id),
+                task_type=_TaskType.podcast_script_outline,
+                topic=seed,
+            )
+        vp = ctx.voice_profile
+        tone_str = ", ".join(vp.tone or []) if (vp and vp.tone) else "direct, confident, no-fluff"
+        bp = ctx.brand_profile
+        samples = ctx.voice_samples or []
+        sample_count = ctx.metadata.sample_count if ctx.metadata else len(samples)
+        used_foundation = sample_count > 0
+        voice_preamble = (
+            f"Write in the EXACT voice of {bp.full_name or 'the host'}, a "
+            f"{bp.niche_primary or 'real estate professional'} in {bp.market_city or 'their market'}.\n"
+            f"Tone: {tone_str}. {vp.cadence or ''}\n"
+            f"Audience: {bp.audience_primary or 'real estate agents and investors'}.\n\n"
+            f"Match the rhythm and phrasing of these real voice samples:\n"
+            + "\n".join(f"- {s.text[:220]}" for s in samples[:4])
+        )
+    except Exception as _fe:
+        import logging
+        logging.getLogger("podclick.studio").info("[re_daily_brief] Foundation unavailable: %s", _fe)
+
+    target_words = int(length_min * 145)  # ~145 wpm read-aloud
+    show_name = os.getenv("PODCLICK_SHOW_NAME", "The Success Agent Podcast")
+
+    prompt = (
+        f"Write a COMPLETE, teleprompter-ready script for today's \"RE Daily Brief\" — a "
+        f"{length_min}-minute daily real estate INDUSTRY briefing episode of {show_name}. "
+        f"Today is {today_label}.\n\n"
+        f"Focus: {seed}.\n\n"
+        f"This is read ALOUD to camera, word for word. Write the actual spoken words — "
+        f"NO stage directions, NO '[pause]', NO headers spoken aloud. Aim for ~{target_words} words.\n\n"
+        f"Structure it as a tight daily brief:\n"
+        f"1. COLD-OPEN HOOK (10-15 sec) — a punchy line that makes an agent stop scrolling.\n"
+        f"2. THE BRIEF — 3 to 4 real estate industry segments: what's happening (market/rates/"
+        f"inventory/policy/tech), why it matters to agents & investors, and the so-what.\n"
+        f"3. ONE TACTICAL TAKEAWAY — something the listener can act on today.\n"
+        f"4. CLOSE + CTA — sign-off in the host's voice, invite to subscribe/share.\n\n"
+        f"Keep it conversational and specific. Use real, current-sounding industry framing "
+        f"(but do NOT invent specific statistics, prices, or fake sources — speak to trends "
+        f"and dynamics, not fabricated numbers). First person. No banned corporate words "
+        f"(leverage, unlock, synergy, seamless).\n\n"
+        f"Return ONLY valid JSON, no markdown fence:\n"
+        f'{{"title": "RE Daily Brief — <6-9 word topic>", "hook": "<the cold-open line>", '
+        f'"script": "<the full word-for-word teleprompter script>"}}'
+    )
+
+    def _gen():
+        client = _anthropic.Anthropic(api_key=_settings.anthropic_api_key)
+        resp = client.messages.create(
+            model="claude-sonnet-4-5",
+            max_tokens=8000,
+            system=voice_preamble,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return resp.content[0].text
+
+    try:
+        loop = asyncio.get_event_loop()
+        raw = await loop.run_in_executor(None, _gen)
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": f"Generation failed: {e}"}, status_code=502)
+
+    # Parse JSON (tolerate stray prose/fences around it)
+    import json as _json
+    title, hook, script = "", "", ""
+    try:
+        blob = raw[raw.find("{"): raw.rfind("}") + 1]
+        data = _json.loads(blob)
+        title = (data.get("title") or "").strip()
+        hook = (data.get("hook") or "").strip()
+        script = (data.get("script") or "").strip()
+    except Exception:
+        script = raw.strip()
+    if not script:
+        return JSONResponse({"ok": False, "error": "Empty script returned"}, status_code=502)
+    if not title:
+        title = f"RE Daily Brief — {today_label}"
+
+    word_count = len(script.split())
+    est_minutes = max(1, round(word_count / 145))
+
+    post_id = None
+    if add_to_board:
+        try:
+            from db.models import Post as _Post
+            import uuid as _uuid
+            loc_uuid = _uuid.UUID(location_id)
+            if date_str:
+                sched = _dt.fromisoformat(date_str + "T09:00:00")
+            else:
+                sched = _dt.utcnow().replace(hour=9, minute=0, second=0, microsecond=0)
+            async with _async_session() as session:
+                post_obj = _Post(
+                    location_id=loc_uuid,
+                    bucket="podcast",
+                    base_caption=f"🎙️ {title}\n\n{hook}",
+                    scheduled_at=sched,
+                    status="draft",
+                    source="manual",
+                )
+                session.add(post_obj)
+                await session.flush()
+                post_id = str(post_obj.id)
+                await session.commit()
+        except Exception as _pe:
+            import logging
+            logging.getLogger("podclick.studio").warning("[re_daily_brief] add_to_board failed: %s", _pe)
+
+    return JSONResponse({
+        "ok": True,
+        "title": title,
+        "hook": hook,
+        "script": script,
+        "word_count": word_count,
+        "est_minutes": est_minutes,
+        "used_foundation": used_foundation,
+        "sample_count": sample_count,
+        "post_id": post_id,
+    })
+
+
 @app.get("/calendar")
 async def serve_calendar():
     """Serve the 30-Day Content Board page."""

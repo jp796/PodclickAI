@@ -1216,3 +1216,37 @@ keep their original audio unless re-shipped — offer a re-master (re-extract + 
 re-upload) if JP wants a back-catalog pass.
 
 **Files:** `main.py`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-23 — RE Daily Brief generator (Foundation-voiced daily RE-industry podcast script)
+
+**What shipped:** A one-button generator for a daily 15–30 min "RE Daily Brief" — a real
+estate industry briefing episode, scripted teleprompter-ready in JP's Foundation voice, wired
+into the 30-Day Content Board, designed to film same-day.
+
+**Backend (`main.py`):** `POST /api/studio/re-daily-brief` — pulls `get_brand_context`
+(task_type=`podcast_script_outline`) for voice, builds a voice preamble from real samples,
+generates via claude-sonnet-4-5 (max_tokens 8000, run_in_executor so the event loop never
+blocks). Prompt = cold-open hook → 3-4 industry segments (rates/inventory/policy/tech, why it
+matters, so-what) → one tactical takeaway → CTA; first person; **no fabricated stats/sources**
+(trends only); banned corporate words excluded. Returns title/hook/script + word_count +
+est_minutes (~145 wpm) + foundation usage. `add_to_board=true` creates a draft `Post`
+(bucket='podcast', source='manual', today 09:00) so it lands on the board.
+
+**Frontend (`frontend/calendar.html`):** "🎙️ RE Daily Brief" button in the board header →
+modal with optional angle, length (15/20/25/30), and "Add to Content Board" toggle. Result
+shows in an **editable** textarea + meta line, with **🎬 Film This Now** (hands the edited
+script to the Studio teleprompter via localStorage → opens `/studio`), 📋 Copy, and ↻ Regenerate.
+
+**Verified live (server :8765):**
+- Generate (topic="falling mortgage rates…", 15 min) → `ok:true`, title "Falling Rates and
+  Market Psychology", 1592 words / ~11 min, **used_foundation:true (198 samples)**, hook in JP's
+  voice ("…your buyers still aren't calling you back. Let's talk about why."), opens "I'm JP Fluellen."
+- add_to_board=true → `post_id` created; `GET /api/calendar` shows 1 `bucket=podcast` post dated today.
+- calendar.html serves with openBriefModal/runDailyBrief/filmBriefNow/brief-script present.
+
+**Note:** 15-min target undershot slightly (model wrote ~1600 words vs ~2175 target) — pick 20–30
+min for longer. Tunable later by firming the length instruction.
+
+**Files:** `main.py`, `frontend/calendar.html`, `docs/API.md`, `docs/FRONTEND.md`, `docs/BUGS_AND_FIXES.md`

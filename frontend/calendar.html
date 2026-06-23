@@ -401,6 +401,7 @@
           <button id="vt-week" onclick="setViewMode('week')">Week</button>
           <button id="vt-list" onclick="setViewMode('list')">List</button>
         </div>
+        <button class="btn-secondary" onclick="openBriefModal()">🎙️ RE Daily Brief</button>
         <button class="btn-secondary" onclick="openAutoPlanModal()">⚡ Auto-plan 30 Days</button>
       </div>
     </div>
@@ -469,6 +470,51 @@
       <div id="autoplan-actions" class="modal-actions">
         <button class="btn-primary" onclick="runAutoPlan()">Generate Plan</button>
         <button class="btn-ghost" onclick="closeAutoPlanModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RE Daily Brief generator -->
+  <div id="brief-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>🎙️ RE Daily Brief — ready-to-film script</h3>
+        <button onclick="closeBriefModal()">×</button>
+      </div>
+      <p style="font-size:13px;line-height:1.5;color:var(--text);">
+        A 15–30 min daily real-estate-industry briefing, written in your Foundation voice — teleprompter-ready. Generate it, then film it.
+      </p>
+      <div id="brief-inputs">
+        <label style="display:block;font-size:12px;color:var(--text);margin:12px 0 4px;">Today's angle (optional — leave blank for a fresh industry pick)</label>
+        <input id="brief-topic" type="text" placeholder="e.g. what falling rates mean for buyers this week"
+               style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(0,0,0,0.2);color:var(--text);font-size:13px;">
+        <label style="display:block;font-size:12px;color:var(--text);margin:12px 0 4px;">Length</label>
+        <select id="brief-length" style="padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(0,0,0,0.2);color:var(--text);font-size:13px;">
+          <option value="15">15 min</option>
+          <option value="20" selected>20 min</option>
+          <option value="25">25 min</option>
+          <option value="30">30 min</option>
+        </select>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);margin:12px 0 0;cursor:pointer;">
+          <input id="brief-add-board" type="checkbox" checked> Add today's brief to the Content Board
+        </label>
+      </div>
+      <div id="brief-loading" class="hidden spinner-wrap">
+        <div class="spinner"></div>
+        <span id="brief-status-text">Writing today's brief in your voice…</span>
+      </div>
+      <div id="brief-result" class="hidden" style="margin-top:14px;">
+        <div id="brief-meta" class="text-muted" style="font-size:12px;margin-bottom:6px;"></div>
+        <div id="brief-title" style="font-weight:600;font-size:15px;margin-bottom:8px;"></div>
+        <textarea id="brief-script" rows="14" spellcheck="false"
+                  style="width:100%;box-sizing:border-box;white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.55;color:var(--text);background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:12px;resize:vertical;"></textarea>
+      </div>
+      <div id="brief-actions" class="modal-actions">
+        <button class="btn-primary" id="brief-gen-btn" onclick="runDailyBrief()">Generate Script</button>
+        <button class="btn-primary hidden" id="brief-film-btn" onclick="filmBriefNow()">🎬 Film This Now</button>
+        <button class="btn-secondary hidden" id="brief-copy-btn" onclick="copyBrief()">📋 Copy</button>
+        <button class="btn-secondary hidden" id="brief-regen-btn" onclick="runDailyBrief()">↻ Regenerate</button>
+        <button class="btn-ghost" onclick="closeBriefModal()">Close</button>
       </div>
     </div>
   </div>
@@ -834,6 +880,70 @@ function openAutoPlanModal() {
 }
 function closeAutoPlanModal() {
   document.getElementById('autoplan-modal').classList.add('hidden');
+}
+
+// ── RE Daily Brief generator ──────────────────────────────────────────────
+let _briefData = null;
+function openBriefModal() {
+  document.getElementById('brief-modal').classList.remove('hidden');
+  document.getElementById('brief-inputs').classList.remove('hidden');
+  document.getElementById('brief-loading').classList.add('hidden');
+  document.getElementById('brief-result').classList.add('hidden');
+  document.getElementById('brief-gen-btn').classList.remove('hidden');
+  ['brief-film-btn','brief-copy-btn','brief-regen-btn'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  _briefData = null;
+}
+function closeBriefModal() {
+  document.getElementById('brief-modal').classList.add('hidden');
+}
+async function runDailyBrief() {
+  const topic   = document.getElementById('brief-topic').value.trim();
+  const lengthM = parseInt(document.getElementById('brief-length').value, 10) || 20;
+  const addBoard = document.getElementById('brief-add-board').checked;
+  document.getElementById('brief-inputs').classList.add('hidden');
+  document.getElementById('brief-result').classList.add('hidden');
+  document.getElementById('brief-loading').classList.remove('hidden');
+  ['brief-gen-btn','brief-film-btn','brief-copy-btn','brief-regen-btn'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  try {
+    const res = await fetch('/api/studio/re-daily-brief', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic, length_min: lengthM, add_to_board: addBoard }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || ('Server ' + res.status));
+    _briefData = data;
+    document.getElementById('brief-loading').classList.add('hidden');
+    document.getElementById('brief-result').classList.remove('hidden');
+    document.getElementById('brief-title').textContent = data.title || 'RE Daily Brief';
+    const vf = data.used_foundation ? ('Foundation voice · ' + data.sample_count + ' samples') : 'generic voice (Foundation thin)';
+    document.getElementById('brief-meta').textContent =
+      '~' + data.est_minutes + ' min · ' + data.word_count + ' words · ' + vf + (data.post_id ? ' · added to board' : '');
+    document.getElementById('brief-script').value = data.script || '';
+    ['brief-film-btn','brief-copy-btn','brief-regen-btn'].forEach(id => document.getElementById(id).classList.remove('hidden'));
+    if (addBoard && data.post_id) loadCalendar30();
+  } catch (e) {
+    document.getElementById('brief-loading').classList.add('hidden');
+    document.getElementById('brief-inputs').classList.remove('hidden');
+    document.getElementById('brief-gen-btn').classList.remove('hidden');
+    toast("Couldn't generate the brief — " + e.message, 'error');
+  }
+}
+function filmBriefNow() {
+  // Pull any edits from the textarea, hand off to the Studio teleprompter
+  const script = document.getElementById('brief-script').value.trim();
+  const title  = (_briefData && _briefData.title) || 'RE Daily Brief';
+  if (!script) { toast('Nothing to film yet — generate first.', 'error'); return; }
+  localStorage.setItem('podclick_teleprompter_script', script);
+  localStorage.setItem('podclick_teleprompter_title', title);
+  window.open('/studio', '_blank');
+  toast('🎬 Sent to Studio — teleprompter loaded in the new tab.', 'success');
+}
+function copyBrief() {
+  const script = document.getElementById('brief-script').value;
+  navigator.clipboard.writeText(script).then(
+    () => toast('Script copied.', 'success'),
+    () => toast("Couldn't copy — select and copy manually.", 'error')
+  );
 }
 
 async function runAutoPlan() {
