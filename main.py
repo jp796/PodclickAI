@@ -2450,6 +2450,22 @@ async def _run_ship_it_inner(
             else:
                 print(f"[ship_it.2.5] recording_path set but file missing: {recording_path} — skipping")
 
+    # ── Auto-pick clip layout (single-speaker recognition) ────────────────────
+    # Solo recordings (no linked guest) get a single full-frame vertical crop so a
+    # one-person video is NEVER rendered as a duplicated split screen. Interviews
+    # (a guest is linked) keep the host-top / guest-bottom stack.
+    _crop_mode = "center"
+    try:
+        async with _async_session() as _cm_session:
+            _cm_proj = (await _cm_session.execute(
+                select(Project).where(Project.id == project_uuid)
+            )).scalar_one_or_none()
+            if _cm_proj and _cm_proj.guest_ids and len(_cm_proj.guest_ids) > 0:
+                _crop_mode = "stack"
+    except Exception as _cm_err:
+        print(f"[ship_it] crop-mode auto-detect failed, defaulting to center (solo): {_cm_err}")
+    print(f"[ship_it] crop_mode={_crop_mode} (solo→center single-speaker, guest-linked→stack)")
+
     # ── a-c: Sponsor, clip detection, clip rendering (sync via executor) ───────
     try:
         from pipeline.project_pipeline import run_ship_it as _sync_ship_it
@@ -2460,7 +2476,7 @@ async def _run_ship_it_inner(
                 job_data=job_data,
                 progress_cb=lambda msg: None,
                 source_video=recording_path,
-                crop_mode="stack",  # stack = host top / guest bottom for interviews
+                crop_mode=_crop_mode,  # solo → center (no split); interview → stack
             )
 
         ship_result = await loop.run_in_executor(None, _sync)

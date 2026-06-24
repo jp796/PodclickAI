@@ -1336,3 +1336,103 @@ script (and topic fields were never persisted at all).
 the input-listener wiring; full inline script passes `node --check`.
 
 **Files:** `frontend/studio.html`, `docs/FRONTEND.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-23 — No Ship It button on recording_done projects (couldn't trigger the pipeline)
+
+**Symptom (JP):** On a `recording_done` project (Ship It wizard), Step 2 Audio reads
+"No assembled audio yet — run Ship It to build it" — but there was no button anywhere on
+the screen to actually run Ship It.
+
+**Root cause:** The ONLY caller of `shipIt()` in `frontend/project.html` was `rerunShipIt()`,
+bound to `#rerun-ship-btn`, which lives inside the `#failed-banner` (shown only on
+`status==='failed'`). Step 1's "Next →" just called `navigateToStep(2)`; Step 2's "Next →"
+navigated on. So a fresh recording could never enter the pipeline from the UI — the wizard
+told the user to "run Ship It" with no trigger. (Backend `POST /api/projects/{id}/ship-it`
+was fine; purely a missing frontend control.)
+
+**Fix (`frontend/project.html`):**
+- `showStep1()` — when the project has no assembled audio (`!mp3_url` and no
+  `audio_assembly.final_url`), the primary button relabels to **"🚀 Ship It"** (falls back to
+  "Next →" once audio exists). Tooltip explains it cleans fillers/stutters/dead air + normalizes
+  loudness. Still gated on a transcript being present (disabled until Whisper finishes).
+- `#step1-next-btn` click handler is now conditional: audio built → `navigateToStep(2)`;
+  no audio → `startShipIt()`.
+- New `startShipIt()` — saves any dirty transcript first, disables the button ("Shipping…"),
+  POSTs ship-it, reloads, and `applyProjectState()` flips to the processing panel + auto-poll.
+  On failure re-enables the button.
+
+**Verified:** inline JS passes `node --check`; served `/project` carries `startShipIt` + the
+"🚀 Ship It" label (4 matches). Live pipeline run requires JP clicking it on a real recording.
+
+**Files:** `frontend/project.html`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-23 — Solo videos rendered as duplicated split-screen (single-speaker not recognized)
+
+**Symptom (JP):** Clips from a one-person episode (RE Daily Brief) rendered as a stacked
+split screen — the same single speaker shown twice (top pane + bottom pane).
+
+**Root cause:** `_run_ship_it_async` hardcoded `crop_mode="stack"` for every project.
+`stack`→`split` cuts the landscape frame in half and stacks the halves (correct only for a
+two-pane interview recording). `detect_layout` only measures geometry (aspect ratio →
+side_by_side/stacked); it never counts speakers, so a solo recording got the interview
+treatment and duplicated the speaker.
+
+**Fix (`main.py`, `_run_ship_it_inner`):** Auto-pick the layout before rendering —
+`_crop_mode = "stack" if project.guest_ids else "center"`. Solo episodes (no linked guest)
+now render a single full-frame vertical crop (no split); interviews (a guest is linked) keep
+the host-top / guest-bottom stack. Guest linkage is the reliable single-speaker proxy for
+PodClick's model (solo podcast / RE Daily Brief = no guest; remote interview = guest linked).
+No new vision deps (cv2 not installed). Per-clip override still available in the Step 3 editor
+(Crop Mode pills + "↺ Re-render with this crop").
+
+**Existing clips:** already-rendered clips keep their old crop until re-rendered — re-run Ship It
+(now auto-center for solo) or use the ◻ Center pill → ↺ Re-render per clip.
+
+**Verified:** RE Daily Brief project (c5ce978a, 0 guests) → classified solo → center. main.py
+parses; server restarted so the change is live (was running without --reload).
+
+**Files:** `main.py`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-23 — Clips now burn viral captions (word-by-word highlight) instead of ugly SRT
+
+**Symptom (JP):** Short/clip captions were plain small white SRT subtitles (Arial 14, bottom).
+The viral TikTok-style captions we'd built were never used.
+
+**Root cause:** A full viral caption generator already existed — `pipeline/subtitles.py`
+`generate_ass_subtitles` (big bold uppercase, 2-3 word groups, each word highlighted yellow as
+spoken, black outline) — but the clip render path only ever generated an SRT and burned it with
+`_CAPTION_STYLE`. The ASS system was built and orphaned.
+
+**Fix (single FFmpeg pass, env-gated):**
+- `pipeline/project_pipeline.py`:
+  - New `generate_ass_for_clip(words, start, end, out)` — rebases the clip's words to 0 and
+    delegates to `subtitles.generate_ass_subtitles` → viral .ass file.
+  - `render_all_clips` generates the .ass per clip (default ON; `PODCLICK_VIRAL_CAPTIONS=0`
+    falls back to plain SRT) and passes `ass_path` to both render paths.
+  - `render_vertical_clip` and `render_vertical_clip_from_video` accept `ass_path`; when set,
+    the FFmpeg `-vf` burns `ass='…'` instead of `subtitles=…:force_style=…`.
+- `~/.claude/skills/vertical-clip-render/render_clip.py`: `render_clip` + `_build_filter` accept
+  `ass_path`; when present, `cap = ass='…'` (libass renders the embedded viral styles). Uses
+  `Path(...).exists()` (no new import).
+
+**Verified (real render):** generated viral ASS for an 8s window of the RE Daily Brief webm,
+rendered with `crop_mode=center` + `ass_path` → 1080×1920 h264 MP4; extracted frame shows a
+single full-frame speaker (no split) with big bold uppercase **yellow** captions ("BUYERS AGAIN
+THE"). Both the split-screen fix and viral captions confirmed in one frame.
+
+**To apply to existing clips:** re-run Ship It (regenerates all clips with center crop + viral
+captions) or re-render per clip in the Step 3 editor.
+
+**Still open (told JP):** the filler/disfluency auto-cleanup runs on the MAIN episode audio but
+NOT inside the rendered clips — the clip is cut straight from the source video window, so um's/
+restarts within a clip remain. Applying the cleanup to clips means cutting the filler sub-regions
+out of the clip video + re-timing the captions (multi-segment cut/concat) — a larger follow-up.
+
+**Files:** `pipeline/project_pipeline.py`, `~/.claude/skills/vertical-clip-render/render_clip.py`,
+`docs/BUGS_AND_FIXES.md`

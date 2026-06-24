@@ -766,8 +766,12 @@
 
       const nextBtn = $('step1-next-btn');
       const hasTranscript = !!(text && text.trim());
+      const hasAudio = !!(p.mp3_url || (p.audio_assembly && p.audio_assembly.final_url));
       nextBtn.disabled = !hasTranscript;
-      nextBtn.title = hasTranscript ? '' : 'Waiting for transcript.';
+      nextBtn.textContent = hasAudio ? 'Next →' : '🚀 Ship It';
+      nextBtn.title = hasTranscript
+        ? (hasAudio ? '' : 'Build the episode — cleans fillers, stutters, dead air, and normalizes loudness.')
+        : 'Waiting for transcript.';
 
       // Transcription banner
       const banner = $('transcription-banner');
@@ -1389,6 +1393,22 @@
       } catch(err) { toast('Re-run failed — ' + err.message, 'error'); }
     }
 
+    async function startShipIt() {
+      if (state.transcriptDirty) { try { await saveTranscript(); } catch(e) {} }
+      const btn = $('step1-next-btn');
+      btn.disabled = true; btn.textContent = 'Shipping…';
+      try {
+        await shipIt();
+        toast('Ship It running — cleaning fillers & building your episode…', 'success');
+        const p = await loadProject();
+        state.project = p;
+        applyProjectState();   // status now 'processing' → shows processing panel + auto-poll
+      } catch(err) {
+        toast('Ship It failed to start — ' + err.message, 'error');
+        btn.disabled = false; btn.textContent = '🚀 Ship It';
+      }
+    }
+
     async function lineItUp() {
       const local = $('closing-at').value;
       if (!local) { toast('Pick a closing date and time first.', 'error'); return; }
@@ -1430,7 +1450,12 @@
       });
       $('transcript-area').addEventListener('blur', () => { if (state.transcriptDirty) saveTranscript(); });
       $('save-transcript-btn').addEventListener('click', saveTranscript);
-      $('step1-next-btn').addEventListener('click', () => navigateToStep(2));
+      $('step1-next-btn').addEventListener('click', async () => {
+        const p = state.project || {};
+        const hasAudio = !!(p.mp3_url || (p.audio_assembly && p.audio_assembly.final_url));
+        if (hasAudio) { navigateToStep(2); return; }
+        await startShipIt();
+      });
       $('step2-next-btn').addEventListener('click', () => navigateToStep(3));
       $('step3-next-btn').addEventListener('click', () => navigateToStep(4));
       $('line-it-up-btn').addEventListener('click', lineItUp);

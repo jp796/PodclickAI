@@ -213,6 +213,41 @@ def generate_srt_for_clip(
     return "\n".join(srt_parts)
 
 
+def generate_ass_for_clip(
+    words: list,
+    start_sec: float,
+    end_sec: float,
+    output_path: str,
+    width: int = 1080,
+    height: int = 1920,
+) -> str:
+    """
+    Generate a viral TikTok-style ASS subtitle file for a clip window.
+
+    Big bold uppercase captions in 2-3 word groups with each word highlighted
+    yellow as it's spoken (the look creators expect on Shorts). Words are
+    rebased so the clip starts at 0. Returns output_path, or "" if no words.
+    Delegates the styling to pipeline.subtitles.generate_ass_subtitles.
+    """
+    from pipeline.subtitles import generate_ass_subtitles
+
+    clip_words = []
+    for w in words:
+        ws = w.get("start", 0)
+        we = w.get("end", 0)
+        if ws >= start_sec and we <= end_sec:
+            clip_words.append({
+                "word":  w.get("word", ""),
+                "start": max(0.0, ws - start_sec),
+                "end":   max(0.0, we - start_sec),
+            })
+    if not clip_words:
+        return ""
+
+    generate_ass_subtitles(clip_words, width, height, output_path)
+    return output_path
+
+
 # ── Clip detection ─────────────────────────────────────────────────────────────
 
 def detect_clips_for_project(
@@ -290,6 +325,7 @@ def render_vertical_clip(
     background_color: str = "black",
     width: int = 1080,
     height: int = 1920,
+    ass_path: str = "",
 ) -> str:
     """
     Render a vertical 9:16 clip from an MP3 source (audio-only fallback).
@@ -307,6 +343,12 @@ def render_vertical_clip(
         with open(srt_path, "w") as f:
             f.write(srt_content)
 
+        # Viral ASS captions when provided; otherwise plain styled SRT.
+        if ass_path and os.path.exists(ass_path):
+            _vf = f"ass='{ass_path}'"
+        else:
+            _vf = f"subtitles='{srt_path}':force_style='{_CAPTION_STYLE}'"
+
         cmd = [
             "ffmpeg", "-y",
             "-ss", str(start_sec), "-t", str(duration),
@@ -314,7 +356,7 @@ def render_vertical_clip(
             "-f", "lavfi",
             "-i", f"color=c={background_color}:s={width}x{height}:r=30",
             "-map", "1:v", "-map", "0:a",
-            "-vf", f"subtitles='{srt_path}':force_style='{_CAPTION_STYLE}'",
+            "-vf", _vf,
             "-t", str(duration),
             "-c:v", "libx264", "-preset", "fast", "-crf", "23",
             "-c:a", "aac", "-b:a", "128k",
@@ -387,6 +429,7 @@ def render_vertical_clip_from_video(
     width: int = 1080,
     height: int = 1920,
     crop_mode: str = "stack",
+    ass_path: str = "",
 ) -> str:
     """
     Render a 9:16 clip from the source video recording.
@@ -419,6 +462,7 @@ def render_vertical_clip_from_video(
         mode=mode,
         out_w=width,
         out_h=height,
+        ass_path=ass_path,
     )
 
 
@@ -474,6 +518,18 @@ def render_all_clips(
             with open(srt_path, "w") as f:
                 f.write(srt_content)
 
+            # Viral TikTok-style captions (big bold uppercase, word-by-word
+            # yellow highlight). On by default; PODCLICK_VIRAL_CAPTIONS=0 falls
+            # back to the plain SRT subtitle style.
+            ass_path = ""
+            if os.getenv("PODCLICK_VIRAL_CAPTIONS", "1") not in ("0", "false", "no"):
+                try:
+                    _ass = str(out_dir / f"{clip_id}.ass")
+                    if generate_ass_for_clip(words, start, end, _ass):
+                        ass_path = _ass
+                except Exception as _ass_err:
+                    log(f"  ⚠ {clip_id} viral caption gen failed ({_ass_err}) — using plain SRT")
+
             mp4_path = str(out_dir / f"{clip_id}.mp4")
 
             if use_video:
@@ -485,6 +541,7 @@ def render_all_clips(
                         srt_content=srt_content,
                         output_path=mp4_path,
                         crop_mode=crop_mode,
+                        ass_path=ass_path,
                     )
                 except RuntimeError as _vid_err:
                     log(f"  ⚠ {clip_id} video render failed ({_vid_err}) — falling back to audio-only")
@@ -494,6 +551,7 @@ def render_all_clips(
                         end_sec=end,
                         srt_content=srt_content,
                         output_path=mp4_path,
+                        ass_path=ass_path,
                     )
             else:
                 render_vertical_clip(
@@ -502,6 +560,7 @@ def render_all_clips(
                     end_sec=end,
                     srt_content=srt_content,
                     output_path=mp4_path,
+                    ass_path=ass_path,
                 )
 
             results.append({
