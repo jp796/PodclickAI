@@ -1460,3 +1460,26 @@ uses the OpenAI Whisper API. On a cloud box `Path.home()` resolves to the server
 cache dir is created on demand, so it degrades fine. Flag for the deploy checklist, not a fix.
 
 **Files:** `pipeline/render_clip.py` (new), `pipeline/project_pipeline.py`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-24 — Per-clip Re-render didn't burn viral captions (only the Ship It pipeline did)
+
+**Symptom (JP):** Re-rendering a clip with the Step 3 "↺ Re-render with this crop" button fixed the
+crop (e.g. Center) but the clip still had the old plain SRT captions — only a full Ship It run
+produced the viral word-highlight captions. Felt impossible to get a clip publish-ready one at a time.
+
+**Root cause:** `rerender_clip` (`POST /api/projects/{id}/clips/{clip_id}/rerender`) called
+`render_vertical_clip_from_video(...)` with **no `ass_path`**, so it always fell back to the plain
+`_CAPTION_STYLE` SRT. The viral-ASS generation was only wired into `render_all_clips` (the Ship It
+path), never the per-clip re-render endpoint.
+
+**Fix (`main.py`, `rerender_clip`):** Generate the viral ASS the same way the pipeline does —
+`generate_ass_for_clip(stored_words, start, end, <mp4>.ass)` (gated by `PODCLICK_VIRAL_CAPTIONS`,
+needs `whisper_words` in legacy_metadata) — and pass `ass_path` to both
+`render_vertical_clip_from_video` and the audio-only fallback. Now a per-clip re-render produces the
+SAME burned viral captions + chosen crop as a full Ship It run.
+
+**Verified:** main.py parses; server restarted. (Live re-render is JP-driven from the Step 3 editor.)
+
+**Files:** `main.py`, `docs/BUGS_AND_FIXES.md`

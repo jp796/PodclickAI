@@ -1601,7 +1601,8 @@ async def rerender_clip(project_id: str, clip_id: str, request: Request):
     from db.models import Clip, Project
     from sqlalchemy import select
     from pipeline.project_pipeline import (
-        generate_srt_for_clip, render_vertical_clip_from_video, render_vertical_clip
+        generate_srt_for_clip, generate_ass_for_clip,
+        render_vertical_clip_from_video, render_vertical_clip
     )
     import uuid as _uuid
     import asyncio as _asyncio
@@ -1656,6 +1657,18 @@ async def rerender_clip(project_id: str, clip_id: str, request: Request):
     if not mp4_path or mp4_path.startswith("/api/"):
         raise HTTPException(status_code=400, detail="Cannot determine output path for re-render")
 
+    # Viral TikTok captions (same default as the Ship It pipeline) so a per-clip
+    # re-render produces the SAME burned captions as a full Ship It run — not the
+    # old plain SRT. PODCLICK_VIRAL_CAPTIONS=0 falls back to SRT.
+    ass_path = ""
+    if os.getenv("PODCLICK_VIRAL_CAPTIONS", "1") not in ("0", "false", "no") and stored_words:
+        try:
+            _ass = mp4_path.rsplit(".", 1)[0] + ".ass"
+            if generate_ass_for_clip(stored_words, start, end, _ass):
+                ass_path = _ass
+        except Exception:
+            ass_path = ""
+
     loop = _asyncio.get_event_loop()
 
     def _do_rerender():
@@ -1667,6 +1680,7 @@ async def rerender_clip(project_id: str, clip_id: str, request: Request):
                 srt_content=srt_content,
                 output_path=mp4_path,
                 crop_mode=crop_mode,
+                ass_path=ass_path,
             )
         except RuntimeError as vid_err:
             # Fallback to audio-only if video render fails
@@ -1677,6 +1691,7 @@ async def rerender_clip(project_id: str, clip_id: str, request: Request):
                     end_sec=end,
                     srt_content=srt_content,
                     output_path=mp4_path,
+                    ass_path=ass_path,
                 )
             else:
                 raise vid_err
