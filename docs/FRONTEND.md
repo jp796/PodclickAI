@@ -403,3 +403,20 @@ btn.addEventListener('click', () => copyText(btn, btn.dataset.text));
 | `copyBrief()` | Copy the script textarea to clipboard |
 
 State: `_briefData` (last generated brief). Button lives in `.head-actions` beside Auto-plan.
+
+---
+
+## studio.html — In-studio camera switcher (2026-06-23)
+
+Pick/switch the camera **while in the studio** (not just the pre-studio Device Check) — the
+iPhone (Continuity Camera) can be connected mid-session and selected without leaving.
+
+| Function | Description |
+|----------|-------------|
+| `populateStudioCams()` | `enumerateDevices()` → fills `#studio-cam-select`; flags iPhone/Continuity with 📱, others 📷; marks the live device selected. Called at end of `startCamera()` and `dcEnterStudio()`. |
+| `rescanStudioCams()` | 🔄 — re-requests camera permission (so a just-connected iPhone exposes its label), re-enumerates, toasts whether a phone was found + Continuity tips. Wired to `#btn-cam-rescan`. |
+| `switchStudioCamera(deviceId)` | Live-swaps the feed: `getUserMedia` on the chosen device (1080p → native-res fallback), stops old tracks, repoints `els.cam.srcObject` + analyser + composite. **Blocks while recording** (toast "Stop the recording first"). If camera was off, this starts it on that device. Wired to `#studio-cam-select` change. |
+
+`_isPhoneCam(label)` = `/iphone|continuity|phone/i`. New els: `studioCamSelect`, `btnCamRescan`
+in the transport bar. Recorder reads the canvas composite (which draws `els.cam`), so swapping
+`els.cam.srcObject` makes the recorded video follow the new camera automatically.

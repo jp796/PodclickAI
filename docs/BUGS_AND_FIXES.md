@@ -1283,3 +1283,31 @@ NOT caught; that needs an LLM transcript pass (easy follow-on if wanted). Conser
 when unsure, it keeps the audio.
 
 **Files:** `pipeline/audio.py`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-23 — In-studio camera switcher (pick/switch iPhone WHILE in the studio)
+
+**Ask (JP):** "Flawlessly add my phone as the camera and choose the phone while in the studio, not
+just before." The Device Check (pre-studio) already surfaced the iPhone, but once inside the studio
+there was no way to connect/select it — you had to leave and re-enter.
+
+**What shipped (`frontend/studio.html`):**
+- Transport bar now has a **camera dropdown** (`#studio-cam-select`) + **🔄 re-scan** (`#btn-cam-rescan`)
+  beside Start Camera.
+- `populateStudioCams()` lists video inputs (📱 for iPhone/Continuity, 📷 otherwise), marks the live
+  device; called at the end of `startCamera()` and `dcEnterStudio()` so the picker is ready on entry.
+- `rescanStudioCams()` re-requests permission (surfaces labels for a freshly-connected iPhone),
+  re-enumerates, and toasts Continuity tips if no phone yet.
+- `switchStudioCamera(deviceId)` live-swaps the feed without leaving: `getUserMedia` on the chosen
+  device (1080p with native-resolution fallback for phone cams that reject exact constraints), stops
+  the old tracks, repoints `els.cam.srcObject` + audio analyser + canvas composite. Since the
+  recorder records the **canvas composite** (which draws `els.cam`), the recorded video follows the
+  new camera automatically. **Guarded during active recording** (toast: "Stop the recording first")
+  to avoid an audio-track mismatch mid-take.
+
+**Verified:** served `/studio` contains the markup + all three functions + listeners; full inline
+script passes `node --check` (no syntax break). Live iPhone selection requires JP's physical phone +
+Continuity (can't headless-test the device), but the switch path is wired end-to-end.
+
+**Files:** `frontend/studio.html`, `docs/FRONTEND.md`, `docs/BUGS_AND_FIXES.md`

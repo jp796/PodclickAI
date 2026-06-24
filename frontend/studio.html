@@ -895,6 +895,11 @@
 
       <div class="transport">
         <button class="btn" id="btn-camera">Start Camera</button>
+        <select id="studio-cam-select" title="Switch camera (iPhone shows here when connected)"
+          style="background:#0f0f1e;border:1px solid #1e1e2e;border-radius:8px;color:#d0d0e0;font-size:12px;padding:8px 10px;outline:none;cursor:pointer;max-width:190px;">
+          <option value="">📷 Camera…</option>
+        </select>
+        <button class="btn ghost" id="btn-cam-rescan" title="Re-scan for cameras — tap after connecting your iPhone">🔄</button>
         <button class="btn" id="btn-screen" disabled>Share Screen</button>
         <button class="btn primary" id="btn-record" disabled>● Record</button>
         <button class="btn danger" id="btn-stop" disabled>■ Stop</button>
@@ -1264,6 +1269,8 @@
     vadFill:     $("vad-fill"),
     vadThresh:   $("vad-threshold"),
     btnCamera:   $("btn-camera"),
+    studioCamSelect: $("studio-cam-select"),
+    btnCamRescan: $("btn-cam-rescan"),
     btnScreen:   $("btn-screen"),
     btnRecord:   $("btn-record"),
     btnStop:     $("btn-stop"),
@@ -1357,10 +1364,98 @@
       els.btnRecord.disabled = false;
       attachAudioAnalyser(stream);
       ensureCompositeRunning();
+      populateStudioCams();
       toast("Camera + mic ready.", "success");
     } catch (e) {
       toast("Camera denied or unavailable: " + e.message, "error");
     }
+  }
+
+  /* ── In-studio camera picker (switch the live feed without leaving) ───── */
+  const _isPhoneCam = l => /iphone|continuity|phone/i.test(l || '');
+
+  async function populateStudioCams() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cams = devices.filter(d => d.kind === 'videoinput');
+      const curId = state.camStream?.getVideoTracks()[0]?.getSettings().deviceId || '';
+      const sel = els.studioCamSelect;
+      if (!sel) return;
+      sel.innerHTML = '';
+      if (!cams.length) {
+        sel.innerHTML = '<option value="">No cameras found</option>';
+        return;
+      }
+      cams.forEach((d, i) => {
+        const phone = _isPhoneCam(d.label);
+        const o = document.createElement('option');
+        o.value = d.deviceId;
+        o.textContent = (phone ? '📱 ' : '📷 ') + (d.label || ('Camera ' + (i + 1)));
+        if (d.deviceId === curId) o.selected = true;
+        sel.appendChild(o);
+      });
+    } catch (e) {
+      console.error('[studio] populateStudioCams:', e);
+    }
+  }
+
+  async function rescanStudioCams() {
+    // Re-request permission so freshly-connected devices expose their labels,
+    // then re-enumerate (iPhone via Continuity Camera appears here once on).
+    try { const s = await navigator.mediaDevices.getUserMedia({ video: true }); s.getTracks().forEach(t => t.stop()); } catch (_) {}
+    await populateStudioCams();
+    const sel = els.studioCamSelect;
+    const hasPhone = sel && Array.from(sel.options).some(o => /📱/.test(o.textContent));
+    toast(hasPhone ? '📱 iPhone found — pick it in the camera list.'
+                   : 'Re-scanned. No iPhone yet — unlock it, same Wi-Fi/Bluetooth + Apple ID, or plug in via USB.',
+          hasPhone ? 'success' : 'info');
+  }
+
+  async function switchStudioCamera(deviceId) {
+    if (!deviceId) return;
+    if (state.recorder) {
+      toast('Stop the recording first, then switch cameras.', 'error');
+      populateStudioCams();  // revert dropdown to the active device
+      return;
+    }
+    const audio = {
+      echoCancellation: true, noiseSuppression: true,
+      channelCount: 1, sampleRate: 48000,
+    };
+    let newStream = null;
+    try {
+      newStream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: deviceId }, width: 1920, height: 1080, frameRate: 30 },
+        audio,
+      });
+    } catch (e1) {
+      // Some phone cams reject exact 1080p — retry at native resolution
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: deviceId } }, audio,
+        });
+      } catch (e2) {
+        toast('Could not switch to that camera: ' + e2.message, 'error');
+        populateStudioCams();
+        return;
+      }
+    }
+    // Swap: stop old tracks, point preview + analyser + composite at the new stream
+    if (state.camStream) state.camStream.getTracks().forEach(t => t.stop());
+    state.camStream = newStream;
+    els.cam.srcObject = newStream;
+    els.cam.style.display = 'block';
+    els.placeholder.style.display = 'none';
+    els.sCamera.textContent = 'on'; els.sCamera.className = 'ok';
+    els.sMic.textContent    = 'on'; els.sMic.className    = 'ok';
+    els.btnCamera.textContent = 'Stop Camera';
+    els.btnScreen.disabled = false;
+    els.btnRecord.disabled = false;
+    attachAudioAnalyser(newStream);
+    ensureCompositeRunning();
+    const lbl = newStream.getVideoTracks()[0]?.label || 'camera';
+    toast((_isPhoneCam(lbl) ? '📱 ' : '') + 'Switched to ' + lbl + '.', 'success');
+    populateStudioCams();
   }
 
   function stopCamera() {
@@ -3080,6 +3175,8 @@
   els.btnCamera.addEventListener("click", () => {
     if (state.camStream) stopCamera(); else startCamera();
   });
+  if (els.studioCamSelect) els.studioCamSelect.addEventListener("change", (e) => switchStudioCamera(e.target.value));
+  if (els.btnCamRescan)    els.btnCamRescan.addEventListener("click", rescanStudioCams);
   els.btnScreen.addEventListener("click", () => {
     if (state.screenStream) stopScreen(); else startScreen();
   });
@@ -3414,6 +3511,7 @@
       attachAudioAnalyser(state.camStream);
     }
     modal.style.display = 'none';
+    populateStudioCams();  // fill the in-studio camera switcher
     checkInboundScript();  // run AFTER modal closes so toast is visible
   }
 
