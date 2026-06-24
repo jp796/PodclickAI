@@ -1436,3 +1436,27 @@ out of the clip video + re-timing the captions (multi-segment cut/concat) — a 
 
 **Files:** `pipeline/project_pipeline.py`, `~/.claude/skills/vertical-clip-render/render_clip.py`,
 `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-24 — Cloud-readiness: vendored render_clip (removed ~/.claude dependency)
+
+**Why (JP):** PodClick is headed for SaaS / cloud-server deploy. The clip renderer hard-imported
+`render_clip.py` from `~/.claude/skills/vertical-clip-render` via `Path.home()` — that path does
+not exist on a cloud box, so clip rendering (and the new viral captions) would break on deploy.
+
+**Fix:**
+- Vendored the renderer into the repo as `pipeline/render_clip.py` (byte-for-byte logic incl. the
+  `ass_path` viral-caption support).
+- `_get_render_clip()` now does `from pipeline import render_clip` first; the `~/.claude` skill path
+  is a fallback only (local dev parity). No `Path.home()` in the primary path.
+
+**Verified:** `_get_render_clip().__file__` → `pipeline/render_clip.py`; `render_clip` accepts
+`ass_path`; real 4s center-crop render through the vendored path produced a 1080×1920 MP4.
+
+**Other home-dir reference (not a blocker):** `pipeline/transcribe.py` HF cache dir
+`Path.home()/.cache/huggingface/hub` — only used by the LOCAL whisper path; the cloud Ship It path
+uses the OpenAI Whisper API. On a cloud box `Path.home()` resolves to the server's home and the
+cache dir is created on demand, so it degrades fine. Flag for the deploy checklist, not a fix.
+
+**Files:** `pipeline/render_clip.py` (new), `pipeline/project_pipeline.py`, `docs/BUGS_AND_FIXES.md`

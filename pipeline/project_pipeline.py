@@ -372,12 +372,20 @@ def render_vertical_clip(
 
 
 def _get_render_clip():
-    """Import render_clip from the vertical-clip-render skill."""
-    import sys, importlib
-    skill_path = str(Path.home() / ".claude/skills/vertical-clip-render")
-    if skill_path not in sys.path:
-        sys.path.insert(0, skill_path)
-    return importlib.import_module("render_clip")
+    """
+    Import the vendored render_clip module (pipeline/render_clip.py) so clip
+    rendering deploys with the app — no ~/.claude dependency on a cloud server.
+    Falls back to the local-dev skill copy only if the vendored import fails.
+    """
+    try:
+        from pipeline import render_clip  # vendored, ships with the repo
+        return render_clip
+    except Exception:
+        import sys, importlib
+        skill_path = str(Path.home() / ".claude/skills/vertical-clip-render")
+        if skill_path not in sys.path:
+            sys.path.insert(0, skill_path)
+        return importlib.import_module("render_clip")
 
 
 # Map UI button names → render_clip modes
