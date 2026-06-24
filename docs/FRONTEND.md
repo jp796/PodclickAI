@@ -420,3 +420,15 @@ iPhone (Continuity Camera) can be connected mid-session and selected without lea
 `_isPhoneCam(label)` = `/iphone|continuity|phone/i`. New els: `studioCamSelect`, `btnCamRescan`
 in the transport bar. Recorder reads the canvas composite (which draws `els.cam`), so swapping
 `els.cam.srcObject` makes the recorded video follow the new camera automatically.
+
+---
+
+## studio.html — Persistent draft (refresh keeps script cued) (2026-06-23)
+
+| Function | Description |
+|----------|-------------|
+| `_persistStudio()` | Save `{script, podcastName, topic-title/pillar/market/notes}` → localStorage `podclick_studio_draft`. Fired on `input` to those fields + after `generateScript()`/`loadTodayTopic()`. |
+| `_restoreStudio()` | Repopulate empty fields from the saved draft; returns true if a script was restored. |
+| `clearStudioDraft()` | Remove the draft — called once a recording is saved (saveAndContinue, `_doPodcastPublishRaw`). |
+
+`checkInboundScript()` now: inbound hand-off wins + persists; else restores the draft so a refresh keeps the script + topic cued.

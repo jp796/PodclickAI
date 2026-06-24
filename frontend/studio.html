@@ -2720,6 +2720,7 @@
       status.textContent = 'Build saved. Breaking ground…';
       status.style.color = '#4caf50';
       btn.textContent = '✓ Saved';
+      clearStudioDraft();  // recording captured → don't re-cue this script next time
 
       // Small delay so the user sees the success state before redirect
       setTimeout(() => {
@@ -3019,6 +3020,7 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || res.statusText);
       completeFileXfer(true, 'Build saved — opening the Job Site');
+      clearStudioDraft();  // recording captured → don't re-cue this script next time
       setTimeout(() => { window.location.href = '/project/' + data.project_id; }, 800);
       return data;
     } catch(e) {
@@ -3177,6 +3179,11 @@
   });
   if (els.studioCamSelect) els.studioCamSelect.addEventListener("change", (e) => switchStudioCamera(e.target.value));
   if (els.btnCamRescan)    els.btnCamRescan.addEventListener("click", rescanStudioCams);
+  // Persist the working draft on every edit so a refresh keeps the script + topic cued
+  ['script','podcast-name','topic-title','topic-pillar','topic-market','topic-notes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', _persistStudio);
+  });
   els.btnScreen.addEventListener("click", () => {
     if (state.screenStream) stopScreen(); else startScreen();
   });
@@ -3230,6 +3237,7 @@
       $("topic-pillar").value = data.pillar || "";
       $("topic-market").value = data.market || localStorage.getItem("podclick_saved_market") || "";
       $("topic-notes").value  = data.notes  || "";
+      _persistStudio();  // keep topic fields cued through a refresh
 
       // Shoot-day badge
       const badge = $("topic-shoot-badge");
@@ -3280,6 +3288,7 @@
       if (data.title && !els.podcastName.value) {
         els.podcastName.value = data.title;
       }
+      _persistStudio();  // keep generated script cued through a refresh
 
       toast("✨ Script generated — ready to record!");
 
@@ -3301,32 +3310,64 @@
   $("btn-gen-script").addEventListener("click", generateScript);
 
   // ── Auto-load script sent from Click Studio ──────────────────────────────────
+  /* ── Persistent studio draft — survives a page refresh ───────────────── */
+  const _STUDIO_DRAFT_KEY = 'podclick_studio_draft';
+  function _persistStudio() {
+    try {
+      const g = id => (document.getElementById(id)?.value || '');
+      localStorage.setItem(_STUDIO_DRAFT_KEY, JSON.stringify({
+        script:      els.script ? els.script.value : '',
+        podcastName: els.podcastName ? els.podcastName.value : '',
+        topicTitle:  g('topic-title'), pillar: g('topic-pillar'),
+        market:      g('topic-market'), notes: g('topic-notes'),
+        ts: Date.now(),
+      }));
+    } catch (_) {}
+  }
+  function _restoreStudio() {
+    try {
+      const raw = localStorage.getItem(_STUDIO_DRAFT_KEY);
+      if (!raw) return false;
+      const d = JSON.parse(raw);
+      if (!d || !d.script) return false;
+      if (els.script && !els.script.value) els.script.value = d.script;
+      if (els.podcastName && !els.podcastName.value && d.podcastName) els.podcastName.value = d.podcastName;
+      const setIf = (id, v) => { const el = document.getElementById(id); if (el && !el.value && v) el.value = v; };
+      setIf('topic-title', d.topicTitle); setIf('topic-pillar', d.pillar);
+      setIf('topic-market', d.market);    setIf('topic-notes', d.notes);
+      return !!(els.script && els.script.value);
+    } catch (_) { return false; }
+  }
+  function clearStudioDraft() {
+    try { localStorage.removeItem(_STUDIO_DRAFT_KEY); } catch (_) {}
+  }
+
   function checkInboundScript() {
     const script = localStorage.getItem('podclick_teleprompter_script');
     const title  = localStorage.getItem('podclick_teleprompter_title');
-    if (!script) return;
-    // Clear so it doesn't re-load next time
-    localStorage.removeItem('podclick_teleprompter_script');
-    localStorage.removeItem('podclick_teleprompter_title');
 
-    // Populate script textarea + render prompter
-    els.script.value = script;
-    showFileXfer('📄', 'Loading script from Click Studio…', '→ Teleprompter');
-    renderPrompter();
-    completeFileXfer(true, 'Script loaded — voice tracking active');
-
-    // Auto-fill episode title if available
-    if (title && els.podcastName && !els.podcastName.value) {
-      els.podcastName.value = title;
+    if (script) {
+      // Fresh hand-off from Click Studio / RE Daily Brief — wins over saved draft.
+      localStorage.removeItem('podclick_teleprompter_script');
+      localStorage.removeItem('podclick_teleprompter_title');
+      els.script.value = script;
+      if (title && els.podcastName && !els.podcastName.value) els.podcastName.value = title;
+      showFileXfer('📄', 'Loading script…', '→ Teleprompter');
+      renderPrompter();
+      completeFileXfer(true, 'Script loaded — voice tracking active');
+      _persistStudio();  // becomes the persisted draft so a refresh keeps it cued
+      $("record-cta").classList.add("show");
+      toast('📺 Script loaded — ready to record!');
+      document.getElementById('prompter').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
     }
 
-    // Show Record CTA + toast
-    $("record-cta").classList.add("show");
-    toast('📺 Script loaded from Click Studio — ready to record!');
-    // Camera starts via device check modal
-
-    // Scroll to prompter
-    document.getElementById('prompter').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // No hand-off → restore the last working draft so a refresh keeps everything cued.
+    if (_restoreStudio()) {
+      renderPrompter();
+      $("record-cta").classList.add("show");
+      toast('Picked up where you left off — script still cued.');
+    }
   }
 
   // Helper: start camera then immediately begin recording

@@ -1311,3 +1311,28 @@ script passes `node --check` (no syntax break). Live iPhone selection requires J
 Continuity (can't headless-test the device), but the switch path is wired end-to-end.
 
 **Files:** `frontend/studio.html`, `docs/FRONTEND.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-23 — Studio refresh keeps the script + topic cued (persistent draft)
+
+**Ask (JP):** "A refresh will keep the current data cued, i.e. scripts etc."
+
+**Was:** `checkInboundScript()` did a ONE-SHOT hand-off — read `podclick_teleprompter_script`
+from localStorage, populated the prompter, then **deleted** the keys. A page refresh lost the
+script (and topic fields were never persisted at all).
+
+**Fix (`frontend/studio.html`):** Persistent studio draft in localStorage (`podclick_studio_draft`).
+- `_persistStudio()` saves `{script, podcastName, topic-title/pillar/market/notes}`; fired on every
+  `input` to those fields, and after `generateScript()` + `loadTodayTopic()` programmatic fills.
+- `_restoreStudio()` repopulates empty fields from the saved draft.
+- `checkInboundScript()` rewritten: a fresh hand-off (Click Studio / RE Daily Brief) still WINS and
+  becomes the persisted draft; with no hand-off it restores the draft so a refresh keeps everything
+  cued ("Picked up where you left off — script still cued.").
+- `clearStudioDraft()` fires once a recording is saved into a Project (saveAndContinue +
+  `_doPodcastPublishRaw`) so a finished script doesn't re-cue next session.
+
+**Verified:** served `/studio` contains `_persistStudio`/`_restoreStudio`/`clearStudioDraft` +
+the input-listener wiring; full inline script passes `node --check`.
+
+**Files:** `frontend/studio.html`, `docs/FRONTEND.md`, `docs/BUGS_AND_FIXES.md`
