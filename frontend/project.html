@@ -361,7 +361,10 @@
       <p style="font-size:13px;color:#847d74;margin-bottom:12px;">Read through, fix anything Whisper missed, then move on.</p>
       <textarea id="transcript-area" rows="18" placeholder="Transcript will appear once processing finishes."></textarea>
       <div class="field-row" style="justify-content:space-between;">
-        <button class="btn btn-ghost" id="save-transcript-btn">Save edits</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost" id="save-transcript-btn">Save edits</button>
+          <button class="btn btn-ghost" id="open-editor-btn" title="Cut words & fumbles, preview, then re-cut the video">✂️ Edit Video</button>
+        </div>
         <button class="btn btn-primary" id="step1-next-btn">Next &rarr;</button>
       </div>
     </div>
@@ -1450,6 +1453,9 @@
       });
       $('transcript-area').addEventListener('blur', () => { if (state.transcriptDirty) saveTranscript(); });
       $('save-transcript-btn').addEventListener('click', saveTranscript);
+      $('open-editor-btn').addEventListener('click', () => {
+        window.location.href = '/project/' + encodeURIComponent(PROJECT_ID) + '/edit';
+      });
       $('step1-next-btn').addEventListener('click', async () => {
         const p = state.project || {};
         const hasAudio = !!(p.mp3_url || (p.audio_assembly && p.audio_assembly.final_url));

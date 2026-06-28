@@ -1549,6 +1549,211 @@ async def serve_project_clip_video(project_id: str, clip_id: str):
     return _FR(path=path, media_type="video/mp4", filename=Path(path).name)
 
 
+# ── Transcript Editor (Descript-style: delete words → cut video) ──────────────
+
+def _edit_invert_cuts(cut_ranges, duration):
+    """Turn [start,end] cut ranges into the list of KEEP segments (merged)."""
+    cuts = sorted([(max(0.0, float(a)), min(float(duration), float(b)))
+                   for a, b in cut_ranges if float(b) > float(a)])
+    merged = []
+    for a, b in cuts:
+        if merged and a <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+        else:
+            merged.append((a, b))
+    keeps, pos = [], 0.0
+    for a, b in merged:
+        if a > pos:
+            keeps.append((pos, a))
+        pos = max(pos, b)
+    if pos < duration:
+        keeps.append((pos, duration))
+    return keeps, merged
+
+
+def _edit_remap_words(words, merged_cuts):
+    """Drop words inside a cut; shift surviving words left by removed time before them."""
+    out = []
+    def remap(t):
+        shift = 0.0
+        for a, b in merged_cuts:
+            if t >= b:
+                shift += (b - a)
+            elif a <= t < b:
+                return None
+        return max(0.0, t - shift)
+    for w in words:
+        ns, ne = remap(w.get("start", 0.0)), remap(w.get("end", 0.0))
+        if ns is None or ne is None:
+            continue
+        nw = dict(w); nw["start"] = ns; nw["end"] = ne
+        out.append(nw)
+    return out
+
+
+def _apply_edit_sync(src_path, keeps, out_path):
+    """Frame-accurate trim+concat of the keep segments → out_path (re-encode)."""
+    import subprocess as _sp
+    fc, vlabels, alabels = [], [], []
+    for i, (s, e) in enumerate(keeps):
+        fc.append(f"[0:v]trim=start={s}:end={e},setpts=PTS-STARTPTS[v{i}]")
+        fc.append(f"[0:a]atrim=start={s}:end={e},asetpts=PTS-STARTPTS[a{i}]")
+        vlabels.append(f"[v{i}]"); alabels.append(f"[a{i}]")
+    n = len(keeps)
+    fc.append("".join(vlabels) + f"concat=n={n}:v=1:a=0[outv]")
+    fc.append("".join(alabels) + f"concat=n={n}:v=0:a=1[outa]")
+    cmd = ["ffmpeg", "-y", "-i", src_path, "-filter_complex", ";".join(fc),
+           "-map", "[outv]", "-map", "[outa]",
+           "-c:v", "libx264", "-preset", "fast", "-crf", "20",
+           "-c:a", "aac", "-b:a", "160k", out_path]
+    r = _sp.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise RuntimeError(f"edit render failed: {r.stderr[-500:]}")
+    return out_path
+
+
+def _probe_seconds(path):
+    import subprocess as _sp
+    r = _sp.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                 "-of", "csv=p=0", path], capture_output=True, text=True)
+    try:
+        return float(r.stdout.strip())
+    except Exception:
+        return 0.0
+
+
+@app.get("/api/projects/{project_id}/source-video")
+async def serve_project_source_video(project_id: str):
+    """Stream the project's source recording (or the edited cut if one exists)."""
+    from fastapi.responses import FileResponse as _FR
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    import uuid as _uuid
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    path = proj.recording_path or ""
+    if not path or not Path(path).exists():
+        raise HTTPException(status_code=404, detail="Source recording not on disk")
+    return _FR(path=path, media_type="video/mp4", filename=Path(path).name)
+
+
+@app.get("/api/projects/{project_id}/edit-data")
+async def project_edit_data(project_id: str):
+    """Word-level transcript + source video for the editor."""
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    import uuid as _uuid
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    meta = proj.legacy_metadata or {}
+    words = meta.get("edited_words") or meta.get("whisper_words") or []
+    duration = 0.0
+    if words:
+        try: duration = float(words[-1].get("end", 0.0))
+        except Exception: duration = 0.0
+    has_video = bool(proj.recording_path and Path(proj.recording_path).exists())
+    if has_video and duration <= 0:
+        duration = _probe_seconds(proj.recording_path)
+    return JSONResponse({
+        "title": proj.title or "Untitled",
+        "words": words,
+        "word_count": len(words),
+        "duration": duration,
+        "has_video": has_video,
+        "edited": bool(meta.get("edited_video_path")),
+        "video_url": f"/api/projects/{project_id}/source-video" if has_video else None,
+    })
+
+
+@app.post("/api/projects/{project_id}/apply-edit")
+async def project_apply_edit(project_id: str, request: Request):
+    """
+    Apply transcript-editor cuts: cut+concat the source video at the keep
+    segments → data/recordings/{id}.edited.mp4, remap word timestamps, and
+    store both so Ship It uses the edited cut. Body: { cut_ranges: [[s,e],...] }
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    from sqlalchemy.orm.attributes import flag_modified
+    import uuid as _uuid, asyncio as _asyncio
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+    body = {}
+    try: body = await request.json()
+    except Exception: pass
+    cut_ranges = body.get("cut_ranges", [])
+    if not isinstance(cut_ranges, list):
+        raise HTTPException(status_code=400, detail="cut_ranges must be a list")
+
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    src = proj.recording_path or ""
+    if not src or not Path(src).exists():
+        raise HTTPException(status_code=400, detail="Source recording not on disk")
+
+    meta = dict(proj.legacy_metadata or {})
+    base_words = meta.get("whisper_words") or []
+    duration = _probe_seconds(src) or (float(base_words[-1].get("end", 0.0)) if base_words else 0.0)
+
+    keeps, merged = _edit_invert_cuts(cut_ranges, duration)
+    if not keeps:
+        raise HTTPException(status_code=400, detail="Edit would remove the entire recording")
+    removed = sum(b - a for a, b in merged)
+
+    out_path = str(Path(src).with_suffix("")) + ".edited.mp4"
+    loop = _asyncio.get_event_loop()
+    try:
+        await loop.run_in_executor(None, _apply_edit_sync, src, keeps, out_path)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Edit render failed: {exc}")
+
+    new_words = _edit_remap_words(base_words, merged)
+    new_dur = _probe_seconds(out_path)
+
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        m = dict(proj.legacy_metadata or {})
+        m["edited_video_path"] = out_path
+        m["edited_words"] = new_words
+        m["manual_cut_regions"] = [[a, b] for a, b in merged]
+        proj.legacy_metadata = m
+        flag_modified(proj, "legacy_metadata")
+        await session.commit()
+
+    return JSONResponse({
+        "ok": True,
+        "removed_seconds": round(removed, 2),
+        "kept_segments": len(keeps),
+        "new_duration": round(new_dur, 2),
+        "words_remaining": len(new_words),
+    })
+
+
+@app.get("/project/{project_id}/edit", response_class=HTMLResponse)
+async def serve_project_editor(project_id: str):
+    """Serve the transcript editor page for a project."""
+    return HTMLResponse((FRONTEND_DIR / "project-editor.html").read_text())
+
+
 @app.get("/api/projects/{project_id}/clips/{clip_id}/srt")
 async def serve_project_clip_srt(project_id: str, clip_id: str):
     """Return the SRT caption file for a rendered clip as plain text."""
@@ -2148,6 +2353,17 @@ async def ship_it(project_id: str, request: Request):
         stored_audio_path = _legacy.get("extracted_audio_path", "")
         stored_words = _legacy.get("whisper_words", [])
         stored_segments = _legacy.get("whisper_segments", [])
+
+        # Transcript-editor cut: if the user trimmed words in the editor, Ship It
+        # builds from the EDITED video + remapped word timestamps, not the raw take.
+        _edited_video = _legacy.get("edited_video_path", "")
+        _edited_words = _legacy.get("edited_words")
+        if _edited_video and Path(_edited_video).exists():
+            recording_path = _edited_video
+            stored_audio_path = ""          # force re-extract audio from the edited cut
+            if _edited_words:
+                stored_words = _edited_words
+            print(f"[ship_it] using edited cut: {_edited_video} ({len(stored_words)} words)")
 
     # Kick off async processing
     asyncio.create_task(_run_ship_it_async(

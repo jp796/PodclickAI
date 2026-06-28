@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="/static/podclick-mark.png" type="image/png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Editor · PodClick</title>
+  <script src="/static/podclick-nav.js" defer></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body{background:#0b0a08;color:#F5F7FA;min-height:100vh;font-family:'Inter',sans-serif}
+    .shell{max-width:1280px;margin:0 auto;padding:22px 22px 80px}
+    .ehead{display:flex;align-items:center;gap:14px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #272420}
+    .etitle{font-size:19px;font-weight:800}
+    .emeta{font-size:12px;color:#847d74;margin-top:2px}
+    .btn{font-size:13px;font-weight:700;border-radius:9px;cursor:pointer;border:1px solid #272420;background:#1e1b16;color:#cabfb2;padding:9px 14px;text-decoration:none;display:inline-block}
+    .btn:hover{opacity:.9}
+    .btn-primary{background:linear-gradient(135deg,#d95f1e,#f07030);color:#fff;border:none}
+    .btn-primary:disabled{opacity:.4;cursor:not-allowed}
+    .grid{display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}}
+    .vpanel{position:sticky;top:18px}
+    .vwrap{background:#000;border-radius:12px;overflow:hidden;aspect-ratio:16/9}
+    #ev{width:100%;height:100%;display:block;object-fit:contain;background:#000}
+    .card{background:#161410;border:1px solid #272420;border-radius:12px;padding:16px;margin-top:14px}
+    .stat{display:flex;justify-content:space-between;font-size:13px;color:#847d74;padding:3px 0}
+    .stat b{color:#F5F7FA;font-weight:700}
+    .hint{font-size:12px;color:#847d74;line-height:1.6;margin-bottom:12px}
+    .tx{min-height:320px;max-height:60vh;overflow-y:auto;background:#0d0c0a;border:1px solid #272420;border-radius:10px;padding:18px;font-size:16px;line-height:2.1}
+    .w{cursor:pointer;border-radius:4px;padding:1px 3px;transition:background .1s}
+    .w:hover{background:rgba(240,112,48,.22)}
+    .w.playing{background:rgba(240,112,48,.34)}
+    .w.del{text-decoration:line-through;color:#5a534a;background:rgba(160,56,56,.12)}
+    .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+    #toast{position:fixed;bottom:24px;right:24px;background:#1e1b16;border:1px solid #352f28;border-radius:9px;padding:11px 16px;font-size:13px;opacity:0;transform:translateY(6px);transition:all .18s;z-index:200;max-width:340px}
+    #toast.show{opacity:1;transform:translateY(0)}
+    #toast.ok{border-color:#3d8c5c}#toast.err{border-color:#a03838;color:#f0c8c8}
+    .empty{padding:50px 20px;text-align:center;color:#847d74}
+  </style>
+</head>
+<body>
+<div class="shell">
+  <div class="ehead">
+    <div>
+      <div class="etitle" id="etitle">Loading…</div>
+      <div class="emeta" id="emeta"></div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <a class="btn" id="back-btn" href="/projects">← Back to build</a>
+    </div>
+  </div>
+
+  <div id="loading" class="empty">Loading transcript…</div>
+  <div id="noedit" class="empty" style="display:none"></div>
+
+  <div class="grid" id="grid" style="display:none">
+    <div class="vpanel">
+      <div class="vwrap"><video id="ev" controls preload="metadata" playsinline></video></div>
+      <div class="card">
+        <div class="stat"><span>Words</span><b id="s-words">0</b></div>
+        <div class="stat"><span>Marked cut</span><b id="s-cut">0</b></div>
+        <div class="stat"><span>~ Time removed</span><b id="s-rem">0:00</b></div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="btn btn-primary" id="apply-btn" style="flex:1" disabled>✂️ Apply Edit</button>
+          <button class="btn" id="reset-btn">Reset</button>
+        </div>
+        <div class="hint" style="margin:10px 0 0">Apply re-cuts the video, then Ship It builds the episode + clips from the edited take.</div>
+      </div>
+      <div class="card">
+        <div class="hint" style="margin:0">
+          <b style="color:#f07030">How to edit</b><br>
+          • Click a word to cut it (strikethrough).<br>
+          • Shift-click to cut a whole range.<br>
+          • Preview skips cut words live — no render.<br>
+          • Happy? Hit Apply Edit.
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="toolbar">
+        <button class="btn" id="play-btn">▶ Play</button>
+        <button class="btn" id="preview-btn" title="Skip cut words during playback">👁 Preview cut: ON</button>
+        <span class="hint" style="margin:0">Click words to cut them.</span>
+      </div>
+      <div class="tx" id="tx"></div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+  const PID = (location.pathname.split('/').filter(Boolean))[1] || '';
+  const $ = id => document.getElementById(id);
+  let WORDS = [], DUR = 0, previewOn = true, lastShift = -1;
+
+  function toast(m,k){const t=$('toast');t.textContent=m;t.className='show '+(k||'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3500);}
+  function fmt(s){s=Math.max(0,s||0);const m=Math.floor(s/60),x=Math.floor(s%60);return m+':'+String(x).padStart(2,'0');}
+
+  async function boot(){
+    $('back-btn').href = '/project/' + PID;
+    let d;
+    try{ const r=await fetch('/api/projects/'+PID+'/edit-data'); d=await r.json(); if(!r.ok) throw new Error(d.detail||'load failed'); }
+    catch(e){ $('loading').style.display='none'; $('noedit').style.display=''; $('noedit').textContent='Could not load: '+e.message; return; }
+
+    $('etitle').textContent = d.title || 'Untitled';
+    document.title = (d.title||'Editor')+' · PodClick';
+
+    if(!d.has_video || !d.word_count){
+      $('loading').style.display='none'; $('noedit').style.display='';
+      $('noedit').innerHTML = !d.has_video
+        ? 'No source video on this build yet.'
+        : 'No word-level transcript yet — run Ship It once (it transcribes), then come back to edit.';
+      return;
+    }
+
+    WORDS = d.words.map(w=>({word:w.word,start:+w.start,end:+w.end,del:false}));
+    DUR = d.duration || (WORDS.length?WORDS[WORDS.length-1].end:0);
+    $('emeta').textContent = d.word_count + ' words · ' + fmt(DUR) + (d.edited?' · edited cut active':'');
+    $('ev').src = d.video_url;
+
+    renderWords(); updateStats();
+    $('loading').style.display='none'; $('grid').style.display='grid';
+  }
+
+  function renderWords(){
+    const tx=$('tx'); tx.innerHTML='';
+    WORDS.forEach((w,i)=>{
+      const sp=document.createElement('span');
+      sp.className='w'+(w.del?' del':''); sp.textContent=w.word; sp.dataset.i=i;
+      sp.addEventListener('click',ev=>onWordClick(i,ev));
+      tx.appendChild(sp); tx.appendChild(document.createTextNode(' '));
+    });
+  }
+
+  function onWordClick(i,ev){
+    if(ev.shiftKey && lastShift>=0){
+      const a=Math.min(lastShift,i), b=Math.max(lastShift,i);
+      const target=!WORDS[i].del;
+      for(let k=a;k<=b;k++) WORDS[k].del=target;
+    } else {
+      WORDS[i].del=!WORDS[i].del;
+    }
+    lastShift=i;
+    paint(); updateStats();
+  }
+
+  function paint(){
+    document.querySelectorAll('#tx .w').forEach(el=>{
+      el.classList.toggle('del', WORDS[+el.dataset.i].del);
+    });
+  }
+
+  function cutRanges(){
+    const r=[];
+    WORDS.forEach(w=>{ if(w.del) r.push([w.start, w.end]); });
+    return r;
+  }
+
+  function updateStats(){
+    const cut=WORDS.filter(w=>w.del).length;
+    const rem=WORDS.filter(w=>w.del).reduce((a,w)=>a+(w.end-w.start),0);
+    $('s-words').textContent=WORDS.length;
+    $('s-cut').textContent=cut;
+    $('s-rem').textContent=fmt(rem);
+    $('apply-btn').disabled = cut===0;
+  }
+
+  // Live preview: skip cut words + highlight current word
+  function tick(){
+    const v=$('ev'); if(!v) return;
+    const t=v.currentTime;
+    if(previewOn && !v.paused){
+      const hit=WORDS.find(w=>w.del && t>=w.start && t<w.end);
+      if(hit){
+        // jump to end of the contiguous deleted run
+        let e=hit.end;
+        for(const w of WORDS){ if(w.del && w.start<=e+0.05 && w.end>e) e=w.end; }
+        v.currentTime=e+0.01; return;
+      }
+    }
+    let idx=-1;
+    for(let i=0;i<WORDS.length;i++){ if(t>=WORDS[i].start && t<WORDS[i].end){idx=i;break;} }
+    document.querySelectorAll('#tx .w.playing').forEach(el=>el.classList.remove('playing'));
+    if(idx>=0){ const el=document.querySelector('#tx .w[data-i="'+idx+'"]'); if(el) el.classList.add('playing'); }
+  }
+
+  async function applyEdit(){
+    const ranges=cutRanges();
+    if(!ranges.length) return;
+    if(!confirm('Cut '+WORDS.filter(w=>w.del).length+' words from the video? This re-renders the take; Ship It will use the edited cut.')) return;
+    const b=$('apply-btn'); b.disabled=true; b.textContent='✂️ Cutting…';
+    try{
+      const r=await fetch('/api/projects/'+PID+'/apply-edit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cut_ranges:ranges})});
+      const d=await r.json(); if(!r.ok) throw new Error(d.detail||'apply failed');
+      toast('Cut '+d.removed_seconds+'s — edited take saved. Re-run Ship It to rebuild.','ok');
+      setTimeout(()=>location.href='/project/'+PID,1400);
+    }catch(e){ toast('Edit failed — '+e.message,'err'); b.disabled=false; b.textContent='✂️ Apply Edit'; }
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    boot();
+    $('apply-btn').addEventListener('click',applyEdit);
+    $('reset-btn').addEventListener('click',()=>{WORDS.forEach(w=>w.del=false);paint();updateStats();});
+    $('play-btn').addEventListener('click',()=>{const v=$('ev');if(v.paused){v.play();$('play-btn').textContent='⏸ Pause';}else{v.pause();$('play-btn').textContent='▶ Play';}});
+    $('preview-btn').addEventListener('click',()=>{previewOn=!previewOn;$('preview-btn').textContent='👁 Preview cut: '+(previewOn?'ON':'OFF');});
+    const v=$('ev');
+    v.addEventListener('timeupdate',tick);
+    v.addEventListener('play',()=>$('play-btn').textContent='⏸ Pause');
+    v.addEventListener('pause',()=>$('play-btn').textContent='▶ Play');
+  });
+</script>
+</body>
+</html>

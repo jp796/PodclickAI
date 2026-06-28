@@ -1483,3 +1483,52 @@ SAME burned viral captions + chosen crop as a full Ship It run.
 **Verified:** main.py parses; server restarted. (Live re-render is JP-driven from the Step 3 editor.)
 
 **Files:** `main.py`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-26 — Descript-style transcript editor (full edit on the Job Site + live preview)
+
+**Ask (JP):** "RE Daily Brief get a full edit? How do I see this happening on the jobsite and
+preview it? I don't see the Descript clone architecture anywhere." — chose **Build the full
+Descript editor**.
+
+**Was:** `/editor/{id}` (editor.html) was a Phase-0 stub — word-delete styling only, transcription
+not wired, export disabled, reachable only from the screen recorder (not the Job Site). Projects
+already store word-level timestamps (`legacy_metadata.whisper_words`) but nothing exposed them for
+editing. The only "edit" was the invisible Ship It auto-cleanup.
+
+**What shipped — a real transcript editor wired into the project flow:**
+
+**Backend (`main.py`):**
+- `GET /api/projects/{id}/source-video` — streams the project recording (FileResponse).
+- `GET /api/projects/{id}/edit-data` — returns `{title, words[], duration, has_video, video_url, edited}`
+  from stored `whisper_words` (prefers `edited_words` if a cut already exists).
+- `POST /api/projects/{id}/apply-edit` `{cut_ranges:[[s,e]]}` — inverts cuts → keep segments
+  (`_edit_invert_cuts`), frame-accurate ffmpeg trim+concat re-encode (`_apply_edit_sync`) →
+  `data/recordings/{id}.edited.mp4`, remaps word timestamps left by removed time
+  (`_edit_remap_words`), stores `edited_video_path` + `edited_words` + `manual_cut_regions` in
+  legacy_metadata (flag_modified). Returns removed_seconds / new_duration / words_remaining.
+- `GET /project/{id}/edit` — serves the editor page.
+- **Ship It now prefers the edited cut:** `ship_it()` swaps `recording_path`→`edited_video_path`
+  and `stored_words`→`edited_words` when present (forces audio re-extract). So the episode + clips
+  build from the edited take automatically.
+
+**Frontend (`frontend/project-editor.html`, new):** two-pane editor — sticky video (left) +
+clickable word transcript (right). Click a word to cut it (strikethrough), shift-click to cut a
+range, Reset, live word highlight on the play head, and **live skip-preview** (playback jumps over
+cut words instantly, no render — toggle 👁). Stats show words / marked-cut / time-removed. **✂️ Apply
+Edit** posts the cut ranges → re-cuts the video → returns to the project to re-run Ship It.
+**Entry point:** "✂️ Edit Video" button on project.html Step 1 → `/project/{id}/edit`.
+
+**Verified live (RE Daily Brief c5ce978a):** `/project/{id}/edit` 200; edit-data → 2391 words /
+839s / video_url; source-video streams `video/mp4`. Cut/remap unit test: cutting words at 2–4s
+shifts the next word from 4.0s→2.4s (exactly the 1.6s removed). Real ffmpeg cut+concat: keep
+0–4s+10–13s → 6.98s valid h264 1080×1920 MP4.
+
+**Scope/limit (v1):** Apply re-encodes (frame-accurate, fast preset crf 20) — fine for episode
+lengths; could get slow on very long takes with hundreds of cuts. Cuts are word-granular; tiny
+inter-word silences between separate cut words aren't removed unless those gaps are themselves
+selected. No undo of an applied cut except re-editing from the (now edited) take — original webm is
+preserved on disk, so a fresh Ship It from raw could be re-pointed if ever needed.
+
+**Files:** `main.py`, `frontend/project-editor.html` (new), `frontend/project.html`, `docs/BUGS_AND_FIXES.md`
