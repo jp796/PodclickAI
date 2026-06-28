@@ -58,11 +58,15 @@
     <div class="vpanel">
       <div class="vwrap"><video id="ev" controls preload="metadata" playsinline></video></div>
       <div class="card">
+        <button class="btn btn-primary" id="autoedit-btn" style="width:100%;background:linear-gradient(135deg,#6b2e9e,#9b59d0)">⚡ Auto-edit — First Pass</button>
+        <div class="hint" style="margin:8px 0 0">Removes fillers, stutters, false starts &amp; dead air automatically. Then sweep up anything it missed by hand below.</div>
+      </div>
+      <div class="card">
         <div class="stat"><span>Words</span><b id="s-words">0</b></div>
         <div class="stat"><span>Marked cut</span><b id="s-cut">0</b></div>
         <div class="stat"><span>~ Time removed</span><b id="s-rem">0:00</b></div>
         <div style="display:flex;gap:8px;margin-top:14px">
-          <button class="btn btn-primary" id="apply-btn" style="flex:1" disabled>✂️ Apply Edit</button>
+          <button class="btn btn-primary" id="apply-btn" style="flex:1" disabled>✂️ Apply Edit (2nd pass)</button>
           <button class="btn" id="reset-btn">Reset</button>
         </div>
         <div class="hint" style="margin:10px 0 0">Apply re-cuts the video, then Ship It builds the episode + clips from the edited take.</div>
@@ -199,8 +203,25 @@
     }catch(e){ toast('Edit failed — '+e.message,'err'); b.disabled=false; b.textContent='✂️ Apply Edit'; }
   }
 
+  async function runAutoEdit(){
+    if(!confirm('Run the auto first pass? It removes fillers, stutters, false starts and dead air, then re-cuts the video. You can manually refine after.')) return;
+    const b=$('autoedit-btn'); b.disabled=true; b.textContent='⚡ Auto-editing…';
+    try{
+      const r=await fetch('/api/projects/'+PID+'/auto-edit',{method:'POST'});
+      const d=await r.json(); if(!r.ok) throw new Error(d.detail||'auto-edit failed');
+      if(d.removed_seconds>0){
+        toast('Auto pass cut '+d.removed_seconds+'s ('+d.cuts+' spots). Reloading clean take for your 2nd pass…','ok');
+        setTimeout(()=>location.reload(),1400);
+      } else {
+        toast(d.note||'Already clean — nothing to cut.','ok');
+        b.disabled=false; b.textContent='⚡ Auto-edit — First Pass';
+      }
+    }catch(e){ toast('Auto-edit failed — '+e.message,'err'); b.disabled=false; b.textContent='⚡ Auto-edit — First Pass'; }
+  }
+
   document.addEventListener('DOMContentLoaded',()=>{
     boot();
+    $('autoedit-btn').addEventListener('click',runAutoEdit);
     $('apply-btn').addEventListener('click',applyEdit);
     $('reset-btn').addEventListener('click',()=>{WORDS.forEach(w=>w.del=false);paint();updateStats();});
     $('play-btn').addEventListener('click',()=>{const v=$('ev');if(v.paused){v.play();$('play-btn').textContent='⏸ Pause';}else{v.pause();$('play-btn').textContent='▶ Play';}});

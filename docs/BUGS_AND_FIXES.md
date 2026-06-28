@@ -1562,3 +1562,40 @@ number re-increment). Flagged for later if JP wants to edit a scheduled closing.
 (closing 2026-06-28T13:00:00Z); the button now shows locked instead of erroring.
 
 **Files:** `frontend/project.html`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-28 — Hybrid editing: auto first pass + manual 2nd pass (composing takes)
+
+**Ask (JP):** "I like a hybrid — first-pass auto edit on long-form video, 2nd pass manual in case
+something was missed."
+
+**Was:** Two disconnected edits. (1) Ship It's auto-cleanup cut fillers/stutters/dead air from the
+assembled *audio* only. (2) The manual transcript editor cut the *raw* video. They didn't compose —
+opening the editor always showed the raw take, so you couldn't hand-refine the auto-cleaned result.
+
+**What shipped — one composing take:**
+- **`POST /api/projects/{id}/auto-edit`** (first pass) — runs the SAME detector the pipeline uses
+  (`pipeline.audio.build_keep_segments` → filler words + `detect_disfluency_regions`) against the
+  current take's word timestamps, cuts the *video* to the keep-segments via the editor's cut+concat
+  engine, remaps word timestamps, and stores `edited_video_path` + `edited_words` +
+  `manual_cut_regions` — exactly the format a manual edit produces.
+- **Composition:** `source-video`, `edit-data`, and `apply-edit` now all operate on the CURRENT
+  take (the edited cut if one exists, else raw). So: Auto-edit → editor reloads showing the cleaned
+  video + remapped transcript → manual 2nd pass cuts on top → Apply. Ship It already prefers
+  `edited_video_path`, so the episode + clips build from the final edited take.
+- **Safe re-cut:** new `_render_take_edit()` renders to a temp file then `os.replace()` — correct
+  even on the 2nd pass when src == the edited output (ffmpeg can't read+write the same path).
+- New `_keeps_to_cuts()` inverts keep-segments → removed regions for the word remap.
+- **Editor UI (`project-editor.html`):** purple **⚡ Auto-edit — First Pass** button (POSTs auto-edit,
+  reloads the clean take); the manual button relabeled **✂️ Apply Edit (2nd pass)**.
+
+**Verified (RE Daily Brief c5ce978a, 2391 words / 839s):** dry-run of the detector → 11 keep
+segments, **10 auto-cuts, ~15.4s removed**. main.py parses; editor JS passes `node --check`; server
+restarted. (Did not run the full re-encode on EP 102 — it's already scheduled; render+remap path was
+verified earlier with a real cut+concat producing a valid 1080p MP4 + unit-tested remap.)
+
+**Flow for JP:** project → ✂️ Edit Video → **⚡ Auto-edit (1st pass)** → review the cleaned take →
+click any missed words to cut (**2nd pass**) → **Apply Edit** → re-run Ship It.
+
+**Files:** `main.py`, `frontend/project-editor.html`, `docs/BUGS_AND_FIXES.md`

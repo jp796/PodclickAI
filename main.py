@@ -1622,6 +1622,31 @@ def _probe_seconds(path):
         return 0.0
 
 
+def _keeps_to_cuts(keeps, duration):
+    """Inverse of keep segments → the (start,end) regions that were removed."""
+    cuts, pos = [], 0.0
+    for a, b in keeps:
+        if a > pos:
+            cuts.append((pos, a))
+        pos = max(pos, b)
+    if pos < duration:
+        cuts.append((pos, duration))
+    return cuts
+
+
+def _render_take_edit(src_path, keeps, out_path):
+    """
+    Render keep-segments to a temp file then atomically replace out_path.
+    Safe even when src_path == out_path (2nd pass edits the edited take):
+    ffmpeg reads the old file, writes the temp, then we swap it in.
+    """
+    import os as _os
+    tmp = out_path + ".rendering.mp4"
+    _apply_edit_sync(src_path, keeps, tmp)
+    _os.replace(tmp, out_path)
+    return out_path
+
+
 @app.get("/api/projects/{project_id}/source-video")
 async def serve_project_source_video(project_id: str):
     """Stream the project's source recording (or the edited cut if one exists)."""
@@ -1638,7 +1663,12 @@ async def serve_project_source_video(project_id: str):
         proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
     if not proj:
         raise HTTPException(status_code=404, detail="Project not found")
-    path = proj.recording_path or ""
+    # Serve the CURRENT working take — the edited cut if one exists (so the
+    # manual 2nd pass refines the auto-edited result), else the raw recording.
+    _m = proj.legacy_metadata or {}
+    path = _m.get("edited_video_path") or proj.recording_path or ""
+    if not (path and Path(path).exists()):
+        path = proj.recording_path or ""
     if not path or not Path(path).exists():
         raise HTTPException(status_code=404, detail="Source recording not on disk")
     return _FR(path=path, media_type="video/mp4", filename=Path(path).name)
@@ -1706,12 +1736,18 @@ async def project_apply_edit(project_id: str, request: Request):
         proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
     if not proj:
         raise HTTPException(status_code=404, detail="Project not found")
-    src = proj.recording_path or ""
+
+    meta = dict(proj.legacy_metadata or {})
+    raw = proj.recording_path or ""
+    # Edit the CURRENT take — the already-edited cut if one exists (manual 2nd
+    # pass on top of the auto first pass), else the raw recording.
+    src = meta.get("edited_video_path") or raw
+    if not src or not Path(src).exists():
+        src = raw
     if not src or not Path(src).exists():
         raise HTTPException(status_code=400, detail="Source recording not on disk")
 
-    meta = dict(proj.legacy_metadata or {})
-    base_words = meta.get("whisper_words") or []
+    base_words = meta.get("edited_words") or meta.get("whisper_words") or []
     duration = _probe_seconds(src) or (float(base_words[-1].get("end", 0.0)) if base_words else 0.0)
 
     keeps, merged = _edit_invert_cuts(cut_ranges, duration)
@@ -1719,10 +1755,12 @@ async def project_apply_edit(project_id: str, request: Request):
         raise HTTPException(status_code=400, detail="Edit would remove the entire recording")
     removed = sum(b - a for a, b in merged)
 
-    out_path = str(Path(src).with_suffix("")) + ".edited.mp4"
+    # Stable output path keyed to the RAW recording; render-to-temp-then-swap is
+    # safe even when src already IS this file (2nd pass).
+    out_path = str(Path(raw or src).with_suffix("")) + ".edited.mp4"
     loop = _asyncio.get_event_loop()
     try:
-        await loop.run_in_executor(None, _apply_edit_sync, src, keeps, out_path)
+        await loop.run_in_executor(None, _render_take_edit, src, keeps, out_path)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Edit render failed: {exc}")
 
@@ -1742,6 +1780,82 @@ async def project_apply_edit(project_id: str, request: Request):
     return JSONResponse({
         "ok": True,
         "removed_seconds": round(removed, 2),
+        "kept_segments": len(keeps),
+        "new_duration": round(new_dur, 2),
+        "words_remaining": len(new_words),
+    })
+
+
+@app.post("/api/projects/{project_id}/auto-edit")
+async def project_auto_edit(project_id: str):
+    """
+    First-pass AUTO edit: run the same filler/stutter/false-start/dead-air detector
+    the Ship It pipeline uses (pipeline.audio.build_keep_segments) against the
+    CURRENT take, cut the video to the keep-segments, and remap word timestamps.
+    Produces the same edited_video_path + edited_words a manual edit does — so the
+    user can then open the editor for a manual 2nd pass on top of the clean result.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    from sqlalchemy.orm.attributes import flag_modified
+    from pipeline.audio import build_keep_segments
+    import uuid as _uuid, asyncio as _asyncio
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    meta = dict(proj.legacy_metadata or {})
+    raw = proj.recording_path or ""
+    src = meta.get("edited_video_path") or raw
+    if not src or not Path(src).exists():
+        src = raw
+    if not src or not Path(src).exists():
+        raise HTTPException(status_code=400, detail="Source recording not on disk")
+
+    words = meta.get("edited_words") or meta.get("whisper_words") or []
+    if not words:
+        raise HTTPException(status_code=400, detail="No word-level transcript yet — run Ship It once to transcribe, then auto-edit.")
+    duration = _probe_seconds(src) or float(words[-1].get("end", 0.0))
+
+    keeps = build_keep_segments(duration, words)
+    cuts = _keeps_to_cuts([(float(a), float(b)) for a, b in keeps], duration)
+    if not cuts:
+        return JSONResponse({"ok": True, "removed_seconds": 0.0, "kept_segments": len(keeps),
+                             "new_duration": round(duration, 2), "words_remaining": len(words),
+                             "note": "Auto-pass found nothing to cut — already clean."})
+    removed = sum(b - a for a, b in cuts)
+
+    out_path = str(Path(raw or src).with_suffix("")) + ".edited.mp4"
+    loop = _asyncio.get_event_loop()
+    try:
+        await loop.run_in_executor(None, _render_take_edit, src, [(float(a), float(b)) for a, b in keeps], out_path)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Auto-edit render failed: {exc}")
+
+    new_words = _edit_remap_words(words, cuts)
+    new_dur = _probe_seconds(out_path)
+
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        m = dict(proj.legacy_metadata or {})
+        m["edited_video_path"] = out_path
+        m["edited_words"] = new_words
+        m["manual_cut_regions"] = [[a, b] for a, b in cuts]
+        proj.legacy_metadata = m
+        flag_modified(proj, "legacy_metadata")
+        await session.commit()
+
+    return JSONResponse({
+        "ok": True,
+        "removed_seconds": round(removed, 2),
+        "cuts": len(cuts),
         "kept_segments": len(keeps),
         "new_duration": round(new_dur, 2),
         "words_remaining": len(new_words),
