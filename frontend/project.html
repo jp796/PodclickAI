@@ -835,6 +835,18 @@
       $('closing-at').value = toLocalInputValue(p.closing_scheduled_at) || defaultClosingTime();
       renderPlatforms();
       renderGuests();
+
+      // Already scheduled/closing/closed → lock the button so re-clicking can't
+      // throw a confusing "failed" (the backend only schedules a 'review' project).
+      const btn = $('line-it-up-btn');
+      const locked = ['scheduled', 'closing', 'closed'].includes(p.status);
+      if (btn) {
+        btn.disabled = locked;
+        btn.textContent = locked ? '✓ Already lined up' : 'Line it up';
+        btn.title = locked
+          ? 'This build is already scheduled — see the banner up top. To change the date or channels, ask first.'
+          : '';
+      }
     }
 
     function showProcessing() {
@@ -1426,9 +1438,14 @@
         toast('Closed clean. Lined up.', 'success');
         const p = await loadProject();
         state.project = p;
-        applyProjectState();
-      } catch(err) { toast('Closing failed — ' + err.message, 'error'); }
-      finally { btn.disabled = false; btn.textContent = 'Line it up'; }
+        applyProjectState();   // re-renders Step 4 → locks the button (already scheduled)
+      } catch(err) {
+        const m = /review/i.test(err.message || '')
+          ? 'Already lined up — this build is scheduled. Nothing more to do here.'
+          : 'Closing failed — ' + err.message;
+        toast(m, /review/i.test(err.message || '') ? 'info' : 'error');
+        btn.disabled = false; btn.textContent = 'Line it up';   // only re-enable on failure
+      }
     }
 
     // ── Bind controls ──────────────────────────────────────────────────────

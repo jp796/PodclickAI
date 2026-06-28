@@ -1532,3 +1532,33 @@ selected. No undo of an applied cut except re-editing from the (now edited) take
 preserved on disk, so a fresh Ship It from raw could be re-pointed if ever needed.
 
 **Files:** `main.py`, `frontend/project-editor.html` (new), `frontend/project.html`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-28 — "Line it up" threw "failed" on an already-scheduled project
+
+**Symptom (JP):** Clicking **Line it up** on EP 102 (already `scheduled`, green "CLOSED CLEAN"
+banner showing) returned "failed." Nothing was actually wrong — the episode was already lined up.
+
+**Root cause:** `schedule_closing` (`POST /api/projects/{id}/schedule-closing`) only accepts a
+project in `review` status (it fires uploads + post creation + episode-number assignment, which
+must not run twice). Re-clicking on a `scheduled` project → 400 "Project must be in 'review'…".
+The Step 4 form stayed fully interactive after scheduling, and the generic catch surfaced the 400
+as a scary "Closing failed."
+
+**Fix (`frontend/project.html`):**
+- `showStep4()` now locks the button when `status ∈ {scheduled, closing, closed}`: disabled +
+  relabeled **"✓ Already lined up"** + explanatory title. Re-clicking is impossible.
+- `lineItUp()`: removed the `finally` that re-enabled/relabeled the button on success (it ran
+  AFTER `applyProjectState()` and clobbered the lock). Button is only re-enabled in the catch
+  (failure). The catch now detects the `review` 400 and shows a friendly info toast
+  ("Already lined up — this build is scheduled. Nothing more to do here.") instead of "failed."
+
+**Note:** Re-scheduling (change date/channels after the fact) is intentionally NOT enabled yet —
+it would need an idempotent re-schedule path (avoid double Buzzsprout/YouTube uploads + episode
+number re-increment). Flagged for later if JP wants to edit a scheduled closing.
+
+**Verified:** project.html JS passes `node --check`; server restarted. EP 102 stays scheduled
+(closing 2026-06-28T13:00:00Z); the button now shows locked instead of erroring.
+
+**Files:** `frontend/project.html`, `docs/BUGS_AND_FIXES.md`
