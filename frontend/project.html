@@ -836,16 +836,17 @@
       renderPlatforms();
       renderGuests();
 
-      // Already scheduled/closing/closed → lock the button so re-clicking can't
-      // throw a confusing "failed" (the backend only schedules a 'review' project).
+      // Scheduled/closing → the button RE-schedules (change date/channels). Closed
+      // → locked (already published, nothing to change).
       const btn = $('line-it-up-btn');
-      const locked = ['scheduled', 'closing', 'closed'].includes(p.status);
+      const isSched = ['scheduled', 'closing'].includes(p.status);
+      const isClosed = p.status === 'closed';
       if (btn) {
-        btn.disabled = locked;
-        btn.textContent = locked ? '✓ Already lined up' : 'Line it up';
-        btn.title = locked
-          ? 'This build is already scheduled — see the banner up top. To change the date or channels, ask first.'
-          : '';
+        btn.disabled = isClosed;
+        btn.textContent = isClosed ? '✓ Closed' : (isSched ? '↻ Update closing' : 'Line it up');
+        btn.title = isClosed
+          ? 'This build already published.'
+          : (isSched ? 'Change the date or channels and update the scheduled closing.' : '');
       }
     }
 

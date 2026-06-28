@@ -3484,11 +3484,16 @@ async def schedule_closing(project_id: str, request: Request):
         if not project:
             return JSONResponse({"error": "Project not found"}, status_code=404)
 
-        if project.status != "review":
+        if project.status not in ("review", "scheduled", "closing"):
             return JSONResponse(
-                {"error": f"Project must be in 'review' to schedule closing. Current: {project.status}"},
+                {"error": f"This build can't be lined up from '{project.status}'. Finish Ship It first."},
                 status_code=400,
             )
+
+        # Re-schedule support: an already-scheduled build can change date/channels.
+        # Don't re-upload (avoid duplicate Buzzsprout/YouTube) or re-bump the episode number.
+        _is_reschedule = project.status in ("scheduled", "closing")
+        _already_distributed = bool(project.buzzsprout_url or project.youtube_url)
 
         # Update guest_ids if overridden
         if guest_id_overrides is not None:
@@ -3519,7 +3524,8 @@ async def schedule_closing(project_id: str, request: Request):
         new_status="recorded",
     ))
 
-    # Create Post rows for the episode
+    # Create Post rows for the episode (replace prior posts on a re-schedule so
+    # changing date/channels doesn't pile up duplicates).
     asyncio.create_task(_create_closing_posts(
         project_id=project_id,
         project_uuid=pid,
@@ -3528,24 +3534,27 @@ async def schedule_closing(project_id: str, request: Request):
         location_id=project_data.get("location_id"),
         title=project_data.get("title", ""),
         show_notes=project_data.get("show_notes", ""),
+        replace=_is_reschedule,
     ))
 
-    # Distribution: upload to Buzzsprout (private draft) + YouTube (private)
-    # _distribute_project persists buzzsprout_url, buzzsprout_episode_id,
-    # youtube_url, youtube_video_id back to the project record.
-    # _distribute_project chains _build_guest_asset_package at its end (B5), so
-    # the guest email is drafted with the real Buzzsprout + YouTube URLs.
-    asyncio.create_task(_distribute_project(
-        project_id=project_id,
-        closing_at_ts=closing_at_ts,
-    ))
+    # Distribution: upload to Buzzsprout (private draft) + YouTube (private).
+    # Skip on a re-schedule that already distributed — re-running would create
+    # duplicate Buzzsprout/YouTube uploads. The new closing date still moves the
+    # social posts above; the podcast/YouTube go-public flip keeps its first time.
+    if not (_is_reschedule and _already_distributed):
+        asyncio.create_task(_distribute_project(
+            project_id=project_id,
+            closing_at_ts=closing_at_ts,
+        ))
 
-    return JSONResponse({
-        **project_data,
-        "message": f"Closing lined up for {closing_at.strftime('%B %d at %-I:%M %p')}. "
-                   f"Posts go up across {len(platforms)} platforms. "
-                   f"Episode uploading to Buzzsprout and YouTube in the background.",
-    })
+    _when = closing_at.strftime('%B %d at %-I:%M %p')
+    if _is_reschedule and _already_distributed:
+        _msg = (f"Closing moved to {_when} across {len(platforms)} platforms. "
+                f"The episode was already uploaded, so it won't re-upload — only the date and channels changed.")
+    else:
+        _msg = (f"Closing lined up for {_when}. Posts go up across {len(platforms)} platforms. "
+                f"Episode uploading to Buzzsprout and YouTube in the background.")
+    return JSONResponse({**project_data, "message": _msg})
 
 
 async def _compose_guest_asset_email(guest: dict):
@@ -4288,21 +4297,37 @@ async def _create_closing_posts(
     location_id: str,
     title: str,
     show_notes: str,
+    replace: bool = False,
 ) -> None:
     """
     Create Post rows for the episode closing.
     One Post with per-platform PostVariant entries.
     Uses existing posts table from Phase 2.
+
+    replace=True (re-schedule): delete this project's prior unpublished closing
+    posts first so changing date/channels doesn't create duplicates.
     """
     from db.engine import async_session as _async_session
     from db.models import Post, PostVariant
-    from sqlalchemy import insert
+    from sqlalchemy import insert, delete as _delete, select as _select
     import uuid as _uuid
 
     try:
         base_caption = show_notes[:500] if show_notes else f"New episode: {title}"
 
         async with _async_session() as session:
+            if replace:
+                # Remove prior scheduled/draft closing posts for this project
+                # (published ones are left alone). Variants cascade via FK.
+                _old = (await session.execute(
+                    _select(Post.id).where(
+                        Post.project_id == project_uuid,
+                        Post.status.in_(["scheduled", "draft", "failed"]),
+                    )
+                )).scalars().all()
+                if _old:
+                    await session.execute(_delete(Post).where(Post.id.in_(_old)))
+                    await session.commit()
             # Main episode post
             post_id = _uuid.uuid4()
             post = Post(

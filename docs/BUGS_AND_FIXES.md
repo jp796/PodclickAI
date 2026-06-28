@@ -1599,3 +1599,37 @@ verified earlier with a real cut+concat producing a valid 1080p MP4 + unit-teste
 click any missed words to cut (**2nd pass**) → **Apply Edit** → re-run Ship It.
 
 **Files:** `main.py`, `frontend/project-editor.html`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-28 — Re-schedule a closing (Line it up no longer errors on scheduled builds)
+
+**Symptom (JP):** Repeated "Closing failed." Clicking **Line it up** on EP 102 (already
+`scheduled`) returned 400 "Project must be in 'review'." The earlier button-lock (✓ Already lined
+up) didn't help — JP wants to actually change date/channels, and the message made him look for a
+nonexistent "review button."
+
+**Fix — make scheduling idempotent + re-schedulable (`main.py` + `frontend/project.html`):**
+- `schedule_closing` now accepts `review`, `scheduled`, and `closing` (was `review` only).
+  `_is_reschedule = status in (scheduled, closing)`; `_already_distributed = bool(buzzsprout_url or
+  youtube_url)`. Episode number is still only assigned `if not project.episode_number` (no re-bump).
+- `_create_closing_posts(..., replace=_is_reschedule)` — on a re-schedule it first deletes the
+  project's prior `scheduled/draft/failed` closing posts (variants cascade) so changing date/channels
+  doesn't pile up duplicates. Published posts are left alone.
+- `_distribute_project` is SKIPPED when `_is_reschedule and _already_distributed` — re-running would
+  create duplicate Buzzsprout/YouTube uploads. The new date still moves the social posts; the
+  podcast/YouTube go-public flip keeps its first scheduled time (documented tradeoff).
+- Reschedule-aware response message ("Closing moved to … — won't re-upload …").
+- `showStep4()`: scheduled/closing → button enabled, relabeled **↻ Update closing**; `closed` →
+  disabled **✓ Closed**; `review` → **Line it up**. (Was: locked on all three.)
+
+**Verified live:** POST schedule-closing on EP 102 (status scheduled) with an added `youtube`
+channel → **200** (was 400), status stays scheduled, posts replaced. EP 102 had no prior
+`buzzsprout_url` (original distribution never completed), so this run did the FIRST Buzzsprout upload
+— now `buzzsprout_url` is set, so subsequent re-schedules will correctly skip re-distribution.
+
+**Note:** the verification POST kicked EP 102's Buzzsprout upload (private draft; goes public at
+closing anyway). No duplicate — it had never uploaded before.
+
+**Files:** `main.py` (`schedule_closing`, `_create_closing_posts`), `frontend/project.html`,
+`docs/BUGS_AND_FIXES.md`
