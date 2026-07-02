@@ -1362,6 +1362,22 @@ async def _run_transcription(project_id_str: str) -> None:
             existing_meta["whisper_words"] = whisper_result["words"]
             existing_meta["whisper_segments"] = whisper_result["segments"]
             proj.legacy_metadata = existing_meta
+
+            # Auto-name the project from the transcript the moment it's ready — so the
+            # Job Site shows a real name instead of a filename/placeholder (before Ship It).
+            # Only overwrites placeholder/auto titles; a hand-set or RE-Daily-Brief name stays.
+            try:
+                if _looks_like_auto_title(proj.title) and transcript_text.strip():
+                    import asyncio as _aio
+                    _auto_title = await _aio.get_event_loop().run_in_executor(
+                        None, _generate_episode_title, transcript_text, "", "Success Agent Podcast"
+                    )
+                    if _auto_title:
+                        proj.title = _auto_title
+                        print(f"[transcribe] Auto-named project → {_auto_title}")
+            except Exception as _title_err:
+                print(f"[transcribe] auto-title failed (non-fatal): {_title_err}")
+
             await session.commit()
             print(
                 f"[transcribe] Persisted — transcript {len(transcript_text)} chars, "

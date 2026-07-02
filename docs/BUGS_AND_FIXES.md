@@ -1633,3 +1633,31 @@ closing anyway). No duplicate — it had never uploaded before.
 
 **Files:** `main.py` (`schedule_closing`, `_create_closing_posts`), `frontend/project.html`,
 `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-06-28 — Project auto-named from transcript at transcription time (not just Ship It)
+
+**Ask (JP):** "Build this in so that a project name is generated based off of the transcript."
+
+**Was:** `_generate_episode_title` (GPT-4o, transcript→clean title) + `_looks_like_auto_title`
+existed and were wired into Ship It only. So a freshly recorded/uploaded project kept its filename
+/ "New build — {date}" placeholder on the Job Site until Ship It ran (potentially much later).
+
+**Fix (`main.py`, `_run_transcription` persist block):** Right after the transcript + word
+timestamps persist (transcription done), if the current title is a placeholder
+(`_looks_like_auto_title`) and there's transcript text, generate a clean name from the transcript
+via `_generate_episode_title` (run_in_executor, non-blocking) and save it in the same commit.
+Gated so a hand-set name or an RE-Daily-Brief title is never overwritten. Non-fatal on failure
+(keeps the placeholder). Ship It's later auto-title still runs as a second pass (idempotent — the
+name is no longer a placeholder, so it's left alone).
+
+**Verified (server :8765):** `_looks_like_auto_title` → True for "New build — 2026-06-03 16:02",
+"Neal  Bawa— 2026-06-03 17:35", "Untitled"; False for a hand-set name. `_generate_episode_title`
+on the real RE Daily Brief transcript → "Unlocking Market Movement: The Shift Beyond Mortgage
+Rates". main.py parses; server 200.
+
+**Result:** A recording/upload now shows a real, transcript-derived name on the Job Site as soon as
+transcription finishes — before Ship It.
+
+**Files:** `main.py` (`_run_transcription`), `docs/BUGS_AND_FIXES.md`
