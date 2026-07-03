@@ -1661,3 +1661,36 @@ Rates". main.py parses; server 200.
 transcription finishes — before Ship It.
 
 **Files:** `main.py` (`_run_transcription`), `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-03 — Edited-cut projects shipped 0 clips (Ship It re-transcribed 36MB edited audio → Whisper 413)
+
+**Symptom (JP):** Chris Gavre interview reached `review` (Ship It "finished") but the Clips step
+showed **0 clips** ("No clips yet — they appear once Ship It finishes"). No assembled MP3 either.
+
+**Root cause:** The project had been run through the transcript editor (81 manual cuts →
+`edited_video_path` + `edited_words: 8489`, but `whisper_words: 0` on the raw take). When Ship It
+prefers the edited cut it sets `stored_audio_path = ""` to force a fresh audio extract from the
+edited video — which also disabled the step-2.5 **fast path** (needs `stored_audio_path AND
+stored_words`). So it fell through to the **re-transcribe fallback**, which extracts the edited
+video's audio (a full-length interview ≈ **36 MB**) and calls Whisper — **over Whisper's 25 MB
+cap → 413 → zero words → zero clips** (clip detection needs word timestamps). The 8489 correct,
+already-remapped `edited_words` were thrown away.
+
+**Fix (`main.py`, `_run_ship_it_async` step 2.5):** Added **Path B** between the fast path and the
+re-transcribe fallback — when `stored_words` is present but there's no stored audio (the edited-cut
+case), extract audio from the (edited) recording and **REUSE the stored words**; do NOT call Whisper.
+The words are already correct and aligned to that exact audio. The full re-transcribe fallback stays
+as Path C for genuinely word-less projects.
+
+**Verified live (Chris Gavre `c1b0c77e`, edited cut, 8489 words):** re-ran Ship It →
+`[ship_it.2.5] Edited cut: … REUSING 8489 stored words (no re-transcribe)` → assembled MP3 built
+(two-pass loudnorm) → **5 clips rendered** (clip_01–05 .mp4 + viral .ass + .srt, real hook text) →
+status `review`, `mp3_url` set, `show_notes` set. (Was: 0 clips, no mp3.)
+
+**Note:** segments aren't remapped for edited cuts (`whisper_segments: 0`), so an edited episode
+won't get YouTube chapter markers — acceptable; clips + assembled audio are the priority. Chapters
+on edited cuts are a later follow-on (remap segments alongside words in the editor).
+
+**Files:** `main.py` (`_run_ship_it_async` step 2.5), `docs/BUGS_AND_FIXES.md`

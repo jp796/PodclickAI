@@ -2778,6 +2778,36 @@ async def _run_ship_it_inner(
                     f"— falling back to re-extraction"
                 )
 
+        # Path B (edited cut): we HAVE word timestamps (edited_words remapped to the edited
+        # timeline) but no stored audio — because the edited cut forces a fresh audio extract.
+        # Extract audio from the edited video and REUSE the words. Do NOT re-transcribe: the
+        # edited video's audio can exceed Whisper's 25MB cap (a full-length interview extract
+        # is ~36MB) → the Whisper call 413s → zero words → zero clips. The words we already
+        # have are correct and aligned to this exact audio.
+        if not job_data.get("mp3_path") and recording_path and _stored_w:
+            from pathlib import Path as _path_check
+            if _path_check(recording_path).exists():
+                try:
+                    print(
+                        f"[ship_it.2.5] Edited cut: extracting audio from {recording_path} "
+                        f"and REUSING {len(_stored_w)} stored words (no re-transcribe)…"
+                    )
+                    extracted_audio = await loop.run_in_executor(
+                        None, _ship_it_extract_audio, recording_path
+                    )
+                    print(f"[ship_it.2.5] Audio extracted → {extracted_audio}")
+                    job_data = {
+                        "mp3_path": extracted_audio,
+                        "words": _stored_w,
+                        "segments": _stored_s,
+                    }
+                except Exception as _ext_err:
+                    import logging
+                    logging.getLogger("podclick.projects").warning(
+                        "[ship_it.2.5] Edited-cut audio extraction failed — "
+                        "falling back to full re-transcribe: %s", _ext_err
+                    )
+
         # Fallback: extract + Whisper for pre-fix projects or if stored audio is gone
         if not job_data.get("mp3_path") and recording_path:
             from pathlib import Path as _path_check
