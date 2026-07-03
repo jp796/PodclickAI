@@ -1694,3 +1694,26 @@ won't get YouTube chapter markers — acceptable; clips + assembled audio are th
 on edited cuts are a later follow-on (remap segments alongside words in the editor).
 
 **Files:** `main.py` (`_run_ship_it_async` step 2.5), `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-03 — Crop Mode simplified to Stack (default) + Center only; Chris Gavre clips re-rendered stack
+
+**Ask (JP):** "This needs a top/bottom stack as a default — not any of these [Host/Guest]. So
+center or top/bottom and center. No other options. Please re-render."
+
+**Was:** The Step 3 Crop Mode picker (`frontend/project.html`) had four pills —
+Stack / Host (`left`) / Guest (`right`) / Center. The Host/Guest half-crops are interview-specific
+and confusing.
+
+**Fix (`frontend/project.html`):** Removed the Host (`left`) and Guest (`right`) pills. Picker is now
+two options: **⬛⬛ Stack** (top/bottom split, the active default) and **◻ Center** (single speaker).
+Backend still accepts stack|left|right|center — only the UI is trimmed, so no backend change and old
+values never break.
+
+**Re-render:** Re-rendered all 5 Chris Gavre clips (`c1b0c77e`) with `crop_mode=stack` via
+`POST /api/projects/{id}/clips/{clipId}/rerender` — all HTTP 200. Verified clip_01 frame: proper
+top/bottom split (guest top / host bottom, two distinct people), 1080×1920, fresh mtime, viral
+captions preserved.
+
+**Files:** `frontend/project.html`, `docs/BUGS_AND_FIXES.md`
