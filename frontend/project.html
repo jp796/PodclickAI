@@ -553,6 +553,36 @@
       <div class="field-row" style="justify-content:flex-end;margin-top:22px;">
         <button class="btn btn-primary" id="line-it-up-btn">Line it up</button>
       </div>
+
+      <!-- Send guest assets — build the Drive package + email the guest, inline -->
+      <div id="assets-panel" style="margin-top:24px;border-top:1px solid #272420;padding-top:18px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <label class="field-label" style="margin:0;">📦 Send guest the assets</label>
+          <span class="meta" id="assets-gmail-note" style="font-size:11px;"></span>
+        </div>
+        <p class="meta" style="font-size:12px;margin:6px 0 12px;">Uploads the episode (MP3 + video + transcript + show notes + top clips + poster) to a Google Drive folder and drafts a thank-you email in your voice. You review it, then send.</p>
+        <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:10px;">
+          <input type="text"  id="asset-guest-name"  placeholder="Guest name" style="background:#0d0c0a;border:1px solid #272420;border-radius:7px;color:#e8e4de;padding:9px 11px;font-size:13px;" />
+          <input type="email" id="asset-guest-email" placeholder="Guest email (where the assets go)" style="background:#0d0c0a;border:1px solid #272420;border-radius:7px;color:#e8e4de;padding:9px 11px;font-size:13px;" />
+        </div>
+        <div class="field-row" style="justify-content:flex-end;margin-top:12px;">
+          <button class="btn btn-primary" id="build-assets-btn">📦 Build package</button>
+        </div>
+        <div id="assets-status" class="meta" style="font-size:12px;margin-top:8px;display:none;"></div>
+
+        <!-- Review + send (revealed once the package is built) -->
+        <div id="assets-review" style="display:none;margin-top:14px;background:#0d0c0a;border:1px solid #272420;border-radius:9px;padding:14px 16px;">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#d95f1e;margin-bottom:8px;">🔒 Draft only — nothing sent until you hit Send</div>
+          <div class="meta" id="assets-to" style="font-size:12px;margin-bottom:4px;"></div>
+          <div class="meta" id="assets-drive" style="font-size:12px;margin-bottom:10px;"></div>
+          <textarea id="assets-email-body" style="width:100%;min-height:220px;background:#131210;border:1px solid #272420;border-radius:7px;color:#e8e4de;padding:11px;font-size:13px;line-height:1.5;font-family:inherit;resize:vertical;"></textarea>
+          <div class="field-row" style="justify-content:flex-end;gap:8px;margin-top:12px;">
+            <button class="btn btn-ghost"    id="assets-copy-btn">📋 Copy</button>
+            <button class="btn btn-ghost"    id="assets-mark-btn">Mark sent manually</button>
+            <button class="btn btn-primary"  id="assets-send-btn">✅ Send Email</button>
+          </div>
+        </div>
+      </div>
     </div>
 
   </div><!-- /shell -->
@@ -846,6 +876,19 @@
           ? 'This build already published.'
           : (isSched ? 'Change the date or channels and update the scheduled closing.' : '');
       }
+
+      // Send-assets panel: prefill guest name, refresh Gmail status, surface any
+      // already-built package for this project.
+      const gnames = Array.isArray(p.guest_names) ? p.guest_names : [];
+      if (gnames.length && !$('asset-guest-name').value) $('asset-guest-name').value = gnames[0];
+      _refreshGmailNote();
+      (async () => {
+        try {
+          const r = await fetch('/api/projects/' + encodeURIComponent(PROJECT_ID) + '/guest-assets');
+          const d = await r.json();
+          if (d.ready && d.action) { if (d.action.recipient) $('asset-guest-email').value = d.action.recipient; renderAssetsReview(d.action); }
+        } catch (e) { /* none built yet */ }
+      })();
     }
 
     function showProcessing() {
@@ -1308,6 +1351,109 @@
         : '<span class="guest-chip">None linked</span>';
     }
 
+    // ── Send guest assets (Drive package + email) ──────────────────────────
+    let _assetsPoll = null;
+    let _gmailReady = false;
+
+    async function _refreshGmailNote() {
+      try {
+        const r = await fetch('/api/gmail/status');
+        const d = await r.json();
+        _gmailReady = !!d.authorized;
+        const note = $('assets-gmail-note');
+        if (note) {
+          note.textContent = _gmailReady ? '✅ Gmail connected' : '⚠ Gmail not connected';
+          note.style.color = _gmailReady ? '#5fb87a' : '#d99b1e';
+        }
+      } catch (e) { /* non-fatal */ }
+    }
+
+    async function buildGuestAssets() {
+      const name  = ($('asset-guest-name').value || '').trim();
+      const email = ($('asset-guest-email').value || '').trim();
+      if (!email || email.indexOf('@') < 0) { toast('Enter the guest’s email first.', 'error'); return; }
+      const btn = $('build-assets-btn');
+      const st = $('assets-status');
+      btn.disabled = true; btn.textContent = 'Building…';
+      st.style.display = ''; st.textContent = '📦 Uploading to Drive and drafting the email… this can take a minute.';
+      $('assets-review').style.display = 'none';
+      try {
+        const res = await fetch('/api/projects/' + encodeURIComponent(PROJECT_ID) + '/guest-assets/build', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ name, email }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Build failed');
+        st.textContent = data.message || 'Building…';
+        _startAssetsPoll();
+      } catch (err) {
+        st.textContent = '';  st.style.display = 'none';
+        btn.disabled = false; btn.textContent = '📦 Build package';
+        toast('Couldn’t start the build — ' + err.message, 'error');
+      }
+    }
+
+    function _startAssetsPoll() {
+      if (_assetsPoll) clearInterval(_assetsPoll);
+      let tries = 0;
+      _assetsPoll = setInterval(async () => {
+        tries++;
+        try {
+          const r = await fetch('/api/projects/' + encodeURIComponent(PROJECT_ID) + '/guest-assets');
+          const d = await r.json();
+          if (d.ready && d.action) { clearInterval(_assetsPoll); _assetsPoll = null; renderAssetsReview(d.action); return; }
+        } catch (e) { /* keep polling */ }
+        if (tries > 45) {  // ~3 min
+          clearInterval(_assetsPoll); _assetsPoll = null;
+          $('assets-status').textContent = 'Still working… check the Walk-through Punch List if it doesn’t appear.';
+          const b = $('build-assets-btn'); b.disabled = false; b.textContent = '📦 Build package';
+        }
+      }, 4000);
+    }
+
+    function renderAssetsReview(a) {
+      $('assets-status').style.display = 'none';
+      const b = $('build-assets-btn'); b.disabled = false; b.textContent = '↻ Rebuild';
+      $('assets-review').style.display = '';
+      $('assets-review').dataset.actionId = a.id;
+      $('assets-to').innerHTML = 'To: <strong>' + escHtml(a.recipient || '') + '</strong>';
+      const n = (a.uploaded || []).length;
+      $('assets-drive').innerHTML = a.drive_url
+        ? (n + ' file' + (n !== 1 ? 's' : '') + ' in Drive — <a href="' + escHtml(a.drive_url) + '" target="_blank" style="color:#f07030;">open folder ↗</a>')
+        : (a.drive_configured ? 'Drive folder pending…' : '⚠ Drive not connected — the email still carries the episode links.');
+      $('assets-email-body').value = a.email || '';
+      $('assets-send-btn').textContent = _gmailReady ? '✅ Send Email' : '🔗 Connect Gmail to Send';
+    }
+
+    async function _dispatchAssets(send) {
+      const wrap = $('assets-review');
+      const id = wrap.dataset.actionId;
+      if (!id) return;
+      if (send && !_gmailReady) { window.open('/api/gmail/auth', '_blank'); return; }
+      const to = $('assets-to').textContent.replace('To: ', '');
+      if (!confirm(send ? ('Send this email to ' + to + '?') : ('Mark ' + to + ' as sent (without emailing)?'))) return;
+      const sendBtn = $('assets-send-btn'), markBtn = $('assets-mark-btn');
+      sendBtn.disabled = true; markBtn.disabled = true;
+      if (send) sendBtn.textContent = 'Sending…';
+      try {
+        const res = await fetch('/api/brick/actions/' + id + '/approve-send', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ email_body: $('assets-email-body').value, send }),
+        });
+        const data = await res.json();
+        if (res.status === 409 && data.needs_gmail) { window.open('/api/gmail/auth', '_blank'); throw new Error('Connect Gmail, then send again.'); }
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        toast(send ? ('✅ Sent to ' + (data.to || to)) : '✅ Marked sent', 'success');
+        wrap.style.display = 'none';
+        $('build-assets-btn').textContent = '✓ Assets sent';
+        $('build-assets-btn').disabled = true;
+      } catch (err) {
+        toast(err.message, 'error');
+        sendBtn.disabled = false; markBtn.disabled = false;
+        sendBtn.textContent = _gmailReady ? '✅ Send Email' : '🔗 Connect Gmail to Send';
+      }
+    }
+
     // ── Routing ────────────────────────────────────────────────────────────
     function applyProjectState() {
       const p = state.project;
@@ -1482,6 +1628,15 @@
       $('step3-next-btn').addEventListener('click', () => navigateToStep(4));
       $('line-it-up-btn').addEventListener('click', lineItUp);
       $('rerun-ship-btn').addEventListener('click', rerunShipIt);
+
+      // Send guest assets (Step 4)
+      $('build-assets-btn').addEventListener('click', buildGuestAssets);
+      $('assets-send-btn').addEventListener('click', () => _dispatchAssets(true));
+      $('assets-mark-btn').addEventListener('click', () => _dispatchAssets(false));
+      $('assets-copy-btn').addEventListener('click', () => {
+        navigator.clipboard.writeText($('assets-email-body').value)
+          .then(() => toast('Email copied', 'success')).catch(() => toast('Copy failed', 'error'));
+      });
 
       // Schedule All Clips
       $('schedule-all-btn').addEventListener('click', () => {

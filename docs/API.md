@@ -790,6 +790,8 @@ Notes:    Triggers the same logic as the 4am cron. Useful for manual testing.
 | POST | `/api/projects/{id}/schedule-closing` | Step 4 — schedule publish + create posts |
 | POST | `/api/projects/{id}/generate-title` | Generate a clean episode title from the transcript (GPT-4o); saves `project.title` |
 | POST | `/api/projects/{id}/build-asset-package` | Build guest asset package(s) → Drive folder + uploads + drafted email → Punch List |
+| POST | `/api/projects/{id}/guest-assets/build` | Step 4 inline — capture recipient {name,email}, link guest, build Drive package + drafted email |
+| GET | `/api/projects/{id}/guest-assets` | Latest pending guest_asset_package for this project (email + Drive link for inline review/send) |
 
 ### GET /api/projects
 ```json

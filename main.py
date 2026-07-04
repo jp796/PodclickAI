@@ -4297,6 +4297,109 @@ async def build_asset_package(project_id: str):
     })
 
 
+@app.post("/api/projects/{project_id}/guest-assets/build")
+async def build_guest_assets_for_recipient(project_id: str, request: Request):
+    """
+    In-project 'Send guest assets' flow (Step 4). Capture the guest's name + email
+    right here, link them to the project, and build the package (Drive folder +
+    poster + uploads + Foundation-drafted email). Fire-and-forget — the frontend
+    polls GET /api/projects/{id}/guest-assets for the drafted email + Drive link,
+    then sends via the existing Approve & Send (Gmail) path. No need to visit the
+    Walk-through.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    from sqlalchemy.orm.attributes import flag_modified
+    import uuid as _uuid
+    from datetime import datetime as _dt
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        return JSONResponse({"error": "Invalid project ID"}, status_code=400)
+
+    data = await request.json()
+    name = (data.get("name") or "").strip()
+    email = (data.get("email") or "").strip()
+    if not email or "@" not in email:
+        return JSONResponse({"error": "A valid guest email is required."}, status_code=400)
+    if not name:
+        name = email.split("@")[0]
+
+    # Upsert the guest in guests.json (match by email, case-insensitive)
+    guests = _load_guests()
+    guest = next((g for g in guests if (g.get("email") or "").strip().lower() == email.lower()), None)
+    if guest:
+        gid = guest.get("id")
+        if name and not guest.get("name"):
+            guest["name"] = name
+        guest["status"] = "recorded"
+    else:
+        gid = str(_uuid.uuid4())[:8]
+        guests.append({
+            "id": gid, "name": name, "email": email, "status": "recorded",
+            "created_at": _dt.now().isoformat(),
+        })
+    _save_guests(guests)
+
+    # Link the guest to the project (idempotent)
+    async with _async_session() as session:
+        project = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if not project:
+            return JSONResponse({"error": "Project not found"}, status_code=404)
+        ids = list(project.guest_ids or [])
+        if gid not in ids:
+            ids.append(gid)
+            project.guest_ids = ids
+            flag_modified(project, "guest_ids")
+            await session.commit()
+
+    asyncio.create_task(_build_guest_asset_package(project_id=project_id))
+    return JSONResponse({
+        "ok": True, "guest_id": gid, "recipient": email,
+        "message": f"Building {name}'s package — uploading to Drive and drafting the email. This can take a minute.",
+    })
+
+
+@app.get("/api/projects/{project_id}/guest-assets")
+async def get_guest_assets_for_project(project_id: str):
+    """
+    Return the most recent pending guest_asset_package for this project so the
+    Step 4 panel can show the drafted email + Drive link + Send button inline.
+    { ready: bool, action: {id, recipient, email, drive_url, drive_configured,
+      uploaded, skipped, assets} | null }
+    """
+    from db.engine import async_session as _async_session
+    from db.models import BrickAction
+    from sqlalchemy import select, desc
+
+    async with _async_session() as session:
+        rows = (await session.execute(
+            select(BrickAction)
+            .where(BrickAction.action_type == "guest_asset_package")
+            .where(BrickAction.status == "pending")
+            .order_by(desc(BrickAction.requested_at))
+            .limit(25)
+        )).scalars().all()
+
+    for r in rows:
+        pl = r.payload or {}
+        if pl.get("project_id") == project_id:
+            return JSONResponse({"ready": True, "action": {
+                "id": str(r.id),
+                "recipient": pl.get("recipient", ""),
+                "guest_name": pl.get("guest_name", ""),
+                "email": pl.get("email", ""),
+                "drive_url": pl.get("drive_url", ""),
+                "drive_configured": pl.get("drive_configured", False),
+                "uploaded": pl.get("uploaded", []),
+                "skipped": pl.get("skipped", []),
+                "assets": pl.get("assets", []),
+            }})
+    return JSONResponse({"ready": False, "action": None})
+
+
 async def _update_guest_statuses(
     project_id: str,
     guest_ids: list,

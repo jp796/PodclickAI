@@ -1717,3 +1717,48 @@ top/bottom split (guest top / host bottom, two distinct people), 1080×1920, fre
 captions preserved.
 
 **Files:** `frontend/project.html`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-03 — Send guest assets straight from Step 4 (Line it up → capture email → build → send)
+
+**Ask (JP):** "How do I send the assets? When I click Line It Up it should ask me for the email and
+all the things I need to send the Google Drive with all the assets."
+
+**Root gap:** The guest asset package (Drive folder + poster + Foundation email + Gmail send) was
+fully built and battle-tested (Neal EP.101 shipped for real) — but it only triggered for a **linked
+guest** and could only be reviewed/sent on the **Walk-through** Punch List. The Chris Gavre project
+had `guest_ids: []` and no guest record, so nothing ever built — and JP had no in-project way to
+enter the recipient and send.
+
+**What shipped — an inline "Send guest assets" flow in project Step 4 (reuses the existing machinery):**
+
+**Backend (`main.py`):**
+- `POST /api/projects/{id}/guest-assets/build` `{name, email}` — validates the email, upserts a guest
+  in `guests.json` (match by email, else create id=uuid4()[:8], status='recorded'), links them to
+  `project.guest_ids` (flag_modified, idempotent), then fires the existing `_build_guest_asset_package`
+  (Drive upload + poster + Foundation email → Punch List item). Fire-and-forget.
+- `GET /api/projects/{id}/guest-assets` — returns the newest pending `guest_asset_package` BrickAction
+  for this project `{ready, action:{id, recipient, email, drive_url, drive_configured, uploaded,
+  skipped, assets}}` so the panel can show the drafted email + Drive link inline.
+- Ordering fixed to `BrickAction.requested_at` (model has no `created_at`).
+
+**Frontend (`frontend/project.html`, Step 4):** "📦 Send guest the assets" section — guest name +
+email inputs (name prefilled from the linked guest), **📦 Build package** → POST build → poll
+guest-assets every 4s (≤3 min) → reveals a review card: recipient, Drive folder link (N files),
+the drafted email in an **editable textarea**, and **✅ Send Email** / **Mark sent manually** / 📋 Copy.
+Send routes through the SAME `/api/brick/actions/{id}/approve-send` (Gmail send-as, 409→connect flow).
+A Gmail-connected badge shows at the top. `showStep4()` auto-surfaces an already-built package.
+
+**Checks-and-balances preserved:** nothing sends until JP reviews the email and clicks Send; the
+underlying approve-send path is unchanged.
+
+**Verified (server :8765):** build endpoint 400s on a bad email; `GET guest-assets` → `{ready:false}`
+before a build; served `/project` carries the panel markup + all functions (buildGuestAssets,
+_dispatchAssets, renderAssetsReview, asset-guest-email). main.py parses; inline JS passes `node --check`.
+Did NOT fire a live 265MB Drive upload against Chris Gavre's project (would link a throwaway guest +
+re-upload) — the package builder + Gmail send are already proven end-to-end (Neal EP.101).
+
+**Note:** Gmail is currently connected as `james.fluellen@gmail.com`; Drive as `jp@titanreteam.com`.
+
+**Files:** `main.py`, `frontend/project.html`, `docs/API.md`, `docs/FRONTEND.md`, `docs/BUGS_AND_FIXES.md`

@@ -432,3 +432,20 @@ in the transport bar. Recorder reads the canvas composite (which draws `els.cam`
 | `clearStudioDraft()` | Remove the draft — called once a recording is saved (saveAndContinue, `_doPodcastPublishRaw`). |
 
 `checkInboundScript()` now: inbound hand-off wins + persists; else restores the draft so a refresh keeps the script + topic cued.
+
+---
+
+## project.html — Send guest assets (Step 4, 2026-07-03)
+
+Inline guest asset send on the project page (no need to visit the Walk-through).
+
+| Function | Description |
+|----------|-------------|
+| `buildGuestAssets()` | POST `/api/projects/{id}/guest-assets/build` {name,email} → links guest + builds Drive package; starts `_startAssetsPoll()` |
+| `_startAssetsPoll()` | Polls `GET /api/projects/{id}/guest-assets` every 4s (≤3 min) until the package is ready |
+| `renderAssetsReview(a)` | Reveals the review card: recipient, Drive link, editable email textarea, Send/Mark/Copy buttons |
+| `_dispatchAssets(send)` | Calls `/api/brick/actions/{id}/approve-send` {email_body, send}; send=false marks sent; 409→open `/api/gmail/auth` |
+| `_refreshGmailNote()` | GET `/api/gmail/status` → shows connected/not-connected badge |
+
+`showStep4()` prefills the guest name, refreshes Gmail status, and surfaces an already-built package.
+Panel markup lives in `#assets-panel` inside `#step4-panel`.
