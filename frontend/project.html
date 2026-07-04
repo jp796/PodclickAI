@@ -1429,7 +1429,6 @@
       const wrap = $('assets-review');
       const id = wrap.dataset.actionId;
       if (!id) return;
-      if (send && !_gmailReady) { openGmailModal(() => _dispatchAssets(true)); return; }
       const to = $('assets-to').textContent.replace('To: ', '');
       if (!confirm(send ? ('Send this email to ' + to + '?') : ('Mark ' + to + ' as sent (without emailing)?'))) return;
       const sendBtn = $('assets-send-btn'), markBtn = $('assets-mark-btn');
@@ -1441,7 +1440,7 @@
           body: JSON.stringify({ email_body: $('assets-email-body').value, send }),
         });
         const data = await res.json();
-        if (res.status === 409 && data.needs_gmail) { openGmailModal(() => _dispatchAssets(true)); throw new Error('Reconnect Gmail — this send will resume automatically.'); }
+        if (res.status === 409 && data.needs_gmail) { openGmailModal(); throw new Error('Reconnect Gmail, then hit Send again.'); }
         if (!res.ok) throw new Error(data.error || 'Failed');
         toast(send ? ('✅ Sent to ' + (data.to || to)) : '✅ Marked sent', 'success');
         wrap.style.display = 'none';
@@ -1454,44 +1453,15 @@
       }
     }
 
-    // ── Connect-Gmail modal (graceful reconnect, auto-resume) ──────────────
-    let _gmailPoll = null;
-    let _gmailOnConnected = null;
-
-    function openGmailModal(onConnected) {
-      _gmailOnConnected = onConnected || null;
-      $('gmail-modal-waiting').style.display = 'none';
-      $('gmail-modal').style.display = 'flex';
-    }
-
-    function closeGmailModal() {
-      $('gmail-modal').style.display = 'none';
-      if (_gmailPoll) { clearInterval(_gmailPoll); _gmailPoll = null; }
-    }
+    // ── Connect-Gmail modal — pops only when a send fails (no polling) ─────
+    function openGmailModal() { $('gmail-modal').style.display = 'flex'; }
+    function closeGmailModal() { $('gmail-modal').style.display = 'none'; }
 
     function _connectGmailFromModal() {
-      window.open('/api/gmail/auth', '_blank');           // Google consent in a new tab
-      $('gmail-modal-waiting').style.display = 'block';    // don't freeze the UI — just watch
-      if (_gmailPoll) clearInterval(_gmailPoll);
-      let tries = 0;
-      _gmailPoll = setInterval(async () => {
-        tries++;
-        try {
-          const r = await fetch('/api/gmail/status');
-          const d = await r.json();
-          if (d.authorized) {
-            _gmailReady = true;
-            clearInterval(_gmailPoll); _gmailPoll = null;
-            _refreshGmailNote();
-            closeGmailModal();
-            toast('✅ Gmail reconnected — sending now', 'success');
-            const cb = _gmailOnConnected; _gmailOnConnected = null;
-            if (cb) cb();                                   // resume the send that was blocked
-            return;
-          }
-        } catch (e) { /* keep watching */ }
-        if (tries > 150) { clearInterval(_gmailPoll); _gmailPoll = null; }  // ~5 min safety
-      }, 2000);
+      window.open('/api/gmail/auth', '_blank');   // Google consent in a new tab
+      closeGmailModal();
+      _refreshGmailNote();                         // refresh the badge; then user hits Send again
+      toast('Finish in the Google tab, then hit Send again.', 'info');
     }
 
     // ── Routing ────────────────────────────────────────────────────────────
@@ -1890,8 +1860,7 @@
     <div style="background:#131210;border:1px solid #34302a;border-radius:14px;max-width:420px;width:90%;padding:26px 28px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.5);">
       <div style="font-size:34px;margin-bottom:6px;">📧</div>
       <h3 style="margin:0 0 8px;font-size:18px;color:#f3efe9;">Reconnect Gmail to send</h3>
-      <p id="gmail-modal-msg" class="meta" style="font-size:13px;line-height:1.5;margin:0 0 18px;">Your Gmail sign-in expired (it lapses about weekly). Reconnect once and this send picks right back up — nothing's lost.</p>
-      <div id="gmail-modal-waiting" class="meta" style="display:none;font-size:12px;color:#d99b1e;margin-bottom:14px;">⏳ Waiting for you to finish in the Google tab…</div>
+      <p id="gmail-modal-msg" class="meta" style="font-size:13px;line-height:1.5;margin:0 0 18px;">Your Gmail sign-in expired (it lapses about weekly). Reconnect in the Google tab, then hit Send again — nothing's lost.</p>
       <div style="display:flex;gap:8px;justify-content:center;">
         <button class="btn btn-ghost"   id="gmail-modal-cancel">Not now</button>
         <button class="btn btn-primary" id="gmail-modal-connect">🔗 Connect Gmail</button>

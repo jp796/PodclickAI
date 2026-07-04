@@ -1788,3 +1788,10 @@ markup + `openGmailModal`/`_connectGmailFromModal`/`gmail-modal-waiting`. (Live 
 needs JP's physical Google consent — can't complete headless.)
 
 **Files:** `frontend/project.html`, `docs/BUGS_AND_FIXES.md`
+
+**Follow-up (same day) — dropped the 2s polling per JP:** "Every 2 seconds is not necessary — have
+it just check when it doesn't work, then a pop-up to reconnect." Removed the status poll + the
+proactive `!_gmailReady` pre-check. Now the Send button always just tries; only a real `409
+needs_gmail` failure pops the modal. **Connect Gmail** opens the Google tab, closes the modal, and
+toasts "Finish in the Google tab, then hit Send again" — the user reconnects and re-clicks Send (no
+background polling). Removed `_gmailPoll`, `_gmailOnConnected`, and the waiting spinner.
