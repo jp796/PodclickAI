@@ -1762,3 +1762,29 @@ re-upload) — the package builder + Gmail send are already proven end-to-end (N
 **Note:** Gmail is currently connected as `james.fluellen@gmail.com`; Drive as `jp@titanreteam.com`.
 
 **Files:** `main.py`, `frontend/project.html`, `docs/API.md`, `docs/FRONTEND.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-03 — Connect-Gmail modal (graceful reconnect, no UI freeze) on the Send-assets flow
+
+**Ask (JP):** "Can you design a pop-up Connect Gmail when this happens so the system doesn't bog
+down because of it?"
+
+**Was:** When the Gmail token had lapsed (it expires ~weekly in Testing mode), the Step 4 Send
+button just `window.open('/api/gmail/auth')` in a raw tab and threw "Connect Gmail, then send again."
+— the user had to notice, reconnect, come back, and click Send a second time.
+
+**What shipped (`frontend/project.html`):** A clean **#gmail-modal** that pops the moment a send is
+attempted without a live Gmail token (either the pre-check `!_gmailReady` or a backend `409
+needs_gmail`). It explains the ~weekly expiry, offers **🔗 Connect Gmail** / **Not now**, opens the
+Google consent in a new tab, then **polls `/api/gmail/status` every 2s** (≤5 min) — the page never
+freezes. On reconnect it auto-closes, toasts "Gmail reconnected — sending now," and **resumes the
+exact send that was blocked** via a stored `_gmailOnConnected` callback. New JS: `openGmailModal`,
+`closeGmailModal`, `_connectGmailFromModal`. `_dispatchAssets` now routes both the pre-check and the
+409 through the modal instead of a bare redirect.
+
+**Verified (server :8765):** inline JS passes `node --check`; served `/project` carries the modal
+markup + `openGmailModal`/`_connectGmailFromModal`/`gmail-modal-waiting`. (Live reconnect-resume
+needs JP's physical Google consent — can't complete headless.)
+
+**Files:** `frontend/project.html`, `docs/BUGS_AND_FIXES.md`
