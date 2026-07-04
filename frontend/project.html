@@ -560,15 +560,25 @@
           <label class="field-label" style="margin:0;">📦 Send guest the assets</label>
           <span class="meta" id="assets-gmail-note" style="font-size:11px;"></span>
         </div>
-        <p class="meta" style="font-size:12px;margin:6px 0 12px;">Uploads the episode (MP3 + video + transcript + show notes + top clips + poster) to a Google Drive folder and drafts a thank-you email in your voice. You review it, then send.</p>
-        <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:10px;">
-          <input type="text"  id="asset-guest-name"  placeholder="Guest name" style="background:#0d0c0a;border:1px solid #272420;border-radius:7px;color:#e8e4de;padding:9px 11px;font-size:13px;" />
-          <input type="email" id="asset-guest-email" placeholder="Guest email (where the assets go)" style="background:#0d0c0a;border:1px solid #272420;border-radius:7px;color:#e8e4de;padding:9px 11px;font-size:13px;" />
+        <!-- Yes/No gate — only interviews with a guest send assets -->
+        <div class="pos-row" id="guest-yesno" style="align-items:center;margin:8px 0 4px;">
+          <span class="meta" style="font-size:12px;margin-right:10px;">Is there a guest on this build?</span>
+          <div class="pos-pill" data-guest="yes">Yes</div>
+          <div class="pos-pill" data-guest="no">No</div>
         </div>
-        <div class="field-row" style="justify-content:flex-end;margin-top:12px;">
-          <button class="btn btn-primary" id="build-assets-btn">📦 Build package</button>
+        <p class="meta" id="assets-no-note" style="font-size:12px;margin:6px 0 0;display:none;">No guest — nothing to send. 👍</p>
+
+        <div id="assets-guest-fields" style="display:none;">
+          <p class="meta" style="font-size:12px;margin:10px 0 12px;">Uploads the episode (MP3 + video + transcript + show notes + top clips + poster) to a Google Drive folder and drafts a thank-you email in your voice. You review it, then send.</p>
+          <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:10px;">
+            <input type="text"  id="asset-guest-name"  placeholder="Guest name" style="background:#0d0c0a;border:1px solid #272420;border-radius:7px;color:#e8e4de;padding:9px 11px;font-size:13px;" />
+            <input type="email" id="asset-guest-email" placeholder="Guest email (where the assets go)" style="background:#0d0c0a;border:1px solid #272420;border-radius:7px;color:#e8e4de;padding:9px 11px;font-size:13px;" />
+          </div>
+          <div class="field-row" style="justify-content:flex-end;margin-top:12px;">
+            <button class="btn btn-primary" id="build-assets-btn">📦 Build package</button>
+          </div>
+          <div id="assets-status" class="meta" style="font-size:12px;margin-top:8px;display:none;"></div>
         </div>
-        <div id="assets-status" class="meta" style="font-size:12px;margin-top:8px;display:none;"></div>
 
         <!-- Review + send (revealed once the package is built) -->
         <div id="assets-review" style="display:none;margin-top:14px;background:#0d0c0a;border:1px solid #272420;border-radius:9px;padding:14px 16px;">
@@ -880,13 +890,15 @@
       // Send-assets panel: prefill guest name, refresh Gmail status, surface any
       // already-built package for this project.
       const gnames = Array.isArray(p.guest_names) ? p.guest_names : [];
+      const gids = Array.isArray(p.guest_ids) ? p.guest_ids : [];
       if (gnames.length && !$('asset-guest-name').value) $('asset-guest-name').value = gnames[0];
+      setGuestOnBuild(gids.length > 0);   // linked guest → default Yes; else unset (fields hidden)
       _refreshGmailNote();
       (async () => {
         try {
           const r = await fetch('/api/projects/' + encodeURIComponent(PROJECT_ID) + '/guest-assets');
           const d = await r.json();
-          if (d.ready && d.action) { if (d.action.recipient) $('asset-guest-email').value = d.action.recipient; renderAssetsReview(d.action); }
+          if (d.ready && d.action) { setGuestOnBuild(true); if (d.action.recipient) $('asset-guest-email').value = d.action.recipient; renderAssetsReview(d.action); }
         } catch (e) { /* none built yet */ }
       })();
     }
@@ -1368,6 +1380,14 @@
       } catch (e) { /* non-fatal */ }
     }
 
+    function setGuestOnBuild(yes) {
+      document.querySelectorAll('#guest-yesno .pos-pill').forEach(p =>
+        p.classList.toggle('active', p.dataset.guest === (yes ? 'yes' : 'no')));
+      $('assets-guest-fields').style.display = yes ? '' : 'none';
+      $('assets-no-note').style.display = yes ? 'none' : '';
+      if (!yes) $('assets-review').style.display = 'none';
+    }
+
     async function buildGuestAssets() {
       const name  = ($('asset-guest-name').value || '').trim();
       const email = ($('asset-guest-email').value || '').trim();
@@ -1640,6 +1660,8 @@
       $('rerun-ship-btn').addEventListener('click', rerunShipIt);
 
       // Send guest assets (Step 4)
+      document.querySelectorAll('#guest-yesno .pos-pill').forEach(p =>
+        p.addEventListener('click', () => setGuestOnBuild(p.dataset.guest === 'yes')));
       $('build-assets-btn').addEventListener('click', buildGuestAssets);
       $('assets-send-btn').addEventListener('click', () => _dispatchAssets(true));
       $('assets-mark-btn').addEventListener('click', () => _dispatchAssets(false));

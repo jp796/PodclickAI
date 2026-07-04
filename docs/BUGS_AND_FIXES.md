@@ -1795,3 +1795,10 @@ proactive `!_gmailReady` pre-check. Now the Send button always just tries; only 
 needs_gmail` failure pops the modal. **Connect Gmail** opens the Google tab, closes the modal, and
 toasts "Finish in the Google tab, then hit Send again" — the user reconnects and re-clicks Send (no
 background polling). Removed `_gmailPoll`, `_gmailOnConnected`, and the waiting spinner.
+
+**Follow-up (same day) — Yes/No guest gate on the Send-assets panel:** JP: "In the Line it up
+phase ask is there a guest? yes/no; 'yes' → add guest contact info to send the G-Drive assets."
+Added a **Is there a guest on this build?** Yes/No pill row above the fields. **No** hides the
+name/email + Build (shows "No guest — nothing to send 👍"); **Yes** reveals them. `setGuestOnBuild(yes)`
+toggles `#assets-guest-fields`; wired to the pills. `showStep4()` defaults to Yes when a guest is
+already linked (or a package exists), else the fields stay hidden until Yes is picked.
