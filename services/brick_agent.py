@@ -34,6 +34,7 @@ from db.models import (
     BrickPermit,
     BrickTrackRecord,
     Blueprint,
+    Clip,
     FoundationScore,
     Location,
     Post,
@@ -303,12 +304,15 @@ class BrickAgent:
                 action_type = item.get("action_type", "draft_post")
                 required_tier = ACTION_TIER_MAP.get(action_type, "draftsman")
 
-                # In Phase 3A: planning loop only proposes draftsman-tier actions
-                # Higher-tier actions are deferred to future phases
-                if not _tier_allows("draftsman", required_tier):
+                # The planning loop proposes up to the permit the user has actually
+                # granted. Before this, the cap was hard-coded to "draftsman", so
+                # promoting Brick on the /permit screen changed a label and nothing
+                # else. Proposing is still not executing: every action lands on the
+                # punch list and execute_action re-checks the tier at approval time.
+                if not _tier_allows(permit.current_tier, required_tier):
                     logger.info(
-                        "[brick.planning] Skipping action %s — requires %s (Phase 3A cap: draftsman)",
-                        action_type, required_tier,
+                        "[brick.planning] Skipping action %s — requires %s (current permit: %s)",
+                        action_type, required_tier, permit.current_tier,
                     )
                     continue
 
@@ -1253,6 +1257,9 @@ class BrickAgent:
             )
             return {"post_id": str(post.id), "topic": topic, "status": "draft", "caption": caption}
 
+        if action_type == "cut_clip":
+            return await self._dispatch_cut_clip(action, payload, session)
+
         if action_type == "guest_asset_package":
             # The package (Drive folder + uploads + drafted email) was already built
             # at Closing by _build_guest_asset_package; the punch-list payload carries
@@ -1282,6 +1289,112 @@ class BrickAgent:
 
         logger.warning("[brick.action] Unknown action_type %r — no-op", action_type)
         return {"action_type": action_type, "status": "no_op"}
+
+    async def _dispatch_cut_clip(
+        self, action: BrickAction, payload: Dict[str, Any], session: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        Post an already-rendered clip to TikTok. Foreman tier.
+
+        This never renders. Rendering belongs to the Ship It pipeline, which is
+        deterministic and already tested by use; Brick's job here is to choose a
+        rendered clip and publish it. Selection is by explicit `clip_id`, else the
+        highest virality_score rendered clip on the given project.
+
+        Honest reporting is the point of the return value: TikTok decides the
+        actual privacy level (an unaudited app only gets SELF_ONLY), so we report
+        what landed rather than what we asked for.
+        """
+        from pipeline.tiktok import TikTokAuthError, upload_clip
+
+        clip_id = payload.get("clip_id")
+        project_id = payload.get("project_id")
+        clip: Optional[Clip] = None
+
+        if clip_id:
+            clip = await session.get(Clip, uuid.UUID(str(clip_id)))
+            if clip is not None and str(clip.location_id) != str(action.location_id):
+                raise PermissionError(
+                    f"Clip {clip_id} belongs to another location — refusing to post"
+                )
+        elif project_id:
+            rows = await session.execute(
+                select(Clip)
+                .where(
+                    and_(
+                        Clip.project_id == uuid.UUID(str(project_id)),
+                        Clip.location_id == action.location_id,
+                        Clip.status.in_(("rendered", "approved")),
+                        Clip.rendered_url.isnot(None),
+                    )
+                )
+                .order_by(Clip.virality_score.desc().nullslast())
+                .limit(1)
+            )
+            clip = rows.scalars().first()
+        else:
+            raise ValueError("cut_clip payload needs clip_id or project_id")
+
+        if clip is None:
+            return {
+                "action_type": "cut_clip",
+                "status": "skipped",
+                "reason": "no rendered clip available to post",
+            }
+        if not clip.rendered_url:
+            return {
+                "action_type": "cut_clip",
+                "status": "skipped",
+                "reason": f"clip {clip.id} has not been rendered yet",
+                "clip_id": str(clip.id),
+            }
+
+        # Prefer the Foundation-generated social caption; fall back to the hook.
+        title = (payload.get("title") or clip.clip_caption or clip.hook_text or "").strip()
+        if not title:
+            title = "New clip"
+
+        duration = None
+        if clip.source_end_seconds is not None and clip.source_start_seconds is not None:
+            duration = float(clip.source_end_seconds) - float(clip.source_start_seconds)
+
+        requested_privacy = payload.get("privacy_level") or "PUBLIC_TO_EVERYONE"
+
+        try:
+            result = await upload_clip(
+                video_path=clip.rendered_url,
+                title=title,
+                schedule_time=payload.get("schedule_time"),
+                privacy_level=requested_privacy,
+                duration_sec=duration,
+                progress_cb=lambda m: logger.info("[brick.cut_clip] %s", m),
+            )
+        except TikTokAuthError as auth_err:
+            # Distinguish "needs a human to reconnect" from "the post failed".
+            # execute_action records the raised outcome; a bare failure here would
+            # look like a broken clip instead of an expired connection.
+            logger.warning("[brick.cut_clip] TikTok not connected: %s", auth_err)
+            return {
+                "action_type": "cut_clip",
+                "status": "needs_tiktok",
+                "reason": str(auth_err),
+                "clip_id": str(clip.id),
+            }
+
+        logger.info(
+            "[brick.cut_clip] Posted clip %s to TikTok (publish_id=%s, privacy=%s)",
+            clip.id, result.get("publish_id"), result.get("privacy_level"),
+        )
+        return {
+            "action_type": "cut_clip",
+            "status": "posted",
+            "clip_id": str(clip.id),
+            "project_id": str(clip.project_id),
+            "publish_id": result.get("publish_id"),
+            "privacy_level": result.get("privacy_level"),
+            "requested_privacy_level": result.get("requested_privacy_level"),
+            "title": title,
+        }
 
     async def _touch_memories(self, memory_ids: List[str]) -> None:
         """Update last_referenced_at for all memories read during this planning run."""
