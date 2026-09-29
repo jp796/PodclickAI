@@ -223,7 +223,21 @@ def _tier_rank(tier: str) -> int:
 
 
 def _tier_allows(current_tier: str, required_tier: str) -> bool:
-    """Return True if current_tier is at or above required_tier."""
+    """
+    Return True if current_tier is at or above required_tier.
+
+    Fails closed on an unrecognized `required_tier`. `_tier_rank` maps anything
+    unknown to 0 (owner_builder), so without this guard a typo'd or newly added
+    action tier would rank 0 and be permitted at *every* permit level — the gate
+    silently inverting from "most restrictive" to "none at all". An unknown
+    requirement is a programming error, and the safe answer to it is no.
+    """
+    if required_tier not in TIER_ORDER:
+        logger.error(
+            "[brick.permit] Unknown required tier %r — refusing. Valid tiers: %s",
+            required_tier, ", ".join(TIER_ORDER),
+        )
+        return False
     return _tier_rank(current_tier) >= _tier_rank(required_tier)
 
 

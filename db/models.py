@@ -813,3 +813,43 @@ class Clip(Base):
     )
 
     project = relationship("Project", back_populates="clips")
+
+
+class AuditLog(Base):
+    """
+    Append-only record of consequential actions — AI generations, Brick's
+    approvals and rejections, project state changes.
+
+    This table was written by twelve raw-SQL sites in main.py for months while no
+    migration or model ever created it, and every write was wrapped in
+    `except Exception: pass`. The permit ladder in services/brick_agent.py treats
+    this trail as the accountability substrate for autonomous action, so a silent
+    write into a table that may not exist is not an acceptable floor. The model
+    exists so schema drift surfaces as an error instead of a swallowed one.
+    """
+
+    __tablename__ = "audit_log"
+    __table_args__ = (
+        Index("idx_audit_log_location_created", "location_id", "created_at"),
+        Index("idx_audit_log_action", "action"),
+    )
+
+    id: Column = Column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    location_id: Column = Column(UUID(as_uuid=True), nullable=True)
+
+    # Short verb naming what happened: "show_notes", "script_formula",
+    # "brick.approve", "project.created".
+    action: Column = Column(Text, nullable=False)
+
+    # Who caused it: "user", "brick", "system". Mirrors the actor_type convention
+    # the Brick permit design already uses.
+    actor_type: Column = Column(Text, nullable=False, server_default="user")
+    actor_id: Column = Column(Text, nullable=True)
+
+    payload: Column = Column(JSONB, nullable=True)
+
+    created_at: Column = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
