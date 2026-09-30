@@ -2,11 +2,11 @@
 task: "Phase 3A — Brick the Foreman: Trust Model, Permit Ladder, Walk-Through, Punch List, Daily Cron, Memory"
 project: PodClick
 effort: E3
-phase: PLAN
-progress: 0/9
+phase: VERIFY
+progress: 24/63
 mode: algorithm
 started: "2026-05-27"
-updated: "2026-05-27"
+updated: "2026-09-25"
 ---
 
 ## Problem
@@ -51,9 +51,53 @@ JP opens the app at 7am and the walk-through is already built. Brick ran the job
 
 ## Goal
 
+### September 25 follow-up — SaaS launch
+
+Deliver a separate landing page, subscription billing, and the matching GoDaddy domain without exposing the owner's studio. Paid SaaS is not complete until customer authentication, tenant isolation, approved Stripe configuration, and verified domain/hosting exist. Current delivery is an owner-private marketing preview and tested, disabled-by-default billing foundation.
+
+### September 25 — UI and publishing upgrade
+
+Polish the existing PodClick home, project library, and episode workflow without replacing the established tools. Add persistent, opt-in release automation with destination readiness, precise scheduling, recovery, and visible outcomes. Validate locally using real-browser inspection and mocked publishing adapters; no real episodes are published as a verification side effect.
+
 Build the Brick the Foreman subsystem: 5 new DB tables + User.timezone field, BrickAgent service with daily 4am planning cron, walk-through dashboard, punch list approve/reject UI, permit tier screen, and memory CRUD backend — all verified against 9 gates before phase is closed.
 
 ## Criteria
+
+### September 25 SaaS follow-up
+
+- [x] ISC-48: Antecedent: standalone landing page has a successful production build.
+- [x] ISC-49: Marketing preview has a terminal successful owner-private deployment.
+- [x] ISC-50: Anti: landing content does not invent paid signup, prices, testimonials, or customer statistics.
+- [x] ISC-51: Billing actions reject an unverified or non-owner principal.
+- [x] ISC-52: Stripe webhooks validate exact raw-body signatures and timestamp tolerance.
+- [x] ISC-53: Repeated/out-of-order billing events cannot blindly duplicate checkout or replace a newer subscription.
+- [x] ISC-54: Workspace billing migration produces valid offline PostgreSQL SQL.
+- [x] ISC-55: Missing/unknown deployment mode locks private HTTP/media/WebSocket access.
+- [x] ISC-56: Anti: test verification creates no real charges, uploads, or DNS changes.
+- [ ] ISC-57: Approved Stripe account and commercial prices are connected and verified.
+- [ ] ISC-58: Matching GoDaddy hostname ownership, DNS connection, and TLS are verified.
+- [ ] ISC-59: Customer identity and two-tenant ownership isolation are enforced across the customer surface.
+- [ ] ISC-60: Sandbox checkout, payment failure, cancellation, and feature entitlements pass end-to-end.
+- [ ] ISC-61: Customer provider credentials and OAuth callbacks are securely isolated per tenant.
+- [x] ISC-62: Local billing page accurately explains that paid access is not active.
+- [ ] ISC-63: Customer compute/storage quotas and durable hosted workers pass launch checks.
+
+### September 25 upgrade criteria (prior Phase 3A criteria retained below)
+
+- [x] ISC-34: Antecedent: home-page controls form a coherent desktop layout without the reproduced empty right column.
+- [x] ISC-35: Home, project library, and episode release controls fit a 390px viewport.
+- [x] ISC-36: Existing upload and processing controls retain their IDs and original handlers; the output mode control responds in-browser.
+- [x] ISC-37: Project library identifies past-due scheduled releases as needing attention.
+- [x] ISC-38: Episode autopilot displays per-destination readiness and actionable blockers from the backend.
+- [x] ISC-39: Release plans persist across service reconstruction.
+- [x] ISC-40: Anti: episodes without explicit automatic authorization cannot publish through autopilot.
+- [x] ISC-41: Autopilot observes the configured release time before making a destination public.
+- [x] ISC-42: Pause or cancel prevents future automatic release actions.
+- [x] ISC-43: Completed destination actions are not duplicated on repeated runs.
+- [x] ISC-44: Transient release failures have a bounded retry policy.
+- [x] ISC-45: Legacy queue claims prevent simultaneous duplicate dispatch.
+- [x] ISC-46: Anti: verification performs no real posts or messages to external services.
+- [x] ISC-47: Changed JavaScript and Python pass focused verification.
 
 - [ ] ISC-1: `brick_permits` table exists with columns: id, location_id, current_tier, promoted_at, promoted_by, notes, created_at, updated_at — confirmed via `\d brick_permits`
 - [ ] ISC-2: `brick_track_record` table exists with columns: id, location_id, action_type, outcome (success/failure/rejected), executed_at, metadata — confirmed via `\d brick_track_record`
@@ -94,6 +138,10 @@ Build the Brick the Foreman subsystem: 5 new DB tables + User.timezone field, Br
 
 ## Test Strategy
 
+SaaS follow-up: mocked Stripe/store tests; pure-ASGI socket/Host/Origin/forwarding tests; full regression suite; migration SQL offline; landing HTTP, typecheck, authored-source lint, build, and terminal deployment status. Account ownership, prices, domain/DNS/TLS, live schema, customer identity/isolation, and sandbox payment flows remain pending.
+
+September upgrade: inspect rendered pages in Interceptor at desktop and mobile widths (ISC-34–38); run isolated temporary-store tests with fake provider adapters for persistent plans, authorization, timing, pause, idempotency, and retries (ISC-39–45); inspect route validation through a lifespan-disabled local preview and avoid all publishing controls on real project data (ISC-46); parse changed scripts and run focused tests (ISC-47).
+
 | ISC | Type | Check | Threshold | Tool |
 |-----|------|-------|-----------|------|
 | ISC-1 through ISC-7 | schema | `alembic upgrade head` + `\d table` for each | exit 0, all columns present | Bash/psql |
@@ -113,6 +161,10 @@ Build the Brick the Foreman subsystem: 5 new DB tables + User.timezone field, Br
 
 ## Features
 
+SaaS ownership: `stripe_billing` — service/router/models/tests (ISC-51–54); `production_boundary` — HTTP/WS perimeter (ISC-55); `saas_security_audit` — launch-risk evidence (ISC-59,61,63); `domain_launch_discovery` — provider/domain discovery (ISC-57,58); `landing_hero_asset` — one original image; primary — landing authoring/hosting, migration/integration, verification/docs (ISC-48–50,56,60,62). Only the primary authors/deploys the Sites checkout.
+
+September upgrade ownership: `ui_polish` owns home/shared CSS (ISC-34–36); `project_experience` owns project library and release console (ISC-35,37,38); `autopilot_backend` owns service/API integration (ISC-39–44); primary owns legacy scheduler, integration, verification, and documentation (ISC-45–47). All agents preserve existing user changes.
+
 | Name | Description | Satisfies | Depends On | Parallelizable |
 |------|-------------|-----------|------------|----------------|
 | db-migration | Alembic migration adding 5 tables + User.timezone | ISC-1 to ISC-7 | none | false |
@@ -126,6 +178,16 @@ Build the Brick the Foreman subsystem: 5 new DB tables + User.timezone field, Br
 
 ## Decisions
 
+- 2026-09-25 17:42: refined: Stripe and a marketing site do not make the single-owner studio SaaS-ready. Keep studio private until customer identity, tenant resources, integrations, and quotas are implemented.
+- 2026-09-25 17:42: GoDaddy, Stripe, and Railway require sign-in; `app.podclick.ai` is only an assumption in old documentation. No DNS/live billing changes without confirmed targets and commercial terms.
+- 2026-09-25 17:42: Available coordinated agent tools replace unavailable TeamCreate/nested subprocess workflows. Separate marketing repository only was committed/pushed; studio dirty changes retained.
+- 2026-09-25 17:42: Sites requires explicit browser-testing intent before visual QA. New landing has build/HTTP/deployment evidence, not screenshot evidence. Previous studio QA is not reused as landing QA.
+
+- 2026-09-25 16:50: refined: This work extends PodClick beyond the historical Phase 3A scope while retaining its criteria and history. Existing projects remain unchanged until the user explicitly saves an automatic release plan.
+- 2026-09-25 16:50: UI reproduction captured at `/private/tmp/interceptor-screenshot-1790372761278.png`; the landing page has a narrow builder, unused right column, inconsistent navigation, and clipped controls. Fix layout at the shared style and container boundaries.
+- 2026-09-25 16:50: Swarm uses the available coordinated agent tools with exclusive file ownership. Existing dirty files and the September 17 editor/clip fixes are preserved. No nested Codex subprocesses, broad repository migration, or automatic production publication.
+- 2026-09-25 16:50: The authoritative recent history is `docs/BUGS_AND_FIXES.md`; `docs/current_state.md` and the older Phase 3A ISA do not reflect all subsequent project work.
+
 - 2026-05-27: Postmark NOT used for notifications — `postmark_api_key` not configured. Telegram channel message is the Phase 3A notification channel. Will note in current_state.md.
 - 2026-05-27: No mobile push for 3A — no push token infrastructure. Telegram is sufficient for JP's use case.
 - 2026-05-27: APScheduler 3.x (not 4.x) chosen — 3.10.4 is the stable LTS, avoids breaking API changes in 4.x.
@@ -134,6 +196,37 @@ Build the Brick the Foreman subsystem: 5 new DB tables + User.timezone field, Br
 - 2026-05-27: Manual planning trigger `POST /api/brick/run-planning` added for Gate 9 verification and debugging.
 - 2026-05-27: Brick's own speech uses brick-voice skill prompt injected into Claude's system prompt — NOT getBrandContext(). getBrandContext() is for user-attributed content only.
 
+## Changelog
+
+- 2026-09-25 | conjectured: Billing and domain connection would be the primary SaaS launch work.
+  refuted by: Existing project/media/job access has no authentication; location and publishing credentials are single-owner globals.
+  learned: Billing cannot replace customer authentication and tenant ownership; isolate marketing and protect the studio first.
+  criterion now: ISC-59, ISC-61, and ISC-63 block customer launch; ISC-55 verifies the immediate perimeter.
+
 ## Verification
 
-_(Populated after EXECUTE — Gate results go here)_
+### SaaS follow-up — foundation shipped, full launch incomplete
+
+- ISC-48: build — `Build complete. Run vinext start to start the production server.`; typecheck and authored-source lint exit0.
+- ISC-49: deployment — `get_deployment_status` returned `status: succeeded` for `appgdep_6ab6f82838d88191b39abe77a33f0148`, owner-private URL `https://podclick.jpeace77.chatgpt.site`.
+- ISC-50: source — `Private preview · No payment is collected here`; release illustration labeled `EXAMPLE`; no invented pricing/testimonials.
+- ISC-51–53,55: tests — `253 passed, 5 warnings in 3.59s`; mocked Stripe and 166 perimeter probes included.
+- ISC-54: SQL — offline Alembic produced both billing tables, FK/unique constraints/index, and revision update without a live connection.
+- ISC-56: scope — no live payment/provider/DNS writes; marketing publication is separate and owner-private.
+- ISC-62: HTTP — local billing200; plans `configured:false`; unsigned billing401; spoofed forwarding403; studio200.
+- ISC-57–61,63: pending — account/commercial decisions, domain/DNS/TLS, customer identity/isolation, sandbox payment flows, tenant integrations, quotas/hosted worker durability. Full launch not complete.
+- Independent final re-review failed at agent runtime authentication; no second-review pass claimed. Initial security audit and parent code/integration verification retained.
+
+### September 25 upgrade — complete locally (14/14)
+
+- ISC-34–38: real Chrome inspection, live search/output-mode/preflight interactions, desktop screenshots, and actual 390px iframe viewport measurements. Screenshots: `docs/verification/2026-09-25/`. DOM screenshots cannot render iframe pixels; mobile evidence is measured browser layout, not a screenshot claim.
+- ISC-39–45: temporary-store, fake-provider regression tests in `tests/test_podcast_autopilot.py`, `tests/test_autopilot_api.py`, and `tests/test_scheduler.py`. Covers restarts, approval, due times, pause/cancel during uploads, receipt recovery, content edits, bounded retries, concurrent ownership, episode-number reservation, and independent due-plan scanning.
+- ISC-46: no save/enable/approve controls used on live projects. Provider operations in automated tests are mocked. No real uploads, public posts, email, or Telegram messages were sent as QA actions.
+- ISC-47: `venv/bin/python -m pytest tests -q --disable-warnings` → **48 passed, 5 warnings**; inline JavaScript parsed successfully; `git diff --check` passed. Warnings concern existing Python 3.9 support and deprecated FastAPI startup events.
+- Local app reloaded on port 8765; health and readiness returned 200. Existing episodes remain opted out. No deployment, commit, or push performed.
+- Historical Phase 3A ISC-1–33 remain unaudited; their unchecked state and the overall VERIFY phase intentionally remain unchanged.
+
+### September 25 learning
+
+- Conjectured: checking project content once at the start of a worker pass is sufficient. Refuted by: edits can arrive during a long private upload. Learned: refresh content/readiness immediately before each due publish and recheck durable stop signals after awaited inspection. Criterion now: ISC-41/42/43 includes in-flight-edit and stop-boundary regressions.
+- Conjectured: awaiting the whole worker batch preserves due-time behavior. Refuted by: an unrelated upload can outlast another project's release time. Learned: retain one task per project and rescan independently with bounded concurrency. Criterion now: ISC-41 includes newly due work during another upload.

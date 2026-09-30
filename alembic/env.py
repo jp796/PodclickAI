@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config import settings      # noqa: E402
 from db.models import Base       # noqa: E402  (imports all ORM models)
+import db.billing_models        # noqa: E402,F401 (billing metadata, no schema writes)
 
 # ---------------------------------------------------------------------------
 # Alembic Config object — gives access to values in alembic.ini

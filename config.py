@@ -26,6 +26,10 @@ class Settings(BaseSettings):
         env_ignore_empty=True,   # .env file wins over empty shell env vars
     )
 
+    # Explicit local-only operation until verified customer authentication and
+    # tenant-scoped resources are implemented. Cloud deployments default locked.
+    podclick_deployment_mode: str = Field(default="locked")
+
     # ── Database ──────────────────────────────────────────────────────────────
     database_url: str = Field(
         ...,

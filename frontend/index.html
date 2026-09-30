@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PodClickAI</title>
+  <title>Podcast Studio · PodClick</title>
   <script src="/static/podclick-nav.js" defer></script>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 100 100' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%23C66CFF'/%3E%3Cstop offset='50%25' stop-color='%238B5CFF'/%3E%3Cstop offset='100%25' stop-color='%232EA7FF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='22' fill='%23101426'/%3E%3Crect x='14' y='44' width='7' height='12' rx='3.5' fill='url(%23g)' opacity='.75'/%3E%3Crect x='24' y='37' width='7' height='26' rx='3.5' fill='url(%23g)' opacity='.85'/%3E%3Crect x='34' y='30' width='7' height='40' rx='3.5' fill='url(%23g)'/%3E%3Crect x='44' y='37' width='7' height='26' rx='3.5' fill='url(%23g)' opacity='.85'/%3E%3Crect x='54' y='43' width='7' height='14' rx='3.5' fill='url(%23g)' opacity='.75'/%3E%3Cpolygon points='64,34 64,66 84,50' fill='url(%23g)'/%3E%3Cpath d='M84,22 A42,42 0 1,0 84,78' stroke='url(%23g)' stroke-width='9' stroke-linecap='round'/%3E%3Cpath d='M84,78 Q80,92 62,90' stroke='url(%23g)' stroke-width='9' stroke-linecap='round'/%3E%3C/svg%3E" />
   <style>
@@ -634,12 +634,14 @@
       display: none;
     }
   </style>
+  <link rel="stylesheet" href="/podclick-design.css?v=20260925-2" />
 </head>
-<body>
+<body class="podclick-studio">
+<a class="studio-skip-link" href="#episode-builder">Skip to episode builder</a>
 
-<header>
+<header class="studio-toolbar">
   <!-- PodClickAI logo mark -->
-  <div class="logo">
+  <div class="logo" aria-hidden="true" hidden>
     <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -664,58 +666,67 @@
   </div>
 
   <!-- Wordmark + tagline -->
-  <div class="header-brand">
+  <div class="header-brand" hidden>
     <div class="header-wordmark">
       <span class="word-pod">Pod</span><span class="word-click">Click</span><span class="word-ai">AI</span>
     </div>
     <div class="header-tagline">Drop it. <span class="hl">Click it.</span> Publish it.</div>
   </div>
-  <nav class="tab-nav">
-    <button class="tab-btn active" onclick="switchTab('podcast')">🎙️ Studio</button>
-    <button class="tab-btn" onclick="window.location.href='/youtube-studio'">🎬 Click Studio</button>
-    <button class="tab-btn" onclick="switchTab('clips')">✂️ Clips</button>
-    <button class="tab-btn" onclick="switchTab('queue')" id="queue-tab-btn">📅 Queue <span id="queue-badge" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">0</span></button>
-    <button class="tab-btn" onclick="switchTab('sponsors')">💼 Sponsors</button>
-    <button class="tab-btn" onclick="switchTab('guests')">🎙️ Guests</button>
-    <button class="tab-btn" onclick="switchTab('transcribe')">📝 Transcribe</button>
-    <button class="tab-btn" onclick="switchTab('settings')">⚙️ Settings</button>
+  <nav class="tab-nav" aria-label="Podcast workspace">
+    <button class="tab-btn active" data-tab="podcast" aria-pressed="true" onclick="switchTab('podcast')">Episode builder</button>
+    <button class="tab-btn" data-tab="clips" aria-pressed="false" onclick="switchTab('clips')">Clips</button>
+    <button class="tab-btn" data-tab="queue" aria-pressed="false" onclick="switchTab('queue')" id="queue-tab-btn">Release queue <span id="queue-badge" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">0</span></button>
+    <button class="tab-btn" data-tab="sponsors" aria-pressed="false" onclick="switchTab('sponsors')">Sponsors</button>
+    <button class="tab-btn" data-tab="guests" aria-pressed="false" onclick="switchTab('guests')">Guests</button>
+    <button class="tab-btn" data-tab="transcribe" aria-pressed="false" onclick="switchTab('transcribe')">Transcripts</button>
+    <button class="tab-btn" data-tab="settings" aria-pressed="false" onclick="switchTab('settings')">Settings</button>
   </nav>
-  <a href="/studio" title="Live browser recording with voice-driven teleprompter" style="margin-left:10px;padding:7px 12px;border-radius:8px;background:linear-gradient(135deg,#8B5CFF,#2EA7FF);color:#fff;text-decoration:none;font-size:12px;font-weight:700;letter-spacing:0.02em;box-shadow:0 0 14px rgba(43,167,255,0.25);">🔴 Record</a>
+  <a href="/studio" class="studio-record-link" title="Live browser recording with voice-driven teleprompter"><span aria-hidden="true">●</span> Record</a>
   <span id="active-profile-pill" style="display:none;font-size:11px;color:var(--text-dim);background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:3px 10px;cursor:pointer;margin-left:8px" onclick="switchTab('settings')" title="Active show profile — click to edit"></span>
-  <span id="header-status" style="margin-left:auto">Ready</span>
+  <span id="header-status" role="status" style="margin-left:auto">Ready</span>
 </header>
 
 <main id="podcast-tab-panel">
 
+<section class="studio-intro" aria-labelledby="studio-title">
+  <div>
+    <p class="studio-eyebrow">Production / Podcast studio</p>
+    <h1 id="studio-title">Good conversations.<br><span>Ready for the world.</span></h1>
+    <p class="studio-intro-copy">Bring your recording. Build the episode, review the details, and give it a release date.</p>
+  </div>
+  <a href="/projects" class="studio-project-link"><span class="studio-project-mark" aria-hidden="true">B</span><span><strong>Put Brick to work</strong><small>Manage projects &amp; publishing</small></span><span aria-hidden="true">↗</span></a>
+</section>
+
 <!-- ══ Studio Mode Toggle ══ -->
-<div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 16px;margin-bottom:0">
-  <span style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px">Studio Mode</span>
-  <div style="display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px">
+<div class="studio-mode-bar">
+  <span class="studio-eyebrow">01 / Choose your output</span>
+  <div class="studio-mode-options" role="group" aria-label="Episode output format">
     <button id="mode-audio-btn" onclick="setStudioMode('audio')"
       style="padding:5px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);
              background:linear-gradient(135deg,#8B5CFF,#2EA7FF);border:none;color:#fff;transition:all .15s">
-      🎙️ Audio
+      Audio
     </button>
     <button id="mode-video-btn" onclick="setStudioMode('video')"
       style="padding:5px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);
              background:transparent;border:none;color:var(--text-dim);transition:all .15s">
-      🎬 Video
+      Video
     </button>
     <button id="mode-both-btn" onclick="setStudioMode('both')"
       style="padding:5px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);
              background:transparent;border:none;color:var(--text-dim);transition:all .15s">
-      🎙️🎬 Both
+      Audio + video
     </button>
   </div>
   <span id="mode-badge" style="font-size:11px;color:var(--text-dim)">Processing audio → MP3 output</span>
-  <div id="video-mode-info" style="display:none;margin-left:auto;font-size:11px;background:rgba(139,92,255,0.1);border:1px solid rgba(139,92,255,0.25);border-radius:6px;padding:4px 10px;color:#8B5CFF">
-    🎬 Subtitles burned in · Clips exported to Clips tab · MP4 output
+  <div id="video-mode-info" style="display:none">
+    Burned-in subtitles · MP4 output
   </div>
 </div>
 
 <!-- ══ LEFT: Episode Builder ══ -->
-<div class="panel" style="grid-row: 1 / 3; align-self: start;">
-  <div class="panel-title">Episode Builder</div>
+<section class="panel" id="episode-builder" tabindex="-1" aria-labelledby="builder-title">
+  <div class="studio-section-head"><div><p class="studio-eyebrow">02 / Assemble</p><h2 id="builder-title">Build your episode</h2></div><span class="studio-file-count" id="studio-file-count">No files yet</span></div>
+  <p class="studio-panel-copy">Add the main recording. Intro, ad break, and outro are optional.</p>
 
   <div class="clip-slots">
 
@@ -723,7 +734,7 @@
     <div class="clip-slot slot-intro" id="slot-intro"
          ondragover="onDragOver(event,'intro')" ondragleave="onDragLeave('intro')" ondrop="onDrop(event,'intro')">
       <div class="slot-header" onclick="pickFiles('intro')">
-        <div class="slot-icon">🎵</div>
+        <div class="slot-icon" aria-hidden="true">01</div>
         <div class="slot-info">
           <div class="slot-label-row">
             <span class="slot-name">Intro</span>
@@ -732,14 +743,14 @@
           <div class="slot-hint">Plays first</div>
         </div>
         <span class="slot-count" id="count-intro">0</span>
-        <button class="slot-add-btn" onclick="event.stopPropagation();pickFiles('intro')">+ Add more</button>
+        <button class="slot-add-btn" aria-label="Add intro files" onclick="event.stopPropagation();pickFiles('intro')">+ Add</button>
       </div>
       <!-- Empty state drop area -->
       <div class="slot-drop-area" onclick="pickFiles('intro')">
         🎵 &nbsp;Drop intro audio here or <u>click to browse</u>
       </div>
       <div style="padding:6px 10px 4px;display:flex;justify-content:flex-end">
-        <button onclick="event.stopPropagation();openLibrary('intro')" class="lib-btn">📚 Library</button>
+        <button onclick="event.stopPropagation();openLibrary('intro')" class="lib-btn">From library ↗</button>
       </div>
       <!-- File list (visible once files added) -->
       <div class="slot-files" id="files-intro"></div>
@@ -749,20 +760,23 @@
     <div class="clip-slot slot-main" id="slot-main"
          ondragover="onDragOver(event,'main')" ondragleave="onDragLeave('main')" ondrop="onDrop(event,'main')">
       <div class="slot-header" onclick="pickFiles('main')">
-        <div class="slot-icon">🎙️</div>
+        <div class="slot-icon" aria-hidden="true">02</div>
         <div class="slot-info">
           <div class="slot-label-row">
-            <span class="slot-name">Main Podcast</span>
+            <span class="slot-name">Main recording</span>
             <span class="slot-badge badge-req">Required</span>
           </div>
           <div class="slot-hint">Multiple files joined in order</div>
         </div>
         <span class="slot-count" id="count-main">0</span>
-        <button class="slot-add-btn" onclick="event.stopPropagation();pickFiles('main')">+ Add more</button>
+        <button class="slot-add-btn" aria-label="Add main recording files" onclick="event.stopPropagation();pickFiles('main')">+ Add</button>
       </div>
-      <div class="slot-drop-area" onclick="pickFiles('main')">
-        🎙️ &nbsp;Drop your podcast recording here or <u>click to browse</u>
-      </div>
+      <button type="button" class="slot-drop-area" onclick="pickFiles('main')">
+        <span class="studio-upload-icon" aria-hidden="true">↑</span>
+        <strong>Drop your recording here</strong>
+        <span>or <u>browse files</u> from your computer</span>
+        <small id="studio-accepted-files">MP3, WAV, M4A &amp; other audio files</small>
+      </button>
       <div class="slot-files" id="files-main"></div>
     </div>
 
@@ -770,22 +784,22 @@
     <div class="clip-slot slot-commercial" id="slot-commercial"
          ondragover="onDragOver(event,'commercial')" ondragleave="onDragLeave('commercial')" ondrop="onDrop(event,'commercial')">
       <div class="slot-header" onclick="pickFiles('commercial')">
-        <div class="slot-icon">📢</div>
+        <div class="slot-icon" aria-hidden="true">03</div>
         <div class="slot-info">
           <div class="slot-label-row">
-            <span class="slot-name">Commercial / Ad Break</span>
+            <span class="slot-name">Ad break</span>
             <span class="slot-badge badge-opt">Optional</span>
           </div>
           <div class="slot-hint">Auto-placed at best natural pause ≈ mid-episode</div>
         </div>
         <span class="slot-count" id="count-commercial">0</span>
-        <button class="slot-add-btn" onclick="event.stopPropagation();pickFiles('commercial')">+ Add more</button>
+        <button class="slot-add-btn" aria-label="Add ad break files" onclick="event.stopPropagation();pickFiles('commercial')">+ Add</button>
       </div>
       <div class="slot-drop-area" onclick="pickFiles('commercial')">
         📢 &nbsp;Drop ad / commercial audio here or <u>click to browse</u>
       </div>
       <div style="padding:6px 10px 4px;display:flex;justify-content:flex-end">
-        <button onclick="event.stopPropagation();openLibrary('commercial')" class="lib-btn">📚 Library</button>
+        <button onclick="event.stopPropagation();openLibrary('commercial')" class="lib-btn">From library ↗</button>
       </div>
       <div class="slot-files" id="files-commercial"></div>
     </div>
@@ -794,7 +808,7 @@
     <div class="clip-slot slot-outro" id="slot-outro"
          ondragover="onDragOver(event,'outro')" ondragleave="onDragLeave('outro')" ondrop="onDrop(event,'outro')">
       <div class="slot-header" onclick="pickFiles('outro')">
-        <div class="slot-icon">🎬</div>
+        <div class="slot-icon" aria-hidden="true">04</div>
         <div class="slot-info">
           <div class="slot-label-row">
             <span class="slot-name">Outro</span>
@@ -803,13 +817,13 @@
           <div class="slot-hint">Plays last</div>
         </div>
         <span class="slot-count" id="count-outro">0</span>
-        <button class="slot-add-btn" onclick="event.stopPropagation();pickFiles('outro')">+ Add more</button>
+        <button class="slot-add-btn" aria-label="Add outro files" onclick="event.stopPropagation();pickFiles('outro')">+ Add</button>
       </div>
       <div class="slot-drop-area" onclick="pickFiles('outro')">
         🎬 &nbsp;Drop outro audio here or <u>click to browse</u>
       </div>
       <div style="padding:6px 10px 4px;display:flex;justify-content:flex-end">
-        <button onclick="event.stopPropagation();openLibrary('outro')" class="lib-btn">📚 Library</button>
+        <button onclick="event.stopPropagation();openLibrary('outro')" class="lib-btn">From library ↗</button>
       </div>
       <div class="slot-files" id="files-outro"></div>
     </div>
@@ -833,17 +847,17 @@
   <!-- Settings -->
   <div class="settings-row">
     <div class="field">
-      <label>Podcast Name</label>
+      <label for="podcast-name">Podcast name</label>
       <input type="text" id="podcast-name" placeholder="Success Agent Podcast" />
     </div>
     <div class="field" style="max-width:90px">
-      <label>EP #</label>
+      <label for="episode-number-override">Episode #</label>
       <input type="number" id="episode-number-override" placeholder="100" min="1"
         style="width:100%;box-sizing:border-box"
         oninput="saveSettings()" />
     </div>
     <div class="field" style="max-width:130px">
-      <label>Whisper Model</label>
+      <label for="model-size">Transcription</label>
       <select id="model-size">
         <option value="tiny" selected>Tiny ✦ (fastest)</option>
         <option value="base">Base</option>
@@ -854,6 +868,7 @@
   </div>
 
   <button class="btn btn-process" id="process-btn" disabled>Process Episode</button>
+  <p class="studio-action-hint" id="studio-process-hint">Add a main recording to start processing.</p>
 
   <!-- Progress -->
   <div id="progress-section">
@@ -887,7 +902,23 @@
   <input type="file" id="fi-main"       accept="audio/*,video/*,image/*" multiple onchange="onFilesChosen(event,'main')" />
   <input type="file" id="fi-commercial" accept="audio/*,video/*,image/*" multiple onchange="onFilesChosen(event,'commercial')" />
   <input type="file" id="fi-outro"      accept="audio/*,video/*,image/*" multiple onchange="onFilesChosen(event,'outro')" />
-</div>
+</section>
+
+<aside class="studio-next-step" id="studio-next-step" aria-label="Production guide">
+  <section class="panel studio-guide-card">
+    <div class="studio-section-head"><div><p class="studio-eyebrow">03 / Review &amp; release</p><h2>Your next step, clear.</h2></div><span class="studio-guide-mark" aria-hidden="true">↗</span></div>
+    <p class="studio-guide-status" id="studio-next-title" role="status">Start with the conversation.</p>
+    <p class="studio-panel-copy" id="studio-next-copy">Your episode preview will appear here after processing. Add your recording to get things moving.</p>
+    <ol class="studio-checklist">
+      <li id="studio-step-upload" class="is-current"><span class="studio-check-number">1</span><div><strong>Add your recording</strong><p>One file or several, in the order you want.</p></div><span class="studio-step-state" id="studio-upload-state">Next</span></li>
+      <li id="studio-step-process"><span class="studio-check-number">2</span><div><strong>Let the pipeline prepare it</strong><p>Transcribe, clean up, and draft episode details.</p></div><span class="studio-step-state" id="studio-processing-state">Waiting</span></li>
+      <li><span class="studio-check-number">3</span><div><strong>Review and set a release</strong><p>Check the title, description, and publishing destination.</p></div></li>
+    </ol>
+    <div class="studio-output-preview"><span class="studio-eyebrow">Your output</span><strong id="studio-output-label">Clean audio · MP3</strong><span>Episode title · Description · Transcript</span></div>
+  </section>
+  <section class="panel studio-brick-card"><span class="studio-project-mark" aria-hidden="true">B</span><div><p class="studio-eyebrow">A little more hands-off</p><h3>Make a plan with Brick.</h3><p>Use a project to track the episode, prepare its assets, and manage the publishing handoff.</p><a href="/projects">Open your job site <span aria-hidden="true">→</span></a></div></section>
+  <div class="studio-quick-links"><button onclick="switchTab('queue')">View release queue <span aria-hidden="true">↗</span></button><button onclick="switchTab('settings')">Show &amp; connections <span aria-hidden="true">↗</span></button></div>
+</aside>
 
 <!-- ══ RIGHT: Review & Publish ══ -->
 <div class="panel" id="review-panel">
@@ -1214,6 +1245,7 @@
   </div>
 
   <div id="queue-list" style="display:flex;flex-direction:column;gap:12px"></div>
+  <div id="queue-error" class="error-box" role="alert" hidden></div>
 </div><!-- /queue-tab-panel -->
 
 <!-- ══════════════════════════════════════════════════════════════ SETTINGS TAB -->
@@ -2540,7 +2572,55 @@ function updateTimeline() {
 
 function updateProcessBtn() {
   document.getElementById("process-btn").disabled = slots.main.length === 0;
+  updateStudioGuidance();
 }
+
+// Keep the empty review state useful without inventing queue or publishing data.
+function updateStudioGuidance() {
+  const ready = slots.main.length > 0;
+  const processing = document.getElementById("header-status").classList.contains("active");
+  const hasReview = document.getElementById("review-panel").style.display === "block";
+  const total = SLOT_TYPES.reduce((sum, type) => sum + slots[type].length, 0);
+  document.getElementById("studio-file-count").textContent = total ? `${total} file${total === 1 ? "" : "s"} added` : "No files yet";
+  document.getElementById("studio-next-step").hidden = hasReview;
+  document.getElementById("studio-process-hint").textContent = processing
+    ? "Processing your recording. Progress is shown below."
+    : ready ? "Ready to process. You can review everything before publishing." : "Add a main recording to start processing.";
+  document.getElementById("studio-next-title").textContent = processing ? "Your episode is taking shape." : ready ? "Recording in. You're ready." : "Start with the conversation.";
+  document.getElementById("studio-next-copy").textContent = processing
+    ? "The pipeline is preparing your episode. Follow each step in the builder; your review will appear here when it's ready."
+    : ready ? "Check the file order and output format, then process the episode. Add any intro, ad break, or outro before you start."
+    : "Your episode preview will appear here after processing. Add your recording to get things moving.";
+  document.getElementById("studio-step-upload").className = ready ? "is-done" : "is-current";
+  document.getElementById("studio-step-process").className = ready ? "is-current" : "";
+  document.getElementById("studio-upload-state").textContent = ready ? "Added" : "Next";
+  document.getElementById("studio-processing-state").textContent = processing ? "Working" : ready ? "Next" : "Waiting";
+}
+
+function initStudioShell() {
+  const links = document.querySelector("#pc-topbar .pc-links");
+  if (links && !links.querySelector('a[href="/"]')) {
+    const studioLink = document.createElement("a");
+    studioLink.href = "/";
+    studioLink.textContent = "Podcast";
+    studioLink.className = "pc-active";
+    studioLink.setAttribute("aria-current", "page");
+    links.insertBefore(studioLink, links.querySelector('a[href="/studio"]'));
+  }
+  document.querySelectorAll(".slot-header").forEach(header => {
+    header.tabIndex = 0;
+    header.setAttribute("role", "button");
+    header.setAttribute("aria-label", `Add ${header.querySelector(".slot-name").textContent.toLowerCase()} files`);
+    header.addEventListener("keydown", event => {
+      if (event.target === header && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault();
+        header.click();
+      }
+    });
+  });
+  updateStudioGuidance();
+}
+document.addEventListener("DOMContentLoaded", initStudioShell);
 
 // ── Steps ──────────────────────────────────────────────────────────────────────
 const STEP_ORDER = ["transcribing","assembling","fillers","content"];
@@ -2751,6 +2831,7 @@ function onJobReady(job) {
   }
 
   document.getElementById("review-panel").style.display = "block";
+  updateStudioGuidance();
   document.getElementById("upload-btn").disabled  = false;
   document.getElementById("schedule-btn").disabled = false;
 
@@ -2863,6 +2944,7 @@ function setHeaderStatus(text, active = false) {
   const el = document.getElementById("header-status");
   el.textContent = text;
   el.classList.toggle("active", active);
+  updateStudioGuidance();
 }
 
 // ── History ────────────────────────────────────────────────────────────────────
@@ -3103,9 +3185,11 @@ init();
 
 // ── Tab switching ──────────────────────────────────────────────────────────
 function switchTab(tab) {
-  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-  const btn = document.querySelector(`.tab-btn[onclick*="${tab}"]`);
-  if (btn) btn.classList.add("active");
+  document.querySelectorAll(".tab-btn").forEach(b => {
+    const selected = b.dataset.tab === tab;
+    b.classList.toggle("active", selected);
+    b.setAttribute("aria-pressed", String(selected));
+  });
 
   const podcast    = document.getElementById("podcast-tab-panel");
   const clips      = document.getElementById("clip-tab-panel");
@@ -3154,7 +3238,7 @@ function openScheduler() {
   // Default to tomorrow 9am
   const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0);
   document.getElementById("schedule-datetime").value =
-    d.toISOString().slice(0, 16);
+    new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   picker.style.display = picker.style.display === "none" ? "block" : "none";
 }
 
@@ -3232,13 +3316,69 @@ function onScheduleSuccess() {
 // ── Queue tab ─────────────────────────────────────────────────────────────────
 function fmtScheduledDate(isoStr) {
   const d = new Date(isoStr);
+  if (!isoStr || Number.isNaN(d.getTime())) return "Time unavailable";
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
     " at " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
+function studioEscapeHtml(value) {
+  return String(value == null ? "" : value).replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+}
+
+function renderQueueEntry(entry) {
+  const esc = studioEscapeHtml;
+  const status = entry.status || "unknown";
+  const retryAt = Number(entry.next_attempt_at);
+  const hasRetry = status === "scheduled" && Number.isFinite(retryAt) && retryAt > 0;
+  const canAct = status === "scheduled" || status === "failed";
+  const date = fmtScheduledDate(entry.scheduled_at_iso);
+  const colors = { scheduled: "var(--orange-hi)", publishing: "var(--yellow)", published: "var(--green-hi)", failed: "var(--red)" };
+  const label = hasRetry ? "Retry scheduled" : status === "failed" ? "Needs attention" : status;
+  let videoUrl = "";
+  try {
+    const parsed = new URL(entry.youtube_url);
+    if (["https:", "http:"].includes(parsed.protocol)) videoUrl = parsed.href;
+  } catch (_) {}
+  const audioLabel = !entry.buzzsprout_episode_id ? "Not uploaded" : status === "published" ? "Live on Buzzsprout" : status === "publishing" ? "Release in progress" : status === "failed" ? "Private draft · release failed" : hasRetry ? "Private draft · waiting for retry" : "Private draft · scheduled for " + date;
+  const retryNote = hasRetry ? `<p class="studio-queue-notice">Automatic retry ${esc(fmtScheduledDate(new Date(retryAt * 1000).toISOString()))} · ${esc(entry.attempts || 0)} of 3 attempts used.</p>` : "";
+  const failureNote = entry.error ? `<p class="studio-queue-notice${status === "failed" ? " is-error" : ""}">${esc(entry.error)}</p>` : "";
+  return `<article class="panel studio-queue-card">
+    <div class="studio-queue-heading"><div>
+      <p class="studio-eyebrow" style="color:${colors[status] || "var(--text-sec)"}">${esc(label)}${entry.source === "automation" ? " · Automated" : ""}</p>
+      <h3>${entry.episode_number ? `EP. ${esc(entry.episode_number)} · ` : ""}${esc(entry.title || "Untitled episode")}</h3>
+      <p class="studio-queue-meta">${status === "published" ? "Published " + esc(fmtScheduledDate(entry.published_at)) : "Release " + esc(date)}</p>
+    </div>${canAct ? `<div class="studio-queue-actions">
+      <button class="sponsor-btn primary" data-queue-action="publish" data-entry-id="${esc(entry.entry_id)}">${status === "failed" || hasRetry ? "Retry now" : "Publish now"}</button>
+      <button class="sponsor-btn" data-queue-action="reschedule" data-entry-id="${esc(entry.entry_id)}">Reschedule</button>
+      <button class="sponsor-btn" data-queue-action="cancel" data-entry-id="${esc(entry.entry_id)}">Remove</button>
+    </div>` : ""}</div>
+    <div class="studio-queue-destinations"><p><span>Audio</span> ${esc(audioLabel)}</p><p><span>Video</span> ${videoUrl ? `<a href="${esc(videoUrl)}" target="_blank" rel="noopener noreferrer">View on YouTube ↗</a>` : "No YouTube link"}</p></div>
+    ${retryNote}${failureNote}
+    ${status === "failed" ? '<p class="studio-queue-notice is-error">Automatic attempts have stopped. Check the error, then retry or choose a new release time.</p>' : ""}
+  </article>`;
+}
+
+function showQueueError(message) {
+  const error = document.getElementById("queue-error");
+  error.textContent = message || "";
+  error.hidden = !message;
+}
+
+document.getElementById("queue-list").addEventListener("click", event => {
+  const button = event.target.closest("[data-queue-action]");
+  if (!button) return;
+  const actions = { publish: queuePublishNow, reschedule: queueReschedule, cancel: queueCancel };
+  const action = actions[button.dataset.queueAction];
+  if (action) action(button.dataset.entryId, button);
+});
+
 async function loadQueue() {
   try {
-    const entries = await fetch("/api/queue").then(r => r.json());
+    const response = await fetch("/api/queue");
+    if (!response.ok) throw new Error("Couldn't load the release queue. Try refreshing it.");
+    const entries = await response.json();
+    if (!Array.isArray(entries)) throw new Error("The release queue returned an invalid response.");
+    showQueueError("");
     const list    = document.getElementById("queue-list");
     const empty   = document.getElementById("queue-empty");
     const badge   = document.getElementById("queue-badge");
@@ -3253,106 +3393,57 @@ async function loadQueue() {
       return;
     }
     empty.style.display = "none";
-    list.innerHTML = entries.map(e => {
-      const statusIcon  = { scheduled:"⏳", publishing:"🔄", published:"✅", failed:"❌" }[e.status] || "•";
-      const statusColor = { scheduled:"#7c3aed", publishing:"#f59e0b", published:"#22c55e", failed:"#ef4444" }[e.status] || "#aaa";
-      const dtStr    = fmtScheduledDate(e.scheduled_at_iso);
-      const isActive = e.status === "scheduled";
-      const isAuto   = e.source === "automation";
-
-      // Video row
-      const videoRow = e.youtube_url
-        ? `<div style="display:flex;align-items:center;gap:6px;margin-top:6px">
-             <span style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;min-width:44px">Video</span>
-             <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;flex-shrink:0"></span>
-             <a href="${e.youtube_url}" target="_blank"
-                style="font-size:11px;color:var(--accent);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px"
-                title="${e.youtube_url}">${e.youtube_url}</a>
-           </div>`
-        : `<div style="display:flex;align-items:center;gap:6px;margin-top:6px">
-             <span style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;min-width:44px">Video</span>
-             <span style="width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0"></span>
-             <span style="font-size:11px;color:#555">No YouTube link</span>
-           </div>`;
-
-      // Audio row
-      const audioRow = e.buzzsprout_episode_id
-        ? `<div style="display:flex;align-items:center;gap:6px;margin-top:4px">
-             <span style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;min-width:44px">Audio</span>
-             <span style="width:8px;height:8px;border-radius:50%;background:${e.status==='published'?'#22c55e':'#f59e0b'};flex-shrink:0"></span>
-             <span style="font-size:11px;color:var(--text-dim)">${e.status === 'published' ? 'Live on Buzzsprout' : 'Private draft · publishes ' + dtStr}</span>
-           </div>`
-        : `<div style="display:flex;align-items:center;gap:6px;margin-top:4px">
-             <span style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;min-width:44px">Audio</span>
-             <span style="width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0"></span>
-             <span style="font-size:11px;color:#555">Not uploaded</span>
-           </div>`;
-
-      return `
-        <div style="background:var(--surface2);border:1px solid #333;border-radius:10px;padding:16px 18px">
-          <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
-            <div style="font-size:22px;margin-top:2px">${statusIcon}</div>
-            <div style="flex:1;min-width:0">
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px">
-                <span style="font-weight:600;font-size:13px;color:var(--text)">EP. ${e.episode_number} — ${e.title}</span>
-                ${isAuto ? `<span style="font-size:9px;background:#1e3a5f;color:var(--accent);border-radius:4px;padding:1px 6px;font-weight:600;letter-spacing:.5px;text-transform:uppercase">AUTO</span>` : ""}
-              </div>
-              <div style="font-size:11px;color:var(--text-dim);margin-bottom:2px">
-                <span style="color:${statusColor};font-weight:600;text-transform:uppercase;font-size:10px">${e.status}</span>
-                &nbsp;·&nbsp;${e.status === "published" ? "Published " + (e.published_at ? fmtScheduledDate(e.published_at) : "") : "Scheduled " + dtStr}
-                &nbsp;·&nbsp;ID: <code style="font-size:10px">${e.entry_id}</code>
-              </div>
-              ${videoRow}
-              ${audioRow}
-            </div>
-            <div style="display:flex;gap:8px;flex-shrink:0;margin-top:2px">
-              ${isActive ? `
-                <button onclick="queuePublishNow('${e.entry_id}')"
-                  style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer">
-                  🚀 Now
-                </button>
-                <button onclick="queueReschedule('${e.entry_id}')"
-                  style="background:var(--surface3);border:1px solid #444;color:var(--text);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer">
-                  ✏️ Reschedule
-                </button>
-                <button onclick="queueCancel('${e.entry_id}')"
-                  style="background:transparent;border:1px solid #ef4444;color:#ef4444;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer">
-                  ✕ Cancel
-                </button>
-              ` : ""}
-            </div>
-          </div>
-        </div>`;
-    }).join("");
+    list.innerHTML = entries.map(renderQueueEntry).join("");
   } catch(e) {
     console.error("Queue load error:", e);
+    showQueueError(e.message || "Couldn't load the release queue.");
   }
 }
 
-async function queuePublishNow(entryId) {
+async function queuePublishNow(entryId, button) {
   if (!confirm("Publish this episode right now?")) return;
-  const res = await fetch(`/api/queue/${entryId}/publish`, { method: "POST" });
-  const data = await res.json();
-  if (data.ok) { addLog("Episode published!", "ok"); loadQueue(); }
-  else alert("Error: " + (data.error || "Unknown"));
+  if (button) button.disabled = true;
+  try {
+    const res = await fetch(`/api/queue/${encodeURIComponent(entryId)}/publish`, { method: "POST" });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || data.message || "The episode could not be published.");
+    addLog("Episode published!", "ok");
+    await loadQueue();
+  } catch (error) {
+    await loadQueue();
+    showQueueError(error.message);
+  } finally { if (button) button.disabled = false; }
 }
 
-async function queueCancel(entryId) {
+async function queueCancel(entryId, button) {
   if (!confirm("Remove this episode from the queue?")) return;
-  await fetch(`/api/queue/${entryId}`, { method: "DELETE" });
-  loadQueue();
+  if (button) button.disabled = true;
+  try {
+    const response = await fetch(`/api/queue/${encodeURIComponent(entryId)}`, { method: "DELETE" });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "The episode could not be removed.");
+    await loadQueue();
+  } catch (error) { showQueueError(error.message); }
+  finally { if (button) button.disabled = false; }
 }
 
-function queueReschedule(entryId) {
-  const dt = prompt("New date/time (e.g. 2026-05-12T09:00):");
+async function queueReschedule(entryId, button) {
+  const dt = prompt("New release date and time, in your local timezone (YYYY-MM-DDTHH:mm):");
   if (!dt) return;
   const ts = new Date(dt).getTime() / 1000;
   if (isNaN(ts)) { alert("Invalid date format."); return; }
-  fetch(`/api/queue/${entryId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scheduled_at: ts }),
-  }).then(() => loadQueue());
+  if (ts <= Date.now() / 1000) { alert("Choose a future release time."); return; }
+  if (button) button.disabled = true;
+  try {
+    const response = await fetch(`/api/queue/${encodeURIComponent(entryId)}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scheduled_at: ts }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "The release could not be rescheduled.");
+    await loadQueue();
+  } catch (error) { showQueueError(error.message); }
+  finally { if (button) button.disabled = false; }
 }
 
 // ── TikTok status ──────────────────────────────────────────────────────────
@@ -4226,6 +4317,7 @@ function copyOutreach() {
 let _studioMode = localStorage.getItem("studioMode") || "audio";
 
 function setStudioMode(mode) {
+  if (!["audio", "video", "both"].includes(mode)) mode = "audio";
   _studioMode = mode;
   localStorage.setItem("studioMode", mode);
   const audioBtn   = document.getElementById("mode-audio-btn");
@@ -4233,13 +4325,18 @@ function setStudioMode(mode) {
   const bothBtn    = document.getElementById("mode-both-btn");
   const badge      = document.getElementById("mode-badge");
   const videoInfo  = document.getElementById("video-mode-info");
-  const activeCSS  = "background:linear-gradient(135deg,#8B5CFF,#2EA7FF);border:none;color:#fff;";
+  const activeCSS  = "background:var(--orange);border:none;color:#fff;";
   const inactiveCSS= "background:transparent;border:none;color:var(--text-dim);";
 
   // Reset all three
   audioBtn.style.cssText += inactiveCSS;
   videoBtn.style.cssText += inactiveCSS;
   if (bothBtn) bothBtn.style.cssText += inactiveCSS;
+  [audioBtn, videoBtn, bothBtn].forEach(button => {
+    if (button) button.setAttribute("aria-pressed", String(button.id === `mode-${mode}-btn`));
+  });
+  document.getElementById("studio-output-label").textContent = mode === "audio" ? "Clean audio · MP3" : mode === "video" ? "Captioned video · MP4" : "Audio + captioned video · MP3 / MP4";
+  document.getElementById("studio-accepted-files").textContent = mode === "audio" ? "MP3, WAV, M4A & other audio files" : "MP4, MOV, audio & image files";
 
   if (mode === "audio") {
     audioBtn.style.cssText += activeCSS;

@@ -21,6 +21,7 @@ import re
 import subprocess
 import tempfile
 import urllib.request
+import urllib.parse
 from pathlib import Path
 from typing import Optional
 
@@ -95,8 +96,8 @@ Total video duration: {vid_end:.1f} seconds.
 Transcript:
 {transcript}
 
-Return ONLY a JSON array of objects with keys: start (float), end (float), query (string), is_city (boolean).
-Example: [{{"start": 32.5, "end": 48.0, "query": "real estate agent showing house interior", "is_city": false}}]"""
+Return ONLY a JSON object of the form {{"slots": [ ... ]}} where each item has keys: start (float), end (float), query (string), is_city (boolean).
+Example: {{"slots": [{{"start": 32.5, "end": 48.0, "query": "real estate agent showing house interior", "is_city": false}}]}}"""
 
     try:
         import openai
@@ -145,14 +146,12 @@ def _pexels_search(query: str, pexels_key: str, min_duration: int = 8) -> Option
     Search Pexels for a video clip matching query.
     Returns a download URL for the best SD/HD file, or None.
     """
-    params = f"query={urllib.parse.quote(query)}&per_page=8&orientation=landscape&size=medium"
-    url = f"{PEXELS_VIDEO_SEARCH}?{params}"
-    req = urllib.request.Request(url, headers={"Authorization": pexels_key})
     try:
-        import urllib.parse
         params = f"query={urllib.parse.quote(query)}&per_page=8&orientation=landscape&size=medium"
         url = f"{PEXELS_VIDEO_SEARCH}?{params}"
-        req = urllib.request.Request(url, headers={"Authorization": pexels_key})
+        # Pexels 403s the default Python-urllib User-Agent — set an explicit one.
+        req = urllib.request.Request(
+            url, headers={"Authorization": pexels_key, "User-Agent": "PodClickAI/1.0"})
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read())
         videos = data.get("videos", [])

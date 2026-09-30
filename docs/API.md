@@ -1,4 +1,53 @@
 # PodClick API Reference
+
+## Deployment perimeter and billing — September 25 SaaS follow-up
+
+`main:app` wraps all HTTP and WebSocket routes in `DeploymentBoundary`. Default/unknown modes return 503 for private HTTP and close WebSockets with 1008. `PODCLICK_DEPLOYMENT_MODE=local` permits only loopback socket clients with an exact local authority and matching port; forwarding headers and cross-origin browser writes are rejected. Uvicorn must use `--no-proxy-headers`. Local mode must never be exposed through a reverse proxy. Owner publishing jobs are skipped outside explicit local mode.
+
+Minimal GET/HEAD `/health` is public. Only exact POST `/api/billing/webhook` reaches the application from a locked deployment, and then requires Stripe signature verification. No customer authentication or multi-tenant access is implied by this perimeter.
+
+| Method / path | Contract |
+|---|---|
+| GET `/billing` | Honest local setup page; no payment controls or unverified subscription claim |
+| GET `/api/billing/plans` | `{configured, plans: [plan-key], checkout_requires_sign_in: true}`; perimeter still applies |
+| GET `/api/billing/status` | Verified membership required; returns plan/status/entitlement/period/cancellation/management ability |
+| POST `/api/billing/checkout` | Verified owner + exact configured Origin + JSON `{plan: key}`; returns a Stripe Checkout URL |
+| POST `/api/billing/portal` | Verified owner + same-origin JSON `{}`; returns customer portal URL from server-owned customer association |
+| POST `/api/billing/webhook` | Exact raw body, maximum 1 MiB, Stripe-Signature verified with five-minute tolerance; atomic event receipt and refreshed subscription state |
+
+**Not live:** the default principal dependency returns 401. Customer sign-in/tenant provisioning and application-wide paid-feature enforcement must be completed before injecting a verified adapter. Do not trust request headers, checkout redirects, or `get_current_location_id()` as identity/payment proof.
+
+Configuration: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, approved `STRIPE_PRICE_IDS` JSON mapping, and `PODCLICK_PUBLIC_URL` (HTTPS for live). `STRIPE_API_VERSION` defaults to `2025-02-24.acacia`. No prices, trial terms, or actual accounts are invented. Keys never go to the browser. Migration `b6e4d9f7a210` creates `billing_accounts` and `stripe_event_receipts`; SQL was generated offline, not applied to the live database.
+
+Webhook events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.created`, `.updated`, `.deleted`, `.paused`, `.resumed`, `invoice.paid`, and `invoice.payment_failed`. Out-of-order delivery refreshes provider state under a workspace transaction lock. Unknown customers are ignored, not provisioned from event metadata. Test events cannot grant live entitlements. Unconfirmed checkout attempts older than 23 hours require manual reconciliation rather than risking duplicate subscriptions.
+
+## Podcast autopilot — 2026-09-25
+
+All endpoints below are under `/api/projects/{project_id}/autopilot`. The response envelope is `{project_id, plan, readiness: {ready, checks, blockers}, available_destinations}`. Readiness is derived from the project, local media, connection configuration, and existing release ownership. A configured connection does not guarantee its token will remain valid; provider failures appear in action outcomes.
+
+| Method / suffix | Purpose |
+|---|---|
+| GET | Read current plan, readiness, activity, and destination configuration |
+| POST `/preflight` | Check an optional candidate plan without saving or publishing |
+| PUT | Save `{mode: "review" or "automatic", destinations: ["buzzsprout", "youtube"], scheduled_at: timezone-aware ISO}`; selections must be explicit and time must be future |
+| POST `/run` | Approve a saved plan with `{approve: true}`; the worker performs preparation and waits until due to publish |
+| POST `/pause` | Persist a pause; already-running provider requests may finish, subsequent actions stop |
+| POST `/resume` | Resume safe pending actions; publication can occur on the next check if already due |
+| POST `/cancel` | Stop future actions and retain provider receipts/private uploads |
+
+Review plans wait for approval. Automatic plans continuously recheck readiness, upload selected destinations privately, then publish at or after the selected time while the server is running. Plans live at `data/podcast_autopilot/<project UUID>.json` with atomic replacement, process locks, and independent pause/cancel control files. The worker checks every 30 seconds and processes up to two projects concurrently. `PODCLICK_AUTOMATION_DISABLED=1` prevents automatic execution for previews.
+
+Each destination has upload/publish actions with status, attempts, provider receipt, timestamps, errors, and bounded retries. Interrupted or uncertain uploads require provider reconciliation instead of blind re-upload. Changed content after private preparation blocks release; review approval cannot bypass this. Started plans cannot replace uploaded assets. Existing/manual release owners block a competing autopilot plan. Shorts, social posts, and guest email retain their existing independent controls; autopilot does not send guest messages.
+
+Legacy future YouTube releases now upload privately with `publishAt`; rescheduling updates only a private scheduled video and preserves public visibility. Reschedule warnings are returned as `distribution_warnings` and included in the response message. An explicitly empty social-platform selection remains empty.
+
+## Release queue recovery — 2026-09-25
+
+`GET /api/queue` now includes `attempts` and `next_attempt_at` (Unix seconds) for each release. Retryable provider failures remain `scheduled` while awaiting their next attempt; permanent failures and exhausted retries become `failed`. Existing failed entries are not silently re-enabled.
+
+`POST /api/queue/{entry_id}/publish` uses the same atomic in-process claim as the background scheduler. It is idempotent for a published entry, returns 409 for an in-flight release, 404 for a missing entry, and 502 for provider failure (with the resulting queue status). An explicit retry of a failed entry starts a new bounded attempt cycle. Deleting an in-flight entry returns 409; rescheduling accepts pending or failed entries and resets their retry state.
+
+The legacy queue uses a single scheduler process. Writes replace the JSON file atomically, interrupted publication is recovered on startup, and duplicate queue submissions for the same Buzzsprout episode reuse the existing entry. The provider release operation is an idempotent visibility PATCH. `PODCLICK_AUTOMATION_DISABLED=1` disables automatic scheduler dispatch for previews.
 > Last updated: 2026-05-28 | Server: http://localhost:8765 | Update on new routes.
 
 ## Core Podcast Pipeline
@@ -792,6 +841,10 @@ Notes:    Triggers the same logic as the 4am cron. Useful for manual testing.
 | POST | `/api/projects/{id}/build-asset-package` | Build guest asset package(s) → Drive folder + uploads + drafted email → Punch List |
 | POST | `/api/projects/{id}/guest-assets/build` | Step 4 inline — capture recipient {name,email}, link guest, build Drive package + drafted email |
 | GET | `/api/projects/{id}/guest-assets` | Latest pending guest_asset_package for this project (email + Drive link for inline review/send) |
+| GET | `/api/projects/{id}/source-video` | Stream the current take (edited cut if any, else raw). `?download=1` → attachment, clean title filename (raw full file, no clips) |
+| GET | `/api/projects/{id}/download-final` | Download ONE full video = current-take video + polished loudnorm audio muxed in (no clips/Shorts/distribution). Caches `{stem}.final.mp4` by mtime |
+| GET | `/api/projects/{id}/clips/{clipId}/video.mp4` | Alias of `/video` with a real extension so external fetchers (GHL) classify it as video |
+| POST | `/api/projects/{id}/distribute-shorts` | Post the episode's rendered Shorts to Instagram + TikTok via GHL as **drafts**. Body `{platforms:["instagram","tiktok"], max_clips:3}`. Uploads each clip to the GHL media library (GHL-hosted CDN — no public URL/tunnel needed) then drafts one post per platform. Review + publish in the GHL planner. In-app trigger: project Step 3 "📲 Send to Instagram + TikTok" |
 
 ### GET /api/projects
 ```json
@@ -892,3 +945,32 @@ Notes:
   Frontend: 🎙️ RE Daily Brief button on /calendar → modal → "🎬 Film This Now" hands the
   (editable) script to the Studio teleprompter via localStorage(podclick_teleprompter_script).
 ```
+
+---
+
+## AI B-roll auto-edit (2026-07-28)
+
+AI picks cutaway moments from the transcript, pulls matching Pexels stock footage, and composites it
+full-frame over the talking head (your audio continues). Engine: `pipeline/broll.py`.
+
+### `POST /api/projects/{id}/auto-broll`
+Kicks off a background b-roll edit on the project's current take (edited cut if present, else raw
+recording). Returns `{status:"running"}` immediately. No body.
+
+### `GET /api/projects/{id}/auto-broll`
+Poll progress. `{status}` ∈ `running` | `done` | `done_none` (AI found no good cutaway moments) |
+`failed`; includes `message` and, when done, the b-roll video path. Survives a server restart by
+inferring from persisted `legacy_metadata.broll_video_path`.
+
+### `GET /api/projects/{id}/broll-video[?download=1]`
+Streams the b-roll'd `.mp4` inline, or `?download=1` for a `{title} (b-roll).mp4` attachment. 404 until
+a run has completed.
+
+**Publish wiring (2026-07-28):** when a project has a `broll_video_path`, `_distribute_project`
+uploads the **b-roll cut** to YouTube at Closing (preference: b-roll → edited cut → raw). Opt out
+per-install with `PODCLICK_PUBLISH_BROLL=0`. Clips/Shorts still build from the edited cut.
+
+**Range support (2026-09-17):** `GET /api/projects/{id}/source-video` now honors HTTP `Range`
+requests for inline playback (206 + `Content-Range` + `Accept-Ranges: bytes`). Required for the
+editor video to be seekable/scrubbable/fast-forwardable — without it Chrome marks the media
+non-seekable. `?download=1` still returns the full file as an attachment.

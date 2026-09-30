@@ -296,6 +296,97 @@
       .editor-grid { grid-template-columns: 1fr; }
       .tools-sidebar { margin-top: 4px; }
     }
+    /* Episode workspace — publication is an explicit, inspectable plan. */
+    .shell { max-width: 1160px; padding-top: 32px; }
+    .header-card { padding: 26px; border-radius: 16px; border-left-width: 1px; }
+    .header-eyebrow, .topbar .back, .card-head .meta { color: #a89d8e; }
+    .header-title { font-size: clamp(25px, 3.6vw, 36px); line-height: 1.2; letter-spacing: -.04em; }
+    .header-meta { letter-spacing: .02em; text-transform: none; gap: 14px; }
+    .status-draft { color: #a79d91; }
+    .plat-tile > span { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #f5f7fa; }
+    .success-banner.is-overdue { border-color: #745029; background: #241c13; }
+    .success-banner.is-overdue .btitle { color: #efb677; }
+    .header-title:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid #f2aa62; outline-offset: 4px; }
+    .wstep { text-align: left; font: inherit; opacity: 1; padding: 17px; }
+    .wstep .wnum { color: #a89d8e; letter-spacing: .08em; }
+    .wstep .wlabel { color: #b8afa2; }
+    .wstep.active .wlabel, .wstep.done .wlabel { color: #f5f0e8; }
+    .wstep[aria-current="step"] { box-shadow: 0 0 0 1px rgba(240,112,48,.14); }
+    .wstep:disabled { cursor: wait; }
+    .card { border-radius: 16px; }
+    .field-row > div { flex-wrap: wrap; }
+    .autopilot-console { margin-bottom: 22px; background: #161410; border: 1px solid #393025; border-radius: 16px; overflow: hidden; }
+    .ap-summary { display: flex; align-items: center; gap: 14px; padding: 19px 22px; cursor: pointer; list-style: none; }
+    .ap-summary::-webkit-details-marker { display: none; }
+    .ap-mark { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border: 1px solid #71502d; border-radius: 12px; color: #f2aa62; background: #2d2318; font-size: 21px; }
+    .ap-summary-copy { min-width: 0; flex: 1; }
+    .ap-summary-copy strong { display: block; font-size: 14px; color: #f5f0e8; }
+    .ap-summary-copy p { color: #b4a99b; font-size: 12px; line-height: 1.5; margin-top: 3px; }
+    .ap-chevron { color: #c6b8a5; font-size: 18px; transition: transform .15s; }
+    .autopilot-console[open] .ap-chevron { transform: rotate(180deg); }
+    .ap-body { border-top: 1px solid #302a22; padding: 24px; }
+    .ap-grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,.85fr); gap: 28px; }
+    .ap-eyebrow { font-size: 10px; letter-spacing: .12em; color: #c2a486; font-weight: 700; text-transform: uppercase; margin-bottom: 9px; }
+    .ap-body h2 { font-size: 22px; letter-spacing: -.035em; margin-bottom: 8px; }
+    .ap-intro { font-size: 13px; color: #b4a99b; line-height: 1.65; margin-bottom: 20px; }
+    .ap-mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ap-choice { display: flex; align-items: flex-start; gap: 9px; border: 1px solid #40372c; border-radius: 11px; padding: 14px; cursor: pointer; background: #100f0d; }
+    .ap-choice:has(input:checked) { border-color: #da9250; background: #292016; }
+    .ap-choice input { margin-top: 3px; accent-color: #e8a25c; }
+    .ap-choice strong { display: block; color: #f0e8dc; font-size: 13px; margin-bottom: 5px; }
+    .ap-choice small { display: block; font-size: 11px; color: #b4a99b; line-height: 1.5; }
+    .ap-field { margin-top: 20px; border: 0; min-width: 0; }
+    .ap-field legend, .ap-field > label { color: #d6c9b7; font-size: 12px; font-weight: 600; display: block; margin-bottom: 9px; }
+    .ap-destinations { display: flex; flex-wrap: wrap; gap: 8px; }
+    .ap-destination { display: flex; align-items: center; gap: 9px; border: 1px solid #40372c; border-radius: 10px; padding: 11px 13px; cursor: pointer; font-size: 12px; }
+    .ap-destination:has(input:checked) { border-color: #da9250; background: #292016; }
+    .ap-destination input { accent-color: #e8a25c; }
+    .ap-connected { color: #8cc8a2; font-size: 10px; }
+    .ap-disconnected { color: #f4b675; font-size: 10px; }
+    .ap-help { color: #ad9f8d; line-height: 1.55; font-size: 11px; margin-top: 8px; }
+    .ap-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+    .ap-actions .btn { font-size: 12px; letter-spacing: 0; }
+    .ap-sidebar { background: #100f0d; border: 1px solid #302a22; border-radius: 13px; padding: 18px; }
+    .ap-sidebar h3 { font-size: 13px; color: #f0e8dc; margin: 0 0 12px; }
+    .ap-status { display: inline-flex; border: 1px solid #62503a; background: #2d2318; color: #ecc393; border-radius: 99px; padding: 5px 9px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+    .ap-checks, .ap-activity { list-style: none; padding: 0; margin: 0; }
+    .ap-checks li { display: flex; gap: 9px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid #29251e; font-size: 12px; line-height: 1.5; }
+    .ap-checks li:last-child { border: 0; }
+    .ap-check-icon { color: #eab477; min-width: 15px; }
+    .ap-check-icon.ready { color: #8cc8a2; }
+    .ap-checks strong { color: #e8dfd1; font-size: 12px; font-weight: 500; }
+    .ap-checks small { display: block; color: #aa9f90; font-size: 11px; line-height: 1.5; }
+    .ap-message { padding: 12px 14px; border: 1px solid #5e4931; background: #251e15; border-radius: 10px; font-size: 12px; line-height: 1.6; color: #ebc295; margin-top: 16px; }
+    .ap-message.error { border-color: #784239; color: #f4b4a8; background: #2d1d19; }
+    .ap-message.success { border-color: #36583e; color: #a5d4af; background: #19271d; }
+    .ap-plan { font-size: 12px; line-height: 1.65; color: #b9ad9b; margin-bottom: 12px; }
+    .ap-plan strong { color: #eee5d8; }
+    .ap-activity-wrap { margin-top: 20px; border-top: 1px solid #302a22; padding-top: 18px; }
+    .ap-activity li { border-left: 1px solid #4c3c2b; margin-left: 4px; padding: 0 0 13px 13px; font-size: 12px; line-height: 1.5; color: #d1c4b2; }
+    .ap-activity time { display: block; font-size: 10px; color: #a89b89; margin-top: 3px; }
+    .ap-outcome { padding: 10px 0; border-top: 1px solid #302a22; font-size: 12px; line-height: 1.6; color: #c6b9a7; overflow-wrap: anywhere; }
+    .ap-outcome strong { color: #efe5d6; }
+    .ap-outcome a { color: #f2aa62; }
+    @media (max-width: 680px) {
+      .shell { padding: 20px 14px 60px; }
+      .header-card { padding: 20px; }
+      .wizard-bar { gap: 6px; }
+      .wstep { padding: 12px 8px; }
+      .wstep .wnum { font-size: 9px; letter-spacing: 0; }
+      .wstep .wlabel { font-size: 11px; }
+      .card { padding: 16px; }
+      .card-head { flex-wrap: wrap; }
+      .ap-grid { grid-template-columns: 1fr; gap: 20px; }
+      .ap-summary { padding: 16px; gap: 10px; }
+      .ap-summary > .ap-status { display: none; }
+      .ap-body { padding: 17px; }
+      .ap-mode-grid { grid-template-columns: 1fr; }
+      .ap-actions .btn { flex: 1 1 auto; }
+      .player-frame, #clip-player { max-width: 100%; }
+      .player-controls, .player-actions { width: 100%; max-width: 320px; }
+      #step1-panel .field-row > div { width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
   </style>
   <script src="/static/podclick-nav.js" defer></script>
 </head>
@@ -303,15 +394,63 @@
   <div class="shell" id="shell">
 
     <div class="topbar">
-      <a href="/projects" class="back">&larr; Job Site</a>
+      <a href="/projects" class="back">&larr; All episodes</a>
       <div id="crumbs" style="font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#4a4540;">Project</div>
     </div>
 
     <div id="header-card" class="header-card">
-      <div class="header-eyebrow">Project <span class="title-saving hidden" id="title-saving">Saving…</span></div>
-      <div class="header-title" id="header-title" contenteditable="true" spellcheck="false">Loading…</div>
+      <div class="header-eyebrow">Episode workspace <span class="title-saving hidden" id="title-saving">Saving…</span></div>
+      <div class="header-title" id="header-title" contenteditable="true" role="textbox" aria-label="Episode title" spellcheck="false">Loading…</div>
       <div class="header-meta" id="header-meta"></div>
     </div>
+
+    <details class="autopilot-console" id="autopilot-console">
+      <summary class="ap-summary">
+        <span class="ap-mark" aria-hidden="true">✦</span>
+        <div class="ap-summary-copy"><strong>Publishing autopilot</strong><p id="ap-summary-text">Prepare your episode, choose destinations, and let the plan carry it forward.</p></div>
+        <span class="ap-status" id="ap-status">Loading…</span><span class="ap-chevron" aria-hidden="true">⌄</span>
+      </summary>
+      <div class="ap-body">
+        <div class="ap-grid">
+          <section aria-labelledby="ap-title">
+            <div class="ap-eyebrow">Your episode. Your publishing rules.</div>
+            <h2 id="ap-title">From ready to released.</h2>
+            <p class="ap-intro">PodClick checks the episode, watches your schedule, and publishes to the destinations you choose. Every action stays visible here.</p>
+            <fieldset class="ap-field" style="margin-top:0;">
+              <legend>How should PodClick handle this episode?</legend>
+              <div class="ap-mode-grid">
+                <label class="ap-choice"><input type="radio" name="ap-mode" value="review" checked><span><strong>Review first</strong><small>Save a plan. Publishing waits for your approval.</small></span></label>
+                <label class="ap-choice"><input type="radio" name="ap-mode" value="automatic"><span><strong>Automatic</strong><small>Enable the plan to publish when ready and due.</small></span></label>
+              </div>
+            </fieldset>
+            <fieldset class="ap-field"><legend>Publish the full episode to</legend><div class="ap-destinations" id="ap-destinations"><span class="ap-help">Checking available destinations…</span></div><p class="ap-help">Shorts, social posts, and guest emails keep their own review and send controls.</p></fieldset>
+            <div class="ap-field"><label for="ap-scheduled-at">Release date &amp; time</label><input type="datetime-local" id="ap-scheduled-at"><p class="ap-help" id="ap-timezone"></p></div>
+            <div class="ap-actions">
+              <button type="button" class="btn btn-ghost" id="ap-preflight-btn" disabled>Check readiness</button>
+              <button type="button" class="btn btn-primary" id="ap-save-btn" disabled>Save review plan</button>
+            </div>
+            <p class="ap-help" id="ap-consent">Saving a review plan does not publish. Approve the saved plan when you are ready.</p>
+            <div class="ap-message hidden" id="ap-message" role="status" aria-live="polite"></div>
+          </section>
+          <aside class="ap-sidebar" aria-label="Publishing readiness and activity">
+            <h3>Readiness check</h3>
+            <ul class="ap-checks" id="ap-checks"><li><span class="ap-check-icon">○</span><div><strong>Checking your episode…</strong></div></li></ul>
+            <div class="ap-activity-wrap">
+              <h3>Saved release plan</h3><div class="ap-plan" id="ap-plan">No plan loaded yet.</div>
+              <div class="ap-actions" id="ap-plan-controls" style="margin-top:12px;">
+                <button type="button" class="btn btn-primary hidden" id="ap-run-btn">Approve &amp; schedule</button>
+                <button type="button" class="btn btn-ghost hidden" id="ap-pause-btn">Pause</button>
+                <button type="button" class="btn btn-ghost hidden" id="ap-resume-btn">Resume</button>
+                <button type="button" class="btn btn-ghost hidden" id="ap-cancel-btn">Cancel plan</button>
+                <button type="button" class="btn btn-ghost" id="ap-refresh-btn">Refresh</button>
+              </div>
+              <div id="ap-outcomes"></div>
+            </div>
+            <div class="ap-activity-wrap"><h3>Activity</h3><ol class="ap-activity" id="ap-activity"><li>Actions and outcomes will appear here.</li></ol></div>
+          </aside>
+        </div>
+      </div>
+    </details>
 
     <!-- Failure banner -->
     <div id="failed-banner" class="failed-banner hidden">
@@ -333,10 +472,10 @@
 
     <!-- Wizard bar — all 4 steps are clickable -->
     <div id="wizard-bar" class="wizard-bar">
-      <div class="wstep" data-step="1"><div class="wnum">Step 01</div><div class="wlabel">Transcript</div></div>
-      <div class="wstep" data-step="2"><div class="wnum">Step 02</div><div class="wlabel">Audio</div></div>
-      <div class="wstep" data-step="3"><div class="wnum">Step 03</div><div class="wlabel">Clips</div></div>
-      <div class="wstep" data-step="4"><div class="wnum">Step 04</div><div class="wlabel">Closing</div></div>
+      <button type="button" class="wstep" data-step="1"><span class="wnum">01 · Refine</span><div class="wlabel">Transcript</div></button>
+      <button type="button" class="wstep" data-step="2"><span class="wnum">02 · Listen</span><div class="wlabel">Audio</div></button>
+      <button type="button" class="wstep" data-step="3"><span class="wnum">03 · Repurpose</span><div class="wlabel">Clips</div></button>
+      <button type="button" class="wstep" data-step="4"><span class="wnum">04 · Release</span><div class="wlabel">Publish</div></button>
     </div>
 
     <!-- Processing -->
@@ -364,9 +503,11 @@
         <div style="display:flex;gap:8px;">
           <button class="btn btn-ghost" id="save-transcript-btn">Save edits</button>
           <button class="btn btn-ghost" id="open-editor-btn" title="Cut words & fumbles, preview, then re-cut the video">✂️ Edit Video</button>
+          <button class="btn" id="ai-broll-btn" style="background:#7b3ff0;color:#fff;" title="Brick picks the moments, pulls matching stock footage, and lays b-roll over your talking head automatically">🎬 AI Edit — add b-roll</button>
         </div>
         <button class="btn btn-primary" id="step1-next-btn">Next &rarr;</button>
       </div>
+      <div id="ai-broll-result" class="hint" style="margin:8px 0 0"></div>
     </div>
 
     <!-- Step 2 — Audio Assembly -->
@@ -527,6 +668,18 @@
         </div>
       </div>
 
+      <div id="shorts-send-row" style="margin-top:18px;padding:14px;border:1px solid var(--line,#2a2f3a);border-radius:10px;background:rgba(240,112,48,0.06);">
+        <div style="font-weight:700;margin-bottom:4px;">📲 Send clips to Instagram + TikTok</div>
+        <div class="hint" style="margin:0 0 10px;">Uploads your top clips to GoHighLevel as <b>drafts</b> — review &amp; publish in the GHL planner. Nothing auto-posts.</div>
+        <div class="field-row" style="gap:10px;align-items:center;flex-wrap:wrap;">
+          <label style="font-size:12px;">How many clips:
+            <input id="shorts-count" type="number" min="1" max="12" value="3" style="width:56px;margin-left:6px;padding:4px 6px;">
+          </label>
+          <button class="btn" id="send-shorts-btn" style="background:#f07030;color:#fff;">📲 Send to Instagram + TikTok</button>
+        </div>
+        <div id="shorts-send-result" class="hint" style="margin:10px 0 0;"></div>
+      </div>
+
       <div class="field-row" style="justify-content:flex-end;margin-top:18px;">
         <button class="btn btn-primary" id="step3-next-btn">Next &rarr;</button>
       </div>
@@ -535,8 +688,8 @@
     <!-- Step 4 — Closing -->
     <div id="step4-panel" class="card hidden">
       <div class="card-head">
-        <h2>Schedule Closing</h2>
-        <span class="meta">Set the date. Pick channels.</span>
+        <h2>Manual release &amp; guest assets</h2>
+        <span class="meta">Prefer automation? Use Publishing autopilot above.</span>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;">
         <label class="field-label">Closing date &amp; time</label>
@@ -597,7 +750,7 @@
 
   </div><!-- /shell -->
 
-  <div id="toast"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
 
   <script>
   (function () {
@@ -625,6 +778,185 @@
       transcriptDirty: false,
       transcriptSaving: false,
     };
+
+    let _apData = null;
+    let _apDirty = false;
+    let _apBusy = false;
+    let _apTimer = null;
+    let _apLoading = false;
+    const AP_STATUS = { awaiting_approval: 'Needs your approval', scheduled: 'Autopilot armed', running: 'Publishing', paused: 'Paused', needs_attention: 'Needs attention', completed: 'Published', cancelled: 'Cancelled' };
+    const AP_DESTINATION = { buzzsprout: 'Podcast feed', youtube: 'YouTube' };
+
+    function autopilotPath(suffix) {
+      return '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/autopilot' + (suffix || '');
+    }
+
+    function autopilotMessage(message, kind) {
+      $('ap-message').textContent = message;
+      $('ap-message').className = 'ap-message' + (kind ? ' ' + kind : '');
+    }
+
+    function autopilotFormChanged() {
+      _apDirty = true;
+      const automatic = document.querySelector('input[name="ap-mode"]:checked').value === 'automatic';
+      $('ap-save-btn').textContent = automatic ? 'Enable autopilot' : 'Save review plan';
+      $('ap-consent').textContent = automatic
+        ? 'Enabling authorizes PodClick to publish this full episode to the checked destinations when it is ready and the release time arrives.'
+        : 'Saving a review plan does not publish. Approve the saved plan when you are ready.';
+      if (_apData) autopilotMessage('Unsaved changes. Check readiness, then ' + (automatic ? 'enable autopilot' : 'save your review plan') + '.');
+      updateAutopilotControls();
+    }
+
+    function readAutopilotCandidate() {
+      const destinations = Array.from(document.querySelectorAll('#ap-destinations input:checked')).map(input => input.value);
+      if (!destinations.length) throw new Error('Choose at least one publishing destination.');
+      const when = new Date($('ap-scheduled-at').value);
+      if (!Number.isFinite(when.getTime())) throw new Error('Choose a valid release date and time.');
+      if (when.getTime() <= Date.now()) throw new Error('Choose a release time in the future.');
+      return { mode: document.querySelector('input[name="ap-mode"]:checked').value, destinations, scheduled_at: when.toISOString() };
+    }
+
+    function renderAutopilotReadiness(readiness) {
+      const checks = (readiness && readiness.checks) || [];
+      $('ap-checks').innerHTML = checks.length ? checks.map(check =>
+        '<li><span class="ap-check-icon' + (check.ok ? ' ready' : '') + '" aria-hidden="true">' + (check.ok ? '✓' : '○') + '</span><div><strong>' + escHtml(check.label) + '</strong><small>' + escHtml(check.ok ? 'Ready' : (check.detail || 'Needs attention')) + '</small></div></li>'
+      ).join('') : '<li><span class="ap-check-icon">○</span><div><strong>Choose a release plan</strong><small>Run a readiness check to see what is ready and what still needs your attention.</small></div></li>';
+    }
+
+    function updateAutopilotControls() {
+      const plan = _apData && _apData.plan;
+      const terminal = plan && ['completed', 'cancelled'].includes(plan.status);
+      const active = plan && ['scheduled', 'running', 'needs_attention'].includes(plan.status);
+      $('ap-save-btn').disabled = _apBusy || !_apData || !!(plan && ['running', 'completed'].includes(plan.status));
+      $('ap-preflight-btn').disabled = _apBusy || !_apData;
+      $('ap-refresh-btn').disabled = _apBusy;
+      $('ap-run-btn').classList.toggle('hidden', !plan || plan.status !== 'awaiting_approval');
+      $('ap-pause-btn').classList.toggle('hidden', !active);
+      $('ap-resume-btn').classList.toggle('hidden', !plan || !['paused', 'needs_attention'].includes(plan.status));
+      $('ap-cancel-btn').classList.toggle('hidden', !plan || terminal);
+      ['ap-run-btn', 'ap-resume-btn'].forEach(id => { $(id).disabled = _apBusy || _apDirty; });
+      ['ap-pause-btn', 'ap-cancel-btn'].forEach(id => { $(id).disabled = _apBusy; });
+      if (plan) $('ap-run-btn').textContent = new Date(plan.scheduled_at) > new Date() ? 'Approve & schedule' : 'Approve & publish';
+      document.querySelectorAll('.ap-field input').forEach(input => { input.disabled = _apBusy || !!(plan && ['running', 'completed'].includes(plan.status)); });
+    }
+
+    function renderAutopilot(data, resetForm) {
+      _apData = data;
+      const plan = data.plan;
+      $('ap-status').textContent = plan ? (AP_STATUS[plan.status] || plan.status.replace(/_/g, ' ')) : 'Not enabled';
+      const summary = !plan ? 'Set a release plan. PodClick checks readiness and handles the selected destinations.'
+        : plan.status === 'completed' ? 'Your selected destinations have finished. See the publishing results.'
+        : plan.status === 'awaiting_approval' ? 'Your release plan is ready for review. Publishing waits for your approval.'
+        : plan.status === 'paused' ? 'The plan is paused. Resume it when you are ready.'
+        : plan.status === 'cancelled' ? 'This release plan has been cancelled.'
+        : plan.status === 'needs_attention' ? 'The plan needs your attention. Open it to review blockers and outcomes.'
+        : plan.status === 'running' ? 'Publishing is in progress. Follow each destination below.'
+        : 'Release planned for ' + fmtDate(plan.scheduled_at) + '. Readiness is checked before publishing.';
+      $('ap-summary-text').textContent = summary;
+      if (resetForm || !_apDirty) {
+        const mode = plan ? plan.mode : 'review';
+        document.querySelectorAll('input[name="ap-mode"]').forEach(input => { input.checked = input.value === mode; });
+        $('ap-scheduled-at').value = toLocalInputValue(plan && plan.scheduled_at) || defaultClosingTime();
+        const destinations = data.available_destinations || [];
+        $('ap-destinations').innerHTML = destinations.map(destination => {
+          const checked = plan ? (plan.destinations || []).includes(destination.id) : false;
+          return '<label class="ap-destination"><input type="checkbox" value="' + escHtml(destination.id) + '"' + (checked ? ' checked' : '') + '><span>' + escHtml(AP_DESTINATION[destination.id] || destination.label) + '<br><small class="' + (destination.connected ? 'ap-connected' : 'ap-disconnected') + '">' + (destination.connected ? 'Connection configured' : 'Connection needed') + '</small></span></label>';
+        }).join('') || '<span class="ap-help">No publishing destinations are available.</span>';
+        $('ap-destinations').querySelectorAll('input').forEach(input => input.addEventListener('change', autopilotFormChanged));
+        $('ap-save-btn').textContent = mode === 'automatic' ? 'Enable autopilot' : 'Save review plan';
+        $('ap-consent').textContent = mode === 'automatic'
+          ? 'Enabling authorizes PodClick to publish this full episode to the checked destinations when it is ready and the release time arrives.'
+          : 'Saving a review plan does not publish. Approve the saved plan when you are ready.';
+        _apDirty = false;
+      }
+      renderAutopilotReadiness(data.readiness);
+      $('ap-plan').innerHTML = plan
+        ? '<strong>' + escHtml(AP_STATUS[plan.status] || plan.status) + '</strong><br>' + escHtml(fmtDate(plan.scheduled_at)) + '<br>' + escHtml((plan.destinations || []).map(id => AP_DESTINATION[id] || id).join(' + ')) + '<br><span>' + (plan.mode === 'automatic' ? 'Automatic publishing' : 'Review before publishing') + '</span>'
+        : 'No publishing plan yet. Choose your destinations and release time to get started.';
+      const planBlockers = ((plan && plan.blockers) || []).map(blocker => '<div class="ap-message error">' + escHtml(blocker) + '</div>').join('');
+      $('ap-outcomes').innerHTML = planBlockers + ((plan && plan.actions) || []).map(action => {
+        const safeUrl = /^https?:\/\//i.test(action.url || '') ? action.url : '';
+        return '<div class="ap-outcome"><strong>' + escHtml(AP_DESTINATION[action.destination] || action.destination) + '</strong> · ' + (action.kind === 'upload' ? 'Private upload' : 'Publish') + '<br>' + escHtml(String(action.status || 'pending').replace(/_/g, ' '))
+          + (action.error ? '<br>' + escHtml(action.error) : '')
+          + (action.next_attempt_at ? '<br>Next retry: ' + escHtml(fmtDate(action.next_attempt_at)) : '')
+          + (safeUrl ? '<br><a href="' + escHtml(safeUrl) + '" target="_blank" rel="noopener noreferrer">' + (action.kind === 'publish' && action.status === 'succeeded' ? 'View published episode' : 'View uploaded episode') + ' ↗</a>' : '') + '</div>';
+      }).join('');
+      const activity = ((plan && plan.activity) || []).slice(-6).reverse();
+      $('ap-activity').innerHTML = activity.length ? activity.map(item => '<li>' + escHtml(item.message) + '<time>' + escHtml(fmtDate(item.at)) + '</time></li>').join('') : '<li>No publishing actions yet.</li>';
+      updateAutopilotControls();
+      clearTimeout(_apTimer);
+      if (plan && !['completed', 'cancelled', 'paused'].includes(plan.status)) {
+        _apTimer = setTimeout(() => loadAutopilot(false), 15000);
+      }
+    }
+
+    async function loadAutopilot(resetForm) {
+      if (_apLoading || _apBusy) return;
+      _apLoading = true;
+      try {
+        renderAutopilot(await api('GET', autopilotPath()), resetForm);
+      } catch (error) {
+        $('ap-status').textContent = 'Unavailable';
+        $('ap-summary-text').textContent = 'Publishing status could not be loaded. Open to retry.';
+        autopilotMessage('Could not load publishing controls: ' + error.message, 'error');
+        updateAutopilotControls();
+      } finally { _apLoading = false; }
+    }
+
+    async function checkAutopilotReadiness() {
+      if (_apBusy) return;
+      try {
+        const candidate = readAutopilotCandidate();
+        _apBusy = true; updateAutopilotControls();
+        $('ap-preflight-btn').textContent = 'Checking…';
+        const data = await api('POST', autopilotPath('/preflight'), candidate);
+        const readiness = data.readiness || data;
+        renderAutopilotReadiness(readiness);
+        const blockers = Array.isArray(readiness.blockers) ? readiness.blockers : [];
+        autopilotMessage(readiness.ready
+          ? 'Ready for the selected destinations. This check has not saved or approved a plan.'
+          : 'Before publishing: ' + (blockers.join(' ') || 'resolve the items listed in the readiness check.') + ' You can save a plan while preparation is in progress.', readiness.ready ? 'success' : '');
+      } catch (error) { autopilotMessage(error.message, 'error'); }
+      finally { _apBusy = false; $('ap-preflight-btn').textContent = 'Check readiness'; updateAutopilotControls(); }
+    }
+
+    async function saveAutopilotPlan() {
+      if (_apBusy) return;
+      let candidate;
+      try {
+        candidate = readAutopilotCandidate();
+        _apBusy = true; updateAutopilotControls();
+        $('ap-save-btn').textContent = 'Saving…';
+        const data = await api('PUT', autopilotPath(), candidate);
+        _apDirty = false;
+        renderAutopilot(data, true);
+        autopilotMessage(candidate.mode === 'automatic'
+          ? 'Autopilot enabled. PodClick will check readiness and publish to the selected destinations when due. Keep the PodClick service running.'
+          : 'Review plan saved. Check the saved release plan, then approve it to authorize publishing.', 'success');
+      } catch (error) { autopilotMessage('Could not save the plan: ' + error.message, 'error'); }
+      finally {
+        _apBusy = false;
+        $('ap-save-btn').textContent = document.querySelector('input[name="ap-mode"]:checked').value === 'automatic' ? 'Enable autopilot' : 'Save review plan';
+        updateAutopilotControls();
+      }
+    }
+
+    async function controlAutopilot(action) {
+      if (_apBusy) return;
+      const messages = {
+        run: 'Plan approved. PodClick will publish when the saved release time arrives and readiness checks pass.',
+        pause: 'Plan paused. An upload already in progress may still finish; new actions will wait.',
+        resume: 'Plan resumed. If the saved release time has passed, publishing can start as soon as the episode is ready.',
+        cancel: 'Plan cancelled. Completed uploads are not removed, and an upload already in progress may still finish.'
+      };
+      try {
+        _apBusy = true; updateAutopilotControls();
+        const data = await api('POST', autopilotPath('/' + action), action === 'run' ? { approve: true } : {});
+        renderAutopilot(data, false);
+        autopilotMessage(messages[action], 'success');
+      } catch (error) { autopilotMessage('Could not ' + action + ' the plan: ' + error.message, 'error'); }
+      finally { _apBusy = false; updateAutopilotControls(); }
+    }
 
     // ── Clip editor state ────────────────────────────────────────────────
     let _activeClipIdx = 0;       // index into the de-duplicated visible clip list
@@ -702,7 +1034,8 @@
       if (ct.includes('application/json')) { try { data = await resp.json(); } catch(e) {} }
       else { try { data = await resp.text(); } catch(e) {} }
       if (!resp.ok) {
-        const detail = (data && typeof data==='object') ? (data.error||data.detail||data.message||'HTTP '+resp.status) : ('HTTP '+resp.status);
+        let detail = (data && typeof data==='object') ? (data.error||data.detail||data.message||'HTTP '+resp.status) : ('HTTP '+resp.status);
+        if (typeof detail !== 'string') detail = Array.isArray(detail) ? detail.map(item => item.msg || JSON.stringify(item)).join('; ') : JSON.stringify(detail);
         const err = new Error(detail); err.status = resp.status; throw err;
       }
       return data;
@@ -741,12 +1074,13 @@
       const title = p.title || 'Untitled Project';
       $('header-title').textContent = title;
       document.title = title + ' · PodClick';
-      $('crumbs').textContent = 'Project · ' + (p.status||'draft');
+      const statusLabel = { recording_done: 'Ready to prepare', processing: 'Preparing', review: 'Ready for review', scheduled: 'Scheduled', closing: 'Releasing', closed: 'Completed', failed: 'Needs attention', draft: 'Draft' }[p.status] || p.status || 'Draft';
+      $('crumbs').textContent = 'Episode · ' + statusLabel;
       const parts = [];
       if (p.episode_number != null) parts.push('<span>Ep ' + escHtml(p.episode_number) + '</span>');
-      parts.push('<span class="status-pill status-' + escHtml(p.status||'draft') + '">' + escHtml(p.status||'draft') + '</span>');
-      if (p.closed_at) parts.push('<span>Closed ' + escHtml(fmtDate(p.closed_at)) + '</span>');
-      else if (p.closing_scheduled_at) parts.push('<span>Closing ' + escHtml(fmtDate(p.closing_scheduled_at)) + '</span>');
+      parts.push('<span class="status-pill status-' + escHtml(p.status||'draft') + '">' + escHtml(statusLabel) + '</span>');
+      if (p.closed_at) parts.push('<span>Completed ' + escHtml(fmtDate(p.closed_at)) + '</span>');
+      else if (p.closing_scheduled_at) parts.push('<span>Release ' + escHtml(fmtDate(p.closing_scheduled_at)) + '</span>');
       $('header-meta').innerHTML = parts.join('');
     }
 
@@ -757,6 +1091,9 @@
         el.classList.remove('done','active','locked');
         if (n < currentStep)       el.classList.add('done');
         else if (n === currentStep) el.classList.add('active');
+        if (n === currentStep) el.setAttribute('aria-current', 'step');
+        else el.removeAttribute('aria-current');
+        el.disabled = !!(state.project && state.project.status === 'processing');
       });
     }
 
@@ -1337,15 +1674,14 @@
     // ── Platforms / Guests ─────────────────────────────────────────────────
     function renderPlatforms() {
       $('platforms').innerHTML = state.platformChecks.map(p => `
-        <div class="plat-tile ${p.on?'on':''}" data-key="${escHtml(p.key)}">
+        <label class="plat-tile ${p.on?'on':''}" data-key="${escHtml(p.key)}">
           <input type="checkbox" id="plat-${escHtml(p.key)}" ${p.on?'checked':''} />
-          <label for="plat-${escHtml(p.key)}">${escHtml(p.label)}</label>
-        </div>`).join('');
+          <span>${escHtml(p.label)}</span>
+        </label>`).join('');
       $('platforms').querySelectorAll('.plat-tile').forEach(tile => {
         const cb = tile.querySelector('input');
         const key = tile.getAttribute('data-key');
-        tile.addEventListener('click', e => {
-          if (e.target.tagName !== 'INPUT') cb.checked = !cb.checked;
+        cb.addEventListener('change', () => {
           const rec = state.platformChecks.find(x => x.key === key);
           if (rec) rec.on = cb.checked;
           tile.classList.toggle('on', cb.checked);
@@ -1503,7 +1839,13 @@
 
       if (p.status === 'scheduled' || p.status === 'closing' || p.status === 'closed') {
         const when = p.closing_scheduled_at || p.closed_at;
-        $('success-msg').textContent = when ? 'Lined up for ' + fmtDate(when) + '.' : 'Lined up.';
+        const overdue = p.status !== 'closed' && when && new Date(when).getTime() < Date.now();
+        $('success-banner').classList.toggle('is-overdue', !!overdue);
+        $('success-banner').querySelector('.btitle').textContent = p.status === 'closed' ? 'Release complete' : overdue ? 'Release status needs a check' : 'Release scheduled';
+        $('success-msg').textContent = p.status === 'closed'
+          ? (p.closed_at ? 'Completed ' + fmtDate(p.closed_at) + '.' : 'The project is marked complete.')
+          : overdue ? 'The saved release date (' + fmtDate(when) + ') has passed. Check your destination results before scheduling again.'
+          : when ? 'Scheduled for ' + fmtDate(when) + '.' : 'A release is being prepared.';
         $('success-banner').classList.remove('hidden');
       } else {
         $('success-banner').classList.add('hidden');
@@ -1583,6 +1925,48 @@
       } catch(err) { toast('Re-run failed — ' + err.message, 'error'); }
     }
 
+    async function startAiBroll() {
+      const btn = $('ai-broll-btn');
+      const out = $('ai-broll-result');
+      btn.disabled = true; btn.textContent = '🎬 Editing…';
+      out.textContent = '🎬 Brick is picking moments, pulling matching stock footage, and laying b-roll over your talking head. This takes a few minutes — you can leave this open.';
+      try {
+        const res = await fetch(`/api/projects/${PROJECT_ID}/auto-broll`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok || !data.ok) { out.textContent = '⚠ ' + (data.message || data.error || 'Could not start'); btn.disabled = false; btn.textContent = '🎬 AI Edit — add b-roll'; return; }
+        _pollAiBroll();
+      } catch (err) {
+        out.textContent = '⚠ ' + err.message; btn.disabled = false; btn.textContent = '🎬 AI Edit — add b-roll';
+      }
+    }
+
+    let _brollPoll = null;
+    function _pollAiBroll() {
+      const btn = $('ai-broll-btn');
+      const out = $('ai-broll-result');
+      clearInterval(_brollPoll);
+      _brollPoll = setInterval(async () => {
+        try {
+          const r = await fetch(`/api/projects/${PROJECT_ID}/auto-broll`);
+          const d = await r.json();
+          if (d.status === 'running') { out.textContent = '🎬 ' + (d.step || 'Editing…'); return; }
+          clearInterval(_brollPoll);
+          btn.disabled = false; btn.textContent = '🎬 AI Edit — add b-roll';
+          if (d.status === 'done') {
+            const url = `/api/projects/${PROJECT_ID}/broll-video`;
+            out.innerHTML = `✅ B-roll added! <a href="${url}" target="_blank" style="color:#7b3ff0;">▶ Preview</a> · <a href="${url}?download=1" style="color:#7b3ff0;">⬇ Download</a><br><span style="color:#8a8f98;font-size:12px;">This b-roll cut is now what publishes to YouTube when you close.</span>`;
+            toast('AI b-roll edit complete', 'success');
+          } else if (d.status === 'done_none') {
+            out.textContent = 'ℹ ' + (d.message || 'No b-roll was added.');
+          } else if (d.status === 'failed') {
+            out.textContent = '⚠ ' + (d.error || 'B-roll edit failed');
+          } else {
+            out.textContent = 'ℹ Nothing to show yet.';
+          }
+        } catch (e) { /* keep polling */ }
+      }, 5000);
+    }
+
     async function startShipIt() {
       if (state.transcriptDirty) { try { await saveTranscript(); } catch(e) {} }
       const btn = $('step1-next-btn');
@@ -1610,21 +1994,30 @@
       btn.disabled = true; btn.textContent = 'Lining up…';
       try {
         await scheduleClosing({ closing_at: iso, platforms });
-        toast('Closed clean. Lined up.', 'success');
+        toast('Release scheduled. Check destination results as publishing progresses.', 'success');
         const p = await loadProject();
         state.project = p;
         applyProjectState();   // re-renders Step 4 → locks the button (already scheduled)
       } catch(err) {
-        const m = /review/i.test(err.message || '')
-          ? 'Already lined up — this build is scheduled. Nothing more to do here.'
-          : 'Closing failed — ' + err.message;
-        toast(m, /review/i.test(err.message || '') ? 'info' : 'error');
+        toast('Could not schedule the release — ' + err.message, 'error');
         btn.disabled = false; btn.textContent = 'Line it up';   // only re-enable on failure
       }
     }
 
     // ── Bind controls ──────────────────────────────────────────────────────
     function bindControls() {
+      document.querySelectorAll('input[name="ap-mode"]').forEach(input => input.addEventListener('change', autopilotFormChanged));
+      $('ap-scheduled-at').addEventListener('change', autopilotFormChanged);
+      $('ap-timezone').textContent = 'Times are shown in ' + (Intl.DateTimeFormat().resolvedOptions().timeZone || 'your local timezone') + '. The PodClick service must be running to carry out the plan.';
+      $('ap-preflight-btn').addEventListener('click', checkAutopilotReadiness);
+      $('ap-save-btn').addEventListener('click', saveAutopilotPlan);
+      $('ap-refresh-btn').addEventListener('click', () => loadAutopilot(false));
+      ['run', 'pause', 'resume', 'cancel'].forEach(action => {
+        $('ap-' + action + '-btn').addEventListener('click', () => controlAutopilot(action));
+      });
+      $('autopilot-console').addEventListener('toggle', () => {
+        if ($('autopilot-console').open && _apData) loadAutopilot(false);
+      });
       // ── Inline title editing ──
       const titleEl = $('header-title');
       titleEl.addEventListener('blur', () => {
@@ -1648,6 +2041,7 @@
       $('open-editor-btn').addEventListener('click', () => {
         window.location.href = '/project/' + encodeURIComponent(PROJECT_ID) + '/edit';
       });
+      $('ai-broll-btn').addEventListener('click', startAiBroll);
       $('step1-next-btn').addEventListener('click', async () => {
         const p = state.project || {};
         const hasAudio = !!(p.mp3_url || (p.audio_assembly && p.audio_assembly.final_url));
@@ -1656,6 +2050,7 @@
       });
       $('step2-next-btn').addEventListener('click', () => navigateToStep(3));
       $('step3-next-btn').addEventListener('click', () => navigateToStep(4));
+      $('send-shorts-btn').addEventListener('click', sendShortsToSocial);
       $('line-it-up-btn').addEventListener('click', lineItUp);
       $('rerun-ship-btn').addEventListener('click', rerunShipIt);
 
@@ -1705,7 +2100,7 @@
       initEditorTools();
 
       window.addEventListener('beforeunload', e => {
-        if (state.transcriptDirty) { e.preventDefault(); e.returnValue = ''; }
+        if (state.transcriptDirty || _apDirty) { e.preventDefault(); e.returnValue = ''; }
       });
     }
 
@@ -1815,6 +2210,41 @@
       }
     }
 
+    async function sendShortsToSocial() {
+      const btn = $('send-shorts-btn');
+      const result = $('shorts-send-result');
+      const n = Math.max(1, Math.min(12, parseInt($('shorts-count').value, 10) || 3));
+      btn.disabled = true;
+      btn.textContent = 'Uploading to GHL…';
+      result.textContent = 'Uploading clips to GoHighLevel — this can take a minute…';
+      try {
+        const res = await fetch(`/api/projects/${PROJECT_ID}/distribute-shorts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ platforms: ['instagram', 'tiktok'], max_clips: n }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          const msg = data.message || data.error || 'Send failed';
+          result.textContent = '⚠ ' + msg;
+          toast(msg, 'error');
+          return;
+        }
+        const made = (data.created || []).length;
+        const skip = (data.skipped || []).length;
+        result.innerHTML = `✅ ${made} draft${made === 1 ? '' : 's'} created in GoHighLevel`
+          + (skip ? ` · ${skip} skipped` : '')
+          + `. <a href="https://app.gohighlevel.com/" target="_blank" style="color:#f07030;">Open GHL planner →</a> to review &amp; publish.`;
+        toast(`${made} Reel/TikTok drafts created in GHL`, 'success');
+      } catch (err) {
+        result.textContent = '⚠ ' + err.message;
+        toast('Send failed — ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📲 Send to Instagram + TikTok';
+      }
+    }
+
     async function scheduleAllClips() {
       const btn = $('sched-confirm-btn');
       const result = $('sched-result');
@@ -1865,6 +2295,7 @@
         const p = await loadProject();
         state.project = p;
         applyProjectState();
+        loadAutopilot(true);
         await _maybeAutoTranscribe(p);
       } catch(err) {
         console.error('[project] boot failed:', err);

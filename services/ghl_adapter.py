@@ -124,6 +124,7 @@ class GHLAdapter(SocialService):
             media_urls=media_urls,
             first_comment=first_comment,
             platform_specific=platform_specific,
+            platform=platform,
         )
         return await self._post_to_ghl(token, loc, payload)
 
@@ -148,6 +149,7 @@ class GHLAdapter(SocialService):
             media_urls=media_urls,
             first_comment=first_comment,
             platform_specific=platform_specific,
+            platform=platform,
         )
         return await self._post_to_ghl(token, loc, payload)
 
@@ -197,6 +199,43 @@ class GHLAdapter(SocialService):
         """GHL Social Planner does not expose engagement analytics. Returns empty dict."""
         return {}
 
+    async def upload_media(
+        self,
+        location_id: str,
+        file_path: str,
+        filename: str = "",
+        mime: str = "video/mp4",
+    ) -> str:
+        """Upload a local file to the GHL Media Library, return the GHL-hosted CDN URL.
+
+        Tunnel-free media hosting: GHL fetches social-post media from a public URL,
+        but PodClick clips live on localhost. Uploading them here yields a
+        `assets.cdn.filesafe.space/...` URL GHL can post from. Requires the token's
+        `medias.write` scope. Raises SocialProviderError on failure.
+        """
+        import os as _os
+        token = self._get_token(location_id)
+        loc   = self._get_location(location_id)
+        name  = filename or _os.path.basename(file_path)
+        url   = f"{_GHL_API_BASE}/medias/upload-file"
+        headers = {"Authorization": f"Bearer {token}", "Version": _GHL_API_VER}
+        try:
+            with open(file_path, "rb") as fh:
+                files = {"file": (name, fh, mime)}
+                data  = {"name": name, "altType": "location", "altId": loc, "hosted": "false"}
+                async with httpx.AsyncClient(timeout=180) as client:
+                    resp = await client.post(url, headers=headers, data=data, files=files)
+                    _raise_for_status(resp)
+                    body = resp.json()
+            cdn = body.get("url") or ""
+            if not cdn:
+                raise SocialProviderError(f"GHL media upload returned no URL: {body}")
+            return cdn
+        except (SocialAuthError, SocialRateLimitError, SocialProviderError, SocialPublishError):
+            raise
+        except httpx.RequestError as exc:
+            raise SocialProviderError(f"Network error uploading media to GHL: {exc}")
+
     async def list_accounts(
         self,
         location_id: str,
@@ -242,6 +281,7 @@ class GHLAdapter(SocialService):
         media_urls: Optional[List[str]] = None,
         first_comment: Optional[str] = None,
         platform_specific: Optional[Dict[str, Any]] = None,
+        platform: str = "",
     ) -> Dict[str, Any]:
         # locationId goes in the URL path, NOT in the body — GHL rejects it in body
         # userId is required by GHL social planner API (discovered 2026-05-27)
@@ -257,7 +297,12 @@ class GHLAdapter(SocialService):
         if scheduled_at:
             payload["scheduledAt"] = scheduled_at
         if media_urls:
-            payload["media"] = [{"url": u, "type": "image"} for u in media_urls]
+            # Detect video vs image by extension so IG Reels / TikTok get type=video
+            # (was hardcoded "image" — video-only platforms rejected image posts).
+            def _media_type(u: str) -> str:
+                stem = u.split("?", 1)[0].lower()
+                return "video" if stem.endswith((".mp4", ".mov", ".webm", ".m4v")) else "image"
+            payload["media"] = [{"url": u, "type": _media_type(u)} for u in media_urls]
         if first_comment:
             # Instagram first-comment pattern for hashtags
             payload["firstComment"] = first_comment
@@ -267,6 +312,19 @@ class GHLAdapter(SocialService):
             ghl_extras = {k: v for k, v in platform_specific.items() if k not in _INTERNAL_KEYS}
             if ghl_extras:
                 payload.update(ghl_extras)
+        # TikTok video posts require tiktokPostDetails; an empty object makes GHL's
+        # planner flag "TikTok will not support thumbnail in the Video" and blocks
+        # publish. TikTok uses a video frame as the cover (no custom thumbnail), so
+        # we set sensible public defaults. Caller can override via platform_specific.
+        if platform.lower() == "tiktok" and "tiktokPostDetails" not in payload:
+            payload["tiktokPostDetails"] = {
+                "privacyLevel":     "PUBLIC_TO_EVERYONE",
+                "promoteOtherBrand": False,
+                "enableComment":     True,
+                "enableDuet":        True,
+                "enableStitch":      True,
+                "videoDisclosure":   False,
+            }
         return payload
 
     async def _post_to_ghl(

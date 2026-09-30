@@ -1,4 +1,29 @@
 # PodClick Frontend Reference
+
+## September 25 — SaaS follow-up
+
+`frontend/billing.html` is a server-served, script-free local setup screen at `/billing`. It deliberately collects no payment while real customer authentication and Stripe setup are incomplete. The outer deployment perimeter covers this page along with every existing studio route.
+
+The marketing page is isolated in `../podclick-marketing` with its own source repository and owner-private Sites publication. It uses original studio imagery and an explicitly illustrative release-plan card, contains no real episode/customer data, and does not claim signup or payment is available. Marketing work must not expose or import this single-owner studio.
+
+## September 25 — studio polish and publishing autopilot
+
+- `frontend/index.html` loads the versioned shared design CSS and uses the scoped `podclick-studio` layout: workspace navigation, local tools, output mode, episode assembly, contextual review guidance, and history. Existing file inputs, upload actions, tab IDs, and processing APIs remain in place.
+- `frontend/projects.html` is the episode library: search, sorting, contextual next actions, and honest overdue-release status. `isOverdue`, `needsAttention`, and `projectNextAction` keep the status/next-action logic consistent; an elapsed scheduled date alone never proves publication.
+- `frontend/project.html` exposes an expandable Publishing autopilot console above the existing transcript/audio/clips/publish workflow. Explicit destination checkboxes, local date/time entry converted to ISO, review/automatic modes, readiness checks, saved-plan controls, and activity come from the real API. Started private uploads are labeled separately from public releases.
+
+| Project function / state | Purpose |
+|---|---|
+| `autopilotPath`, `autopilotMessage` | Build API paths and display actionable response messages |
+| `autopilotFormChanged`, `readAutopilotCandidate` | Preserve unsaved input and validate explicit choices |
+| `renderAutopilotReadiness`, `updateAutopilotControls`, `renderAutopilot` | Render checks, plan/action state, blockers, and enabled controls |
+| `loadAutopilot`, `checkAutopilotReadiness` | Read current state or perform a read-only candidate preflight |
+| `saveAutopilotPlan`, `controlAutopilot` | Save explicit plans and approve/pause/resume/cancel |
+| `_apData`, `_apDirty`, `_apBusy`, `_apTimer`, `_apLoading` | State, unsaved-form protection, and 15-second polling of saved active plans |
+
+Home-page helpers: `updateStudioGuidance()` derives file count and next action from actual slots/processing state; `initStudioShell()` sets up Podcast navigation and keyboard-accessible upload headers; `studioEscapeHtml()` protects dynamic queue output; `renderQueueEntry()` presents retry/error states; `showQueueError()` displays failed actions. `queuePublishNow`, `queueCancel`, and `queueReschedule` accept an initiating button, check HTTP results, and restore controls after errors. `openScheduler()` defaults to 09:00 local time.
+
+The legacy release queue shows retry attempts, next retry time, provider errors, and explicit failed-release recovery. Mutation responses must be checked before reporting success. Phone-width layouts collapse to one column; tool/navigation strips remain scrollable within their own containers.
 > Last updated: 2026-05-26 | Update on new functions or state changes.
 
 ## Files
@@ -449,3 +474,72 @@ Inline guest asset send on the project page (no need to visit the Walk-through).
 
 `showStep4()` prefills the guest name, refreshes Gmail status, and surfaces an already-built package.
 Panel markup lives in `#assets-panel` inside `#step4-panel`.
+
+---
+
+## project-editor.html — Transcript editor download buttons (2026-07-20)
+
+Two download links in the editor toolbar (both plain `<a href>`, wired in boot):
+- `#download-btn` → `/api/projects/{PID}/source-video?download=1` — the raw current full take (edited cut if one exists), no clips/publishing.
+- `#download-final-btn` → `/api/projects/{PID}/download-final` — one full video with the loudness-normalized (`.ship_audio.mp3`, −16 LUFS, in-sync) audio muxed in. First build runs extract+mux server-side (cached by mtime).
+
+`PID = location.pathname.split('/').filter(Boolean)[1]`.
+
+---
+
+## project.html — Send clips to Instagram + TikTok (Step 3, 2026-07-20)
+
+Step 3 (Clips) has a **📲 Send clips to Instagram + TikTok** panel (`#shorts-send-row`).
+
+| Function | Description |
+|----------|-------------|
+| `sendShortsToSocial()` | POST `/api/projects/{PROJECT_ID}/distribute-shorts` `{platforms:['instagram','tiktok'], max_clips:N}` where N = `#shorts-count` (1–12, default 3). Uploads top clips to GHL → creates IG/TikTok **drafts**. Renders "N drafts created · Open GHL planner →" in `#shorts-send-result`. Wired to `#send-shorts-btn`. |
+
+No public URL needed — the clip is uploaded to GHL's media library server-side. Drafts only; nothing auto-publishes.
+
+---
+
+## AI B-roll button (project.html, Step 1) — 2026-07-28
+
+Purple **🎬 AI Edit — add b-roll** button (`#ai-broll-btn`) with a `#ai-broll-result` status area.
+- `startAiBroll()` — `POST /api/projects/{PID}/auto-broll`, then starts polling.
+- `_pollAiBroll()` — `GET .../auto-broll` every 5s. On `done`, renders **Preview** + **Download** links
+  to `/api/projects/{PID}/broll-video`. On `done_none`/`failed`, shows the message.
+
+The b-roll video is a **separate deliverable** — Ship It and clips still build from the edited cut, not
+the b-roll'd file.
+
+---
+
+## REOS SuperApp Concept — standalone prototype (2026-08-22)
+
+The non-production concept lives in `reos-superapp-concept/`. It is served independently with Bun and
+does not add a route or modify the PodClick/REOS production frontend.
+
+| Function | Description |
+|----------|-------------|
+| `showToast(message)` | Displays local interaction feedback without a network request. |
+| `renderTruthStrip(facts)` | Rebuilds the focused property truth-health cells from typed demo data. |
+| `selectDeal(dealId)` | Switches the focused property, summary, stage, and truth-health state. |
+| `setDrawerOpen(open)` | Opens/closes the ATLAS proposed-action review drawer with focus handling. |
+| `appendMessage(text, role)` | Safely adds user/ATLAS text nodes to the local demo conversation. |
+| `answerAtlas(question)` | Returns a deterministic evidence-aware response for the local prototype. |
+| `showView(viewName)` | Switches between the Today command surface and Signal Center. |
+
+Build/serve/check commands and interaction inventory are in `reos-superapp-concept/README.md`.
+
+---
+
+## project-editor.html — Fast-forward + follow highlight + CapCut section cut (2026-09-17)
+
+| Function | Description |
+|----------|-------------|
+| `setSpeed(r)` | Set `video.playbackRate` from the speed pills (1× / 1.5× / 2× / 3× / 4×); `.spd-b.on` marks active. |
+| `tick()` (extended) | On playback, highlights the spoken word AND auto-scrolls `#tx` to keep it centered (`followOn`, only on word change, paused 1.5 s after a manual scroll). Also moves the `#tl-play` playhead. |
+| Follow toggle | `#follow-btn` flips `followOn` (🔒 Follow ON/OFF). |
+| `markIn()`/`markOut()` | Capture `video.currentTime` as the section In/Out (keys **I** / **O**); `updateSec()` draws `#tl-sel` + readout. |
+| `cutSection()` | Strike out every word whose time is inside [In,Out] (transcript updates globally); Apply Edit then re-cuts the video. |
+| `renderTimeline()` | Draw red cut-bands (`#tl-cuts`) for contiguous deleted-word runs on the `#tl` timeline. |
+| `tlSeek(ev)` | Click the timeline to seek the video. |
+
+The timeline (`#tl`) sits under the video; the Section-cut card holds Mark In / Mark Out / Cut section.

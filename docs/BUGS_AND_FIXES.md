@@ -1802,3 +1802,566 @@ Added a **Is there a guest on this build?** Yes/No pill row above the fields. **
 name/email + Build (shows "No guest — nothing to send 👍"); **Yes** reveals them. `setGuestOnBuild(yes)`
 toggles `#assets-guest-fields`; wired to the pills. `showStep4()` defaults to Yes when a guest is
 already linked (or a package exists), else the fields stay hidden until Yes is picked.
+
+---
+
+## 2026-07-11 — "Send Failed" on guest assets = expired Gmail token returned a dead-end 502 (now routes to reconnect modal)
+
+**Symptom (JP):** Clicking Send on the Step 4 guest-assets flow returned "Send Failed" with no way forward.
+
+**Root cause:** The Gmail refresh token was revoked/expired (Testing-mode consent lapses ~weekly).
+A direct probe returned `RefreshError: invalid_grant: Bad Request`; `/api/gmail/status` showed
+`authorized:true, email:""`. Because `gmail_send.is_authorized()` only checks that the token FILE
+exists (not that it still works), `approve-send` passed the pre-check, attempted the send, and the
+send failed on auth — returning **502** ("Gmail send failed"). 502 is a dead end; the reconnect
+modal I built only fires on **409 needs_gmail**, so JP saw only "Send Failed."
+
+**Fix (`main.py`, `approve-send` send block):** When the Gmail send fails with an auth/refresh error
+(`invalid_grant`, `RefreshError`, `invalid_scope`, expired/`unauthorized`), return
+`409 {needs_gmail, auth_url}` instead of 502 — so the frontend reconnect-Gmail modal fires and JP
+can reconnect + re-Send in one flow. Genuine non-auth send failures still return 502.
+
+**Immediate fix for JP:** reconnect Gmail at `http://localhost:8765/api/gmail/auth` (refresh token
+was revoked), then re-click Send. After reconnect the token is fresh again (until the next ~weekly
+Testing-mode lapse).
+
+**Note:** durable follow-on — either move Gmail consent to Production (no weekly expiry) or make
+`is_authorized()`/`/api/gmail/status` actually validate the token so `email` reflects real state.
+
+**Files:** `main.py`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-11 — Gmail reconnect failed: "Scope has changed" (Google returns the Drive scope too)
+
+**Symptom (JP):** Reconnecting Gmail at `/api/gmail/auth` → callback page "Gmail connection failed —
+Scope has changed from `…gmail.send …userinfo.email` to `…userinfo.email …/auth/drive …gmail.send`."
+
+**Root cause:** Gmail, Drive, and YouTube all share ONE Google OAuth client. Google practices
+**incremental authorization** — on reconnect it returns the UNION of every scope the user has ever
+granted that client, so it added `…/auth/drive` (granted earlier when Drive was connected).
+`google-auth-oauthlib`'s `flow.fetch_token()` rejects any returned scope superset with
+`Warning: Scope has changed…`, so the callback raised and no token was stored.
+
+**Fix (`pipeline/gmail_send.py`):** Set `OAUTHLIB_RELAX_TOKEN_SCOPE=1` (module import via
+`os.environ.setdefault`, and explicitly right before `flow.fetch_token`) so oauthlib tolerates the
+scope superset. Safe — the code only ever USES `gmail.send`. Reconnect now completes and stores the
+token.
+
+**Files:** `pipeline/gmail_send.py`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-11 — Nothing posted to YouTube for edited episodes: distribution uploaded RAW cut + Chris EP 103 YT upload never landed
+
+**Symptom (JP):** "Assets sent" ✅ but "I don't see anything posted to YT" for Chris Gavre (EP 103).
+
+**Findings:**
+- The **guest-assets send** (Gmail + Drive) is a SEPARATE flow — it never touches YouTube. It sent
+  fine (Chris `assets_sent_at 2026-07-11 14:30`, Drive folder built).
+- Chris EP 103 is `scheduled` (closing was 2026-07-04). Buzzsprout uploaded (`buzzsprout_url` set),
+  but `youtube_url`/`youtube_video_id`/`final_video_url` are all **None** — the YouTube video upload
+  never completed/persisted, so no main video AND **no Shorts** (Shorts are gated on the main upload
+  succeeding: `_yt_authorized = youtube_vid_id is not None`).
+- **Bug found:** `_distribute_project` sourced the YouTube upload from `proj.recording_path` — the
+  **RAW uncut video** — never `legacy_metadata.edited_video_path`. So for an edited episode (Chris had
+  81 cuts) even a successful upload would post the UNEDITED take, mismatched with the edited audio +
+  clips. (Buzzsprout was already correct — it uses the edited `mp3_url`.)
+
+**Fix (`main.py`, `_distribute_project`):** Source the video as
+`edited_video_path` (when it exists on disk) else `recording_path`. Now YouTube gets the same edited
+cut as the audio/clips. YouTube connection itself is fine (Success Agent Podcast channel, authorized).
+
+**Why Chris's original upload didn't land (7/04):** no persisted error trace and the log doesn't reach
+back that far; most likely the 430MB background upload was interrupted/errored after Buzzsprout
+succeeded. A re-distribution is needed to actually get EP 103's video + Shorts on YouTube (pending JP's
+go-ahead — it's a public upload to the live channel).
+
+**Files:** `main.py`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-13 — Root cause of "nothing on YouTube": YouTube token also expired + /api/youtube/auth couldn't reconnect (+ Chris EP 103 shipped)
+
+**Chain of failures found (all now fixed/closed):**
+1. **YouTube refresh token expired** (`invalid_grant`) — same Testing-mode weekly lapse as Gmail.
+   This is why Chris EP 103's 7/04 distribution uploaded to Buzzsprout but never to YouTube, and
+   why the re-fire failed too. `/api/youtube/status` showed "authorized" because it only checks the
+   token FILE + returns a cached channel — not a live refresh.
+2. **`/api/youtube/auth` couldn't reconnect** — the route short-circuits to "✅ already connected"
+   whenever `is_authorized()` is True (file exists), so a DEAD token blocked its own replacement.
+   Cleared via `POST /api/youtube/disconnect`, then the route triggered Google consent.
+3. **"Scope has changed" on reconnect** — Google returns the shared client's full scope union
+   (Drive + Gmail + YouTube). Added `OAUTHLIB_RELAX_TOKEN_SCOPE=1` to `pipeline/youtube.py`
+   (module import + before `fetch_token`), mirroring the Gmail fix.
+
+**Durable fix (JP did it):** published the Google OAuth consent screen from **Testing → Production**
+(project `podclick-to-success-agent`). Testing-mode 7-day refresh-token expiry is now gone — Gmail,
+Drive, and YouTube tokens (shared client) live until explicitly revoked. Reconnected all three
+(Gmail now `jp@titanreteam.com`, YouTube = Success Agent Podcast, live-refresh verified).
+
+**Result — Chris EP 103 fully shipped to YouTube (verified via API, all timestamped 16:27–16:28):**
+- Main episode PUBLIC (edited cut, 81 cuts): https://www.youtube.com/watch?v=Yq_h6NAfz7c
+- 5 Shorts uploaded private (titled by hook line) — the `_distribute_project` edited-video fix +
+  live token together produced the full main-video + Shorts result that never landed on 7/04.
+
+**Follow-on cleanup (not done, low priority):** make `is_authorized()` / `/api/youtube/auth` detect
+a dead token so reconnect doesn't require a manual disconnect (same latent issue as Gmail's
+file-exists check). Now that consent is in Production, tokens shouldn't expire, so this is rare.
+
+**Files:** `pipeline/youtube.py`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-13 — Self-healing OAuth: dead tokens now auto-reconnect (no manual disconnect)
+
+**Problem:** `is_authorized()` on both YouTube and Gmail only checked that the token FILE exists —
+a revoked/expired token passed it. So `/api/youtube/auth` short-circuited to "✅ already connected"
+on a DEAD token (blocking its own replacement), and `/api/gmail/status` reported `authorized:true`
+with an empty email. Reconnecting required a manual `POST /disconnect` first.
+
+**Fix — real liveness check + self-heal:**
+- `pipeline/youtube.py`: added `token_is_live()` (does an actual `creds.refresh()` against Google;
+  non-fatal → bool) + `disconnect()`. `/api/youtube/auth` now shows "already connected" ONLY when
+  `token_is_live()` passes; a dead token is auto-cleared (`disconnect()`) and the route falls through
+  to a fresh Google consent — no manual step.
+- `pipeline/gmail_send.py`: added `token_is_live()`. `/api/gmail/status` now sets `authorized` from
+  `token_is_live()` (honest badge) while `configured` still reflects file presence. Gmail's `/auth`
+  already redirected unconditionally, so its reconnect was never blocked.
+- Both liveness checks are network calls — used only in auth/status (rare), never in polls/loops.
+
+**Verified (server :8765, tokens live post-Production):** `/api/youtube/status` authorized:true;
+`/api/youtube/auth` → "already connected" (token live); `/api/gmail/status` → authorized:true,
+email `jp@titanreteam.com`. If a token ever dies, hitting `/auth` now reconnects on its own.
+
+**Files:** `pipeline/youtube.py`, `pipeline/gmail_send.py`, `main.py`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-13 — Transcript editor: click a word → seek the video there (Descript-style)
+
+**Ask (JP):** "When clicking a word to edit it needs to sync with the video so it will rewind
+based on the word you click — easier to edit that way."
+
+**Was:** In `project-editor.html`, a single click **cut** the word (toggled strikethrough); the
+video never moved. So you couldn't hear a word before deciding to cut it, and every click while
+navigating left an unintended cut.
+
+**Fix (`frontend/project-editor.html`) — split the gestures Descript-style:**
+- **Single click** = seek the video to that word's start (`v.currentTime = start - 0.12` for a hair
+  of lead-in) + place a cursor (orange underline via new `.w.cur` class). No cut. New helpers
+  `seekWord(i)`, `setCursor(i)`; `onWordClick` plain-click branch now seeks instead of toggling del.
+- **Double-click a word** OR **Delete/Backspace** (on the cursor word) = cut it (`toggleCut(i)`).
+  New `dblclick` listener per word + a `keydown` handler for Delete/Backspace.
+- **Shift-click** = cut a range from the cursor to the clicked word (was off `lastShift`, now off
+  `cursor`).
+- Sidebar + toolbar hints rewritten to teach the new gestures.
+
+**Verified:** inline JS passes `node --check`; `/project/{id}/edit` serves 200; markup carries
+`seekWord`/`toggleCut`/`setCursor`/`dblclick`/`.w.cur`. Live word-seek needs a real click in the
+browser (JP-driven).
+
+**Files:** `frontend/project-editor.html`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-13 — Download the full edited video (no clips/Shorts/distribution)
+
+**Ask (JP):** "Need the option to download the full edited file without creating shorts etc."
+
+**What shipped:**
+- **Backend (`main.py`, `serve_project_source_video`):** added `?download=1`. Reuses the existing
+  source-video handler (which already serves the CURRENT take — `edited_video_path` if a cut exists,
+  else `recording_path`). `download=1` returns the file as an **attachment** with a clean,
+  title-based filename (`{project.title}{ ' (edited)' if edited}.mp4`); the default still streams
+  **inline** for the editor's `<video>`. No pipeline touched — just hands you the file.
+- **Frontend (`project-editor.html`):** added a **⬇ Download this video (full file, no clips)**
+  link-button in the editor toolbar → `/api/projects/{id}/source-video?download=1`. Hint clarifies
+  it grabs the current full file with no Shorts/publishing.
+
+**Verified (server :8765):** `?download=1` → `content-disposition: attachment; filename*=…The Great
+Wealth Transfer… (edited).mp4`; no param → `content-disposition: inline` (editor playback intact).
+Editor JS passes `node --check`.
+
+**Files:** `main.py`, `frontend/project-editor.html`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-20 — Download final: one full video with the polished audio muxed in
+
+**Ask (JP):** "Build it" — a single full-length video that combines the edited video with the
+polished/assembled audio (edited video + Ship It audio polish in one file), no clips/Shorts.
+
+**What shipped:**
+- **Backend (`main.py`):** `GET /api/projects/{id}/download-final` — resolves the current take
+  (edited cut if one exists, else raw recording), runs `_ship_it_extract_audio(video)` to get the
+  full-length, two-pass-loudnorm `.ship_audio.mp3` (broadcast −16 LUFS, SAME timeline as the video),
+  then muxes them via new module-level `_mux_final_video_sync(video, audio, out)`
+  (`-map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart` →
+  `{stem}.final.mp4`). Both steps run via `run_in_executor`; the mux is cached by mtime (skips if the
+  output is newer than both inputs). Serves as an attachment with a clean `{title} (edited) (final).mp4`
+  name. **Deliberately uses `.ship_audio.mp3`, NOT the assembled MP3** — the assembled MP3 has extra
+  filler/dead-air cuts and is shorter than the video, so muxing it would desync; the ship_audio track
+  is full-length and frame-aligned to the video.
+- **Frontend (`project-editor.html`):** added a **⬇ Download final (video + polished audio)** button
+  in the editor toolbar → `/api/projects/{id}/download-final`; hint explains it muxes in the
+  loudness-normalized audio (vs the raw "Download this video" button), no Shorts/publishing.
+
+**Verified live (The Great Wealth Transfer, edited cut):** `GET download-final` → 200,
+`video/mp4` attachment, filename `…(edited) (final).mp4`, 360MB. ffprobe on the output:
+one h264 video (395.006s) + one AAC audio (394.986s) — **20ms apart, in sync**. main.py parses;
+editor JS passes `node --check`; server restarted.
+
+**Files:** `main.py`, `frontend/project-editor.html`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-20 — Pull more Shorts: 12 moments by default (was hardcoded 5), env-configurable
+
+**Ask (JP):** "YT Shorts can we pull as many 'moments' as we can — 10-15 instead of 5."
+
+**Was:** `run_ship_it`'s clip step called `detect_clips_for_project(..., num_clips=5)` — a hardcoded
+5 (`pipeline/project_pipeline.py`). The scorer (`score_and_select_clips`) already selects
+non-overlapping top-scored windows and stops at `num_clips`, so the only limiter was that 5.
+
+**Fix (`pipeline/project_pipeline.py`):** The Ship It clip step now reads
+`PODCLICK_CLIP_COUNT` (default **12**, in JP's 10-15 range; `max(1, int(...))`, falls back to 12 on
+a bad value). The scorer naturally returns fewer on a short episode (non-overlapping windows run out)
+and up to N on a long one — no overlaps, no garbage.
+
+**Verified:** `project_pipeline.py` parses. Dry run of `detect_clips_for_project` on a synthetic
+40-min dense transcript → asked 5→got 5, asked 12→got 12, asked 15→got 15, all non-overlapping
+~60s windows. Server restarted; `/api/projects` 200 (after a transient uvloop DNS hiccup to Neon,
+unrelated — the Neon host resolves fine, requests recovered to 200).
+
+**Result:** Every future Ship It run pulls up to 12 Shorts/moments instead of 5. Bump higher per
+episode with `PODCLICK_CLIP_COUNT=15` (or lower). Existing episodes keep their clips until re-run.
+
+**Files:** `pipeline/project_pipeline.py`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-20 — Instagram + TikTok wired up again (via GHL) — post Shorts as Reels/TikToks
+
+**Ask (JP):** "Like to get Instagram and TikTok wired up again." Chose **route through GHL** +
+**post the vertical Shorts from episodes**.
+
+**Findings:** The direct Meta/TikTok OAuth paths were dead (no `META_APP_ID/SECRET` in `.env`, no
+TikTok token; TikTok's direct `video.publish` needs weeks of app review). But **GHL already has
+`jp_fluellen` (Instagram) and `JP Fluellen` (TikTok) connected and NOT expired** — the same path FB/
+LinkedIn already publish through. The Connections UI shows them "disconnected" only because it reads
+the dead direct-OAuth status, not GHL. So the fix = route Shorts to the live GHL IG/TikTok accounts.
+
+**What shipped:**
+- **`services/ghl_adapter.py` — video media support.** `_build_payload` hardcoded `type:"image"`;
+  now detects video by extension (`.mp4/.mov/.webm/.m4v` → `type:"video"`) so IG Reels / TikTok
+  (video-only) accept the post.
+- **`main.py` — `.mp4` clip alias.** Added `GET /api/projects/{id}/clips/{clip_id}/video.mp4`
+  (alias of the existing `/video` route) so the media URL has a real extension GHL classifies as
+  video — the extension-less `/video` URL was being tagged `image`.
+- **`main.py` — `POST /api/projects/{id}/distribute-shorts`.** Body `{platforms:["instagram",
+  "tiktok"], max_clips:3}`. Loads rendered, non-removed clips (best moments first by virality),
+  maps IG/TikTok to their live GHL accounts, and creates one GHL post per clip×platform via
+  `ghl_adapter.publish()` (which uses `status:"draft"`) with the clip's public `.mp4` URL as video
+  media + caption (`hook_text` + full-episode link). **Everything lands as a GHL draft — nothing
+  auto-publishes**; JP reviews + publishes in the GHL planner. All GHL calls go through the adapter
+  (contract #5).
+- **`main.py` — `_public_base_url()`.** GHL fetches media from a public URL; localhost is
+  unreachable. Reads `PODCLICK_PUBLIC_BASE_URL` (explicit only — no silent fallback to a stale
+  tunnel). If unset, the endpoint returns `400 no_public_url` telling JP to start ngrok on :8765 or
+  use the deployed domain.
+
+**Verified (server :8765):** `no_public_url` guard fires when unset; the `.mp4` alias serves
+`200 video/mp4`; `_build_payload` tags the clip URL `type:"video"` (was `image`); IG + TikTok GHL
+accounts confirmed live + non-expired via `/api/social/ghl/accounts`. **Did NOT fire a live GHL
+draft** — needs a public URL and touches JP's real GHL account (offered separately).
+
+**JP's one action to go live:** start a public tunnel (`ngrok http 8765`), set
+`PODCLICK_PUBLIC_BASE_URL=https://<your-ngrok-host>` in `.env`, restart, then
+`POST /api/projects/{id}/distribute-shorts`. Drafts appear in the GHL planner for review → publish.
+On cloud deploy this is just the deployed domain (no tunnel).
+
+**Known follow-ups (not blocking):** (1) Social Studio Connections UI still reads the dead direct
+Meta/TikTok status — should show the GHL-brokered IG/TikTok as connected. (2) Foundation-voiced clip
+captions instead of the raw hook. (3) A tunnel-free path via GHL media-library upload (needs the
+`medias.write` GHL scope) so no public URL is required.
+
+**Files:** `services/ghl_adapter.py`, `main.py`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-20 — Send clips to Instagram + TikTok FROM the app (tunnel-free via GHL media upload)
+
+**Ask (JP):** "Can we then send Clips to Insta and TikTok through the app then?"
+
+**Unlock:** The GHL Private Integration Token already has the **media-library scope** (probed
+`/medias/files` → 422 param error, not 401 — scope present). So PodClick can upload a clip straight
+to GHL's media library and get a GHL-hosted CDN URL (`assets.cdn.filesafe.space/...`) to post from —
+**no public URL / ngrok needed** (the previous blocker). Confirmed live: `POST /medias/upload-file`
+(multipart) → 201 `{fileId, url}`; test file deleted after.
+
+**What shipped:**
+- **`services/ghl_adapter.py` — `upload_media(location_id, file_path, filename, mime)`.** Multipart
+  upload to `/medias/upload-file` → returns the GHL CDN URL. All GHL HTTP stays in the adapter.
+- **`main.py` — `distribute-shorts` rewired.** Dropped the `PODCLICK_PUBLIC_BASE_URL` requirement.
+  Now: for each top clip → `upload_media()` to GHL (once) → `ghl.publish()` (draft) to each
+  connected platform with the hosted URL. Skips platforms with no live GHL account; per-clip upload
+  failure is non-fatal. Still **drafts only** — review + publish in the GHL planner.
+- **`frontend/project.html` — in-app button.** Step 3 (Clips) now has a **📲 Send clips to Instagram
+  + TikTok** panel: a "how many clips" input (1–12, default 3) + send button → `sendShortsToSocial()`
+  POSTs `distribute-shorts`, shows "N drafts created in GoHighLevel · Open GHL planner →". No ngrok,
+  no curl — it's a button in the app.
+
+**Bug found + fixed mid-verify:** `publish()` was passed `platform_specific={project_id, clip_id}`
+which leaked into the GHL body → 422 "property project_id should not exist" (the `_INTERNAL_KEYS`
+allowlist doesn't include them). Removed the arg — those keys weren't needed.
+
+**Verified LIVE end-to-end (Chris Gavre `c1b0c77e`, 1 clip):** `distribute-shorts` →
+`ok:true, created:[{instagram, ghl_post_id 6a601b0b…}, {tiktok, ghl_post_id 6a601b0ba…}]`, skipped:[].
+The clip uploaded to GHL + two drafts (IG + TikTok) created on JP's GHL planner. `project.html` JS
+passes `node --check`; served `/project` carries the button + `sendShortsToSocial`.
+
+**Note for JP:** two test drafts (one IG, one TikTok — Chris Gavre clip 1) are sitting in your GHL
+social planner now. Review/publish them, or delete — they're drafts, nothing went public. Going
+forward: project → Step 3 → **📲 Send to Instagram + TikTok** → pick a count → drafts land in GHL.
+
+**Files:** `services/ghl_adapter.py`, `main.py`, `frontend/project.html`, `docs/API.md`,
+`docs/FRONTEND.md`, `docs/BUGS_AND_FIXES.md`
+
+**Follow-up (same day) — cleanup + Foundation captions:** Deleted the two live test drafts
+(IG `6a601b0b…` + TikTok `6a601b0ba…`) and their uploaded media from JP's GHL planner — all `200`,
+planner clean. Also fixed the clip caption: `distribute-shorts` was preferring the raw transcript
+`hook_text` ("This lady comes along buys it She was also a…"); now prefers the Foundation-voiced
+`clip_caption` that Ship It step e already generates ("I made $900 on a deal where the buyer flipped
+it and pocketed $20,000."), falling back to `hook_text` only if no caption exists. Verified the
+Chris Gavre clips all carry real `clip_caption` values. main.py parses; server 200. (No new live
+draft fired — the change is only which text field feeds the caption.)
+
+---
+
+## 2026-07-27 — GHL TikTok error "will not support thumbnail in the Video" (empty tiktokPostDetails)
+
+**Symptom (JP):** In the GHL planner, a TikTok Short draft showed a format error — *"tiktok will
+not support thumbnail in the Video"* — and wouldn't publish cleanly.
+
+**Root cause:** `_build_payload` sent TikTok video posts with `tiktokPostDetails: {}` (empty). GHL's
+TikTok integration requires that object populated (privacy level + engagement toggles). With it
+empty, GHL's planner can't resolve how TikTok handles the video **cover** — TikTok uses a frame from
+the video and rejects a custom thumbnail — so it surfaces the "thumbnail in the Video" validation and
+blocks publish. Confirmed by inspecting a live draft: `tiktokPostDetails: {}`. GHL accepts a
+populated object (201, stored verbatim).
+
+**Fix (`services/ghl_adapter.py`):** `_build_payload` now takes `platform` (threaded from
+`publish()`/`schedule()`); when `platform == "tiktok"` and no `tiktokPostDetails` was supplied, it
+injects sensible public defaults:
+`{privacyLevel: PUBLIC_TO_EVERYONE, promoteOtherBrand: false, enableComment/Duet/Stitch: true,
+videoDisclosure: false}`. A caller can still override via `platform_specific`. Fix lives in the
+adapter so EVERY TikTok post (distribute-shorts, calendar, closing) is publish-ready (contract #5).
+
+**Verified LIVE (Chris Gavre, 1 clip via `distribute-shorts`):** the created TikTok draft now stores
+`tiktokPostDetails` = the full defaults (was `{}`). Unit check: `platform="tiktok"` → details present
+(`PUBLIC_TO_EVERYONE`); `platform="instagram"` → no tiktok details (correct). Test draft + 4 orphan
+clip media deleted from GHL (all 200); planner clean. `ghl_adapter.py` parses; server restarted 200.
+
+**Note:** defaults are public + engagement-on. To change privacy per-post later, pass
+`platform_specific={"tiktokPostDetails": {...}}` to `publish()`. Instagram video posts were already
+accepted (JP only hit the TikTok error), so IG left unchanged.
+
+**Files:** `services/ghl_adapter.py`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-28 — AI b-roll auto-edit wired into projects (GPT-4o → Pexels → composite) + 3 engine bugs fixed
+
+**Ask (JP):** "The Great Wealth Transfer … I want to fully edit with visuals, b-roll etc in the app.
+Is this wired? … I want AI to edit it." (auto, not hand-edit).
+
+**State before:** The transcript editor does word-cuts + auto-cleanup only — no visuals. A full b-roll
+engine existed (`pipeline/broll.py`: GPT-4o plans cutaway moments → Pexels stock search/download →
+full-frame composite over the talking head, audio preserved) but was **orphaned in the legacy job
+pipeline** (`main.py:626`) and unreachable from projects/Ship It. So b-roll never ran on episodes.
+
+**What shipped — AI b-roll on any project (`main.py`, `frontend/project.html`):**
+- `POST /api/projects/{id}/auto-broll` — background task: resolves the current take (edited cut else
+  raw), gets transcript **segments** (stored `whisper_segments`, else synthesized from `edited_words`/
+  `whisper_words` via new `_segments_from_words()` — edited cuts have words but no segments), runs
+  `add_broll()` via run_in_executor → `{stem}.broll.mp4`, stores `broll_video_path` in legacy_metadata.
+- `GET /api/projects/{id}/auto-broll` — poll status (running / done / done_none / failed); infers from
+  persisted path after a restart.
+- `GET /api/projects/{id}/broll-video[?download=1]` — stream/download the b-roll'd video.
+- **Frontend:** purple **🎬 AI Edit — add b-roll** button on Step 1 → `startAiBroll()` + `_pollAiBroll()`
+  → shows Preview/Download links when done.
+
+**3 engine bugs fixed (the orphaned code was broken):**
+1. `plan_broll` asked GPT for a bare JSON **array** but the call uses `json_object` mode (forces an
+   object) → GPT returned an empty wrapper, 0 slots. Aligned prompt to `{"slots":[...]}` → returns cutaways.
+2. `_pexels_search` had a duplicate pre-`try` block referencing `urllib` before an in-function
+   `import urllib.parse` bound it locally → `UnboundLocalError`, every search crashed. Moved
+   `import urllib.parse` to module level; removed the duplicate.
+3. Pexels **403s the default `Python-urllib` User-Agent** — added `User-Agent: PodClickAI/1.0` to the
+   search request (a raw curl with the same key returned 200).
+4. Keys: the endpoint read `os.getenv("PEXELS_API_KEY"/"OPENAI_API_KEY")` — empty, because `.env` isn't
+   exported to the process env. Now reads `config.settings.pexels_api_key/openai_api_key` (os.getenv fallback).
+
+**Verified LIVE end-to-end (The Great Wealth Transfer `ad28a357`, 395s edited solo episode):** kicked
+off via the endpoint → `done` in ~100s → `{stem}.broll.mp4` = valid 320MB h264+aac, **395.22s (audio in
+sync)**. Brightness scan found b-roll windows (34s, 279s, 300s, 307s vs the dark ~85 talking-head
+baseline); extracted frame @34s = a full-frame "HOUSE FOR RENT" real-estate stock clip over JP's voice.
+`broll-video` serves `200 video/mp4` + a clean `(b-roll).mp4` download name. Served `/project` carries
+the button + `startAiBroll`.
+
+**Notes:** planner is non-deterministic (temp 0.3) — each run picks slightly different moments; skips
+first ~30s (hook) + last ~15s (CTA), ~5–6 cutaways on a 6.5-min episode. Full-frame cutaways (b-roll
+replaces the video while your audio continues), not PIP. City-specific queries when Springfield/Cheyenne/
+MO/WY are mentioned. Ship It / clips still build from the edited cut, NOT the b-roll'd file (b-roll is a
+separate deliverable you preview/download) — wiring b-roll into the closing/YouTube upload is an easy
+follow-on if wanted.
+
+**Files:** `pipeline/broll.py`, `main.py`, `frontend/project.html`, `docs/API.md`, `docs/FRONTEND.md`,
+`docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-07-28 — AI b-roll cut now publishes to YouTube at Closing (was a separate deliverable)
+
+**Ask (JP):** "wire it up" — make the AI b-roll'd version become what publishes to YouTube (follow-on
+to the b-roll auto-edit, which shipped the b-roll as a preview/download-only deliverable).
+
+**Was:** `_distribute_project` sourced the YouTube video as `edited_video_path` (else
+`recording_path`) — the b-roll'd file (`broll_video_path`) was never published; JP had to download it
+and post manually.
+
+**Fix (`main.py`, `_distribute_project`):** video source is now a 3-step preference —
+**b-roll cut (`broll_video_path`) → edited cut (`edited_video_path`) → raw recording** — each guarded
+by `Path(...).exists()`. So an episode JP ran **🎬 AI Edit** on publishes WITH the stock b-roll
+composited over the talking head. Gated by `PODCLICK_PUBLISH_BROLL` (default on; `=0` opts out to the
+edited/raw cut). Buzzsprout still uses the edited `mp3_url`; Shorts still build from the edited cut —
+b-roll is full-frame cutaways meant for the long-form YouTube video, not vertical clips.
+
+**Note on audio:** the YouTube upload uses the video file's embedded audio (this was already true for
+the edited/raw paths — only Buzzsprout + download-final use the loudnorm'd `.ship_audio.mp3`). The
+b-roll cut carries the same audio as the edited cut it was built from, so no regression.
+
+**Frontend (`frontend/project.html`):** the b-roll "done" result now tells JP "This b-roll cut is now
+what publishes to YouTube when you close."
+
+**Verified LIVE (The Great Wealth Transfer `ad28a357`, server :8765):** main.py parses; project JS
+passes `node --check`; server 200; `broll-video` serves 200. Resolver check against the real project
+metadata → `=> YouTube will upload: AI b-roll cut` (`…ad28a357….edited.broll.mp4`, exists), correctly
+preferred over the edited cut. Served `/project` carries the new publish note. Did NOT fire a live
+public YouTube upload (that's JP's go — it's a public post to the Success Agent channel).
+
+**Files:** `main.py`, `frontend/project.html`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-08-22 — REOS SuperApp concept mobile content overflow
+
+**Found during fallback Chrome visual QA:** At a 390px viewport, long property addresses and queue
+descriptions could preserve their grid min-content width and clip beyond the right edge.
+
+**Fix:** Mobile grids now use `minmax(0, 1fr)`, content columns explicitly allow shrinking, long
+headings and descriptions wrap, queue metadata wraps, and the mobile application surface suppresses
+horizontal overflow. The production REOS frontend was not touched; this applies only to
+`reos-superapp-concept/styles.css`.
+
+**Verification:** Re-rendered the 390×844 concept in local headless Chrome after the fix and retained
+`reos-superapp-concept/preview-mobile.png` as fallback visual evidence. Interceptor remained unable to
+attach to Chrome, so this is explicitly not a real-session Interceptor verification.
+
+---
+
+## 2026-09-17 — Editor: fast-forward + follow-along highlight, seekable video (Range fix), CapCut section cut
+
+**Ask (JP):** "fast forward the video and highlight the text inside the dialogue as the script is
+spoken to quickly isolate edits" + "add a full-edit section like CapCut where I select the video to
+cut out a section and it updates the transcript globally."
+
+**Root blocker found first:** the editor `<video>` reported `seekable.end == 0` despite being fully
+buffered — so `currentTime =` snapped back to 0 and you could not scrub or fast-forward to a spot at
+all. Cause: `GET /api/projects/{id}/source-video` (Starlette `FileResponse`) returned a plain **200**
+for `Range` requests (no `Accept-Ranges`/`Content-Range`), so Chrome marked the media non-seekable.
+
+**Fixes:**
+1. **`main.py` `serve_project_source_video` — HTTP Range support.** Added `request: Request`; for
+   inline playback it now parses `Range: bytes=…`, returns **206 Partial Content** with
+   `Content-Range` + `Accept-Ranges: bytes` + the sliced body (416 on unsatisfiable), and advertises
+   `Accept-Ranges` on the full 200. Verified: `curl -H "Range: bytes=0-1023"` → 206; in-browser
+   `seekable.end` went 0 → 1849, a seek to 10:00 now holds.
+2. **`frontend/project-editor.html` — fast-forward + follow.** Toolbar speed pills **1× 1.5× 2× 3× 4×**
+   (`setSpeed` → `video.playbackRate`) and a **🔒 Follow** toggle. The existing `timeupdate` word
+   highlight now also **auto-scrolls the transcript** to keep the spoken word centered (only on word
+   change, while playing, paused 1.5 s after any manual scroll so it never fights the user). Verified
+   live at 3×: highlight tracked the spoken word, transcript scrollTop followed 0 → 4777.
+3. **`frontend/project-editor.html` — CapCut-style section cut.** A clickable **timeline** under the
+   video (cut-bands + selection band + playhead), **⟢ Mark In / Mark Out ⟣** (keys I / O) and
+   **✂️ Cut section**: every word whose time falls in the marked span is struck out of the transcript
+   (so the transcript updates globally), then the existing **Apply Edit** re-cuts the video from the
+   surviving words and remaps timestamps. Reuses the proven `apply-edit` backend — a section is just a
+   time range. Verified: mark 0:30→0:45 → 44 words struck, timeline bands drawn, Apply enabled.
+
+**Files:** `main.py`, `frontend/project-editor.html`, `docs/API.md`, `docs/FRONTEND.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-09-17 — Interview clips center-cropped down the seam (both faces lost); auto side-by-side detection + stable layout
+
+**Symptom (JP, screenshot):** The 12 Shorts for the Niyi Adewole interview rendered wrong — a vertical
+split showing the blurred right edge of the guest's pane on the left and JP's dark background on the
+right (neither face in frame); clip 07 was nearly all black. Target: guest top / JP bottom stack.
+
+**Root cause:** The source is a **side-by-side** two-pane recording, but Ship It chose crop mode purely
+from CRM guest-linkage — `_crop_mode = "stack" if project.guest_ids else "center"`. This project had
+**no guest linked** → `center` → a 9:16 center crop of a 16:9 side-by-side grabs the dead **seam**
+between the two panes. Separately, the per-clip `_get_layout` re-detected orientation at each clip's
+own timestamp and **flip-flopped** (a dark/gesture frame → wrong orientation), so even the manual
+"Stack" re-render produced a seam on some clips.
+
+**Fixes:**
+1. **`main.py` `_looks_side_by_side(video)`** — decides side-by-side vs solo from pixels, robustly.
+   Uses `detect_layout` for the content box, then compares the **vertical VARIANCE** of three strips
+   (left-pane / center / right-pane): a real gutter between two panes is a flat, low-variance column,
+   while a strip crossing a person is high-variance. `gut < panes*0.5` ⇒ side-by-side. Variance (not
+   brightness) so a dark pane no longer fools it. Verified: interview → True (gut 267 ≪ panes 790),
+   solo RE-Daily-Brief → False (center 1304 > sides). Ship It crop is now
+   `stack if (guest_linked OR _looks_side_by_side(recording_path)) else center`.
+2. **`pipeline/project_pipeline.py` `_get_layout`** — now samples several timestamps once (30 s, 25/50/75 %),
+   takes the **majority orientation**, and **locks one layout per source** (cache keyed by source, not
+   5-min bucket). Kills the per-clip flip-flop, so both Ship It and the manual **Stack** re-render are
+   consistent. Added `_probe_duration_sec`.
+3. **Re-rendered all 12 Niyi clips** with the locked side_by_side split — verified clip 07 (was black)
+   and clip 12 now show guest-top / JP-bottom with faces framed + viral captions. Manual Stack
+   re-render via the endpoint also verified correct (clip 03) after the lock.
+
+**Files:** `main.py`, `pipeline/project_pipeline.py`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-09-25 — Studio polish and persistent podcast release autopilot
+
+**Request:** Polish PodClick's website using a coordinated swarm and make podcast posting more autonomous.
+
+**Reproduced:** The home builder reserved a fixed grid column while the review panel was hidden, creating a large empty region. Its row span conflicted with the output-mode strip. Button labels clipped, navigation competed, and the home page did not load the existing shared design tokens. The project library showed past release dates as healthy scheduled work. Legacy release failures never retried, and scheduled long-form YouTube uploads could become public immediately.
+
+**Changes:**
+
+- Rebuilt the home layout with explicit responsive regions, contextual preparation guidance, a dedicated required-recording drop area, coherent navigation, accessible controls, and scoped system typography. Existing tools remain available.
+- Added episode search/sort, contextual next actions, and overdue-release warnings. Added a publishing console above each episode's existing workflow, with explicit review/automatic choices, destination readiness, scheduling, pause/resume/cancel, and per-action activity.
+- Added durable `services/podcast_autopilot.py` plans, private provider uploads, due-time publication, shared ownership locks, safe bounded retries, uncertain-upload stops, content-version protection, and durable provider receipts. Existing episodes are not opted in. Shorts/social/guest communication keep separate controls.
+- Hardened the legacy queue with atomic storage, restart recovery, single-process claim protection, bounded transient retries, no duplicate provider entries, and honest HTTP/error states. Fixed future YouTube visibility and rescheduling, preserved empty social-platform selections, and serialized episode-number reservation across new/legacy paths.
+
+**Verification:** Provider calls are mocked in release tests; browser QA uses real project data read-only. Studio output-mode switching, episode search, and selected-destination preflight worked in Interceptor. At actual 390px frame viewports, document widths were 385px (home), 390px (library), and 390px (episode). Desktop captures live in `docs/verification/2026-09-25/`. See `docs/CHECKPOINT_2026-09-25.md` for final test count and runtime status.
+
+**Limits:** Autopilot needs the local service and persistent `data/podcast_autopilot/` storage. Uncertain uploads or changed already-uploaded media require provider reconciliation; this prevents accidental duplicate or stale publication. No real public posting or guest messaging was used as a test.
+
+## 2026-09-25 — SaaS launch foundation, billing, and private marketing preview
+
+**Request:** Fresh agent swarm, SaaS readiness, Stripe subscriptions, matching GoDaddy website, and a polished landing page.
+
+**Discovered:** The studio was accessible without authentication and shared owner data/provider credentials. Adding Stripe alone would not isolate customers. GoDaddy/Stripe/Railway required sign-in; `app.podclick.ai` was an unconfirmed assumption, not ownership evidence.
+
+**Changes:** Added configuration-driven Stripe checkout/portal, signed raw-body webhooks, workspace billing models, durable operation IDs/event receipts, and test/live separation. Mounted routes retain deny-by-default billing identity. Prepared billing migration offline. Added an outer fail-closed HTTP/WS/media perimeter and disabled owner background jobs outside explicit local mode; updated local/Railway launch contracts. Built and deployed a separate owner-private marketing site with original art and no paid-signup claims.
+
+**Verification:** 253 tests passed with mocked billing providers/store; offline migration SQL generated. Local studio200, forwarding spoof403, unsigned billing401, configuration false. Landing build/typecheck/authored-source lint and terminal private deployment status passed. No live charges, schema writes, or DNS changes.
+
+**Not complete:** Customer identity/tenant ownership, per-tenant integration/OAuth security, quotas, hosted storage/workers, sandbox end-to-end, approved Stripe pricing, and confirmed GoDaddy DNS/TLS remain launch blockers. See `CHECKPOINT_SAAS_2026-09-25.md`. Do not label this a production-ready multi-tenant SaaS.

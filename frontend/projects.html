@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <link rel="icon" href="/static/podclick-mark.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Job Site · PodClick</title>
+  <title>Episodes · PodClick</title>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -156,6 +156,70 @@
       .project-card { grid-template-columns: 1fr; }
       .card-right { display: none; }
     }
+    .page { max-width: 1160px; padding-top: 40px; }
+    .library-eyebrow { color: #cda175; font-size: 10px; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; margin-bottom: 12px; }
+    .library-hero { display: flex; gap: 30px; justify-content: space-between; align-items: flex-end; margin-bottom: 32px; }
+    .library-hero h1 { font-size: clamp(30px,4vw,44px); line-height: 1.1; letter-spacing: -.045em; font-weight: 700; }
+    .library-hero p { color: #aea293; font-size: 14px; line-height: 1.65; margin-top: 14px; max-width: 560px; }
+    .library-hero .actions { flex-shrink: 0; padding-bottom: 4px; }
+    .btn-new, .btn-upload { padding: 12px 16px; }
+    .btn-upload { color: #d2c4b1; }
+    .stats-row { gap: 12px; margin-bottom: 32px; }
+    .stat-card { border-radius: 13px; padding: 20px; }
+    .stat-card .val { font-size: 28px; font-weight: 600; letter-spacing: -.04em; }
+    .stat-card .lbl { color: #a79d91; font-size: 11px; letter-spacing: .03em; text-transform: none; margin-top: 9px; }
+    .stat-card.attention .val { color: #edab68; }
+    .page-head { margin-bottom: 18px; gap: 20px; }
+    .page-head h2 { font-size: 17px; letter-spacing: -.02em; }
+    .page-head .count { color: #a79d91; }
+    .library-tools { display: flex; gap: 10px; }
+    .library-tools input, .library-tools select { background: #161410; border: 1px solid #393127; color: #e6dfd4; border-radius: 9px; padding: 10px 12px; font: inherit; font-size: 12px; }
+    .library-tools input { width: 235px; }
+    .library-tools input::placeholder { color: #a79d91; }
+    .library-tools select { max-width: 160px; }
+    .filter-btn { font-size: 12px; padding: 8px 14px; color: #b5a899; border-color: #393127; }
+    .filter-btn.active { color: #f6b981; border-color: #9c602f; background: #2b2015; }
+    .filters { gap: 8px; margin-bottom: 22px; }
+    .project-card { grid-template-columns: 56px minmax(0,1fr) auto; border-radius: 13px; padding: 21px 22px; gap: 18px; }
+    .episode-art { display: grid; place-items: center; height: 56px; width: 56px; border: 1px solid #4b3926; border-radius: 13px; background: linear-gradient(145deg,#322618,#17140f); color: #e5b27b; }
+    .episode-art svg { width: 24px; height: 24px; }
+    .card-title { font-size: 16px; font-weight: 600; margin-bottom: 9px; letter-spacing: -.015em; }
+    .card-meta { gap: 10px; }
+    .meta-chip, .meta-chip.has-content { color: #a79d91; font-size: 11px; }
+    .badge { font-size: 9px; letter-spacing: .05em; border-radius: 5px; padding: 4px 7px; }
+    .badge-draft { color: #b0a393; }
+    .badge-overdue { color: #f3b575; border-color: #694a28; background: #2c2115; }
+    .indicators { gap: 7px; margin-top: 11px; }
+    .indicator { font-size: 10px; border-color: #30402e; color: #a4bf9d; background: #1b2118; }
+    .card-right { text-align: right; }
+    .card-next { color: #f0b377; font-size: 12px; font-weight: 600; }
+    .card-next-detail { color: #a79d91; font-size: 10px; margin-top: 6px; max-width: 175px; line-height: 1.5; }
+    .project-card.closed-card { opacity: 1; }
+    .project-card:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid #f0b377; outline-offset: 4px; }
+    .empty { background: #161410; border: 1px dashed #4a3d2c; border-radius: 14px; color: #b0a393; }
+    .empty h3 { color: #ece3d6; }
+    .loading { color: #a79d91; }
+    .sr-only { position: absolute; height: 1px; width: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .library-note { color: #a79d91; font-size: 11px; line-height: 1.6; margin-top: 22px; }
+    @media (max-width: 760px) {
+      .page { padding: 26px 16px 60px; }
+      .library-hero { align-items: flex-start; flex-direction: column; gap: 18px; margin-bottom: 24px; }
+      .library-hero p { font-size: 13px; }
+      .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+      .stat-card { padding: 16px; }
+      .stat-card .val { font-size: 23px; }
+      .page-head { align-items: flex-start; flex-direction: column; gap: 14px; }
+      .library-tools { width: 100%; }
+      .library-tools input { width: 100%; min-width: 0; }
+      .library-tools select { max-width: 145px; }
+      .project-card { grid-template-columns: 40px minmax(0,1fr); gap: 12px; padding: 17px 14px; }
+      .episode-art { width: 40px; height: 45px; border-radius: 10px; }
+      .card-right { display: block; grid-column: 2; text-align: left; }
+      .card-next-detail { display: none; }
+      .card-title { font-size: 14px; }
+      .filters { gap: 6px; }
+      .filter-btn { font-size: 11px; padding: 7px 11px; }
+    }
   </style>
   <script src="/static/podclick-nav.js" defer></script>
 </head>
@@ -176,56 +240,66 @@
 
 <div class="page">
 
+  <header class="library-hero">
+    <div><div class="library-eyebrow">Your production workspace</div><h1>Good conversations.<br>Ready for the world.</h1><p>Every episode, from the first take to its next listener. Review your work and set a publishing plan that keeps it moving.</p></div>
+    <div class="actions"><a href="/studio" class="btn-upload">↑ Upload</a><a href="/studio" class="btn-new">+ Record an episode</a></div>
+  </header>
+
   <!-- Stats -->
   <div class="stats-row" id="stats-row">
-    <div class="stat-card"><div class="val" id="stat-total">—</div><div class="lbl">Total Projects</div></div>
-    <div class="stat-card"><div class="val" id="stat-review">—</div><div class="lbl">Needs Review</div></div>
-    <div class="stat-card"><div class="val" id="stat-closed">—</div><div class="lbl">Closed</div></div>
-    <div class="stat-card"><div class="val" id="stat-clips">—</div><div class="lbl">Total Clips</div></div>
+    <div class="stat-card"><div class="val" id="stat-total">—</div><div class="lbl">Episodes in your library</div></div>
+    <div class="stat-card attention"><div class="val" id="stat-review">—</div><div class="lbl">Ready for your review</div></div>
+    <div class="stat-card attention"><div class="val" id="stat-attention">—</div><div class="lbl">Release dates to check</div></div>
+    <div class="stat-card"><div class="val" id="stat-clips">—</div><div class="lbl">Clips created</div></div>
   </div>
 
   <!-- Head -->
   <div class="page-head">
-    <h1>Job Site <span class="count" id="count-label"></span></h1>
-    <div class="actions">
-      <a href="/studio" class="btn-upload">↑ Upload Recording</a>
-      <a href="/studio" class="btn-new">+ New Recording</a>
+    <h2>Episode library <span class="count" id="count-label" aria-live="polite"></span></h2>
+    <div class="library-tools">
+      <label class="sr-only" for="episode-search">Search episodes</label><input type="search" id="episode-search" placeholder="Search your episodes…" autocomplete="off">
+      <label class="sr-only" for="episode-sort">Sort episodes</label><select id="episode-sort"><option value="newest">Newest first</option><option value="attention">Needs attention first</option><option value="title">Title A–Z</option></select>
     </div>
   </div>
 
   <!-- Filters -->
   <div class="filters">
-    <button class="filter-btn active" data-filter="">All</button>
+    <button class="filter-btn active" data-filter="" aria-pressed="true">All episodes</button>
     <button class="filter-btn" data-filter="review">Needs Review</button>
-    <button class="filter-btn" data-filter="recording_done">Recording Done</button>
+    <button class="filter-btn" data-filter="recording_done">Ready to prepare</button>
     <button class="filter-btn" data-filter="processing">Processing</button>
     <button class="filter-btn" data-filter="scheduled">Scheduled</button>
-    <button class="filter-btn" data-filter="closed">Closed</button>
+    <button class="filter-btn" data-filter="attention">Needs attention</button>
+    <button class="filter-btn" data-filter="closed">Completed</button>
     <button class="filter-btn" data-filter="failed">Failed</button>
   </div>
 
   <!-- List -->
   <div id="projects-list" class="projects-list">
-    <div class="loading">Loading your job site…</div>
+    <div class="loading" role="status">Loading your episodes…</div>
   </div>
+
+  <p class="library-note">Open an episode to review its transcript, shape clips, or set a publishing autopilot plan. A saved release date alone does not confirm publication.</p>
 
 </div>
 
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <script>
   let _all = [];
   let _filter = '';
+  let _query = '';
+  let _sort = 'newest';
 
   const STATUS_LABEL = {
     draft:          'Draft',
-    recording_done: 'Recording Done',
+    recording_done: 'Ready to prepare',
     processing:     'Processing…',
     review:         'Needs Review',
     scheduled:      'Scheduled',
-    closing:        'Closing',
-    closed:         'Closed',
-    failed:         'Build Failed',
+    closing:        'Releasing',
+    closed:         'Completed',
+    failed:         'Needs attention',
   };
 
   function esc(s) {
@@ -235,6 +309,7 @@
   function relTime(iso) {
     if (!iso) return '';
     const s = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (!Number.isFinite(s)) return '';
     if (s < 60)    return 'just now';
     if (s < 3600)  return Math.floor(s/60) + 'm ago';
     if (s < 86400) return Math.floor(s/3600) + 'h ago';
@@ -250,6 +325,7 @@
     _filter = val;
     document.querySelectorAll('.filter-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.filter === val);
+      b.setAttribute('aria-pressed', String(b.dataset.filter === val));
     });
     render();
   }
@@ -257,33 +333,68 @@
   function updateStats() {
     document.getElementById('stat-total').textContent  = _all.length;
     document.getElementById('stat-review').textContent = _all.filter(p => p.status === 'review').length;
-    document.getElementById('stat-closed').textContent = _all.filter(p => p.status === 'closed').length;
+    document.getElementById('stat-attention').textContent = _all.filter(isOverdue).length;
     const totalClips = _all.reduce((n, p) => n + (p.clip_count || 0), 0);
     document.getElementById('stat-clips').textContent  = totalClips;
   }
 
+  function isOverdue(project) {
+    return ['scheduled', 'closing'].includes(project.status) && !!project.closing_scheduled_at && new Date(project.closing_scheduled_at).getTime() < Date.now();
+  }
+
+  function needsAttention(project) {
+    return project.status === 'failed' || isOverdue(project);
+  }
+
+  function projectNextAction(project) {
+    if (isOverdue(project)) return { label: 'Check release status', detail: 'Saved release date has passed' };
+    const actions = {
+      recording_done: { label: 'Prepare episode', detail: 'Review transcript and build your assets' },
+      review: { label: 'Review & plan release', detail: 'Clips, edits, and publishing autopilot' },
+      processing: { label: 'View progress', detail: 'Your episode is being prepared' },
+      scheduled: { label: 'View release plan', detail: 'Check destinations and schedule' },
+      closing: { label: 'View release activity', detail: 'Follow each publishing destination' },
+      closed: { label: 'Open episode', detail: 'Revisit your assets and release results' },
+      failed: { label: 'Resolve issue', detail: 'Check what stopped the preparation' }
+    };
+    return actions[project.status] || { label: 'Continue episode', detail: 'Pick up where you left off' };
+  }
+
   function render() {
     const list = document.getElementById('projects-list');
-    const shown = _filter ? _all.filter(p => p.status === _filter) : _all;
+    let shown = _all.filter(p => (!_filter || (_filter === 'attention' ? needsAttention(p) : p.status === _filter)) && (!_query || (p.title || '').toLowerCase().includes(_query)));
+    shown = shown.slice().sort((a, b) => {
+      if (_sort === 'title') return (a.title || '').localeCompare(b.title || '');
+      if (_sort === 'attention') {
+        const priority = p => needsAttention(p) ? 3 : p.status === 'review' ? 2 : p.status === 'recording_done' ? 1 : 0;
+        const difference = priority(b) - priority(a);
+        if (difference) return difference;
+      }
+      return (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0);
+    });
 
     document.getElementById('count-label').textContent =
       shown.length === _all.length
-        ? `${_all.length} project${_all.length !== 1 ? 's' : ''}`
+        ? `${_all.length} episode${_all.length !== 1 ? 's' : ''}`
         : `${shown.length} of ${_all.length}`;
 
     if (!shown.length) {
       list.innerHTML = `<div class="empty">
-        <div class="icon">🏗️</div>
-        <h3>${_all.length === 0 ? 'No projects yet.' : 'No projects match this filter.'}</h3>
-        <p>${_all.length === 0 ? 'Record your first episode to get started.' : 'Try a different filter.'}</p>
-        ${_all.length === 0 ? '<a href="/studio" class="btn-new">Record Now →</a>' : ''}
+        <div class="icon" aria-hidden="true">◉</div>
+        <h3>${_all.length === 0 ? 'Your first episode starts here.' : 'No episodes found.'}</h3>
+        <p>${_all.length === 0 ? 'Record a conversation or upload a take. We’ll help get it ready for your listeners.' : 'Try a different search or show all your episodes.'}</p>
+        ${_all.length === 0 ? '<a href="/studio" class="btn-new">Create your first episode →</a>' : '<button class="btn-upload" id="clear-filters-btn">Clear search & filters</button>'}
       </div>`;
+      const clearButton = document.getElementById('clear-filters-btn');
+      if (clearButton) clearButton.addEventListener('click', () => { _query = ''; document.getElementById('episode-search').value = ''; setFilter(''); });
       return;
     }
 
     list.innerHTML = shown.map(p => {
-      const needsAction = p.status === 'recording_done' || p.status === 'review';
+      const needsAction = p.status === 'recording_done' || p.status === 'review' || needsAttention(p);
       const isClosed    = p.status === 'closed';
+      const overdue = isOverdue(p);
+      const next = projectNextAction(p);
 
       // Indicators — what content is ready
       const inds = [
@@ -301,47 +412,39 @@
       const chips = [];
       if (p.episode_number) chips.push(`Ep ${p.episode_number}`);
       if (p.clip_count)     chips.push(`${p.clip_count} clip${p.clip_count !== 1 ? 's' : ''}`);
-      if (p.closing_scheduled_at) chips.push(`Closing ${fmtDate(p.closing_scheduled_at)}`);
-      if (p.closed_at)      chips.push(`Closed ${fmtDate(p.closed_at)}`);
+      if (p.closing_scheduled_at && !isClosed) chips.push(`${overdue ? 'Release was' : 'Release'} ${fmtDate(p.closing_scheduled_at)}`);
+      if (p.closed_at)      chips.push(`Completed ${fmtDate(p.closed_at)}`);
       chips.push(relTime(p.created_at));
 
-      // Action button
-      let actionBtn = '';
-      if (p.status === 'recording_done') {
-        actionBtn = `<button class="action-btn action-ship" onclick="event.preventDefault();goTo('${esc(p.id)}')">⚡ Ship It</button>`;
-      } else if (p.status === 'review') {
-        actionBtn = `<button class="action-btn action-review" onclick="event.preventDefault();goTo('${esc(p.id)}')">Review →</button>`;
-      }
-
       return `<a class="project-card${needsAction ? ' needs-action' : ''}${isClosed ? ' closed-card' : ''}"
-                href="/project/${esc(p.id)}">
+                href="/project/${encodeURIComponent(p.id)}">
+        <div class="episode-art" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8"/></svg></div>
         <div class="card-left">
           <div class="card-title">${esc(p.title || 'Untitled Episode')}</div>
           <div class="card-meta">
-            <span class="badge badge-${esc(p.status)}">${esc(STATUS_LABEL[p.status] || p.status)}</span>
-            ${chips.map(c => `<span class="meta-chip has-content">${esc(c)}</span>`).join('')}
+            <span class="badge badge-${overdue ? 'overdue' : esc(p.status)}">${overdue ? 'Check release' : esc(STATUS_LABEL[p.status] || p.status)}</span>
+            ${chips.filter(Boolean).map(c => `<span class="meta-chip has-content">${esc(c)}</span>`).join('')}
           </div>
           ${indHtml ? `<div class="indicators">${indHtml}</div>` : ''}
         </div>
-        ${actionBtn ? `<div class="card-right">${actionBtn}</div>` : ''}
+        <div class="card-right"><div class="card-next">${esc(next.label)} <span aria-hidden="true">↗</span></div><div class="card-next-detail">${esc(next.detail)}</div></div>
       </a>`;
     }).join('');
-  }
-
-  function goTo(id) {
-    window.location.href = '/project/' + id;
   }
 
   async function load() {
     try {
       const r = await fetch('/api/projects?limit=100');
       if (!r.ok) throw new Error('HTTP ' + r.status);
-      _all = await r.json();
+      const projects = await r.json();
+      if (!Array.isArray(projects)) throw new Error('The server returned an unexpected response.');
+      _all = projects;
       updateStats();
       render();
     } catch(e) {
       document.getElementById('projects-list').innerHTML =
-        `<div class="empty"><div class="icon">⚠️</div><h3>Could not load projects</h3><p>${esc(e.message)}</p></div>`;
+        `<div class="empty"><h3>Could not load your episodes</h3><p>${esc(e.message)}</p><button class="btn-upload" id="retry-load-btn">Try again</button></div>`;
+      document.getElementById('retry-load-btn').addEventListener('click', load);
     }
   }
 
@@ -355,8 +458,11 @@
 
   // Wire filter buttons
   document.querySelectorAll('.filter-btn').forEach(b => {
+    b.setAttribute('aria-pressed', String(b.dataset.filter === _filter));
     b.addEventListener('click', () => setFilter(b.dataset.filter));
   });
+  document.getElementById('episode-search').addEventListener('input', event => { _query = event.target.value.trim().toLowerCase(); render(); });
+  document.getElementById('episode-sort').addEventListener('change', event => { _sort = event.target.value; render(); });
 
   load();
 </script>

@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101613" />
+    <title>REOS — The continuity system for real estate</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="grain" aria-hidden="true"></div>
+    <div class="app-shell" data-app-shell>
+      <aside class="operator-nav" data-region="navigation" aria-label="REOS navigation">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </span>
+          <span class="brand-word">REOS</span>
+          <span class="concept-tag">CONCEPT 01</span>
+        </div>
+
+        <div class="workspace-switcher">
+          <span class="eyebrow">OPERATING AS</span>
+          <button class="workspace-button" type="button">
+            <span class="avatar">JF</span>
+            <span><strong>JP Fluellen</strong><small>Wyoming · Owner</small></span>
+            <span aria-hidden="true">⌄</span>
+          </button>
+        </div>
+
+        <nav class="primary-nav" aria-label="Primary destinations">
+          <button class="nav-item active" type="button" data-nav="today" aria-current="page">
+            <span class="nav-glyph">⌁</span><span>Today</span><em>7</em>
+          </button>
+          <button class="nav-item" type="button" data-nav="deals">
+            <span class="nav-glyph">◇</span><span>Deals</span><em>5</em>
+          </button>
+          <button class="nav-item" type="button" data-nav="people">
+            <span class="nav-glyph">◌</span><span>People</span>
+          </button>
+          <button class="nav-item" type="button" data-nav="signals">
+            <span class="nav-glyph">)))</span><span>Signals</span><i class="live-dot"></i>
+          </button>
+          <button class="nav-item" type="button" data-nav="system">
+            <span class="nav-glyph">⌘</span><span>System</span><i class="health-dot"></i>
+          </button>
+        </nav>
+
+        <div class="portfolio">
+          <div class="section-label">
+            <span>LIVE FILES</span><span>3 OF 5</span>
+          </div>
+          <button class="deal-chip active" type="button" data-deal-id="land">
+            <span class="deal-index">01</span>
+            <span class="deal-copy"><strong>3216 Land Ct</strong><small>Closing · 4 days</small></span>
+            <span class="deal-risk urgent"></span>
+          </button>
+          <button class="deal-chip" type="button" data-deal-id="north">
+            <span class="deal-index">02</span>
+            <span class="deal-copy"><strong>1650 North Ridge</strong><small>Under contract · 11 days</small></span>
+            <span class="deal-risk watch"></span>
+          </button>
+          <button class="deal-chip" type="button" data-deal-id="meadow">
+            <span class="deal-index">03</span>
+            <span class="deal-copy"><strong>29 Mountain Meadow</strong><small>Clear to close</small></span>
+            <span class="deal-risk clear"></span>
+          </button>
+          <button class="view-all" type="button">View all property events <span>↗</span></button>
+        </div>
+
+        <div class="system-mini">
+          <div class="system-mini-head"><span>REOS PULSE</span><strong>98.7%</strong></div>
+          <div class="pulse-line"><span></span></div>
+          <div class="system-mini-foot"><span>12 automations awake</span><span>1 recovered</span></div>
+        </div>
+      </aside>
+
+      <main class="operations-canvas" data-region="operations-canvas">
+        <header class="topbar">
+          <button class="mobile-menu" type="button" aria-label="Open navigation">☰</button>
+          <div class="global-search">
+            <span aria-hidden="true">⌕</span>
+            <span>Search a person, property, receipt, or fact</span>
+            <kbd>⌘ K</kbd>
+          </div>
+          <div class="topbar-actions">
+            <button type="button" aria-label="Notifications">♢<span class="notification-count">2</span></button>
+            <button class="new-event" type="button"><span>＋</span> New event</button>
+          </div>
+        </header>
+
+        <section class="today-view" data-view="today">
+          <div class="day-intro">
+            <div>
+              <span class="eyebrow">SATURDAY · AUGUST 22</span>
+              <h1>Your business moved<br /><em>while you slept.</em></h1>
+            </div>
+            <div class="overnight-stamp">
+              <span>OVERNIGHT</span>
+              <strong>14 moves</strong>
+              <small>12 completed · 1 recovered · 1 needs you</small>
+            </div>
+          </div>
+
+          <section class="focus-record" aria-labelledby="focus-address">
+            <div class="focus-number">01</div>
+            <div class="focus-heading">
+              <div class="focus-kicker"><span class="status-pill">BUYER · ACTIVE</span><span id="focus-stage">Closing in 4 days</span></div>
+              <h2 id="focus-address">3216 LAND CT, CHEYENNE</h2>
+              <p id="focus-summary">ATLAS recovered lender evidence overnight. One money-related decision needs your authority.</p>
+            </div>
+            <button class="focus-menu" type="button" aria-label="More deal actions">•••</button>
+
+            <div class="truth-strip" id="truth-strip" aria-label="Truth health">
+              <div data-health="verified"><span>CONTRACT</span><strong>Verified</strong><small>2 sources agree</small></div>
+              <div data-health="verified"><span>DEADLINES</span><strong>Resolved</strong><small>WY rules · current</small></div>
+              <div data-health="recovered"><span>COMMUNICATION</span><strong>Recovered</strong><small>2m ago</small></div>
+              <div data-health="current"><span>ATLAS BRIEF</span><strong>Current</strong><small>8:12 PM</small></div>
+            </div>
+          </section>
+
+          <section class="outcome-tape" aria-label="Operating outcomes">
+            <div><span>PROTECTED VALUE</span><strong>$1.42M</strong><small>across active files</small></div>
+            <div><span>TIME RETURNED</span><strong>11.4h</strong><small>this week</small></div>
+            <div><span>OPEN EXCEPTIONS</span><strong>02</strong><small>down from 7</small></div>
+            <div class="orbit-stat"><span>ATLAS RECOVERY</span><strong>94%</strong><small>without human restart</small></div>
+          </section>
+
+          <div class="attention-grid">
+            <section class="attention-card harm-card" aria-labelledby="harm-title">
+              <header>
+                <div><span class="queue-code">01 / ATTENTION</span><h3 id="harm-title">Prevent harm</h3></div>
+                <span class="count-badge">2</span>
+              </header>
+              <article class="queue-item priority" data-queue-item>
+                <button class="queue-check" type="button" aria-label="Complete earnest money decision" aria-pressed="false"></button>
+                <div class="queue-body">
+                  <div class="queue-meta"><span class="risk-label">MONEY · DUE 9:00 AM</span><span>3216 Land Ct</span></div>
+                  <h4>Authorize earnest money receipt confirmation</h4>
+                  <p>ATLAS found the signed receipt through alternate evidence. Your permit is required before client communication.</p>
+                  <div class="evidence-row"><span>2 sources</span><span>98% confidence</span><button type="button">Inspect trace ↗</button></div>
+                </div>
+              </article>
+              <article class="queue-item" data-queue-item>
+                <button class="queue-check" type="button" aria-label="Complete wire advisory review" aria-pressed="false"></button>
+                <div class="queue-body">
+                  <div class="queue-meta"><span class="watch-label">SECURITY · BEFORE MONDAY</span><span>1650 North Ridge</span></div>
+                  <h4>Wire advisory signature is still unverified</h4>
+                  <p>Client viewed the packet; no signature evidence has arrived.</p>
+                </div>
+              </article>
+            </section>
+
+            <section class="attention-card move-card" aria-labelledby="move-title">
+              <header>
+                <div><span class="queue-code">02 / MOMENTUM</span><h3 id="move-title">Move today</h3></div>
+                <span class="count-badge muted">5</span>
+              </header>
+              <article class="compact-task" data-queue-item>
+                <button class="queue-check" type="button" aria-label="Complete final walkthrough scheduling" aria-pressed="false"></button>
+                <div><h4>Schedule final walkthrough</h4><p>Three time windows already reconciled.</p></div>
+                <span class="atlas-ready">ATLAS READY</span>
+              </article>
+              <article class="compact-task" data-queue-item>
+                <button class="queue-check" type="button" aria-label="Complete lender follow-up" aria-pressed="false"></button>
+                <div><h4>Send lender follow-up</h4><p>Draft cites the recovered attachment.</p></div>
+                <span class="atlas-ready">ATLAS READY</span>
+              </article>
+              <article class="compact-task" data-queue-item>
+                <button class="queue-check" type="button" aria-label="Complete closing disclosure review" aria-pressed="false"></button>
+                <div><h4>Review closing disclosure</h4><p>Money fields differ by $280.</p></div>
+                <span class="human-needed">YOU</span>
+              </article>
+              <button class="review-moves" type="button" data-action="open-review">
+                <span><strong>Review 3 moves</strong><small>About 45 seconds</small></span><span>→</span>
+              </button>
+            </section>
+          </div>
+
+          <section class="handled-strip">
+            <div><span class="queue-code">03 / COMPLETED</span><h3>ATLAS handled</h3></div>
+            <div class="handled-items">
+              <span>✓ 6 emails reconciled</span><span>✓ 3 milestones verified</span><span>✓ 2 files renamed</span><span>✓ 1 blocked path recovered</span>
+            </div>
+            <button type="button">See receipts</button>
+          </section>
+        </section>
+
+        <section class="signals-view" data-view="signals" hidden>
+          <div class="signals-intro">
+            <div><span class="eyebrow">THE SIGNAL SYSTEM</span><h1>Stay informed.<br /><em>Never spammed.</em></h1></div>
+            <p>ATLAS reports what changed, what matters, and what needs you. Each class has its own urgency, evidence standard, and frequency.</p>
+          </div>
+          <div class="signal-grid">
+            <article class="signal-card risk-signal" data-signal-class="risk">
+              <header><span>EVENT RISK</span><select aria-label="Risk alert frequency" data-frequency="risk"><option>Immediate</option><option>Daily digest</option><option>In-app only</option></select></header>
+              <div class="email-preview"><span class="email-from">REOS WATCH · 8:12 PM</span><h3>Action needed: earnest money evidence recovered</h3><p>ATLAS found the signed receipt through alternate evidence. One communication still needs your authority.</p><div class="email-proof">2 sources · 98% confidence · View receipt</div></div>
+            </article>
+            <article class="signal-card" data-signal-class="daily">
+              <header><span>DAILY COMMAND BRIEF</span><select aria-label="Daily brief frequency" data-frequency="daily"><option>Weekdays · 7 AM</option><option>Every day · 7 AM</option><option>Off</option></select></header>
+              <div class="email-preview"><span class="email-from">GOOD MORNING, JP</span><h3>12 moves finished. One decision needs you.</h3><p>Five active files are safe. 3216 Land Ct has the only prevent-harm item; ATLAS prepared the rest.</p><div class="brief-stats"><span><b>01</b> needs you</span><span><b>12</b> handled</span><span><b>04</b> days to close</span></div></div>
+            </article>
+            <article class="signal-card" data-signal-class="weekly">
+              <header><span>WEEKLY INTELLIGENCE</span><select aria-label="Weekly review frequency" data-frequency="weekly"><option>Friday · 4 PM</option><option>Monday · 7 AM</option><option>Off</option></select></header>
+              <div class="email-preview"><span class="email-from">YOUR OPERATING REVIEW</span><h3>You gained capacity for 3 more files.</h3><p>Recovery rate rose to 94%. The same lender delay appeared twice; ATLAS recommends a verified fallback rule.</p><div class="email-proof">11.4 hours returned · 3 risks prevented</div></div>
+            </article>
+            <article class="signal-card product-signal" data-signal-class="product">
+              <header><span>SYSTEM UPDATE</span><select aria-label="Product update frequency" data-frequency="product"><option>Monthly digest</option><option>As released</option><option>Off</option></select></header>
+              <div class="email-preview"><span class="email-from">REOS FIELD NOTE · AUGUST</span><h3>ATLAS can now recover a stalled evidence search.</h3><p>What changed, why it matters, and the exact actions now covered—without hiding inside generic release notes.</p><div class="email-proof">2-minute read · No action required</div></div>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <aside class="atlas-pane" data-region="atlas-continuity" data-atlas-health="recovered" aria-label="ATLAS continuity">
+        <div class="continuity-rail" aria-hidden="true">
+          <span class="rail-node node-one"></span><span class="rail-node node-two"></span><span class="rail-node node-three"></span>
+          <span class="rail-energy"></span>
+        </div>
+        <header class="atlas-header">
+          <div class="atlas-identity"><span class="atlas-orb"><i></i></span><div><span>ATLAS / CONTINUITY</span><strong>Awake & watching</strong></div></div>
+          <div class="atlas-health"><span></span><div><small>SYSTEM HEALTH</small><strong>RECOVERED</strong></div></div>
+        </header>
+
+        <section class="current-run">
+          <div class="run-label"><span>LIVE RUN · 8M 14S</span><span>AUTO</span></div>
+          <h2>Confirm earnest money receipt without restarting the work.</h2>
+          <p>3216 Land Ct · Evidence verification · Permit: Draft + propose</p>
+        </section>
+
+        <section class="trace-card" aria-label="ATLAS continuity loop">
+          <div class="trace-event complete">
+            <span class="trace-time">20:04</span><span class="trace-node">✓</span>
+            <div><small>SENSED</small><strong>Receipt obligation detected</strong><p>Contract milestone + lender email thread</p></div>
+          </div>
+          <div class="trace-event complete">
+            <span class="trace-time">20:05</span><span class="trace-node">✓</span>
+            <div><small>PRIMARY PATH</small><strong>Searched lender portal connection</strong><p>Expected confirmation artifact</p></div>
+          </div>
+          <div class="trace-event blocked" data-trace-state="blocked">
+            <span class="trace-time">20:06</span><span class="trace-node">×</span>
+            <div><small>PATH BLOCKED</small><strong>Portal token expired</strong><p>Classified: permission unavailable · no state changed</p></div>
+          </div>
+          <div class="trace-event recovered" data-trace-state="recovered">
+            <span class="trace-time">20:07</span><span class="trace-node">↻</span>
+            <div><small>RECOVERED</small><strong>Used alternate evidence: signed Gmail attachment</strong><p>Matched property, amount, parties, and executed timestamp</p></div>
+          </div>
+          <div class="trace-event active">
+            <span class="trace-time">NOW</span><span class="trace-node">•</span>
+            <div><small>WAITING ON AUTHORITY</small><strong>Communication prepared, not sent</strong><p>Your permit is required for external communication</p></div>
+          </div>
+        </section>
+
+        <section class="receipt-card" data-receipt>
+          <header><div><span>ATLAS RECEIPT</span><strong>#AR-0822-184</strong></div><span class="receipt-state">VERIFIED</span></header>
+          <div class="receipt-grid">
+            <div data-receipt-field="action"><span>ACTION</span><strong>Milestone evidence attached</strong></div>
+            <div data-receipt-field="evidence"><span>EVIDENCE</span><strong>Contract + Gmail attachment</strong></div>
+            <div data-receipt-field="confidence"><span>CONFIDENCE</span><strong>98%</strong></div>
+            <div data-receipt-field="timestamp"><span>COMPLETED</span><strong>8:07 PM</strong></div>
+          </div>
+          <footer><button type="button">Inspect evidence</button><button type="button" data-action="undo-receipt">Undo safe change</button></footer>
+        </section>
+
+        <section class="atlas-conversation">
+          <div class="conversation-head"><span>ASK WITHOUT LOSING CONTEXT</span><span>3 sources loaded</span></div>
+          <div class="messages" id="atlas-messages" aria-live="polite">
+            <div class="message atlas-message">I recovered the evidence path. I can prepare the client update, but I will not send it without your authority.</div>
+          </div>
+          <div class="prompt-chips">
+            <button type="button" data-prompt="What still needs me today?">What still needs me?</button>
+            <button type="button" data-prompt="Show the source conflict">Show source conflict</button>
+          </div>
+          <form class="command-form" id="atlas-command-form">
+            <label class="sr-only" for="atlas-command">Ask ATLAS</label>
+            <textarea id="atlas-command" rows="2" placeholder="Ask ATLAS about any deal, person, fact, or receipt…"></textarea>
+            <div class="command-footer"><span>⌘ ↵ to send</span><button type="submit" aria-label="Send command">↑</button></div>
+          </form>
+        </section>
+      </aside>
+    </div>
+
+    <div class="drawer-backdrop" data-action="close-review" hidden></div>
+    <aside class="review-drawer" id="review-drawer" aria-label="Review ATLAS moves" aria-hidden="true">
+      <header><div><span class="eyebrow">ATLAS PREPARED THESE</span><h2>Three moves. One judgment.</h2></div><button type="button" data-action="close-review" aria-label="Close review">×</button></header>
+      <div class="drawer-progress"><span style="--step: 1"></span><span style="--step: 2"></span><span style="--step: 3"></span></div>
+      <article class="review-action" data-review-action>
+        <div class="review-number">01</div><div><span class="risk-label">EXTERNAL COMMUNICATION</span><h3>Confirm earnest money receipt to buyer</h3><p>Draft references the recovered signed receipt. No deadline or money field will change.</p><button type="button">Preview message ↗</button></div>
+        <button class="approve-action" type="button" data-action="approve-move">Approve</button>
+      </article>
+      <article class="review-action" data-review-action>
+        <div class="review-number">02</div><div><span class="watch-label">SCHEDULING</span><h3>Offer final walkthrough windows</h3><p>All three participants have matching availability Tuesday afternoon.</p><button type="button">See calendars ↗</button></div>
+        <button class="approve-action" type="button" data-action="approve-move">Approve</button>
+      </article>
+      <article class="review-action" data-review-action>
+        <div class="review-number">03</div><div><span class="human-label">MONEY CONFLICT</span><h3>Resolve closing disclosure difference</h3><p>Title and lender totals differ by $280. ATLAS will not choose the authoritative amount.</p><button type="button">Compare evidence ↗</button></div>
+        <button class="approve-action hold" type="button">Review</button>
+      </article>
+      <footer><span>Every approved move creates a receipt.</span><button type="button" data-action="close-review">Done for now</button></footer>
+    </aside>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

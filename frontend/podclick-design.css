@@ -408,3 +408,255 @@ h1.big {
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-lit); }
+
+/* Podcast production workspace. Scoped so the shared tokens stay compatible
+   with the other studios while this legacy page gains the current shell. */
+body.podclick-studio {
+  /* The production workspace must measure and render consistently even when
+     remote fonts are unavailable (offline sessions and captured previews). */
+  --font-body: 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Helvetica Neue', Arial, sans-serif;
+  --font-cond: 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  --font: var(--font-body);
+  --text-dim: #a79d91;
+  --text-sec: #a79d91;
+  --text-muted: #a79d91;
+  --grad: linear-gradient(120deg, #d95f1e, #f07030);
+  --pink: var(--orange-hi);
+  --red: #e48078;
+  padding-left: 208px;
+  font-size: 15px;
+  line-height: 1.5;
+  color-scheme: dark;
+}
+.podclick-studio::before { display: none; }
+.podclick-studio [hidden] { display: none !important; }
+.podclick-studio button, .podclick-studio input, .podclick-studio select, .podclick-studio textarea { font-family: var(--font-body); }
+.podclick-studio button { touch-action: manipulation; }
+.podclick-studio :is(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--orange-hi); outline-offset: 4px; }
+.podclick-studio input, .podclick-studio select, .podclick-studio textarea { min-width: 0; max-width: 100%; }
+.podclick-studio .studio-skip-link { position: fixed; top: -80px; left: 220px; z-index: 2000; background: var(--orange); color: white; padding: 10px 18px; border-radius: 6px; }
+.podclick-studio .studio-skip-link:focus { top: 12px; }
+
+/* One persistent platform navigation, with page-local tools in the toolbar. */
+.podclick-studio #pc-topbar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 208px;
+  padding: 28px 18px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 28px;
+  border-bottom: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg-panel);
+  overflow-y: auto;
+}
+.podclick-studio #pc-topbar::after { content: 'YOUR CONTENT.\A YOUR VOICE.'; white-space: pre; margin-top: auto; padding: 28px 10px 0; color: #807569; font: 9px/1.8 var(--font-mono); letter-spacing: .12em; }
+.podclick-studio #pc-topbar .pc-brand { font: 800 32px/1 var(--font-display); letter-spacing: .01em; padding: 0 10px; }
+.podclick-studio #pc-topbar .pc-links { display: flex; flex-direction: column; align-items: stretch; overflow: visible; gap: 5px; margin: 0; }
+.podclick-studio #pc-topbar .pc-links::before { content: 'WORKSPACE'; font: 9px var(--font-mono); color: #847d74; letter-spacing: .16em; padding: 0 12px 12px; }
+.podclick-studio #pc-topbar .pc-links a { padding: 10px 12px; font: 500 16px/1.2 var(--font-cond); color: #a79d91; border-radius: 5px; }
+.podclick-studio #pc-topbar .pc-links a:hover { color: var(--text-pri); background: var(--bg-raised); }
+.podclick-studio #pc-topbar .pc-links a.pc-active { color: var(--orange-hi); border-color: var(--orange-dim); background: var(--orange-glow); }
+.podclick-studio .studio-toolbar { min-height: 68px; padding: 12px 28px; top: 0; gap: 14px; background: var(--bg-panel); backdrop-filter: none; flex-wrap: wrap; }
+.podclick-studio .tab-nav { margin: 0; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+.podclick-studio .tab-btn { flex-shrink: 0; padding: 9px 10px; font: 500 15px var(--font-cond); border-radius: 5px; white-space: nowrap; }
+.podclick-studio .tab-btn.active { color: var(--orange-hi); background: var(--orange-glow); border-color: var(--orange-dim); text-shadow: none; }
+.podclick-studio .studio-record-link { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border-lit); padding: 8px 11px; color: var(--text-pri); text-decoration: none; border-radius: 5px; font: 500 14px var(--font-cond); white-space: nowrap; }
+.podclick-studio .studio-record-link span { color: var(--orange-hi); font-size: 9px; }
+.podclick-studio #header-status { border: 0; padding: 5px 0; background: transparent; font: 10px var(--font-mono); white-space: nowrap; }
+.podclick-studio #header-status::before { content: ''; display: inline-block; width: 5px; height: 5px; margin-right: 7px; border-radius: 50%; background: currentColor; }
+.podclick-studio #header-status.active { color: var(--orange-hi); box-shadow: none; }
+.podclick-studio #active-profile-pill { margin-left: 0 !important; font: 11px var(--font-cond); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.podclick-studio #podcast-tab-panel {
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  grid-template-areas: 'intro intro' 'mode mode' 'builder review' 'history history';
+  align-content: start;
+  align-items: start;
+  padding: 38px 32px 56px;
+  gap: 22px;
+  max-width: 1320px;
+}
+.podclick-studio #podcast-tab-panel > * { min-width: 0; }
+.podclick-studio .studio-intro { grid-area: intro; display: flex; justify-content: space-between; align-items: center; gap: 28px; margin-bottom: 10px; }
+.podclick-studio .studio-eyebrow { font: 9px/1.5 var(--font-mono); text-transform: uppercase; letter-spacing: .13em; color: var(--text-sec); }
+.podclick-studio .studio-intro h1 { font: 700 clamp(34px, 3.8vw, 48px)/1.1 var(--font-display); letter-spacing: -.045em; margin: 14px 0 14px; color: var(--text-pri); }
+.podclick-studio .studio-intro h1 span { color: var(--orange-hi); }
+.podclick-studio .studio-intro-copy { max-width: 465px; color: var(--text-sec); font-size: 15px; }
+.podclick-studio .studio-project-link { display: flex; align-items: center; gap: 13px; max-width: 295px; padding: 18px; border: 1px solid var(--border-lit); border-radius: 7px; text-decoration: none; background: var(--bg-card); color: var(--text-pri); }
+.podclick-studio .studio-project-link:hover { border-color: var(--orange-dim); background: var(--orange-mist); }
+.podclick-studio .studio-project-link strong { display: block; font: 700 21px var(--font-display); letter-spacing: .02em; }
+.podclick-studio .studio-project-link small { display: block; margin-top: 3px; color: var(--text-sec); font-size: 12px; }
+.podclick-studio .studio-project-mark { display: grid; place-items: center; flex-shrink: 0; width: 38px; height: 40px; border-radius: 5px; color: var(--orange-hi); background: var(--orange-glow); border: 1px solid var(--orange-dim); font: 800 28px var(--font-display); }
+.podclick-studio .studio-mode-bar { grid-area: mode; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 14px 18px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 7px; }
+.podclick-studio .studio-mode-options { display: flex; flex-shrink: 0; gap: 3px; padding: 3px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: 5px; }
+.podclick-studio .studio-mode-options button { min-height: 34px; padding: 6px 13px !important; border-radius: 3px !important; font: 600 12px var(--font-cond) !important; white-space: nowrap; }
+.podclick-studio #mode-badge { margin-left: auto; font: 11px var(--font-mono) !important; color: var(--text-sec) !important; }
+.podclick-studio #video-mode-info { flex-basis: 100%; color: var(--text-sec); font-size: 12px; padding-top: 4px; }
+.podclick-studio .panel { background: var(--bg-card); padding: 24px; border: 1px solid var(--border); border-radius: 7px; box-shadow: none; }
+.podclick-studio #episode-builder { grid-area: builder; }
+.podclick-studio #review-panel { grid-area: review; }
+.podclick-studio #history-panel { grid-area: history; }
+.podclick-studio .studio-next-step { grid-area: review; display: flex; flex-direction: column; gap: 16px; }
+.podclick-studio .studio-section-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 9px; }
+.podclick-studio .studio-section-head h2 { font: 700 24px/1.2 var(--font-display); letter-spacing: -.03em; margin-top: 7px; }
+.podclick-studio .studio-file-count { font: 10px var(--font-mono); color: var(--text-sec); white-space: nowrap; }
+.podclick-studio .studio-panel-copy { color: var(--text-sec); font-size: 14px; line-height: 1.55; margin-bottom: 22px; }
+.podclick-studio .panel-title { font: 700 24px var(--font-display); color: var(--text-pri); letter-spacing: .02em; text-transform: none; }
+.podclick-studio .studio-guide-mark { color: var(--orange-hi); font-size: 25px; }
+.podclick-studio .studio-guide-status { font-size: 16px; font-weight: 500; margin: 23px 0 7px; }
+.podclick-studio .studio-checklist { list-style: none; padding: 0; margin: 8px 0 26px; }
+.podclick-studio .studio-checklist li { display: flex; align-items: flex-start; gap: 12px; padding: 18px 0; border-bottom: 1px solid var(--border); }
+.podclick-studio .studio-checklist li:last-child { border-bottom: 0; padding-bottom: 0; }
+.podclick-studio .studio-check-number { display: grid; place-items: center; width: 26px; height: 26px; border: 1px solid var(--border-lit); border-radius: 50%; flex-shrink: 0; color: var(--text-sec); font: 10px var(--font-mono); }
+.podclick-studio .studio-checklist strong { display: block; font-size: 14px; font-weight: 500; color: var(--text-pri); }
+.podclick-studio .studio-checklist p { color: var(--text-sec); font-size: 12px; line-height: 1.5; margin-top: 4px; }
+.podclick-studio .studio-checklist .is-current .studio-check-number { background: var(--orange-glow); border-color: var(--orange-dim); color: var(--orange-hi); }
+.podclick-studio .studio-checklist .is-done .studio-check-number { background: var(--green-dim); color: var(--green-hi); }
+.podclick-studio .studio-step-state { font: 9px var(--font-mono); color: var(--text-sec); margin-left: auto; padding-top: 5px; }
+.podclick-studio .is-current .studio-step-state { color: var(--orange-hi); }
+.podclick-studio .studio-output-preview { background: var(--bg-inset); border: 1px solid var(--border); border-radius: 5px; padding: 17px; display: flex; flex-direction: column; gap: 6px; }
+.podclick-studio .studio-output-preview strong { font-size: 14px; font-weight: 500; }
+.podclick-studio .studio-output-preview > span:last-child { color: var(--text-sec); font-size: 12px; }
+.podclick-studio .studio-brick-card { display: flex; gap: 16px; border-left: 3px solid var(--orange); background: linear-gradient(105deg, var(--orange-mist), transparent 80%), var(--bg-card); }
+.podclick-studio .studio-brick-card h3 { margin: 7px 0; font: 700 25px var(--font-display); }
+.podclick-studio .studio-brick-card p:not(.studio-eyebrow) { font-size: 14px; color: var(--text-sec); line-height: 1.6; }
+.podclick-studio .studio-brick-card a { display: inline-block; margin-top: 15px; color: var(--orange-hi); font: 600 15px var(--font-cond); text-decoration: none; }
+.podclick-studio .studio-brick-card a:hover { text-decoration: underline; }
+.podclick-studio .studio-quick-links { display: flex; flex-wrap: wrap; gap: 12px 20px; }
+.podclick-studio .studio-quick-links button { border: 0; padding: 6px 0; background: none; color: var(--text-sec); cursor: pointer; font-size: 12px; }
+.podclick-studio .studio-quick-links button:hover { color: var(--orange-hi); }
+.podclick-studio .studio-quick-links span { margin-left: 6px; }
+
+/* File assembly: generous recording target, compact optional components. */
+.podclick-studio .clip-slots { gap: 12px; }
+.podclick-studio .clip-slot { --slot-color: var(--orange-hi); border: 1px solid var(--border-lit); border-radius: 6px; background: var(--bg-inset); }
+.podclick-studio .clip-slot.has-files { border-color: var(--orange-dim); box-shadow: none; }
+.podclick-studio .slot-main { border-color: var(--orange-dim); background: var(--orange-mist); }
+.podclick-studio .slot-header { gap: 10px; padding: 13px 14px; }
+.podclick-studio .slot-icon { width: 28px; height: 28px; font: 10px var(--font-mono); color: var(--text-sec); border: 1px solid var(--border-lit); background: var(--bg-raised); border-radius: 4px; }
+.podclick-studio .slot-main .slot-icon { color: var(--orange-hi); border-color: var(--orange-dim); background: var(--orange-glow); }
+.podclick-studio .slot-name { font-size: 14px; font-weight: 500; }
+.podclick-studio .slot-label-row { flex-wrap: wrap; gap: 5px 8px; }
+.podclick-studio .slot-badge { font: 8px var(--font-mono); padding: 3px 5px; border-radius: 3px; }
+.podclick-studio .badge-req { color: var(--orange-hi); background: var(--orange-glow); }
+.podclick-studio .badge-opt { color: var(--text-sec); background: var(--bg-raised); }
+.podclick-studio .slot-hint { font-size: 11px; line-height: 1.5; }
+.podclick-studio .slot-count { padding: 2px 6px; font: 9px var(--font-mono); }
+.podclick-studio .clip-slot:not(.has-files) .slot-count { display: none; }
+.podclick-studio .slot-add-btn { opacity: 1; border-color: var(--border-lit); padding: 7px 10px; color: var(--text-pri); font-size: 12px; background: var(--bg-raised); white-space: nowrap; }
+.podclick-studio .slot-add-btn:hover { border-color: var(--orange-dim); color: var(--orange-hi); }
+.podclick-studio .clip-slot:not(.slot-main) .slot-drop-area { display: none; }
+.podclick-studio .clip-slot > div:has(> .lib-btn) { padding: 0 14px 10px !important; }
+.podclick-studio .lib-btn { font-size: 11px; padding: 3px 0; background: none; border: 0; color: var(--text-sec); }
+.podclick-studio .lib-btn:hover { color: var(--orange-hi); }
+.podclick-studio .slot-main .slot-drop-area { width: calc(100% - 28px); margin: 0 14px 14px; padding: 24px 12px 21px; color: var(--text-sec); border-color: var(--orange-dim); background: var(--bg-card); }
+.podclick-studio .slot-main .slot-drop-area > * { display: block; }
+.podclick-studio .studio-upload-icon { margin: 0 auto 10px; width: 32px; height: 32px; color: var(--orange-hi); font-size: 25px; line-height: 1; }
+.podclick-studio .slot-drop-area strong { font: 700 24px var(--font-display); color: var(--text-pri); margin-bottom: 4px; }
+.podclick-studio .slot-drop-area u { color: var(--orange-hi); text-underline-offset: 3px; }
+.podclick-studio .slot-drop-area small { margin-top: 11px; font: 9px var(--font-mono); }
+.podclick-studio .timeline { height: 30px; border-radius: 4px; }
+.podclick-studio .tl-block, .podclick-studio .ab { background: var(--orange); color: var(--text-pri); font: 9px var(--font-mono); }
+.podclick-studio :is(.tl-intro, .tl-commercial, .tl-outro, .ab-intro, .ab-commercial, .ab-outro) { background: #73503a; }
+.podclick-studio .tl-block { opacity: .4; }
+.podclick-studio .tl-block.on { opacity: 1; }
+.podclick-studio .timeline-hint { text-align: left; font-size: 11px; margin-top: 8px; }
+.podclick-studio .settings-row { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(70px, .6fr) minmax(105px, 1fr); gap: 10px; margin-top: 22px; }
+.podclick-studio .settings-row .field { max-width: none !important; min-width: 0; }
+.podclick-studio .field label, .podclick-studio .review-field label { font: 9px/1.5 var(--font-mono); letter-spacing: .06em; }
+.podclick-studio .field :is(input, select) { width: 100%; min-height: 40px; padding: 9px; border-radius: 5px; background: var(--bg-inset); font-size: 13px; }
+.podclick-studio .btn-process, .podclick-studio .btn-upload, .podclick-studio .lib-use-btn, .podclick-studio .sponsor-btn.primary { background: var(--orange); box-shadow: none; color: #fff; border-radius: 5px; font-family: var(--font-cond); font-size: 16px; }
+.podclick-studio .btn-process { margin-top: 20px; }
+.podclick-studio .btn-process:hover:not(:disabled), .podclick-studio .btn-upload:hover:not(:disabled) { background: var(--orange-hi); box-shadow: none; }
+.podclick-studio .btn:disabled { opacity: .45; }
+.podclick-studio .studio-action-hint { text-align: center; color: var(--text-sec); font-size: 12px; margin-top: 9px; }
+.podclick-studio .step.active { background: var(--orange-glow); border-left-color: var(--orange); }
+.podclick-studio .step-num.active, .podclick-studio .step-num.done { background: var(--orange); }
+.podclick-studio .stat .val { background: none; -webkit-text-fill-color: var(--text-pri); color: var(--text-pri); font: 700 29px var(--font-display); }
+.podclick-studio .review-field input, .podclick-studio .review-field textarea { background: var(--bg-inset); border-radius: 5px; font-size: 14px; }
+.podclick-studio .ep-info { min-width: 0; }
+.podclick-studio .ep-info .title { overflow-wrap: anywhere; }
+.podclick-studio .ep-item { flex-wrap: wrap; }
+.podclick-studio > div[id$='-tab-panel'] { padding: 32px !important; }
+.podclick-studio #clip-tab-panel > div { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) !important; }
+.podclick-studio .studio-queue-notice { margin-top: 8px; font-size: 12px; line-height: 1.5; color: var(--yellow); overflow-wrap: anywhere; }
+.podclick-studio .studio-queue-notice.is-error { color: var(--red); }
+.podclick-studio .studio-queue-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; }
+.podclick-studio .studio-queue-heading > div:first-child { flex: 1; min-width: 180px; }
+.podclick-studio .studio-queue-card h3 { margin: 7px 0; font: 700 25px/1.2 var(--font-display); overflow-wrap: anywhere; }
+.podclick-studio .studio-queue-meta { font-size: 12px; color: var(--text-sec); }
+.podclick-studio .studio-queue-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+.podclick-studio .studio-queue-destinations { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border); color: var(--text-sec); font-size: 12px; }
+.podclick-studio .studio-queue-destinations p { margin: 4px 0; }
+.podclick-studio .studio-queue-destinations span { display: inline-block; width: 48px; font: 9px var(--font-mono); text-transform: uppercase; color: var(--text-pri); }
+.podclick-studio .studio-queue-destinations a { color: var(--orange-hi); }
+
+@media (min-width: 1500px) {
+  .podclick-studio #podcast-tab-panel { padding-top: 48px; gap: 26px; }
+}
+@media (max-width: 1180px) {
+  body.podclick-studio { padding-left: 172px; }
+  .podclick-studio #pc-topbar { width: 172px; padding-inline: 12px; }
+  .podclick-studio .studio-toolbar { padding-inline: 22px; }
+  .podclick-studio #podcast-tab-panel { padding: 28px 22px 40px; gap: 18px; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+  .podclick-studio .panel { padding: 20px; }
+  .podclick-studio .studio-project-link { max-width: 250px; padding: 14px; }
+  .podclick-studio #active-profile-pill { order: 3; }
+  .podclick-studio #mode-badge { flex-basis: 100%; margin-left: 0; }
+  .podclick-studio .studio-file-count { display: none; }
+  .podclick-studio .studio-checklist li { gap: 10px; }
+  .podclick-studio .studio-step-state { display: none; }
+  .podclick-studio .settings-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .podclick-studio .settings-row .field:first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 920px) {
+  body.podclick-studio { padding-left: 0; }
+  .podclick-studio #pc-topbar { position: relative; inset: auto; width: 100%; padding: 15px 20px; flex-direction: row; align-items: center; gap: 24px; border-right: 0; border-bottom: 1px solid var(--border); overflow: hidden; }
+  .podclick-studio #pc-topbar::after, .podclick-studio #pc-topbar .pc-links::before { display: none; }
+  .podclick-studio #pc-topbar .pc-brand { font-size: 27px; padding: 0; }
+  .podclick-studio #pc-topbar .pc-links { flex-direction: row; align-items: center; overflow-x: auto; gap: 4px; }
+  .podclick-studio #pc-topbar .pc-links a { padding: 7px 9px; font-size: 15px; }
+  .podclick-studio .studio-toolbar { position: relative; min-height: 60px; gap: 12px; }
+  .podclick-studio .studio-skip-link { left: 14px; }
+  .podclick-studio .studio-intro h1 { font-size: 46px; }
+}
+@media (max-width: 720px) {
+  .podclick-studio #podcast-tab-panel { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'intro' 'mode' 'builder' 'review' 'history'; padding: 26px 16px 40px; gap: 18px; }
+  .podclick-studio .studio-intro { flex-direction: column; align-items: stretch; gap: 22px; margin-bottom: 2px; }
+  .podclick-studio .studio-intro h1 { font-size: 44px; margin-top: 12px; }
+  .podclick-studio .studio-project-link { max-width: none; padding: 14px 16px; }
+  .podclick-studio .studio-project-link > span:last-child { margin-left: auto; }
+  .podclick-studio .studio-toolbar { padding: 8px 16px 12px; }
+  .podclick-studio .tab-nav { flex-basis: 100%; padding-bottom: 2px; }
+  .podclick-studio .tab-btn { padding: 9px 10px; }
+  .podclick-studio .studio-record-link { margin-right: auto; }
+  .podclick-studio #header-status { margin-left: 0 !important; }
+  .podclick-studio #active-profile-pill { order: initial; }
+  .podclick-studio .studio-mode-bar { gap: 10px; padding: 14px 16px; }
+  .podclick-studio .studio-mode-bar > .studio-eyebrow { flex-basis: 100%; }
+  .podclick-studio .studio-mode-options { width: 100%; }
+  .podclick-studio .studio-mode-options button { flex: 1; }
+  .podclick-studio #mode-badge { font-size: 10px !important; line-height: 1.6; }
+  .podclick-studio .studio-file-count { display: inline; }
+  .podclick-studio .panel { padding: 20px; }
+  .podclick-studio #clip-tab-panel > div { grid-template-columns: minmax(0, 1fr) !important; }
+  .podclick-studio > div[id$='-tab-panel'] { padding: 24px 16px !important; }
+  .podclick-studio .sponsor-card { flex-wrap: wrap; }
+  .podclick-studio .sponsor-actions { width: 100%; }
+  .podclick-studio .studio-step-state { display: inline; }
+  .podclick-studio .lib-modal-box, .podclick-studio .outreach-box, .podclick-studio .sponsor-form-box { max-width: calc(100vw - 24px); }
+}
+@media (max-width: 380px) {
+  .podclick-studio .panel { padding: 16px; }
+  .podclick-studio .slot-header { padding: 12px 10px; gap: 7px; }
+  .podclick-studio .slot-icon { display: none; }
+  .podclick-studio .studio-file-count { display: none; }
+  .podclick-studio .studio-section-head h2 { font-size: 27px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .podclick-studio *, .podclick-studio *::before, .podclick-studio *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

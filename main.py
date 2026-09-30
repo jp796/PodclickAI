@@ -37,9 +37,17 @@ app = FastAPI(title="Podcast Studio")
 # ── Phase 1 routers ───────────────────────────────────────────────────────────
 from routers.foundation import router as foundation_router  # noqa: E402
 from routers.blueprint import router as blueprint_router  # noqa: E402
+from routers.billing import router as billing_router  # noqa: E402
 
 app.include_router(foundation_router, prefix="/api/foundation", tags=["Foundation"])
 app.include_router(blueprint_router, prefix="/api/blueprint", tags=["Blueprint"])
+app.include_router(billing_router)
+
+
+@app.get("/billing")
+async def billing_page():
+    from fastapi.responses import FileResponse
+    return FileResponse(Path(__file__).parent / "frontend" / "billing.html")
 
 
 @app.get("/health")
@@ -100,8 +108,15 @@ async def _nightly_foundation_recompute() -> None:
 @app.on_event("startup")
 async def _startup():
     """Start the release scheduler + uploads sweep background loops."""
+    from config import settings as _deployment_settings
+    if _deployment_settings.podclick_deployment_mode != "local":
+        print("[startup] Studio and owner automation locked pending deployment configuration.")
+        return
     from pipeline.scheduler import scheduler_loop
     asyncio.ensure_future(scheduler_loop())
+    # Plans are opt-in and durable. The service checks the same automation
+    # disable switch as the release queue, including during preview/testing.
+    asyncio.ensure_future(_podcast_autopilot().loop())
     # Sweep stale data/uploads/<job_id>/ dirs (default >7 days old)
     # every 6 hours. Keeps disk usage bounded without disturbing
     # recent failed jobs that a user might still retry.
@@ -1530,9 +1545,13 @@ async def list_project_clips(project_id: str):
 
 
 @app.get("/api/projects/{project_id}/clips/{clip_id}/video")
+@app.get("/api/projects/{project_id}/clips/{clip_id}/video.mp4")
 async def serve_project_clip_video(project_id: str, clip_id: str):
     """
     Stream a rendered project clip MP4 for in-browser preview.
+
+    The `.mp4` alias gives the URL a real extension so external media fetchers
+    (GHL Social Planner) classify it as video, not image.
 
     The rendered_url stored on Clip rows is a local filesystem path.
     This endpoint converts it to a streamable HTTP response so the
@@ -1563,6 +1582,130 @@ async def serve_project_clip_video(project_id: str, clip_id: str):
         raise HTTPException(status_code=404, detail="Clip file not on disk")
 
     return _FR(path=path, media_type="video/mp4", filename=Path(path).name)
+
+
+def _public_base_url() -> str:
+    """Public base URL GHL can fetch clip media from.
+
+    GHL Social Planner ingests media from a public URL — localhost is unreachable.
+    Set PODCLICK_PUBLIC_BASE_URL (ngrok tunnel now, deployed domain later). Falls
+    back to the TikTok redirect host (a known public tunnel), else localhost.
+    """
+    # Explicit only — a stale tunnel URL would make GHL fetch dead media, so we do
+    # NOT silently fall back to the TikTok-redirect host. localhost = "not set".
+    b = os.getenv("PODCLICK_PUBLIC_BASE_URL", "").strip().rstrip("/")
+    return b or "http://localhost:8765"
+
+
+@app.post("/api/projects/{project_id}/distribute-shorts")
+async def distribute_shorts_to_social(project_id: str, request: Request):
+    """Post an episode's rendered vertical Shorts to Instagram + TikTok via GHL.
+
+    Body (all optional): {platforms:["instagram","tiktok"], max_clips:3}.
+    Each clip is uploaded to the GHL Media Library (GHL-hosted CDN URL — no public
+    tunnel needed), then posted to each platform as a GHL **draft** (nothing
+    auto-publishes). Review + publish in the GHL social planner.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project, Clip
+    from services.ghl_adapter import ghl_adapter as _ghl
+    from sqlalchemy import select as _select
+    import uuid as _uuid
+
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass
+    req_platforms = [p.lower() for p in (body.get("platforms") or ["instagram", "tiktok"])]
+    try:
+        max_clips = max(1, int(body.get("max_clips", 3)))
+    except (TypeError, ValueError):
+        max_clips = 3
+
+    async with _async_session() as session:
+        proj = (await session.execute(_select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if not proj:
+            raise HTTPException(status_code=404, detail="Project not found")
+        clips = (await session.execute(
+            _select(Clip).where(Clip.project_id == pid)
+        )).scalars().all()
+
+    # Rendered, not-removed clips — best moments first (virality desc).
+    ready = [c for c in clips
+             if (c.rendered_url and Path(c.rendered_url).exists()
+                 and (c.status or "") != "removed")]
+    ready.sort(key=lambda c: (c.virality_score or 0.0), reverse=True)
+    ready = ready[:max_clips]
+    if not ready:
+        return JSONResponse({"ok": False, "error": "no_clips",
+                             "message": "No rendered clips to post — run Ship It first."},
+                            status_code=400)
+
+    loc = _current_location_id_str()
+    try:
+        accounts = await _ghl.list_accounts(loc)
+    except Exception as exc:
+        return JSONResponse({"ok": False, "error": f"ghl_accounts_failed: {exc}"}, status_code=502)
+    platform_to_account = {}
+    for a in accounts:
+        plat = (a.get("platform") or "").lower()
+        if a.get("expired") or plat in platform_to_account:
+            continue
+        platform_to_account[plat] = a.get("id")
+
+    live_platforms = [p for p in req_platforms if platform_to_account.get(p)]
+    skipped = [{"platform": p, "reason": "no_connected_ghl_account"}
+               for p in req_platforms if not platform_to_account.get(p)]
+    if not live_platforms:
+        return JSONResponse({"ok": False, "error": "no_accounts", "skipped": skipped,
+                             "message": "No connected GHL account for the requested platforms."},
+                            status_code=400)
+
+    ep_link = proj.youtube_url or proj.buzzsprout_url or ""
+    created = []
+    for c in ready:
+        # Prefer the Foundation-voiced clip caption (Ship It step e); fall back to
+        # the raw transcript hook only if no caption was generated.
+        hook = (c.clip_caption or c.hook_text or proj.title or "New clip").strip()
+        caption = hook if not ep_link else f"{hook}\n\nFull episode: {ep_link}"
+        # 1) upload the clip to GHL once → GHL-hosted CDN URL (no public tunnel).
+        try:
+            cdn_url = await _ghl.upload_media(
+                loc, c.rendered_url,
+                filename=f"clip_{str(c.id)[:8]}.mp4", mime="video/mp4",
+            )
+        except Exception as exc:
+            for plat in live_platforms:
+                skipped.append({"platform": plat, "clip_id": str(c.id),
+                                "reason": f"ghl_media_upload_failed: {exc}"})
+            continue
+        # 2) draft one post per platform with the hosted video.
+        for plat in live_platforms:
+            try:
+                gid = await _ghl.publish(
+                    location_id=loc, platform=plat, caption=caption[:2200],
+                    account_id=platform_to_account[plat], media_urls=[cdn_url],
+                )
+                created.append({"platform": plat, "clip_id": str(c.id),
+                                "hook": hook[:60], "ghl_post_id": gid})
+            except Exception as exc:
+                skipped.append({"platform": plat, "clip_id": str(c.id),
+                                "reason": f"ghl_publish_failed: {exc}"})
+
+    return JSONResponse({
+        "ok": True,
+        "created": created,
+        "skipped": skipped,
+        "note": ("Created as GHL drafts — review and publish in the GHL social planner. "
+                 "Nothing was auto-published."),
+        "planner_url": "https://app.gohighlevel.com/",
+    })
 
 
 # ── Transcript Editor (Descript-style: delete words → cut video) ──────────────
@@ -1664,13 +1807,18 @@ def _render_take_edit(src_path, keeps, out_path):
 
 
 @app.get("/api/projects/{project_id}/source-video")
-async def serve_project_source_video(project_id: str):
-    """Stream the project's source recording (or the edited cut if one exists)."""
+async def serve_project_source_video(project_id: str, request: Request, download: int = 0):
+    """Stream the project's source recording (or the edited cut if one exists).
+
+    download=1 forces a browser download with a clean, title-based filename
+    (the full edited file — no clips/Shorts/distribution). Default streams inline
+    for the editor's <video>.
+    """
     from fastapi.responses import FileResponse as _FR
     from db.engine import async_session as _async_session
     from db.models import Project
     from sqlalchemy import select
-    import uuid as _uuid
+    import uuid as _uuid, re as _re
     try:
         pid = _uuid.UUID(project_id)
     except ValueError:
@@ -1687,7 +1835,319 @@ async def serve_project_source_video(project_id: str):
         path = proj.recording_path or ""
     if not path or not Path(path).exists():
         raise HTTPException(status_code=404, detail="Source recording not on disk")
-    return _FR(path=path, media_type="video/mp4", filename=Path(path).name)
+    if download:
+        # Clean, human filename from the episode title + "(edited)" tag.
+        _edited = bool(_m.get("edited_video_path") and Path(_m.get("edited_video_path")).exists())
+        _base = _re.sub(r'[^\w\- ]+', '', (proj.title or "episode")).strip() or "episode"
+        _fname = f"{_base}{' (edited)' if _edited else ''}{Path(path).suffix or '.mp4'}"
+        _resp = _FR(path=path, media_type="video/mp4", filename=_fname,
+                    content_disposition_type="attachment")
+        _resp.headers["Accept-Ranges"] = "bytes"
+        return _resp
+    # Inline playback for the editor <video>: MUST honor HTTP Range requests, or the
+    # browser marks the media non-seekable (seekable.end == 0) and every currentTime=
+    # jump snaps back to 0 — no scrubbing, no fast-forward-to-a-spot. FileResponse here
+    # returns a plain 200 without range support, so serve ranges ourselves.
+    import os as _os
+    from starlette.responses import StreamingResponse as _Stream, Response as _Resp
+    _size = _os.path.getsize(path)
+    _rng = request.headers.get("range") or request.headers.get("Range")
+    if not _rng:
+        _resp = _FR(path=path, media_type="video/mp4", filename=Path(path).name,
+                    content_disposition_type="inline")
+        _resp.headers["Accept-Ranges"] = "bytes"
+        return _resp
+    _mrng = _re.match(r"bytes=(\d*)-(\d*)", _rng.strip())
+    _start = int(_mrng.group(1)) if _mrng and _mrng.group(1) else 0
+    _end = int(_mrng.group(2)) if _mrng and _mrng.group(2) else _size - 1
+    _end = min(_end, _size - 1)
+    if _start > _end or _start >= _size:
+        return _Resp(status_code=416, headers={"Content-Range": f"bytes */{_size}", "Accept-Ranges": "bytes"})
+    _len = _end - _start + 1
+    def _iter_range():
+        with open(path, "rb") as _f:
+            _f.seek(_start)
+            _left = _len
+            while _left > 0:
+                _data = _f.read(min(524288, _left))
+                if not _data:
+                    break
+                _left -= len(_data)
+                yield _data
+    return _Stream(_iter_range(), status_code=206, media_type="video/mp4", headers={
+        "Content-Range": f"bytes {_start}-{_end}/{_size}",
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(_len),
+    })
+
+
+def _mux_final_video_sync(video_path: str, audio_path: str, out_path: str) -> str:
+    """SYNC — mux the current-take video with the polished loud audio into one MP4.
+
+    Copies the video stream (no re-encode → fast) and re-encodes the audio track to
+    AAC 192k. `-shortest` guards against a hair of length mismatch. The audio is the
+    full-length, in-sync .ship_audio.mp3 (two-pass loudnorm) — NOT the assembled MP3
+    (which has extra filler cuts and would desync). Cached by mtime: skip if the output
+    is newer than both inputs. Returns out_path. Raises RuntimeError on FFmpeg failure.
+    """
+    import subprocess
+    from pathlib import Path as _Path
+    op = _Path(out_path)
+    if op.exists() and op.stat().st_size > 0:
+        try:
+            _omt = op.stat().st_mtime
+            if _omt >= _Path(video_path).stat().st_mtime and _omt >= _Path(audio_path).stat().st_mtime:
+                return out_path  # up to date — reuse
+        except OSError:
+            pass
+    result = subprocess.run([
+        "ffmpeg", "-y",
+        "-i", video_path,
+        "-i", audio_path,
+        "-map", "0:v:0", "-map", "1:a:0",
+        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+        "-shortest", "-movflags", "+faststart",
+        out_path,
+    ], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"FFmpeg mux failed for {video_path} + {audio_path}: {result.stderr[-400:]}"
+        )
+    return out_path
+
+
+@app.get("/api/projects/{project_id}/download-final")
+async def download_final_video(project_id: str):
+    """Download ONE full-length video = current-take video + polished audio, no clips.
+
+    Muxes the current working take (edited cut if one exists, else the raw recording)
+    with the Ship It polished audio (`_ship_it_extract_audio` → full-length, two-pass
+    loudnorm, same timeline as the video). No Shorts, no distribution — just the single
+    finished file with broadcast-level audio. Cached next to the recording by mtime.
+    """
+    from fastapi.responses import FileResponse as _FR
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    import asyncio as _asyncio, uuid as _uuid, re as _re
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Resolve the current take — edited cut if present, else raw recording.
+    _m = proj.legacy_metadata or {}
+    video_path = _m.get("edited_video_path") or proj.recording_path or ""
+    if not (video_path and Path(video_path).exists()):
+        video_path = proj.recording_path or ""
+    if not video_path or not Path(video_path).exists():
+        raise HTTPException(status_code=404, detail="Source recording not on disk")
+
+    _edited = bool(_m.get("edited_video_path") and Path(_m.get("edited_video_path")).exists())
+
+    loop = _asyncio.get_event_loop()
+    # 1) polished loud audio (full-length, in-sync) — idempotent
+    try:
+        audio_path = await loop.run_in_executor(None, _ship_it_extract_audio, video_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Audio polish failed: {e}")
+    # 2) mux video + polished audio → {stem}.final.mp4
+    out_path = str(Path(video_path).with_suffix("")) + ".final.mp4"
+    try:
+        await loop.run_in_executor(None, _mux_final_video_sync, video_path, audio_path, out_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Mux failed: {e}")
+
+    _base = _re.sub(r'[^\w\- ]+', '', (proj.title or "episode")).strip() or "episode"
+    _fname = f"{_base}{' (edited)' if _edited else ''} (final).mp4"
+    return _FR(path=out_path, media_type="video/mp4", filename=_fname,
+               content_disposition_type="attachment")
+
+
+# ── AI b-roll auto-edit (GPT-4o plans cutaways → Pexels stock → composite) ─────
+
+# In-memory progress for the current b-roll run per project (status also persisted
+# to legacy_metadata so a reload/poll survives a restart).
+_broll_jobs: dict = {}
+
+
+def _segments_from_words(words: list, max_len: float = 11.0, max_gap: float = 0.7) -> list:
+    """Group word timestamps into {start,end,text} segments for the b-roll planner.
+
+    Edited cuts store word timestamps but no Whisper segments — the planner needs
+    segment-level text + timing, so we roll words up into ~sentence-ish blocks
+    (break on sentence punctuation, a >max_gap silence, or max_len seconds).
+    """
+    segs, cur = [], []
+    for w in words:
+        try:
+            ws, we = float(w.get("start", 0)), float(w.get("end", 0))
+        except (TypeError, ValueError):
+            continue
+        tok = (w.get("word") or w.get("text") or "").strip()
+        if not tok:
+            continue
+        if cur:
+            gap = ws - cur[-1]["end"]
+            span = we - cur[0]["start"]
+            if gap > max_gap or span > max_len:
+                segs.append(cur); cur = []
+        cur.append({"start": ws, "end": we, "word": tok})
+        if tok.endswith((".", "!", "?")):
+            segs.append(cur); cur = []
+    if cur:
+        segs.append(cur)
+    out = []
+    for g in segs:
+        if not g:
+            continue
+        out.append({"start": g[0]["start"], "end": g[-1]["end"],
+                    "text": " ".join(x["word"] for x in g)})
+    return out
+
+
+async def _run_auto_broll(project_id: str):
+    """Background: plan + fetch + composite b-roll over the current take."""
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    from sqlalchemy.orm.attributes import flag_modified
+    import uuid as _uuid, asyncio as _asyncio
+    from pathlib import Path as _P
+
+    def _set(status, extra=None):
+        _broll_jobs[project_id] = {"status": status, **(extra or {})}
+
+    _set("running", {"step": "starting"})
+    try:
+        pid = _uuid.UUID(project_id)
+        async with _async_session() as session:
+            proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+            if not proj:
+                _set("failed", {"error": "project not found"}); return
+            meta = dict(proj.legacy_metadata or {})
+
+        # 1) current take video
+        video = (meta.get("edited_video_path") or proj.recording_path or "")
+        if not (video and _P(video).exists()):
+            video = proj.recording_path or ""
+        if not video or not _P(video).exists():
+            _set("failed", {"error": "no source video on disk"}); return
+
+        # 2) segments — stored whisper_segments else synthesized from words
+        segs = meta.get("whisper_segments") or []
+        if not segs:
+            segs = _segments_from_words(meta.get("edited_words") or meta.get("whisper_words") or [])
+        if not segs:
+            _set("failed", {"error": "no transcript segments — run Ship It / transcribe first"}); return
+
+        # Keys live in config (.env is not exported to the process env).
+        from config import settings as _cfg
+        pexels_key = os.getenv("PEXELS_API_KEY", "") or getattr(_cfg, "pexels_api_key", "")
+        openai_key = os.getenv("OPENAI_API_KEY", "") or getattr(_cfg, "openai_api_key", "")
+        if not pexels_key:
+            _set("failed", {"error": "PEXELS_API_KEY not configured"}); return
+
+        out_path   = str(_P(video).with_suffix("")) + ".broll.mp4"
+        cache_dir  = str(_P(video).parent / f"broll_cache_{project_id[:8]}")
+
+        _set("running", {"step": "planning + fetching stock + compositing (a few min)"})
+
+        from pipeline.broll import add_broll
+        loop = _asyncio.get_event_loop()
+
+        def _do():
+            return add_broll(main_video=video, segments=segs, output_path=out_path,
+                             openai_key=openai_key, pexels_key=pexels_key,
+                             cache_dir=cache_dir, progress_cb=None)
+        result = await loop.run_in_executor(None, _do)
+
+        if result and result == out_path and _P(out_path).exists():
+            async with _async_session() as session:
+                proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+                nm = dict(proj.legacy_metadata or {})
+                nm["broll_video_path"] = out_path
+                proj.legacy_metadata = nm
+                flag_modified(proj, "legacy_metadata")
+                await session.commit()
+            _set("done", {"broll_video_path": out_path})
+        else:
+            # add_broll returns the ORIGINAL video when nothing was added / failed
+            _set("done_none", {"message": "No b-roll was added (no good cutaway moments or stock found)."})
+    except Exception as exc:
+        _set("failed", {"error": str(exc)})
+
+
+@app.post("/api/projects/{project_id}/auto-broll")
+async def start_auto_broll(project_id: str):
+    """Kick off the AI b-roll auto-edit for a project (background). Poll GET to track."""
+    import uuid as _uuid, asyncio as _asyncio
+    try:
+        _uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+    cur = _broll_jobs.get(project_id)
+    if cur and cur.get("status") == "running":
+        return JSONResponse({"ok": True, "status": "running", "message": "Already editing…"})
+    _broll_jobs[project_id] = {"status": "running", "step": "queued"}
+    _asyncio.create_task(_run_auto_broll(project_id))
+    return JSONResponse({"ok": True, "status": "running",
+                         "message": "Brick's adding b-roll — this takes a few minutes."})
+
+
+@app.get("/api/projects/{project_id}/auto-broll")
+async def auto_broll_status(project_id: str):
+    """Poll b-roll job status. Reports done / done_none / running / failed."""
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    from pathlib import Path as _P
+    import uuid as _uuid
+    job = _broll_jobs.get(project_id)
+    if job:
+        return JSONResponse(job)
+    # No in-memory job (e.g. after restart) — infer from persisted path.
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+    bp = ((proj.legacy_metadata or {}).get("broll_video_path") if proj else None)
+    if bp and _P(bp).exists():
+        return JSONResponse({"status": "done", "broll_video_path": bp})
+    return JSONResponse({"status": "idle"})
+
+
+@app.get("/api/projects/{project_id}/broll-video")
+async def serve_broll_video(project_id: str, download: int = 0):
+    """Stream (or download) the b-roll'd full video once the AI edit is done."""
+    from fastapi.responses import FileResponse as _FR
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    import uuid as _uuid, re as _re
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    bp = (proj.legacy_metadata or {}).get("broll_video_path") or ""
+    if not (bp and Path(bp).exists()):
+        raise HTTPException(status_code=404, detail="No b-roll video yet — run the AI edit first")
+    if download:
+        _base = _re.sub(r'[^\w\- ]+', '', (proj.title or "episode")).strip() or "episode"
+        return _FR(path=bp, media_type="video/mp4", filename=f"{_base} (b-roll).mp4",
+                   content_disposition_type="attachment")
+    return _FR(path=bp, media_type="video/mp4", filename=Path(bp).name,
+               content_disposition_type="inline")
 
 
 @app.get("/api/projects/{project_id}/edit-data")
@@ -2735,6 +3195,56 @@ async def _run_ship_it_async(
         await _ship_it_fail_safe(project_uuid, str(_fatal))
 
 
+def _looks_side_by_side(video_path: str) -> bool:
+    """True only for a genuine two-pane side-by-side recording (guest | host) —
+    a solo full-frame speaker returns False. Lets an interview stack correctly even
+    when no guest is linked in the CRM (guest linkage is unreliable). Confirms a real
+    dark vertical GUTTER between two bright panes so a single wide speaker (no gutter,
+    but ar>1.5) is NOT mistaken for side-by-side. Non-fatal → False (keeps center)."""
+    try:
+        from pipeline import render_clip as _rc
+        import subprocess as _sp, tempfile as _tf, os as _os
+        from PIL import Image as _Image
+        if not (video_path and _os.path.exists(video_path)):
+            return False
+        lay = _rc.detect_layout(video_path, sample_time=30)
+        if lay.orientation != "side_by_side":
+            return False
+        cx, cy, cw, ch = lay.content_x, lay.content_y, lay.content_w, lay.content_h
+        if cw < 200 or ch < 100:
+            return False
+        # Vertical VARIANCE of three strips (robust to a dark pane, unlike brightness):
+        # a gutter between two panes is a flat, low-variance column; a strip crossing a
+        # person (face→shirt→background) has high top-to-bottom variance.
+        def _band_var(bx, bw):
+            bx = max(0, bx)
+            _p = _tf.NamedTemporaryFile(suffix=".png", delete=False).name
+            try:
+                _sp.run(["ffmpeg", "-y", "-ss", "30", "-i", video_path, "-frames:v", "1",
+                         "-vf", f"crop={bw}:{ch}:{bx}:{cy},scale=16:64,format=gray",
+                         "-f", "image2", _p], capture_output=True)
+                im = _Image.open(_p).convert("L"); W, H = im.size; px = list(im.getdata())
+                rows = [sum(px[r * W:(r + 1) * W]) / W for r in range(H)]
+                m = sum(rows) / len(rows)
+                return sum((x - m) ** 2 for x in rows) / len(rows)
+            finally:
+                try: _os.unlink(_p)
+                except OSError: pass
+        bw = max(8, cw // 12)
+        left  = _band_var(cx + cw // 4 - bw // 2, bw)      # left pane center
+        gut   = _band_var(cx + cw // 2 - bw // 2, bw)      # gutter (frame center)
+        right = _band_var(cx + 3 * cw // 4 - bw // 2, bw)  # right pane center
+        panes = min(left, right)
+        # side-by-side only when the center strip is a clear low-variance gutter between
+        # two content-filled panes. A solo speaker fills the center → high variance → False.
+        _sbs = gut < panes * 0.5
+        print(f"[ship_it] side-by-side probe (variance): L={left:.0f} gut={gut:.0f} R={right:.0f} → {_sbs}")
+        return _sbs
+    except Exception as _e:
+        print(f"[ship_it] side-by-side probe failed: {_e}")
+        return False
+
+
 async def _run_ship_it_inner(
     project_uuid, project_id, job_id, transcript, mp3_url, location_id,
     recording_path, stored_audio_path, stored_words, stored_segments, loop,
@@ -2842,20 +3352,23 @@ async def _run_ship_it_inner(
                 print(f"[ship_it.2.5] recording_path set but file missing: {recording_path} — skipping")
 
     # ── Auto-pick clip layout (single-speaker recognition) ────────────────────
-    # Solo recordings (no linked guest) get a single full-frame vertical crop so a
-    # one-person video is NEVER rendered as a duplicated split screen. Interviews
-    # (a guest is linked) keep the host-top / guest-bottom stack.
+    # Stack (guest-top / host-bottom split) when EITHER a guest is linked OR the source
+    # is a genuine two-pane side-by-side recording (detected by a real vertical gutter).
+    # Otherwise center-crop, so a solo one-person video is NEVER a duplicated split
+    # screen and an interview is never center-cropped down the seam (both faces lost).
     _crop_mode = "center"
     try:
+        _guest_linked = False
         async with _async_session() as _cm_session:
             _cm_proj = (await _cm_session.execute(
                 select(Project).where(Project.id == project_uuid)
             )).scalar_one_or_none()
-            if _cm_proj and _cm_proj.guest_ids and len(_cm_proj.guest_ids) > 0:
-                _crop_mode = "stack"
+            _guest_linked = bool(_cm_proj and _cm_proj.guest_ids and len(_cm_proj.guest_ids) > 0)
+        if _guest_linked or await loop.run_in_executor(None, _looks_side_by_side, recording_path):
+            _crop_mode = "stack"
     except Exception as _cm_err:
         print(f"[ship_it] crop-mode auto-detect failed, defaulting to center (solo): {_cm_err}")
-    print(f"[ship_it] crop_mode={_crop_mode} (solo→center single-speaker, guest-linked→stack)")
+    print(f"[ship_it] crop_mode={_crop_mode} (guest_linked={_guest_linked}; side-by-side→stack, solo→center)")
 
     # ── a-c: Sponsor, clip detection, clip rendering (sync via executor) ───────
     try:
@@ -3185,7 +3698,227 @@ def _format_chapters(chapters: list) -> str:
     return "\n".join(lines)
 
 
+def _podcast_autopilot():
+    """Lazy singleton: importing the application cannot start any release."""
+    global _podcast_autopilot_instance
+    from services.podcast_autopilot import PodcastAutopilot, PlanStore
+    if globals().get("_podcast_autopilot_instance") is None:
+        _podcast_autopilot_instance = PodcastAutopilot(
+            PlanStore(DATA_DIR / "podcast_autopilot"), _autopilot_inspect,
+            _autopilot_perform, _autopilot_record,
+        )
+    return _podcast_autopilot_instance
+
+
+def _autopilot_owns_project(project_id):
+    plan = _podcast_autopilot().store.load(project_id)
+    # A cancelled plan can still own private uploads. Legacy redistribution
+    # must not bypass pause/cancel or publish those uploads accidentally.
+    return bool(plan and (plan["status"] != "cancelled" or any(
+        a.get("provider_id") or a["status"] in ("running", "needs_attention") for a in plan["actions"])))
+
+
+async def _autopilot_inspect(project_id):
+    from services.podcast_autopilot import PlanError
+    from db.engine import async_session
+    from db.models import Project
+    from sqlalchemy import select
+    from pipeline.youtube import is_authorized
+    from pipeline.scheduler import queue
+    try:
+        pid = uuid.UUID(project_id)
+    except (ValueError, TypeError):
+        raise PlanError("Invalid project ID.")
+    async with async_session() as session:
+        project = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if not project:
+            raise PlanError("Project not found.", 404)
+        meta = project.legacy_metadata or {}
+        candidates = [meta.get("edited_video_path"), project.recording_path]
+        if os.getenv("PODCLICK_PUBLISH_BROLL", "1") not in ("0", "false", "no"):
+            candidates.insert(0, meta.get("broll_video_path"))
+        video_path = next((p for p in candidates if p and Path(p).is_file()
+                           and Path(p).suffix.lower() in (".mp4", ".mov", ".webm", ".mkv", ".m4v")), "")
+        audio_path = project.mp3_url or ""
+
+        def version(path):
+            if path and Path(path).is_file():
+                stat = Path(path).stat()
+                return "{}:{}".format(stat.st_size, stat.st_mtime_ns)
+            return None
+
+        return {"id": project_id, "status": project.status, "title": project.title,
+                "show_notes": project.show_notes, "episode_number": project.episode_number or 0,
+                "audio_path": audio_path, "video_path": video_path,
+                "audio_ready": bool(version(audio_path)), "video_ready": bool(version(video_path)),
+                "audio_version": version(audio_path), "video_version": version(video_path),
+                "chapters": meta.get("youtube_chapters", []),
+                "connections": {"buzzsprout": bool(os.getenv("BUZZSPROUT_API_KEY") and os.getenv("BUZZSPROUT_PODCAST_ID")),
+                                "youtube": is_authorized()},
+                "existing": {"buzzsprout": str(project.buzzsprout_episode_id or project.buzzsprout_url or ""),
+                             "youtube": str(project.youtube_video_id or project.youtube_url or "")},
+                "legacy_queued": any(e.get("job_id") == project_id and e.get("status") in ("scheduled", "publishing", "failed") for e in queue.values())}
+
+
+async def _lock_episode_numbers(session):
+    """Serialize MAX+1 reservations across projects until transaction commit.
+
+    This lock must precede project row locks. Every release allocator uses the
+    same stable key; it is held only during the short database transaction.
+    """
+    from sqlalchemy import text
+    await session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": 0x504F4443415354})
+
+
+async def _autopilot_perform(project, action):
+    """Provider boundary. Called only by a claimed, explicitly enabled plan."""
+    if action["kind"] == "upload" and not project["episode_number"]:
+        from db.engine import async_session
+        from db.models import Project
+        from sqlalchemy import select, func
+        async with async_session() as session:
+            await _lock_episode_numbers(session)
+            episode = (await session.execute(select(Project).where(Project.id == uuid.UUID(project["id"])).with_for_update())).scalar_one()
+            if not episode.episode_number:
+                highest = (await session.execute(select(func.max(Project.episode_number)))).scalar()
+                episode.episode_number = (highest or 100) + 1
+                await session.commit()
+            project["episode_number"] = episode.episode_number
+    if action["destination"] == "buzzsprout":
+        from pipeline.upload import upload_episode, flip_to_public
+        if action["kind"] == "upload":
+            from markdown_it import MarkdownIt
+            result = await upload_episode(
+                mp3_path=project["audio_path"], title=project["title"],
+                description=MarkdownIt().render(project["show_notes"] or ""),
+                episode_number=project["episode_number"], private=True,
+            )
+            return {"ok": result.get("success"), "provider_id": str(result.get("episode_id") or ""),
+                    "url": result.get("url"), "error": result.get("error"),
+                    "safe_to_retry": str(result.get("error") or "").startswith("Buzzsprout error 429:")}
+        result = await flip_to_public(action["provider_id"])
+        return {"ok": result.get("success"), "error": result.get("error")}
+
+    from pipeline.youtube import upload_video, get_credentials
+    loop = asyncio.get_running_loop()
+    if action["kind"] == "upload":
+        description = "\n\n".join(filter(None, [_format_chapters(project["chapters"]), project["show_notes"]]))[:5000]
+        result = await loop.run_in_executor(None, lambda: upload_video(
+            video_path=project["video_path"], title=project["title"],
+            description=description, privacy_status="private",
+        ))
+        return {"ok": result.get("ok"), "provider_id": result.get("video_id"),
+                "url": result.get("url"), "error": result.get("error")}
+
+    def publish_video():
+        from googleapiclient.discovery import build
+        youtube = build("youtube", "v3", credentials=get_credentials())
+        youtube.videos().update(part="status", body={"id": action["provider_id"],
+                                "status": {"privacyStatus": "public"}}).execute()
+        return {"ok": True}
+    return await loop.run_in_executor(None, publish_video)
+
+
+async def _autopilot_record(project_id, action, plan):
+    """Project summary projection; durable provider receipts live in the plan."""
+    from db.engine import async_session
+    from db.models import Project
+    from sqlalchemy import select, func
+    from datetime import datetime, timezone
+    async with async_session() as session:
+        await _lock_episode_numbers(session)
+        project = (await session.execute(select(Project).where(Project.id == uuid.UUID(project_id)).with_for_update())).scalar_one_or_none()
+        if not project:
+            return
+        if not project.episode_number:
+            highest = (await session.execute(select(func.max(Project.episode_number)))).scalar()
+            project.episode_number = (highest or 100) + 1
+        if action["kind"] == "upload":
+            if action["destination"] == "buzzsprout":
+                project.buzzsprout_episode_id = action["provider_id"]
+                project.buzzsprout_url = action.get("url")
+            else:
+                project.youtube_video_id = action["provider_id"]
+                project.youtube_url = action.get("url")
+        project.closing_scheduled_at = datetime.fromisoformat(plan["scheduled_at"])
+        finished = all(a["status"] == "succeeded" for a in plan["actions"])
+        project.status = "closed" if finished else "scheduled"
+        if finished and not project.closed_at:
+            project.closed_at = datetime.now(timezone.utc)
+        await session.commit()
+
+
+async def _autopilot_request(project_id, command, body=None):
+    from services.podcast_autopilot import PlanError
+    service = _podcast_autopilot()
+    try:
+        if command == "get":
+            result = await service.describe(project_id)
+        elif command == "preflight":
+            result = await service.describe(project_id, body or None)
+        elif command == "save":
+            result = await service.configure(project_id, body)
+        elif command == "run":
+            if not isinstance(body, dict) or body.get("approve") is not True:
+                raise PlanError("Approve this release plan explicitly before running it.")
+            result = await service.approve(project_id)
+        else:
+            result = await service.control(project_id, command)
+        return JSONResponse(result)
+    except PlanError as exc:
+        return JSONResponse({"error": str(exc), "detail": str(exc)}, status_code=exc.status_code)
+
+
+@app.get("/api/projects/{project_id}/autopilot")
+async def get_project_autopilot(project_id: str):
+    return await _autopilot_request(project_id, "get")
+
+
+@app.put("/api/projects/{project_id}/autopilot")
+async def configure_project_autopilot(project_id: str, request: Request):
+    try:
+        body = await request.json()
+    except (ValueError, UnicodeDecodeError):
+        return JSONResponse({"error": "Send a valid JSON release plan.", "detail": "Send a valid JSON release plan."}, status_code=400)
+    return await _autopilot_request(project_id, "save", body)
+
+
+@app.post("/api/projects/{project_id}/autopilot/{command}")
+async def control_project_autopilot(project_id: str, command: str, request: Request):
+    if command not in ("preflight", "run", "pause", "resume", "cancel"):
+        return JSONResponse({"error": "Unknown release command.", "detail": "Unknown release command."}, status_code=404)
+    body = None
+    if command in ("preflight", "run"):
+        try:
+            body = await request.json()
+        except (ValueError, UnicodeDecodeError):
+            return JSONResponse({"error": "Send a valid JSON request.", "detail": "Send a valid JSON request."}, status_code=400)
+        if not isinstance(body, dict):
+            return JSONResponse({"error": "Send a JSON object.", "detail": "Send a JSON object."}, status_code=400)
+    return await _autopilot_request(project_id, command, body)
+
+
+def _youtube_release_settings(closing_at_ts, now=None):
+    from datetime import datetime, timezone
+    privacy = os.getenv("PODCLICK_YOUTUBE_PRIVACY", "public")
+    if privacy == "public" and closing_at_ts > (time.time() if now is None else now):
+        return {"privacy_status": "private", "publish_at": datetime.fromtimestamp(closing_at_ts, timezone.utc).isoformat()}
+    return {"privacy_status": privacy, "publish_at": ""}
+
+
 async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
+    from services.podcast_autopilot import PlanError
+    import logging
+    try:
+        # The same lock protects new plans and legacy uploads. A plan cannot
+        # opt into an episode halfway through a legacy provider upload.
+        with _podcast_autopilot().store.lock(project_id):
+            await _distribute_project_unlocked(project_id, closing_at_ts)
+    except PlanError as exc:
+        logging.getLogger("podclick.distribute").warning("Distribution not started: %s", exc)
+
+
+async def _distribute_project_unlocked(project_id: str, closing_at_ts: float) -> None:
     """
     Background task: upload assembled episode to Buzzsprout (private draft) and
     YouTube (private). Adds Buzzsprout entry to the release queue so the scheduler
@@ -3197,6 +3930,9 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
     import logging as _log
     import uuid as _uuid
     _logger = _log.getLogger("podclick.distribute")
+    if _autopilot_owns_project(project_id):
+        _logger.warning("Legacy distribution skipped: release plan owns project %s", project_id)
+        return
 
     from db.engine import async_session as _async_session
     from db.models import Project
@@ -3215,11 +3951,27 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
             _logger.error("_distribute_project: project %s not found", project_id)
             return
         mp3_path       = proj.mp3_url or ""
-        recording_path = proj.recording_path or ""
+        _meta          = proj.legacy_metadata or {}
+        # Video source for YouTube, best → fallback:
+        #   1. AI b-roll cut (broll_video_path) — the fully AI-edited take with stock visuals
+        #      composited over the talking head. Preferred so an episode JP ran "AI Edit" on
+        #      publishes WITH the b-roll (gate: PODCLICK_PUBLISH_BROLL=0 to opt out).
+        #   2. Edited cut (edited_video_path) — matches the edited audio + clips.
+        #   3. Raw recording. Without any of these an edited/b-roll'd episode would upload the
+        #      UNEDITED raw take to YouTube.
+        _broll_vid     = (_meta.get("broll_video_path") or "").strip()
+        _edited_vid    = (_meta.get("edited_video_path") or "").strip()
+        _use_broll     = os.getenv("PODCLICK_PUBLISH_BROLL", "1") not in ("0", "false", "no")
+        if _use_broll and _broll_vid and Path(_broll_vid).exists():
+            recording_path = _broll_vid
+            _logger.info("_distribute_project: publishing AI b-roll cut → %s", _broll_vid)
+        elif _edited_vid and Path(_edited_vid).exists():
+            recording_path = _edited_vid
+        else:
+            recording_path = proj.recording_path or ""
         title          = proj.title or "Untitled Episode"
         show_notes_md  = proj.show_notes or ""
         episode_number = proj.episode_number or 0
-        _meta          = proj.legacy_metadata or {}
         _existing_bz   = proj.buzzsprout_url or ""        # idempotency: skip if already distributed
         _existing_yt   = proj.youtube_video_id or ""
 
@@ -3339,7 +4091,7 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
         except Exception as _bz_err:
             _logger.error("_distribute_project: Buzzsprout upload exception: %s", _bz_err)
 
-    # ── B3: YouTube main upload (PUBLIC by default, with chapters + Vyral hashtags) ─
+    # ── B3: YouTube main upload (scheduled privately when closing is future) ─
     youtube_url    = None
     youtube_vid_id = None
     video_path = recording_path or mp3_path
@@ -3356,9 +4108,9 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
                         video_path=video_path,
                         title=title,
                         description=_yt_description,
-                        # Episodes publish PUBLIC by default now (was 'private').
-                        # Override per-install with PODCLICK_YOUTUBE_PRIVACY=private|unlisted|public.
-                        privacy_status=os.getenv("PODCLICK_YOUTUBE_PRIVACY", "public"),
+                        # Public episodes remain private until a future closing.
+                        # A private/unlisted installation setting is still honored.
+                        **_youtube_release_settings(closing_at_ts),
                         tags=_yt_tags,
                     ),
                 )
@@ -3477,8 +4229,46 @@ async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
         _logger.error("_distribute_project: guest asset package build failed: %s", _pkg_err)
 
 
+async def _reschedule_youtube_release(video_id, closing_at):
+    """Move only a still-private scheduled video; never unpublish a live one."""
+    def move_release():
+        from datetime import datetime, timezone
+        from pipeline.youtube import get_credentials
+        from googleapiclient.discovery import build
+        youtube = build("youtube", "v3", credentials=get_credentials())
+        items = youtube.videos().list(part="status", id=video_id).execute().get("items", [])
+        if not items:
+            return {"ok": False, "message": "YouTube video was not found; check its release in YouTube Studio."}
+        status = items[0].get("status", {})
+        if status.get("privacyStatus") != "private" or not status.get("publishAt"):
+            return {"ok": True, "message": "YouTube has no pending scheduled release; its visibility was preserved."}
+        if closing_at <= datetime.now(timezone.utc):
+            status.pop("publishAt", None)
+            status["privacyStatus"] = "public"
+        else:
+            status["publishAt"] = closing_at.isoformat()
+        writable = {key: status[key] for key in ("privacyStatus", "publishAt", "selfDeclaredMadeForKids") if key in status}
+        youtube.videos().update(part="status", body={"id": video_id, "status": writable}).execute()
+        return {"ok": True, "message": "YouTube release time updated."}
+    try:
+        return await asyncio.get_running_loop().run_in_executor(None, move_release)
+    except Exception:
+        import logging
+        logging.getLogger("podclick.distribute").exception("YouTube reschedule failed for video %s", video_id)
+        return {"ok": False, "message": "YouTube release time could not be updated. Check the schedule in YouTube Studio."}
+
+
 @app.post("/api/projects/{project_id}/schedule-closing")
 async def schedule_closing(project_id: str, request: Request):
+    from services.podcast_autopilot import PlanError
+    try:
+        with _podcast_autopilot().store.lock(project_id):
+            return await _schedule_closing_legacy(project_id, request)
+    except PlanError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=exc.status_code)
+
+
+async def _schedule_closing_legacy(project_id: str, request: Request):
     """
     Step 4 of the Ship It wizard — set the Closing date.
 
@@ -3513,19 +4303,27 @@ async def schedule_closing(project_id: str, request: Request):
 
     body = await request.json()
     closing_at_str = body.get("closing_at")
-    platforms = body.get("platforms") or ["linkedin", "facebook", "instagram"]
+    platforms = body.get("platforms", ["linkedin", "facebook", "instagram"])
     guest_id_overrides = body.get("guest_ids")
 
-    if not closing_at_str:
+    if _autopilot_owns_project(project_id):
+        return JSONResponse({"error": "This episode has a release plan. Use its pause, resume, or release controls."}, status_code=409)
+    if not isinstance(platforms, list) or any(p not in ("linkedin", "facebook", "instagram", "x", "tiktok", "youtube", "gmb") for p in platforms):
+        return JSONResponse({"error": "Select valid social platforms."}, status_code=400)
+
+    if not isinstance(closing_at_str, str) or not closing_at_str:
         return JSONResponse({"error": "closing_at required (ISO timestamp)"}, status_code=400)
 
     try:
         closing_at = datetime.fromisoformat(closing_at_str.replace("Z", "+00:00"))
+        if closing_at.tzinfo is None:
+            raise ValueError("Timezone required")
     except ValueError:
         return JSONResponse({"error": "Invalid closing_at format — use ISO 8601"}, status_code=400)
 
     async with _async_session() as session:
         from sqlalchemy import func
+        await _lock_episode_numbers(session)
         project = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
         if not project:
             return JSONResponse({"error": "Project not found"}, status_code=404)
@@ -3563,6 +4361,20 @@ async def schedule_closing(project_id: str, request: Request):
 
     closing_at_ts = closing_at.timestamp()
 
+    # Rescheduling must move the actual podcast release, not only social rows.
+    _distribution_warnings = []
+    if _is_reschedule:
+        from pipeline.scheduler import queue as _release_queue, reschedule as _reschedule_release
+        for _entry_id, _entry in list(_release_queue.items()):
+            if _entry.get("job_id") == project_id and _entry.get("status") in ("scheduled", "failed"):
+                _reschedule_release(_entry_id, closing_at_ts)
+            elif _entry.get("job_id") == project_id and _entry.get("status") == "publishing":
+                _distribution_warnings.append("Podcast publication is already in progress and cannot be rescheduled.")
+        if project_data.get("youtube_video_id"):
+            _yt_moved = await _reschedule_youtube_release(project_data["youtube_video_id"], closing_at)
+            if not _yt_moved["ok"]:
+                _distribution_warnings.append(_yt_moved["message"])
+
     # Guest CRM: update linked guests → 'recorded' (async, non-fatal)
     asyncio.create_task(_update_guest_statuses(
         project_id=project_id,
@@ -3585,8 +4397,8 @@ async def schedule_closing(project_id: str, request: Request):
 
     # Distribution: upload to Buzzsprout (private draft) + YouTube (private).
     # Skip on a re-schedule that already distributed — re-running would create
-    # duplicate Buzzsprout/YouTube uploads. The new closing date still moves the
-    # social posts above; the podcast/YouTube go-public flip keeps its first time.
+    # duplicate Buzzsprout/YouTube uploads. Pending provider releases were moved
+    # above; already-public episodes keep their visibility.
     if not (_is_reschedule and _already_distributed):
         asyncio.create_task(_distribute_project(
             project_id=project_id,
@@ -3596,11 +4408,13 @@ async def schedule_closing(project_id: str, request: Request):
     _when = closing_at.strftime('%B %d at %-I:%M %p')
     if _is_reschedule and _already_distributed:
         _msg = (f"Closing moved to {_when} across {len(platforms)} platforms. "
-                f"The episode was already uploaded, so it won't re-upload — only the date and channels changed.")
+                "Existing uploads were retained; pending releases were rescheduled where possible.")
     else:
         _msg = (f"Closing lined up for {_when}. Posts go up across {len(platforms)} platforms. "
                 f"Episode uploading to Buzzsprout and YouTube in the background.")
-    return JSONResponse({**project_data, "message": _msg})
+    if _distribution_warnings:
+        _msg += " " + " ".join(_distribution_warnings)
+    return JSONResponse({**project_data, "message": _msg, "distribution_warnings": _distribution_warnings})
 
 
 async def _compose_guest_asset_email(guest: dict):
@@ -4201,6 +5015,9 @@ async def redistribute_project(project_id: str):
     except ValueError:
         return JSONResponse({"error": "Invalid project ID"}, status_code=400)
 
+    if _autopilot_owns_project(project_id):
+        return JSONResponse({"error": "This episode has a release plan. Use its release controls to prevent duplicate uploads."}, status_code=409)
+
     async with _async_session() as session:
         proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
         if not proj:
@@ -4478,6 +5295,8 @@ async def _create_closing_posts(
                     await session.execute(_delete(Post).where(Post.id.in_(_old)))
                     await session.commit()
             # Main episode post
+            if not platforms:
+                return
             post_id = _uuid.uuid4()
             post = Post(
                 id=post_id,
@@ -5009,7 +5828,9 @@ async def get_queue():
 
 @app.delete("/api/queue/{entry_id}")
 async def delete_queue_entry(entry_id: str):
-    from pipeline.scheduler import remove_from_queue
+    from pipeline.scheduler import remove_from_queue, queue as sq
+    if sq.get(entry_id, {}).get("status") == "publishing":
+        return JSONResponse({"error": "Release is in progress; wait for its result"}, status_code=409)
     if remove_from_queue(entry_id):
         return JSONResponse({"ok": True})
     return JSONResponse({"error": "Entry not found"}, status_code=404)
@@ -5021,7 +5842,10 @@ async def reschedule_entry(entry_id: str, payload: dict):
     new_ts = payload.get("scheduled_at")
     if not new_ts:
         return JSONResponse({"error": "scheduled_at required"}, status_code=400)
-    entry = reschedule(entry_id, float(new_ts))
+    try:
+        entry = reschedule(entry_id, float(new_ts))
+    except (TypeError, ValueError, OverflowError):
+        return JSONResponse({"error": "scheduled_at must be a valid timestamp"}, status_code=400)
     if not entry:
         return JSONResponse({"error": "Entry not found or not reschedulable"}, status_code=404)
     return JSONResponse(entry)
@@ -5030,24 +5854,12 @@ async def reschedule_entry(entry_id: str, payload: dict):
 @app.post("/api/queue/{entry_id}/publish")
 async def publish_now(entry_id: str):
     """Bypass the schedule and publish immediately."""
-    from pipeline.scheduler import queue as sq, save_queue
-    from pipeline.upload import flip_to_public
-    entry = sq.get(entry_id)
-    if not entry:
-        return JSONResponse({"error": "Entry not found"}, status_code=404)
-    entry["status"] = "publishing"
-    save_queue()
-    result = await flip_to_public(entry["buzzsprout_episode_id"])
+    from pipeline.scheduler import _publish_entry
+    result = await _publish_entry(entry_id, force=True, notify=False)
     if result["success"]:
-        from datetime import datetime
-        entry["status"]       = "published"
-        entry["published_at"] = datetime.now().isoformat()
-        save_queue()
         return JSONResponse({"ok": True})
-    entry["status"] = "failed"
-    entry["error"]  = result.get("error")
-    save_queue()
-    return JSONResponse({"error": entry["error"]}, status_code=500)
+    code = 404 if result.get("status") == "missing" else 409 if result.get("status") == "busy" else 502
+    return JSONResponse(result, status_code=code)
 
 
 @app.post("/api/mark_published")
@@ -5649,10 +6461,12 @@ async def drive_disconnect():
 @app.get("/api/gmail/status")
 async def gmail_status():
     from pipeline import gmail_send as _gm
-    authorized = _gm.is_authorized()
+    # Honest status: a dead token (revoked/expired) passes is_authorized() but can't
+    # send — token_is_live() does a real refresh so the badge reflects reality.
+    authorized = _gm.token_is_live()
     email = _gm.account_email() if authorized else ""
     return JSONResponse({
-        "configured": authorized,
+        "configured": _gm.is_authorized(),
         "authorized": authorized,
         "email": email,
         "auth_url": "/api/gmail/auth",
@@ -7087,15 +7901,20 @@ async def youtube_status():
 
 @app.get("/api/youtube/auth")
 async def youtube_auth():
-    from pipeline.youtube import is_configured, is_authorized, get_auth_url, get_channel_info
+    from pipeline.youtube import is_configured, is_authorized, token_is_live, disconnect, get_auth_url, get_channel_info
+    # Self-heal: only claim "already connected" if the token can ACTUALLY refresh.
+    # A dead token (revoked/expired) is silently cleared so we fall through to a fresh
+    # consent flow — no manual disconnect needed.
     if is_authorized():
-        ch = get_channel_info()
-        title = ch.get("title", "Your channel")
-        return HTMLResponse(
-            f"<h2>✅ YouTube already connected!</h2>"
-            f"<p>Channel: <strong>{title}</strong></p>"
-            f"<p>Return to <a href='/'>Podcast OS</a></p>"
-        )
+        if token_is_live():
+            ch = get_channel_info()
+            title = ch.get("title", "Your channel")
+            return HTMLResponse(
+                f"<h2>✅ YouTube already connected!</h2>"
+                f"<p>Channel: <strong>{title}</strong></p>"
+                f"<p>Return to <a href='/'>Podcast OS</a></p>"
+            )
+        disconnect()  # dead token — clear it and reconnect below
     if not is_configured():
         return HTMLResponse(
             "<h2>YouTube Setup Required</h2>"
@@ -8274,27 +9093,27 @@ _YT_STEPS = [
 
 @app.get("/youtube-studio")
 async def youtube_studio_page():
-    return FileResponse("frontend/youtube-studio.html")
+    return FileResponse(FRONTEND_DIR / "youtube-studio.html")
 
 
 @app.get("/brand-studio")
 async def brand_studio_page():
-    return FileResponse("frontend/brand-studio.html")
+    return FileResponse(FRONTEND_DIR / "brand-studio.html")
 
 
 @app.get("/social-studio")
 async def social_studio_page():
-    return FileResponse("frontend/social-studio.html")
+    return FileResponse(FRONTEND_DIR / "social-studio.html")
 
 
 @app.get("/foundation")
 async def foundation_page():
-    return FileResponse("frontend/foundation.html")
+    return FileResponse(FRONTEND_DIR / "foundation.html")
 
 
 @app.get("/blueprint")
 async def blueprint_page():
-    return FileResponse("frontend/blueprint.html")
+    return FileResponse(FRONTEND_DIR / "blueprint.html")
 
 
 # ---------------------------------------------------------------------------
@@ -11350,7 +12169,7 @@ async def re_daily_brief(request: Request):
 async def serve_calendar():
     """Serve the 30-Day Content Board page."""
     from fastapi.responses import FileResponse
-    return FileResponse("frontend/calendar.html")
+    return FileResponse(FRONTEND_DIR / "calendar.html")
 
 
 # ── Helper: anti-clumping bucket distribution ────────────────────────────────────
@@ -12376,7 +13195,19 @@ async def brick_approve_send_action(action_id: str, request: Request):
             None, _gm.send_message, recipient, subject, body_text, POSTER_HOST_NAME,
         )
         if not send_res.get("ok"):
-            return JSONResponse({"ok": False, "error": f"Gmail send failed: {send_res.get('error')}"}, status_code=502)
+            _err = str(send_res.get("error") or "")
+            # An expired/revoked refresh token (Testing-mode ~weekly lapse) surfaces as
+            # invalid_grant / RefreshError. is_authorized() only checks the token FILE exists,
+            # so it passed above — but the actual send failed on auth. Route to the reconnect
+            # modal (409) instead of a dead-end "Send Failed" (502).
+            if any(s in _err.lower() for s in ("invalid_grant", "refresherror", "invalid_scope", "token has been expired", "unauthorized")):
+                return JSONResponse({
+                    "ok": False,
+                    "needs_gmail": True,
+                    "auth_url": "/api/gmail/auth",
+                    "message": "Gmail connection expired. Reconnect once, then Approve & Send.",
+                }, status_code=409)
+            return JSONResponse({"ok": False, "error": f"Gmail send failed: {_err}"}, status_code=502)
 
     # Mark approved/executed + stamp the guest (existing dispatch bookkeeping)
     agent = _BA_cls()
@@ -12694,3 +13525,14 @@ async def brick_chat(request: Request):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# Keep this wrapper after ALL route and mount definitions. The inner app is
+# exposed only for isolated tests; uvicorn must serve main:app, never studio_app.
+# This perimeter is not multi-tenant authentication. Customer billing operations
+# still deny by default until a verified membership dependency is installed.
+from config import settings as _deployment_settings  # noqa: E402
+from services.deployment_boundary import DeploymentBoundary  # noqa: E402
+
+studio_app = app
+app = DeploymentBoundary(studio_app, mode=_deployment_settings.podclick_deployment_mode)

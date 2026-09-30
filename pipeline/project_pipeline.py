@@ -406,24 +406,57 @@ _CROP_MODE_MAP = {
 _LAYOUT_CACHE = {}
 
 
+def _probe_duration_sec(source_video: str) -> float:
+    """Best-effort source duration in seconds (0.0 on failure)."""
+    import subprocess as _sp
+    try:
+        r = _sp.run(["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                     "-of", "csv=p=0", source_video], capture_output=True, text=True)
+        return float(r.stdout.strip())
+    except Exception:
+        return 0.0
+
+
 def _get_layout(source_video: str, start_sec: float):
     """
-    Return LayoutInfo for source_video at the given clip timestamp.
+    Return a STABLE LayoutInfo for the whole source video (cached per source).
 
-    Detects at the midpoint of each 5-minute window so a recording that
-    switches layout mid-way (e.g. Zoom switching from top/bottom to side-by-side)
-    gets the correct crop params for each clip.
+    Detecting at each clip's own timestamp made the crop flip-flop — some frames
+    (a gesture, a dark moment, a title card) fool cropdetect into the wrong
+    orientation, so one clip stacks correctly while the next center-crops down the
+    seam. Instead we sample several timestamps ONCE, take the majority orientation,
+    and reuse that single layout for every clip. Recording layout rarely changes
+    mid-episode; consistency beats per-clip precision here.
     """
-    bucket = int(start_sec // 300) * 300     # 5-min bucket
-    cache_key = (source_video, bucket)
+    cache_key = (source_video,)
     if cache_key not in _LAYOUT_CACHE:
         rc = _get_render_clip()
-        sample_t = max(start_sec + 5, 10.0)  # sample a few seconds into the clip
-        layout = rc.detect_layout(source_video, sample_time=sample_t)
+        dur = _probe_duration_sec(source_video)
+        # sample at 30s, 25%, 50%, 75% (clamped) — skip intros/outros, cover the body
+        if dur > 60:
+            samples = [30.0, dur * 0.25, dur * 0.5, dur * 0.75]
+        else:
+            samples = [max(5.0, dur * 0.5)] if dur else [10.0]
+        cand = []
+        for st in samples:
+            try:
+                cand.append(rc.detect_layout(source_video, sample_time=st))
+            except Exception as e:
+                print(f"[render_clip] detect_layout @ {st:.0f}s failed: {e}")
+        if not cand:
+            # last-ditch single detection at the requested spot
+            cand = [rc.detect_layout(source_video, sample_time=max(start_sec + 5, 10.0))]
+        # majority orientation, then the median-width layout among that orientation
+        from collections import Counter as _Counter
+        dom = _Counter(c.orientation for c in cand).most_common(1)[0][0]
+        group = [c for c in cand if c.orientation == dom]
+        group.sort(key=lambda c: c.content_w)
+        layout = group[len(group) // 2]
         _LAYOUT_CACHE[cache_key] = layout
         print(
-            f"[render_clip] Layout @ t={start_sec:.0f}s: orientation={layout.orientation}"
-            f"  content=({layout.content_x},{layout.content_y}) {layout.content_w}x{layout.content_h}"
+            f"[render_clip] Locked layout for source: orientation={layout.orientation} "
+            f"(from {len(cand)} samples)  content=({layout.content_x},{layout.content_y}) "
+            f"{layout.content_w}x{layout.content_h}"
         )
     return _LAYOUT_CACHE[cache_key]
 
@@ -655,10 +688,17 @@ def run_ship_it(
     if words:
         log("Detecting clip candidates from transcript…")
         try:
+            # How many Shorts/moments to pull. Default 12 (JP wants 10-15, not 5);
+            # override per-install with PODCLICK_CLIP_COUNT. The scorer picks
+            # non-overlapping windows and naturally returns fewer on short episodes.
+            try:
+                _n_clips = max(1, int(os.getenv("PODCLICK_CLIP_COUNT", "12")))
+            except ValueError:
+                _n_clips = 12
             candidates = detect_clips_for_project(
                 words=words,
                 segments=segments,
-                num_clips=5,
+                num_clips=_n_clips,
             )
             result["clip_candidates"] = candidates
             log(f"  {len(candidates)} clip candidates identified")

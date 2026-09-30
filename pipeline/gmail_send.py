@@ -21,6 +21,13 @@ import os
 from email.mime.text import MIMEText
 from pathlib import Path
 
+# Google practices "incremental authorization": because Gmail, Drive, and YouTube
+# all share ONE OAuth client, reconnecting Gmail makes Google return the union of
+# every scope the user has ever granted this client (e.g. it adds .../auth/drive).
+# google-auth-oauthlib rejects that scope superset with "Scope has changed…" unless
+# we tell oauthlib to tolerate it. Safe here — we only ever USE the gmail.send scope.
+os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
+
 BASE_DIR   = Path(__file__).parent.parent
 DATA_DIR   = BASE_DIR / "data"
 TOKEN_FILE = DATA_DIR / "gmail_token.json"
@@ -58,6 +65,27 @@ def is_authorized() -> bool:
 def is_configured() -> bool:
     """Usable right now = connected via OAuth."""
     return is_authorized()
+
+
+def token_is_live() -> bool:
+    """True only if the stored token can actually refresh against Google.
+
+    is_authorized() just checks the FILE exists — a revoked/expired refresh token
+    still passes that (it's the empty-`email` tell). This does a real refresh so the
+    status/badge reflects reality. Network call — use sparingly (status/auth, not loops).
+    """
+    if not is_authorized():
+        return False
+    try:
+        from google.auth.transport.requests import Request
+        creds = get_credentials()
+        if not creds:
+            return False
+        creds.refresh(Request())
+        _save_token(creds)
+        return True
+    except Exception:
+        return False
 
 
 # ── Token storage + credentials ───────────────────────────────────────────────
@@ -136,6 +164,7 @@ def exchange_code(code: str) -> dict:
                 _state_file.unlink()
             except Exception:
                 pass
+        os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"  # tolerate Google's scope superset
         flow.fetch_token(code=code)
         _save_token(flow.credentials)
         return {"ok": True, "email": account_email()}

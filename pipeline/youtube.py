@@ -20,6 +20,12 @@ import json
 import os
 from pathlib import Path
 
+# Gmail, Drive, and YouTube share ONE Google OAuth client. On reconnect Google returns
+# the UNION of every scope granted that client (incremental authorization), which makes
+# google-auth-oauthlib reject the scope superset with "Scope has changed…". Tolerate it —
+# we only ever USE the youtube.* scopes we requested.
+os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
+
 BASE_DIR   = Path(__file__).parent.parent
 DATA_DIR   = BASE_DIR / "data"
 TOKEN_FILE = DATA_DIR / "youtube_token.json"
@@ -58,6 +64,40 @@ def is_authorized() -> bool:
         return bool(data.get("token"))
     except Exception:
         return False
+
+
+def token_is_live() -> bool:
+    """True only if the stored token can actually refresh against Google.
+
+    is_authorized() just checks the FILE exists — a revoked/expired refresh token
+    (Testing-mode weekly lapse) still passes that. This does a real refresh so the
+    auth route can self-heal a dead token instead of falsely reporting "connected".
+    Network call — use sparingly (auth route only, not status polling).
+    """
+    if not is_authorized():
+        return False
+    try:
+        from google.auth.transport.requests import Request
+        creds = get_credentials()
+        if creds and creds.valid and not creds.expired:
+            # Force a refresh anyway — a revoked token can read as valid until used.
+            creds.refresh(Request())
+        elif creds:
+            creds.refresh(Request())
+        else:
+            return False
+        _save_token(creds)
+        return True
+    except Exception:
+        return False
+
+
+def disconnect() -> None:
+    """Remove the stored token so the next /auth starts a clean consent flow."""
+    try:
+        TOKEN_FILE.unlink(missing_ok=True)
+    except Exception:
+        pass
 
 
 def get_credentials():
@@ -160,6 +200,7 @@ def exchange_code(code: str) -> dict:
                 _state_file.unlink(missing_ok=True)
             except Exception:
                 pass
+        os.environ["OAUTHLIB_RELAX_TOKEN_SCOPE"] = "1"  # tolerate Google's scope superset
         flow.fetch_token(code=code)
         _save_token(flow.credentials)
 

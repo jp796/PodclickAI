@@ -1,0 +1,10 @@
+{
+  "name": "reos-superapp-concept",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build ./src/app.ts --target=browser --outfile=./app.js --minify",
+    "serve": "bun run build && bun ./server.ts",
+    "check": "bun run build && bun ./scripts/check.ts"
+  }
+}

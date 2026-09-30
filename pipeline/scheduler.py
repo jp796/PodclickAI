@@ -27,8 +27,11 @@ Queue entry shape:
 
 import asyncio
 import json
+import logging
+import math
 import os
 import subprocess
+import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -43,24 +46,52 @@ BUZZSPROUT_BASE = "https://www.buzzsprout.com/api"
 
 # ── In-memory queue store ─────────────────────────────────────────────────────
 queue: dict[str, dict] = {}   # entry_id → entry
+_inflight = set()
+MAX_ATTEMPTS = 3
+RETRY_DELAYS = (60, 300)
+_logger = logging.getLogger("podclick.scheduler")
 
 
 def load_queue() -> None:
     """Load queue from disk into memory on startup."""
-    global queue
     if QUEUE_FILE.exists():
         try:
-            queue = {e["entry_id"]: e for e in json.loads(QUEUE_FILE.read_text())}
-        except Exception:
-            queue = {}
+            entries = json.loads(QUEUE_FILE.read_text())
+            loaded = {e["entry_id"]: e for e in entries}
+        except Exception as exc:
+            # Never replace an unreadable durable queue with an empty one.
+            raise RuntimeError("Release queue could not be read; original file preserved") from exc
     else:
-        queue = {}
+        loaded = {}
+    queue.clear()
+    queue.update(loaded)
+    recovered = False
+    for entry in queue.values():
+        if entry.get("status") == "publishing":
+            # This operation is an idempotent PATCH, never another upload.
+            entry["status"] = "scheduled" if entry.get("attempts", 0) < MAX_ATTEMPTS else "failed"
+            entry["error"] = "Release interrupted by a restart; checking again." if entry["status"] == "scheduled" else "Release interrupted after the final attempt. Review before retrying."
+            recovered = True
+    if recovered:
+        save_queue()
 
 
 def save_queue() -> None:
     """Persist in-memory queue to disk."""
-    _DATA.mkdir(exist_ok=True)
-    QUEUE_FILE.write_text(json.dumps(list(queue.values()), indent=2))
+    QUEUE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(mode="w", dir=str(QUEUE_FILE.parent), prefix=".queue-", suffix=".tmp", delete=False) as handle:
+        temp_path = Path(handle.name)
+        try:
+            json.dump(list(queue.values()), handle, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        except BaseException:
+            temp_path.unlink(missing_ok=True)
+            raise
+    try:
+        os.replace(str(temp_path), str(QUEUE_FILE))
+    finally:
+        temp_path.unlink(missing_ok=True)
 
 
 def add_to_queue(
@@ -73,13 +104,24 @@ def add_to_queue(
     source: str = "manual",
 ) -> dict:
     """Add or update a queue entry. Returns the entry."""
+    if not math.isfinite(scheduled_at) or scheduled_at <= 0:
+        raise ValueError("A valid release time is required")
+    if not buzzsprout_episode_id:
+        raise ValueError("A Buzzsprout episode ID is required")
+    for existing in queue.values():
+        if existing.get("buzzsprout_episode_id") == str(buzzsprout_episode_id):
+            if existing.get("status") in ("published", "publishing"):
+                return existing
+            existing.update(title=title, episode_number=episode_number, youtube_url=youtube_url, source=source)
+            reschedule(existing["entry_id"], scheduled_at)
+            return existing
     entry_id = str(uuid.uuid4())[:8]
     entry = {
         "entry_id":              entry_id,
         "job_id":                job_id,
         "title":                 title,
         "episode_number":        episode_number,
-        "buzzsprout_episode_id": buzzsprout_episode_id,
+        "buzzsprout_episode_id": str(buzzsprout_episode_id),
         "scheduled_at":          scheduled_at,
         "scheduled_at_iso":      datetime.fromtimestamp(scheduled_at).isoformat(),
         "status":                "scheduled",
@@ -88,6 +130,8 @@ def add_to_queue(
         "error":                 None,
         "youtube_url":           youtube_url,
         "source":                source,
+        "attempts":              0,
+        "next_attempt_at":       None,
     }
     queue[entry_id] = entry
     save_queue()
@@ -96,7 +140,7 @@ def add_to_queue(
 
 def remove_from_queue(entry_id: str) -> bool:
     """Remove an entry. Returns True if found."""
-    if entry_id in queue:
+    if entry_id in queue and queue[entry_id].get("status") != "publishing" and entry_id not in _inflight:
         del queue[entry_id]
         save_queue()
         return True
@@ -106,10 +150,13 @@ def remove_from_queue(entry_id: str) -> bool:
 def reschedule(entry_id: str, new_ts: float) -> Optional[dict]:
     """Update the scheduled time of an entry."""
     entry = queue.get(entry_id)
-    if not entry or entry["status"] not in ("scheduled",):
+    if not entry or entry["status"] not in ("scheduled", "failed") or entry_id in _inflight:
+        return None
+    if not math.isfinite(new_ts) or new_ts <= 0:
         return None
     entry["scheduled_at"]     = new_ts
     entry["scheduled_at_iso"] = datetime.fromtimestamp(new_ts).isoformat()
+    entry.update(status="scheduled", attempts=0, next_attempt_at=None, error=None)
     save_queue()
     return entry
 
@@ -127,7 +174,7 @@ async def _flip_to_public(buzzsprout_episode_id: str) -> dict:
     podcast_id = os.getenv("BUZZSPROUT_PODCAST_ID", "")
 
     if not api_key or not podcast_id:
-        return {"success": False, "error": "Buzzsprout credentials not configured"}
+        return {"success": False, "error": "Buzzsprout credentials not configured", "retryable": False}
 
     ep_url = f"{BUZZSPROUT_BASE}/{podcast_id}/episodes/{buzzsprout_episode_id}.json"
     cmd = [
@@ -151,50 +198,61 @@ async def _flip_to_public(buzzsprout_episode_id: str) -> dict:
         status_code = int(status_str.strip()) if status_str.strip().isdigit() else 0
         if status_code in (200, 201):
             return {"success": True}
-        return {"success": False, "error": f"Buzzsprout {status_code}: {body.strip()[:120]}"}
+        return {"success": False, "error": f"Buzzsprout {status_code}: {body.strip()[:120]}", "retryable": status_code in (0, 408, 429) or status_code >= 500}
     except Exception as exc:
-        return {"success": False, "error": str(exc)}
+        return {"success": False, "error": str(exc), "retryable": True}
 
 
 # ── Scheduler loop ────────────────────────────────────────────────────────────
 
-async def _publish_entry(entry_id: str) -> None:
-    """Flip one entry from private → public and update its status."""
+async def _publish_entry(entry_id: str, force: bool = False, notify: bool = True) -> dict:
+    """Claim one release before awaiting; retry only the idempotent public flip."""
     entry = queue.get(entry_id)
     if not entry:
-        return
-
-    entry["status"] = "publishing"
-    save_queue()
-
-    result = await _flip_to_public(entry["buzzsprout_episode_id"])
-
-    if result["success"]:
-        entry["status"]       = "published"
-        entry["published_at"] = datetime.now().isoformat()
-        save_queue()
-        # Telegram success alert
-        try:
-            from pipeline.telegram import send as tg_send
-            await tg_send(
-                f"🚀 *EP. {entry['episode_number']} published!*\n"
-                f"_{entry['title']}_\n\n"
-                f"Scheduled release fired at {entry['published_at'][:16]} ✅"
-            )
-        except Exception:
-            pass
-    else:
-        entry["status"] = "failed"
-        entry["error"]  = result.get("error", "Unknown error")
+        return {"success": False, "status": "missing", "error": "Entry not found"}
+    if entry_id in _inflight or entry.get("status") == "publishing":
+        return {"success": False, "status": "busy", "error": "Release already in progress"}
+    if entry.get("status") == "published":
+        return {"success": True, "status": "published"}
+    now = datetime.now().timestamp()
+    if not force and (entry.get("status") != "scheduled" or entry["scheduled_at"] > now or (entry.get("next_attempt_at") or 0) > now):
+        return {"success": False, "status": "not_due", "error": "Release is not due"}
+    _inflight.add(entry_id)
+    try:
+        if force and entry.get("status") == "failed":
+            entry["attempts"] = 0
+        entry.update(status="publishing", attempts=entry.get("attempts", 0) + 1, next_attempt_at=None)
         save_queue()
         try:
-            from pipeline.telegram import send as tg_send
-            await tg_send(
-                f"⚠️ *Scheduled publish failed — EP. {entry['episode_number']}*\n"
-                f"`{entry['error']}`"
-            )
-        except Exception:
-            pass
+            result = await _flip_to_public(entry["buzzsprout_episode_id"])
+        except Exception as exc:
+            result = {"success": False, "error": str(exc), "retryable": True}
+        if result.get("success"):
+            entry.update(status="published", published_at=datetime.now(timezone.utc).isoformat(), error=None)
+        else:
+            retry = result.get("retryable", False) and entry["attempts"] < MAX_ATTEMPTS
+            entry.update(status="scheduled" if retry else "failed", error=result.get("error", "Unknown error"))
+            if retry:
+                entry["next_attempt_at"] = datetime.now().timestamp() + RETRY_DELAYS[entry["attempts"] - 1]
+        save_queue()
+        if notify and entry["status"] in ("published", "failed"):
+            try:
+                from pipeline.telegram import send as tg_send
+                message = (f"🚀 EP. {entry['episode_number']} published!\n{entry['title']}" if result.get("success") else f"⚠️ Release needs attention — EP. {entry['episode_number']}\n{entry['error']}")
+                await tg_send(message)
+            except Exception:
+                _logger.warning("Could not send release notification")
+        return dict(result, status=entry["status"], next_attempt_at=entry.get("next_attempt_at"))
+    finally:
+        _inflight.discard(entry_id)
+
+
+async def run_due_releases() -> None:
+    """One scheduler pass. The app intentionally runs a single scheduler worker."""
+    now = datetime.now().timestamp()
+    due = [eid for eid, entry in queue.items() if entry.get("status") == "scheduled" and entry["scheduled_at"] <= now and (entry.get("next_attempt_at") or 0) <= now]
+    if due:
+        await asyncio.gather(*(_publish_entry(eid) for eid in due))
 
 
 async def scheduler_loop() -> None:
@@ -202,10 +260,9 @@ async def scheduler_loop() -> None:
     load_queue()
     while True:
         await asyncio.sleep(60)
-        now = datetime.now().timestamp()
-        due = [
-            eid for eid, e in queue.items()
-            if e["status"] == "scheduled" and e["scheduled_at"] <= now
-        ]
-        for eid in due:
-            asyncio.ensure_future(_publish_entry(eid))
+        if os.getenv("PODCLICK_AUTOMATION_DISABLED", "").lower() in ("1", "true", "yes"):
+            continue
+        try:
+            await run_due_releases()
+        except Exception:
+            _logger.exception("Release scheduler pass failed; will check again next minute")

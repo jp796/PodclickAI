@@ -31,12 +31,21 @@
     .w{cursor:pointer;border-radius:4px;padding:1px 3px;transition:background .1s}
     .w:hover{background:rgba(240,112,48,.22)}
     .w.playing{background:rgba(240,112,48,.34)}
+    .w.cur{box-shadow:inset 0 -2px 0 #f07030}
     .w.del{text-decoration:line-through;color:#5a534a;background:rgba(160,56,56,.12)}
     .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+    .spd{display:inline-flex;gap:4px;align-items:center}
+    .spd-b{padding:9px 10px}
+    .spd-b.on{background:linear-gradient(135deg,#d95f1e,#f07030);color:#fff;border-color:transparent}
     #toast{position:fixed;bottom:24px;right:24px;background:#1e1b16;border:1px solid #352f28;border-radius:9px;padding:11px 16px;font-size:13px;opacity:0;transform:translateY(6px);transition:all .18s;z-index:200;max-width:340px}
     #toast.show{opacity:1;transform:translateY(0)}
     #toast.ok{border-color:#3d8c5c}#toast.err{border-color:#a03838;color:#f0c8c8}
     .empty{padding:50px 20px;text-align:center;color:#847d74}
+    #tl{position:relative;height:16px;margin-top:8px;background:#1e1b16;border:1px solid #272420;border-radius:6px;cursor:pointer;overflow:hidden}
+    #tl-cuts{position:absolute;inset:0}
+    #tl-cuts .cutband{position:absolute;top:0;bottom:0;background:rgba(160,56,56,.55)}
+    #tl-sel{position:absolute;top:0;bottom:0;background:rgba(240,112,48,.45);border-left:2px solid #f07030;border-right:2px solid #f07030}
+    #tl-play{position:absolute;top:-2px;bottom:-2px;width:2px;background:#F5F7FA;left:0;box-shadow:0 0 4px rgba(255,255,255,.6)}
   </style>
 </head>
 <body>
@@ -57,6 +66,21 @@
   <div class="grid" id="grid" style="display:none">
     <div class="vpanel">
       <div class="vwrap"><video id="ev" controls preload="metadata" playsinline></video></div>
+      <div id="tl" title="Click to jump. Mark In/Out to select a section to cut.">
+        <div id="tl-cuts"></div>
+        <div id="tl-sel" style="display:none"></div>
+        <div id="tl-play"></div>
+      </div>
+      <div class="card" id="section-card">
+        <div style="font-weight:700;font-size:13px;margin-bottom:8px">✂️ Cut a section (CapCut-style)</div>
+        <div class="hint" style="margin:0 0 10px">Scrub to the start, <b>Mark In</b> (I). Scrub to the end, <b>Mark Out</b> (O). Then <b>Cut section</b> — the words in that span get struck out of the transcript. Apply Edit re-cuts the video.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="mark-in-btn">⟢ Mark In</button>
+          <button class="btn" id="mark-out-btn">Mark Out ⟣</button>
+          <button class="btn btn-primary" id="cut-sec-btn" disabled>✂️ Cut section</button>
+        </div>
+        <div class="stat" style="margin-top:10px"><span>Selection</span><b id="sec-readout">— none —</b></div>
+      </div>
       <div class="card">
         <button class="btn btn-primary" id="autoedit-btn" style="width:100%;background:linear-gradient(135deg,#6b2e9e,#9b59d0)">⚡ Auto-edit — First Pass</button>
         <div class="hint" style="margin:8px 0 0">Removes fillers, stutters, false starts &amp; dead air automatically. Then sweep up anything it missed by hand below.</div>
@@ -69,12 +93,15 @@
           <button class="btn btn-primary" id="apply-btn" style="flex:1" disabled>✂️ Apply Edit (2nd pass)</button>
           <button class="btn" id="reset-btn">Reset</button>
         </div>
-        <div class="hint" style="margin:10px 0 0">Apply re-cuts the video, then Ship It builds the episode + clips from the edited take.</div>
+        <a class="btn" id="download-btn" href="#" style="display:block;text-align:center;margin-top:8px;text-decoration:none">⬇ Download this video (full file, no clips)</a>
+        <a class="btn" id="download-final-btn" href="#" style="display:block;text-align:center;margin-top:8px;text-decoration:none">⬇ Download final (video + polished audio)</a>
+        <div class="hint" style="margin:10px 0 0">Apply re-cuts the video, then Ship It builds the episode + clips from the edited take. <b>Download this video</b> grabs the raw current file. <b>Download final</b> muxes in the loudness-normalized audio (broadcast level) — one full video, no Shorts, no publishing. First build takes a moment.</div>
       </div>
       <div class="card">
         <div class="hint" style="margin:0">
           <b style="color:#f07030">How to edit</b><br>
-          • Click a word to cut it (strikethrough).<br>
+          • Click a word → the video jumps there (hear it).<br>
+          • Double-click a word (or press Delete) to cut it.<br>
           • Shift-click to cut a whole range.<br>
           • Preview skips cut words live — no render.<br>
           • Happy? Hit Apply Edit.
@@ -86,7 +113,15 @@
       <div class="toolbar">
         <button class="btn" id="play-btn">▶ Play</button>
         <button class="btn" id="preview-btn" title="Skip cut words during playback">👁 Preview cut: ON</button>
-        <span class="hint" style="margin:0">Click words to cut them.</span>
+        <span class="spd" id="spd" title="Playback speed — fast-forward while the words highlight along">
+          <button class="btn spd-b" data-r="1">1×</button>
+          <button class="btn spd-b" data-r="1.5">1.5×</button>
+          <button class="btn spd-b" data-r="2">2×</button>
+          <button class="btn spd-b" data-r="3">3×</button>
+          <button class="btn spd-b" data-r="4">4×</button>
+        </span>
+        <button class="btn" id="follow-btn" title="Auto-scroll the transcript to the spoken word">🔒 Follow: ON</button>
+        <span class="hint" style="margin:0">Click a word to seek · double-click / Delete to cut · fast-forward and the text highlights + scrolls along.</span>
       </div>
       <div class="tx" id="tx"></div>
     </div>
@@ -97,13 +132,18 @@
 <script>
   const PID = (location.pathname.split('/').filter(Boolean))[1] || '';
   const $ = id => document.getElementById(id);
-  let WORDS = [], DUR = 0, previewOn = true, lastShift = -1;
+  let WORDS = [], DUR = 0, previewOn = true, lastShift = -1, cursor = -1;
+  let followOn = true, _lastPlayIdx = -1, _userScrollAt = 0, _progScroll = false;
+  let _inPt = -1, _outPt = -1;
+  const _ftime = s => { s=Math.max(0,s||0); const m=Math.floor(s/60), x=Math.floor(s%60); return m+':'+String(x).padStart(2,'0'); };
 
   function toast(m,k){const t=$('toast');t.textContent=m;t.className='show '+(k||'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3500);}
   function fmt(s){s=Math.max(0,s||0);const m=Math.floor(s/60),x=Math.floor(s%60);return m+':'+String(x).padStart(2,'0');}
 
   async function boot(){
     $('back-btn').href = '/project/' + PID;
+    $('download-btn').href = '/api/projects/' + PID + '/source-video?download=1';
+    $('download-final-btn').href = '/api/projects/' + PID + '/download-final';
     let d;
     try{ const r=await fetch('/api/projects/'+PID+'/edit-data'); d=await r.json(); if(!r.ok) throw new Error(d.detail||'load failed'); }
     catch(e){ $('loading').style.display='none'; $('noedit').style.display=''; $('noedit').textContent='Could not load: '+e.message; return; }
@@ -124,7 +164,7 @@
     $('emeta').textContent = d.word_count + ' words · ' + fmt(DUR) + (d.edited?' · edited cut active':'');
     $('ev').src = d.video_url;
 
-    renderWords(); updateStats();
+    renderWords(); updateStats(); renderTimeline(); updateSec();
     $('loading').style.display='none'; $('grid').style.display='grid';
   }
 
@@ -134,26 +174,39 @@
       const sp=document.createElement('span');
       sp.className='w'+(w.del?' del':''); sp.textContent=w.word; sp.dataset.i=i;
       sp.addEventListener('click',ev=>onWordClick(i,ev));
+      sp.addEventListener('dblclick',ev=>{ev.preventDefault();toggleCut(i);});
       tx.appendChild(sp); tx.appendChild(document.createTextNode(' '));
     });
   }
 
+  function seekWord(i){
+    const v=$('ev'); if(!v||!WORDS[i]) return;
+    v.currentTime = Math.max(0, WORDS[i].start - 0.12);  // hair of lead-in so you hear the word onset
+  }
+  function setCursor(i){
+    cursor=i; lastShift=i;
+    document.querySelectorAll('#tx .w.cur').forEach(el=>el.classList.remove('cur'));
+    const el=document.querySelector('#tx .w[data-i="'+i+'"]'); if(el) el.classList.add('cur');
+  }
+  function toggleCut(i){ if(!WORDS[i])return; WORDS[i].del=!WORDS[i].del; paint(); updateStats(); }
+  // Plain click = jump the video to that word (rewind there so you can hear it before cutting).
+  // Shift-click = cut a range. Double-click / Delete key = cut the word.
   function onWordClick(i,ev){
-    if(ev.shiftKey && lastShift>=0){
-      const a=Math.min(lastShift,i), b=Math.max(lastShift,i);
+    if(ev.shiftKey && cursor>=0){
+      const a=Math.min(cursor,i), b=Math.max(cursor,i);
       const target=!WORDS[i].del;
       for(let k=a;k<=b;k++) WORDS[k].del=target;
+      paint(); updateStats();
     } else {
-      WORDS[i].del=!WORDS[i].del;
+      setCursor(i); seekWord(i);
     }
-    lastShift=i;
-    paint(); updateStats();
   }
 
   function paint(){
     document.querySelectorAll('#tx .w').forEach(el=>{
       el.classList.toggle('del', WORDS[+el.dataset.i].del);
     });
+    renderTimeline();
   }
 
   function cutRanges(){
@@ -175,6 +228,7 @@
   function tick(){
     const v=$('ev'); if(!v) return;
     const t=v.currentTime;
+    { const tp=$('tl-play'); if(tp&&DUR) tp.style.left=(t/DUR*100)+'%'; }
     if(previewOn && !v.paused){
       const hit=WORDS.find(w=>w.del && t>=w.start && t<w.end);
       if(hit){
@@ -187,7 +241,65 @@
     let idx=-1;
     for(let i=0;i<WORDS.length;i++){ if(t>=WORDS[i].start && t<WORDS[i].end){idx=i;break;} }
     document.querySelectorAll('#tx .w.playing').forEach(el=>el.classList.remove('playing'));
-    if(idx>=0){ const el=document.querySelector('#tx .w[data-i="'+idx+'"]'); if(el) el.classList.add('playing'); }
+    if(idx>=0){
+      const el=document.querySelector('#tx .w[data-i="'+idx+'"]');
+      if(el){
+        el.classList.add('playing');
+        // Auto-scroll the transcript so the spoken word stays centered (only on word change,
+        // while playing, and not right after the user scrolled by hand).
+        if(followOn && idx!==_lastPlayIdx && !v.paused && (Date.now()-_userScrollAt>1500)){
+          const tx=$('tx'), cR=tx.getBoundingClientRect(), wR=el.getBoundingClientRect();
+          const delta=(wR.top-cR.top)-(tx.clientHeight/2)+(wR.height/2);
+          if(Math.abs(delta)>4){ _progScroll=true; tx.scrollTop+=delta; }
+        }
+      }
+    }
+    _lastPlayIdx=idx;
+  }
+
+  function setSpeed(r){
+    const v=$('ev'); if(v) v.playbackRate=r;
+    document.querySelectorAll('.spd-b').forEach(b=>b.classList.toggle('on', +b.dataset.r===r));
+  }
+
+  // ── CapCut-style section cut ──────────────────────────────────────────────
+  // Mark In/Out on the timeline → cut every word in that time span (the transcript
+  // updates globally). Apply Edit then re-cuts the video from the surviving words.
+  function markIn(){ const v=$('ev'); _inPt=v.currentTime; if(_outPt>=0&&_outPt<_inPt) _outPt=-1; updateSec(); }
+  function markOut(){ const v=$('ev'); _outPt=v.currentTime; if(_inPt<0||_outPt<_inPt){ _inPt=Math.min(_inPt<0?0:_inPt,_outPt); } updateSec(); }
+  function updateSec(){
+    const ok=_inPt>=0&&_outPt>_inPt;
+    $('cut-sec-btn').disabled=!ok;
+    $('sec-readout').textContent = (_inPt<0&&_outPt<0) ? '— none —'
+      : (_ftime(_inPt<0?0:_inPt)+' → '+(_outPt<0?'…':_ftime(_outPt)));
+    const sel=$('tl-sel');
+    if(ok&&DUR>0){ sel.style.display='block'; sel.style.left=(_inPt/DUR*100)+'%'; sel.style.width=((_outPt-_inPt)/DUR*100)+'%'; }
+    else sel.style.display='none';
+  }
+  function cutSection(){
+    if(!(_inPt>=0&&_outPt>_inPt)) return;
+    let n=0;
+    WORDS.forEach(w=>{ if(w.end>_inPt && w.start<_outPt && !w.del){ w.del=true; n++; } });
+    toast('Cut section '+_ftime(_inPt)+'–'+_ftime(_outPt)+' · '+n+' words struck out. Apply Edit to re-cut.','ok');
+    _inPt=-1; _outPt=-1; updateSec();
+    paint(); updateStats();
+  }
+  function renderTimeline(){
+    const box=$('tl-cuts'); if(!box) return;
+    if(!DUR){ box.innerHTML=''; return; }
+    // merge contiguous cut words into bands
+    let html='', s=null, e=null;
+    for(const w of WORDS){
+      if(w.del){ if(s===null){s=w.start;e=w.end;} else if(w.start<=e+0.4){e=w.end;} else { html+=_band(s,e); s=w.start;e=w.end; } }
+    }
+    if(s!==null) html+=_band(s,e);
+    box.innerHTML=html;
+  }
+  function _band(s,e){ return '<div class="cutband" style="left:'+(s/DUR*100)+'%;width:'+((e-s)/DUR*100)+'%"></div>'; }
+  function tlSeek(ev){
+    const v=$('ev'), r=$('tl').getBoundingClientRect();
+    if(!v||!DUR) return;
+    v.currentTime = Math.max(0, Math.min(DUR, (ev.clientX-r.left)/r.width*DUR));
   }
 
   async function applyEdit(){
@@ -226,10 +338,33 @@
     $('reset-btn').addEventListener('click',()=>{WORDS.forEach(w=>w.del=false);paint();updateStats();});
     $('play-btn').addEventListener('click',()=>{const v=$('ev');if(v.paused){v.play();$('play-btn').textContent='⏸ Pause';}else{v.pause();$('play-btn').textContent='▶ Play';}});
     $('preview-btn').addEventListener('click',()=>{previewOn=!previewOn;$('preview-btn').textContent='👁 Preview cut: '+(previewOn?'ON':'OFF');});
+    // Delete / Backspace cuts the word the cursor sits on (click a word first to place the cursor).
+    document.addEventListener('keydown',e=>{
+      if((e.key==='Delete'||e.key==='Backspace') && cursor>=0){ e.preventDefault(); toggleCut(cursor); }
+    });
     const v=$('ev');
     v.addEventListener('timeupdate',tick);
     v.addEventListener('play',()=>$('play-btn').textContent='⏸ Pause');
     v.addEventListener('pause',()=>$('play-btn').textContent='▶ Play');
+    // Speed / fast-forward
+    document.querySelectorAll('.spd-b').forEach(b=>b.addEventListener('click',()=>setSpeed(+b.dataset.r)));
+    setSpeed(1);
+    // Follow (auto-scroll) toggle
+    $('follow-btn').addEventListener('click',()=>{
+      followOn=!followOn; $('follow-btn').textContent='🔒 Follow: '+(followOn?'ON':'OFF');
+    });
+    // If the user scrolls the transcript by hand, pause auto-scroll briefly so we don't fight them.
+    $('tx').addEventListener('scroll',()=>{ if(_progScroll){_progScroll=false;return;} _userScrollAt=Date.now(); });
+    // Section cut (CapCut-style): Mark In / Out / Cut + I / O keys + click timeline to seek.
+    $('mark-in-btn').addEventListener('click',markIn);
+    $('mark-out-btn').addEventListener('click',markOut);
+    $('cut-sec-btn').addEventListener('click',cutSection);
+    $('tl').addEventListener('click',tlSeek);
+    document.addEventListener('keydown',e=>{
+      if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA') return;
+      if(e.key==='i'||e.key==='I'){ markIn(); }
+      else if(e.key==='o'||e.key==='O'){ markOut(); }
+    });
   });
 </script>
 </body>

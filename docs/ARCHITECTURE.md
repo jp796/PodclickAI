@@ -1,7 +1,21 @@
 # PodClick Architecture
-> Last updated: 2026-05-19 | Update this file when stack or data flows change.
+> Last updated: 2026-09-25 | Update this file when stack or data flows change.
+
+## Persistent episode release automation
+
+`frontend/project.html` configures an explicitly opted-in release through `/api/projects/{project_id}/autopilot`. `main.py` adapts the project database and Buzzsprout/YouTube providers into `services/podcast_autopilot.py`.
+
+- Plans, destination receipts, activity, and durable pause/cancel signals live under `data/podcast_autopilot/`; atomic replacement and per-project file locks protect updates. Keep this directory persistent across restarts.
+- The worker checks readiness, prepares private uploads, and publishes known provider IDs when due. Review mode requires explicit approval; automatic mode can recover when readiness becomes available. Content changes after preparation block stale release.
+- Scans continue while individual uploads run, with at most two active project tasks. Pause/cancel is checked between provider actions; uncertain uploads require reconciliation instead of automatic reupload.
+- Legacy scheduling shares ownership locks with autopilot. Episode-number reservation uses a shared PostgreSQL transaction advisory lock. The legacy JSON queue still requires a single scheduler process.
+- Startup enables the local workers unless `PODCLICK_AUTOMATION_DISABLED=1`. Local scheduled releases require the service to remain running. Guest messages, Shorts, and social tools remain separate workflows.
+
+See `API.md` for the endpoint contract and `CHECKPOINT_2026-09-25.md` for verified scope. The older architecture sections below describe established tools, not the complete current route inventory.
 
 ## Stack
+
+The studio is currently single-owner, not customer-isolated SaaS. An outer pure-ASGI deployment perimeter now defaults private routes and WebSockets to locked; only explicitly configured local mode serves the studio. Stripe billing has workspace-scoped durable tables and a deny-by-default membership dependency, not a replacement for authentication. See `CHECKPOINT_SAAS_2026-09-25.md` before any public deployment.
 - **Backend:** Python 3.9, FastAPI, uvicorn — `podcast-studio/main.py` (~3,775 lines)
 - **Frontend:** Static HTML/JS (no build step) — `podcast-studio/frontend/`
   - `studio.html` — Recording studio + teleprompter (~1,300 lines)
@@ -14,7 +28,7 @@
 ## Run Server
 
 ```bash
-cd ~/podcast-studio && venv/bin/uvicorn main:app --reload --port 8765
+PODCLICK_DEPLOYMENT_MODE=local venv/bin/uvicorn main:app --host 127.0.0.1 --port 8765 --no-proxy-headers
 ```
 
 ## Directory Layout
