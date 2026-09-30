@@ -12048,34 +12048,19 @@ async def serve_calendar():
 
 # ── Helper: anti-clumping bucket distribution ────────────────────────────────────
 def _distribute_buckets(vyral_mix: dict, slot_count: int) -> list:
-    """Distribute buckets across slots with anti-clumping (no 3 consecutive same)."""
-    from collections import Counter
-    pool = []
-    for bucket, weight in vyral_mix.items():
-        pool.extend([bucket] * round(slot_count * float(weight)))
-    while len(pool) > slot_count:
-        pool.pop()
-    while len(pool) < slot_count:
-        # pad with the heaviest weighted bucket
-        heaviest = max(vyral_mix, key=lambda k: vyral_mix[k])
-        pool.append(heaviest)
-    result = []
-    counts = Counter(pool)
-    prev1 = None
-    prev2 = None
-    for _ in range(slot_count):
-        avail = {b: c for b, c in counts.items() if c > 0}
-        if not avail:
-            break
-        if prev1 == prev2 and prev1 is not None:
-            filtered = {b: c for b, c in avail.items() if b != prev1}
-            if filtered:
-                avail = filtered
-        chosen = max(avail, key=lambda k: avail[k])
-        result.append(chosen)
-        counts[chosen] -= 1
-        prev2, prev1 = prev1, chosen
-    return result
+    """
+    Distribute buckets across slots with anti-clumping.
+
+    Delegates to services/vyral.py. The implementation used to live here inline;
+    Wave 3 gave Brick two actions that touch the Vyral mix (adjust_vyral_mix and
+    replan_calendar), and two copies of a pure function is how they drift. The
+    shared version also fixes a tail-clumping bug this one had: placing a whole
+    sorted pass at a time exhausted the minority buckets early, so a 40% viral mix
+    over 30 slots ended `... viral viral viral`.
+    """
+    from services.vyral import distribute_buckets
+
+    return distribute_buckets(vyral_mix, slot_count)
 
 
 # ── Route: GET /api/calendar ─────────────────────────────────────────────────────

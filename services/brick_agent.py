@@ -15,10 +15,11 @@ Python 3.9 rules:
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import anthropic as _anthropic
@@ -38,6 +39,8 @@ from db.models import (
     FoundationScore,
     Location,
     Post,
+    PostVariant,
+    Project,
     VoiceSample,
 )
 
@@ -1528,8 +1531,22 @@ class BrickAgent:
             )
             return {"post_id": str(post.id), "topic": topic, "status": "draft", "caption": caption}
 
-        if action_type == "cut_clip":
-            return await self._dispatch_cut_clip(action, payload, session)
+        # Wave 3 — the eight action types that were in ACTION_TIER_MAP but fell
+        # through to no_op, so promoting Brick changed a label and nothing else.
+        # Each delegates to a method rather than growing this if-chain.
+        branch = {
+            "cut_clip": self._dispatch_cut_clip,
+            "queue_draft": self._dispatch_queue_draft,
+            "publish_post": self._dispatch_publish_post,
+            "write_show_notes": self._dispatch_write_show_notes,
+            "adjust_calendar": self._dispatch_adjust_calendar,
+            "send_guest_email": self._dispatch_send_guest_email,
+            "pitch_sponsor": self._dispatch_pitch_sponsor,
+            "adjust_vyral_mix": self._dispatch_adjust_vyral_mix,
+            "replan_calendar": self._dispatch_replan_calendar,
+        }.get(action_type)
+        if branch is not None:
+            return await branch(action, payload, session)
 
         if action_type == "guest_asset_package":
             # The package (Drive folder + uploads + drafted email) was already built
@@ -1665,6 +1682,642 @@ class BrickAgent:
             "privacy_level": result.get("privacy_level"),
             "requested_privacy_level": result.get("requested_privacy_level"),
             "title": title,
+        }
+
+    # ── Wave 3 dispatch branches ──────────────────────────────────────────────
+    #
+    # Conventions, matching _dispatch_cut_clip:
+    #   * read and write through the PASSED-IN session; never commit — execute_action
+    #     owns the commit, and opening a second session here would have two
+    #     connections writing rows the outer one may hold.
+    #   * raise for programmer/ownership errors (missing payload key, cross-location
+    #     row) — execute_action records a failure and re-raises.
+    #   * RETURN a status dict for "can't do it, not an error." Statuses listed in
+    #     NON_WORK_STATUSES earn no track record, so a missing precondition never
+    #     buys ladder progress.
+    #   * a nested read-only session for Foundation is the established exception.
+
+    async def _load_own_post(
+        self, action: BrickAction, session: AsyncSession, post_id: Any
+    ) -> Post:
+        """Load a Post and refuse it if it belongs to another location."""
+        if not post_id:
+            raise ValueError("payload needs post_id")
+        post = await session.get(Post, uuid.UUID(str(post_id)))
+        if post is None:
+            raise ValueError(f"Post {post_id} not found")
+        if str(post.location_id) != str(action.location_id):
+            raise PermissionError(
+                f"Post {post_id} belongs to another location — refusing"
+            )
+        return post
+
+    @staticmethod
+    def _parse_when(raw: Any) -> datetime:
+        """Parse an ISO timestamp from a payload, tolerating a trailing Z."""
+        if not raw:
+            raise ValueError("payload needs scheduled_at (ISO-8601)")
+        if isinstance(raw, datetime):
+            return raw
+        return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+
+    async def _dispatch_queue_draft(
+        self, action: BrickAction, payload: Dict[str, Any], session: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        Move a draft onto the calendar for review. Bricklayer tier.
+
+        Queueing is not publishing — the post lands as `scheduled` and still needs a
+        human (or a foreman-tier publish_post) to go out. That is the whole point of
+        bricklayer sitting below foreman on the ladder.
+        """
+        post = await self._load_own_post(action, session, payload.get("post_id"))
+        if post.status not in ("draft", "scheduled"):
+            return {
+                "action_type": "queue_draft",
+                "status": "skipped",
+                "reason": f"post is {post.status!r} — only draft or scheduled can be queued",
+                "post_id": str(post.id),
+            }
+
+        when = self._parse_when(payload.get("scheduled_at"))
+        post.scheduled_at = when
+        post.status = "scheduled"
+        await session.flush()
+
+        logger.info("[brick.queue_draft] Post %s queued for %s", post.id, when.isoformat())
+        return {
+            "action_type": "queue_draft",
+            "status": "scheduled",
+            "post_id": str(post.id),
+            "scheduled_at": when.isoformat(),
+        }
+
+    async def _dispatch_adjust_calendar(
+        self, action: BrickAction, payload: Dict[str, Any], session: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        Move an already-scheduled post to a different time. Foreman tier.
+
+        Note the location check: PATCH /api/calendar/posts/{id} does not have one,
+        so this branch is stricter than the route it mirrors.
+        """
+        post = await self._load_own_post(action, session, payload.get("post_id"))
+        if post.status not in ("draft", "scheduled"):
+            return {
+                "action_type": "adjust_calendar",
+                "status": "skipped",
+                "reason": f"cannot reschedule a post that is {post.status!r}",
+                "post_id": str(post.id),
+            }
+
+        was = post.scheduled_at
+        when = self._parse_when(payload.get("scheduled_at"))
+        post.scheduled_at = when
+        await session.flush()
+
+        logger.info(
+            "[brick.adjust_calendar] Post %s moved %s -> %s",
+            post.id, was.isoformat() if was else None, when.isoformat(),
+        )
+        return {
+            "action_type": "adjust_calendar",
+            "status": "updated",
+            "post_id": str(post.id),
+            "was": was.isoformat() if was else None,
+            "scheduled_at": when.isoformat(),
+        }
+
+    async def _dispatch_publish_post(
+        self, action: BrickAction, payload: Dict[str, Any], session: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        Publish a post's platform variants now. Foreman tier — first tier that
+        reaches an audience.
+
+        Everything goes through SocialService (contract #5); this never speaks to
+        GHL directly. Publishing here is immediate rather than enqueued through the
+        Arq stagger queue, which is the deliberate tradeoff for a single
+        human-approved punch-list item: one post, already reviewed, going out now.
+        Bulk sends keep using /api/calendar/posts/{id}/publish and its stagger.
+        """
+        from services.ghl_adapter import GHLAdapter
+        from services.social_service import (
+            SocialAuthError,
+            SocialProviderError,
+            SocialPublishError,
+            SocialRateLimitError,
+        )
+
+        post = await self._load_own_post(action, session, payload.get("post_id"))
+        if post.status in ("published", "publishing"):
+            return {
+                "action_type": "publish_post",
+                "status": "skipped",
+                "reason": f"post is already {post.status!r}",
+                "post_id": str(post.id),
+            }
+
+        rows = await session.execute(
+            select(PostVariant).where(PostVariant.post_id == post.id)
+        )
+        variants = list(rows.scalars())
+        if not variants:
+            return {
+                "action_type": "publish_post",
+                "status": "skipped",
+                "reason": "no platform variants — generate them before publishing",
+                "post_id": str(post.id),
+            }
+
+        adapter = GHLAdapter()
+        location_id = str(action.location_id)
+        try:
+            accounts = await adapter.list_accounts(location_id)
+        except Exception as acct_err:
+            logger.warning("[brick.publish_post] account lookup failed: %s", acct_err)
+            return {
+                "action_type": "publish_post",
+                "status": "needs_account",
+                "reason": f"could not list connected accounts: {acct_err}",
+                "post_id": str(post.id),
+            }
+
+        usable = {
+            a.get("platform"): a.get("id")
+            for a in accounts
+            if a.get("id") and not a.get("expired")
+        }
+        if not usable:
+            return {
+                "action_type": "publish_post",
+                "status": "needs_account",
+                "reason": "no connected, unexpired social account",
+                "post_id": str(post.id),
+            }
+
+        published, skipped, failed = [], [], []
+        for variant in variants:
+            account_id = usable.get(variant.platform)
+            if not account_id:
+                skipped.append({"platform": variant.platform, "reason": "no_connected_account"})
+                continue
+            caption = variant.caption or post.base_caption or ""
+            if not caption.strip():
+                skipped.append({"platform": variant.platform, "reason": "empty_caption"})
+                continue
+            try:
+                provider_id = await adapter.publish(
+                    location_id=location_id,
+                    platform=variant.platform,
+                    caption=caption,
+                    account_id=account_id,
+                    media_urls=list(variant.media_urls or []) or None,
+                    first_comment=variant.first_comment,
+                )
+                published.append({"platform": variant.platform, "provider_post_id": provider_id})
+            except (SocialAuthError,) as auth_err:
+                # A dead token is a human task, not a content failure.
+                logger.warning("[brick.publish_post] %s auth: %s", variant.platform, auth_err)
+                failed.append({"platform": variant.platform, "reason": f"auth: {auth_err}"})
+            except (SocialPublishError, SocialRateLimitError, SocialProviderError) as pub_err:
+                logger.warning("[brick.publish_post] %s failed: %s", variant.platform, pub_err)
+                failed.append({"platform": variant.platform, "reason": str(pub_err)})
+
+        if published and not failed:
+            post.status = "published"
+        elif published and failed:
+            post.status = "partially_published"
+        elif failed:
+            post.status = "failed"
+        await session.flush()
+
+        if not published:
+            return {
+                "action_type": "publish_post",
+                "status": "needs_account" if not failed else "skipped",
+                "reason": "nothing published",
+                "post_id": str(post.id),
+                "skipped": skipped,
+                "failed": failed,
+            }
+
+        logger.info(
+            "[brick.publish_post] Post %s -> %s (%d published, %d failed)",
+            post.id, post.status, len(published), len(failed),
+        )
+        return {
+            "action_type": "publish_post",
+            "status": "published",
+            "post_id": str(post.id),
+            "post_status": post.status,
+            "published": published,
+            "skipped": skipped,
+            "failed": failed,
+        }
+
+    async def _dispatch_write_show_notes(
+        self, action: BrickAction, payload: Dict[str, Any], session: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        Generate and persist show notes for a project. Foreman tier.
+
+        The Anthropic client is synchronous, so it runs in an executor — the two
+        existing copies of this generation in main.py call it inline and block the
+        event loop for the duration.
+        """
+        project_id = payload.get("project_id")
+        if not project_id:
+            raise ValueError("payload needs project_id")
+        project = await session.get(Project, uuid.UUID(str(project_id)))
+        if project is None:
+            raise ValueError(f"Project {project_id} not found")
+        if str(project.location_id) != str(action.location_id):
+            raise PermissionError(f"Project {project_id} belongs to another location")
+
+        transcript = (project.transcript or "").strip()
+        if not transcript:
+            return {
+                "action_type": "write_show_notes",
+                "status": "skipped",
+                "reason": "project has no transcript yet",
+                "project_id": str(project.id),
+            }
+        if project.show_notes and not payload.get("overwrite"):
+            return {
+                "action_type": "write_show_notes",
+                "status": "skipped",
+                "reason": "show notes already exist — pass overwrite to replace them",
+                "project_id": str(project.id),
+            }
+
+        notes = await self._generate_show_notes(
+            str(action.location_id), project.title or "this episode", transcript
+        )
+        if not notes:
+            return {
+                "action_type": "write_show_notes",
+                "status": "skipped",
+                "reason": "generation returned nothing — Foundation may not be ready",
+                "project_id": str(project.id),
+            }
+
+        project.show_notes = notes
+        await session.flush()
+        logger.info("[brick.write_show_notes] Project %s notes written (%d chars)",
+                    project.id, len(notes))
+        return {
+            "action_type": "write_show_notes",
+            "status": "written",
+            "project_id": str(project.id),
+            "characters": len(notes),
+        }
+
+    async def _generate_show_notes(
+        self, location_id: str, title: str, transcript: str
+    ) -> str:
+        """Foundation-voiced show notes. Returns "" on any failure — caller decides."""
+        try:
+            from schemas.foundation import BrandContextTaskType as _TaskType
+            from services.foundation import get_brand_context
+
+            async with async_session() as ctx_session:
+                ctx = await get_brand_context(
+                    ctx_session, location_id, _TaskType.show_notes, topic=title
+                )
+            samples = "\n\n".join(
+                f"- {s.text[:300]}" for s in (ctx.voice_samples or [])[:4]
+            )
+            prompt = (
+                f"Write show notes for the episode \"{title}\".\n\n"
+                "Sections, in this order: Episode Summary, What You'll Learn, "
+                "Episode Highlights, Resources Mentioned, Subscribe & Review. "
+                "Markdown headings. Ground every claim in the transcript — invent "
+                "nothing, especially no statistics, names or URLs.\n\n"
+                f"The host sounds like this:\n{samples}\n\n"
+                f"TRANSCRIPT (excerpt):\n{transcript[:6000]}"
+            )
+
+            def _call() -> str:
+                client = _anthropic.Anthropic(api_key=settings.anthropic_api_key)
+                message = client.messages.create(
+                    model="claude-sonnet-4-5",
+                    max_tokens=1500,
+                    temperature=0.7,
+                    system=_BRICK_SYSTEM_PROMPT,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                return (message.content[0].text if message.content else "").strip()
+
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, _call)
+        except Exception as err:
+            logger.warning("[brick.write_show_notes] generation failed: %s", err)
+            return ""
+
+    async def _dispatch_send_guest_email(
+        self, action: BrickAction, payload: Dict[str, Any], session: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        Deliberately does NOT send. GC tier.
+
+        POST /api/brick/actions/{id}/approve-send is documented as the only path
+        that emails a guest, and that is not an accident: the send sits in the route
+        AHEAD of approve_action so the human review gate cannot be bypassed, and it
+        is the only place that turns an expired token into a 409 needs_gmail the
+        reconnect modal can act on. A branch here calling gmail_send.send_message
+        would be a second send path with neither property.
+
+        So this reports where the send actually lives. The stale comment on the
+        guest_asset_package branch ("when Gmail send-as lands, the actual send
+        happens HERE") describes a plan that Phase 6 superseded.
+        """
+        pending = await session.execute(
+            select(BrickAction)
+            .where(
+                and_(
+                    BrickAction.location_id == action.location_id,
+                    BrickAction.action_type == "guest_asset_package",
+                    BrickAction.status == "pending",
+                )
+            )
+            .order_by(BrickAction.requested_at.desc())
+            .limit(1)
+        )
+        package = pending.scalars().first()
+
+        if package is None:
+            return {
+                "action_type": "send_guest_email",
+                "status": "skipped",
+                "reason": (
+                    "no pending guest_asset_package to send. Build the package "
+                    "first — the email is created with it."
+                ),
+            }
+
+        recipient = (package.payload or {}).get("recipient")
+        logger.info(
+            "[brick.send_guest_email] Package %s is ready for review — send is a "
+            "human action at /api/brick/actions/%s/approve-send",
+            package.id, package.id,
+        )
+        return {
+            "action_type": "send_guest_email",
+            "status": "needs_approve_send",
+            "reason": (
+                "Guest email is drafted and waiting. Sending is a reviewed human "
+                "action, not an autonomous one."
+            ),
+            "package_action_id": str(package.id),
+            "recipient": recipient,
+            "review_at": f"/api/brick/actions/{package.id}/approve-send",
+        }
+
+    async def _dispatch_pitch_sponsor(
+        self, action: BrickAction, payload: Dict[str, Any], session: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        Draft a sponsor pitch. GC tier. Generates only — it sends nothing.
+
+        There is no sanctioned outbound path for sponsor mail (the existing
+        /api/sponsors/{id}/outreach route also only generates), and inventing one
+        inside an autonomous dispatch is exactly the wrong place for a first
+        send-to-a-stranger capability. The draft lands on the record for review.
+        """
+        company = (payload.get("company") or payload.get("sponsor") or "").strip()
+        if not company:
+            return {
+                "action_type": "pitch_sponsor",
+                "status": "skipped",
+                "reason": "payload needs company (or sponsor) to pitch",
+            }
+
+        pitch = await self._generate_sponsor_pitch(
+            str(action.location_id), company, payload.get("angle") or ""
+        )
+        if not pitch:
+            return {
+                "action_type": "pitch_sponsor",
+                "status": "skipped",
+                "reason": "generation returned nothing — Foundation may not be ready",
+                "company": company,
+            }
+
+        logger.info("[brick.pitch_sponsor] Drafted a pitch for %s (%d chars)",
+                    company, len(pitch))
+        return {
+            "action_type": "pitch_sponsor",
+            "status": "drafted",
+            "company": company,
+            "pitch": pitch,
+            "sent": False,
+            "note": "Draft only — PodClick has no sponsor send path. Copy and send it yourself.",
+        }
+
+    async def _generate_sponsor_pitch(
+        self, location_id: str, company: str, angle: str
+    ) -> str:
+        """Foundation-voiced sponsor pitch. Returns "" on any failure."""
+        try:
+            from schemas.foundation import BrandContextTaskType as _TaskType
+            from services.foundation import get_brand_context
+
+            async with async_session() as ctx_session:
+                ctx = await get_brand_context(
+                    ctx_session,
+                    location_id,
+                    _TaskType.sponsor_pitch,
+                    topic=f"{company} sponsorship pitch",
+                )
+            samples = "\n\n".join(
+                f"- {s.text[:300]}" for s in (ctx.voice_samples or [])[:4]
+            )
+            prompt = (
+                f"Draft a short sponsorship pitch to {company}."
+                + (f" Angle: {angle}." if angle else "")
+                + "\n\nUnder 200 words. Lead with what the audience is worth to them, "
+                "not with praise. No invented download numbers, rates or testimonials "
+                "— if you do not have a figure, describe the audience instead.\n\n"
+                f"The host sounds like this:\n{samples}"
+            )
+
+            def _call() -> str:
+                client = _anthropic.Anthropic(api_key=settings.anthropic_api_key)
+                message = client.messages.create(
+                    model="claude-sonnet-4-5",
+                    max_tokens=600,
+                    temperature=0.7,
+                    system=_BRICK_SYSTEM_PROMPT,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                return (message.content[0].text if message.content else "").strip()
+
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, _call)
+        except Exception as err:
+            logger.warning("[brick.pitch_sponsor] generation failed: %s", err)
+            return ""
+
+    async def _dispatch_adjust_vyral_mix(
+        self, action: BrickAction, payload: Dict[str, Any], session: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        Rewrite the Blueprint's bucket weights. GC tier.
+
+        Nothing in the codebase wrote vyral_mix before this — and nothing validated
+        it either, so an unknown bucket key here would mint Posts that violate the
+        posts.bucket CHECK constraint at auto-plan time, a failure a long way from
+        its cause. Validation is not optional for an autonomous writer.
+        """
+        from sqlalchemy.orm.attributes import flag_modified
+
+        from services.vyral import validate_vyral_mix
+
+        proposed = payload.get("vyral_mix")
+        ok, problems = validate_vyral_mix(proposed)
+        if not ok:
+            logger.info("[brick.adjust_vyral_mix] Refused: %s", "; ".join(problems))
+            return {
+                "action_type": "adjust_vyral_mix",
+                "status": "skipped",
+                "reason": "proposed mix is not valid",
+                "problems": problems,
+                "proposed": proposed,
+            }
+
+        rows = await session.execute(
+            select(Blueprint).where(Blueprint.location_id == action.location_id)
+        )
+        blueprint = rows.scalars().first()
+        if blueprint is None:
+            return {
+                "action_type": "adjust_vyral_mix",
+                "status": "skipped",
+                "reason": "no Blueprint for this location — build one first",
+            }
+
+        was = dict(blueprint.vyral_mix or {})
+        # JSONB needs a fresh object plus flag_modified; mutating in place is the
+        # documented reason YouTube chapters silently failed to persist.
+        blueprint.vyral_mix = {k: float(v) for k, v in proposed.items()}
+        flag_modified(blueprint, "vyral_mix")
+        await session.flush()
+
+        logger.info("[brick.adjust_vyral_mix] %s -> %s", was, blueprint.vyral_mix)
+        return {
+            "action_type": "adjust_vyral_mix",
+            "status": "updated",
+            "was": was,
+            "vyral_mix": dict(blueprint.vyral_mix),
+        }
+
+    async def _dispatch_replan_calendar(
+        self, action: BrickAction, payload: Dict[str, Any], session: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        Rebuild the forward calendar from the current Vyral mix. GC tier.
+
+        /api/calendar/auto-plan only APPENDS — running it twice gives 60 posts on 30
+        overlapping dates. A *replan* has to clear first, so this deletes the
+        location's future `draft` auto-plan posts and lays down a fresh bucket
+        rotation. It deliberately does not touch `scheduled`, `published` or
+        manually-authored posts: replanning is not a licence to unpublish or to
+        discard something a human wrote.
+
+        Captions are left empty for `draft_post` (or the auto-plan route) to fill —
+        this branch does the deterministic half, which is the half worth having an
+        autonomous agent do.
+        """
+        from services.vyral import DEFAULT_VYRAL_MIX, distribute_buckets
+
+        # `payload.get("slot_count") or 30` would turn an explicit 0 into 30 and
+        # sail past the bounds check below — absent and zero are different asks.
+        raw_slots = payload.get("slot_count")
+        try:
+            slot_count = 30 if raw_slots is None else int(raw_slots)
+        except (TypeError, ValueError):
+            return {
+                "action_type": "replan_calendar",
+                "status": "skipped",
+                "reason": f"slot_count {raw_slots!r} is not a number",
+            }
+        if not 1 <= slot_count <= 60:
+            return {
+                "action_type": "replan_calendar",
+                "status": "skipped",
+                "reason": f"slot_count {slot_count} outside 1-60",
+            }
+
+        start_raw = payload.get("start_date")
+        start = (
+            datetime.fromisoformat(str(start_raw)).date()
+            if start_raw else datetime.utcnow().date()
+        )
+
+        rows = await session.execute(
+            select(Blueprint).where(Blueprint.location_id == action.location_id)
+        )
+        blueprint = rows.scalars().first()
+        mix = dict((blueprint.vyral_mix if blueprint else None) or DEFAULT_VYRAL_MIX)
+        pillars = [
+            p.get("name") for p in ((blueprint.pillars if blueprint else None) or [])
+            if isinstance(p, dict) and p.get("name")
+        ]
+
+        # Clear only what this branch is allowed to clear.
+        stale = await session.execute(
+            select(Post).where(
+                and_(
+                    Post.location_id == action.location_id,
+                    Post.status == "draft",
+                    Post.source == "auto_plan",
+                    Post.scheduled_at.isnot(None),
+                    Post.scheduled_at >= datetime.combine(start, time.min).replace(
+                        tzinfo=timezone.utc
+                    ),
+                )
+            )
+        )
+        cleared = list(stale.scalars())
+        for post in cleared:
+            await session.delete(post)
+
+        sequence = distribute_buckets(mix, slot_count)
+        created = []
+        for index, bucket in enumerate(sequence):
+            slot = datetime.combine(
+                start + timedelta(days=index), time(hour=15)
+            ).replace(tzinfo=timezone.utc)
+            post = Post(
+                location_id=action.location_id,
+                bucket=bucket,
+                base_caption=None,
+                scheduled_at=slot,
+                status="draft",
+                source="auto_plan",
+            )
+            session.add(post)
+            created.append({
+                "bucket": bucket,
+                "scheduled_at": slot.isoformat(),
+                "pillar": pillars[index % len(pillars)] if pillars else None,
+            })
+        await session.flush()
+
+        logger.info(
+            "[brick.replan_calendar] Cleared %d future auto-plan drafts, created %d slots",
+            len(cleared), len(created),
+        )
+        return {
+            "action_type": "replan_calendar",
+            "status": "replanned",
+            "cleared": len(cleared),
+            "created": len(created),
+            "vyral_mix": mix,
+            "start_date": start.isoformat(),
+            "slots": created[:5],
+            "note": "Captions are empty — draft_post or auto-plan fills them.",
         }
 
     async def _touch_memories(self, memory_ids: List[str]) -> None:
