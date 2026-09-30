@@ -17,6 +17,7 @@ Endpoints:
 
 import asyncio
 import json
+import logging
 import os
 import tempfile
 import time
@@ -124,13 +125,73 @@ async def _nightly_foundation_recompute() -> None:
         print(f"[foundation.cron] Nightly recompute failed — {exc}")
 
 
+def owner_automation_decision(
+    deployment_mode: str,
+    owner_automation: bool,
+    automation_disabled: bool,
+) -> "tuple":
+    """
+    Whether this process should register owner background automation, and why.
+
+    Split out of `_startup()` so the decision is testable on its own — it gates
+    Brick's 04:00 planning cron, the nightly Foundation recompute, the release
+    scheduler and the autopilot worker, and getting it wrong is either "nothing
+    runs overnight" (the bug this fixes) or "a locked deployment starts doing
+    work" (worse). Returns (should_run, human_reason).
+
+    Precedence, strictest first:
+      1. PODCLICK_AUTOMATION_DISABLED wins over everything — previews and QA.
+      2. local mode runs it, as it always did.
+      3. a deployed install runs it only on an explicit PODCLICK_OWNER_AUTOMATION.
+
+    This decides SCHEDULING only. The HTTP/WebSocket/media perimeter belongs to
+    DeploymentBoundary and is not consulted or affected here.
+    """
+    if automation_disabled:
+        return False, "PODCLICK_AUTOMATION_DISABLED=1 — no background automation registered."
+    if deployment_mode == "local":
+        return True, "Local mode — owner automation registered."
+    if owner_automation:
+        return True, (
+            f"Owner automation ENABLED in deployed mode (deployment_mode={deployment_mode!r}) "
+            "— scheduling only; the HTTP/WS perimeter is unchanged."
+        )
+    return False, (
+        f"Owner automation locked (deployment_mode={deployment_mode!r}). "
+        "Set PODCLICK_OWNER_AUTOMATION=1 to run Brick's crons in a deployed install."
+    )
+
+
 @app.on_event("startup")
 async def _startup():
-    """Start the release scheduler + uploads sweep background loops."""
+    """
+    Start the release scheduler, uploads sweep, and Brick's crons.
+
+    The gate below used to be `mode != "local" -> return`, which meant none of this
+    ran anywhere but a laptop: Brick's 04:00 planning cron, the nightly Foundation
+    recompute and the release scheduler were all registered inside the block it
+    skipped. `expire_stale_actions()` is only called from the planning run, so
+    nothing aged out of a deployed punch list either.
+
+    Registering a scheduler opens no network surface — the HTTP/WebSocket/media
+    perimeter is DeploymentBoundary's job and is untouched here — so a deployed
+    single-owner install can opt in with PODCLICK_OWNER_AUTOMATION=1 without
+    unlocking anything. Default stays False: fail-closed unless asked.
+    """
+    import os as _os
+
     from config import settings as _deployment_settings
-    if _deployment_settings.podclick_deployment_mode != "local":
-        print("[startup] Studio and owner automation locked pending deployment configuration.")
+
+    _run, _why = owner_automation_decision(
+        deployment_mode=_deployment_settings.podclick_deployment_mode,
+        owner_automation=bool(getattr(_deployment_settings, "podclick_owner_automation", False)),
+        automation_disabled=_os.getenv("PODCLICK_AUTOMATION_DISABLED", "").lower()
+        in ("1", "true", "yes"),
+    )
+    print(f"[startup] {_why}")
+    if not _run:
         return
+
     from pipeline.scheduler import scheduler_loop
     spawn(scheduler_loop(), name="scheduler_loop", on_failure=on_task_failure("scheduler_loop"))
     # Plans are opt-in and durable. The service checks the same automation
@@ -176,7 +237,14 @@ async def _startup():
         print("[brick.cron] Daily planning cron registered — fires 04:00 America/Chicago")
         print("[foundation.cron] Nightly score recompute registered — fires 03:00 America/Chicago")
     except Exception as _brick_cron_err:
-        print(f"[brick.cron] WARNING: Could not register cron — {_brick_cron_err}")
+        # A failed cron registration used to print a warning and move on, which is
+        # indistinguishable from success in a deployed log. Escalate it: the whole
+        # overnight product premise depends on these two jobs existing.
+        logging.getLogger(__name__).error(
+            "[brick.cron] CRITICAL: crons NOT registered — Brick will not run overnight: %s",
+            _brick_cron_err, exc_info=_brick_cron_err,
+        )
+        print(f"[brick.cron] CRITICAL: Could not register cron — {_brick_cron_err}")
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR     = Path(__file__).parent
@@ -13093,64 +13161,69 @@ async def brick_list_actions():
 
 @app.get("/api/brick/permit")
 async def brick_get_permit():
-    """Return current permit tier + track record stats."""
-    from db.engine import async_session as _async_session
-    from db.models import BrickTrackRecord as _BTR
+    """
+    Current permit tier + track record.
+
+    The aggregation moved into BrickAgent.track_record() in Wave 1 so this screen
+    and the eligibility gate can never disagree about the numbers — they read the
+    same function. Adds failure_count and the recency fields the ladder needs.
+    """
     from services.brick_agent import BrickAgent as _BA_cls
+    from db.engine import async_session as _async_session
     from config import get_current_location_id
-    from sqlalchemy import select as _select, func as _func, and_ as _and
-    import uuid as _uuid
 
     location_id = get_current_location_id()
-    loc_uuid = _uuid.UUID(location_id)
     agent = _BA_cls()
 
     async with _async_session() as session:
         permit = await agent._get_or_create_permit(session, location_id)
         await session.commit()
-
-        # Track record stats
-        total_r = await session.execute(
-            _select(_func.count()).select_from(_BTR)
-            .where(_BTR.location_id == loc_uuid)
-        )
-        total = total_r.scalar() or 0
-
-        success_r = await session.execute(
-            _select(_func.count()).select_from(_BTR)
-            .where(_and(_BTR.location_id == loc_uuid, _BTR.outcome == "success"))
-        )
-        success_count = success_r.scalar() or 0
-
-        rejected_r = await session.execute(
-            _select(_func.count()).select_from(_BTR)
-            .where(_and(_BTR.location_id == loc_uuid, _BTR.outcome == "rejected"))
-        )
-        rejected_count = rejected_r.scalar() or 0
-
-    success_rate = round((success_count / total * 100), 1) if total > 0 else 0.0
+        promoted_at = permit.promoted_at
+        current_tier = permit.current_tier
 
     return JSONResponse({
-        "current_tier": permit.current_tier,
-        "promoted_at": permit.promoted_at.isoformat() if permit.promoted_at else None,
-        "track_record": {
-            "total_actions": total,
-            "success_count": success_count,
-            "rejected_count": rejected_count,
-            "success_rate": success_rate,
-        },
+        "current_tier": current_tier,
+        "promoted_at": promoted_at.isoformat() if promoted_at else None,
+        "track_record": await agent.track_record(location_id),
     })
 
 
-@app.post("/api/brick/permit/promote")
-async def brick_promote():
-    """Advance Brick's permit tier one step."""
+@app.get("/api/brick/eligibility")
+async def brick_eligibility():
+    """
+    What tier Brick could hold, and what is still missing for the next one.
+
+    Returns the whole ladder rather than a single boolean so /permit can say WHY
+    a tier is out of reach instead of just greying out a button.
+    """
     from services.brick_agent import BrickAgent as _BA_cls
     from config import get_current_location_id
 
+    agent = _BA_cls()
+    return JSONResponse(await agent.eligibility(get_current_location_id()))
+
+
+@app.post("/api/brick/permit/promote")
+async def brick_promote(request: Request):
+    """
+    Advance Brick's permit tier one step — gated on the track record.
+
+    409 when the tier has not been earned, with the unmet requirements in the body
+    so the UI can show them. `?override=true` is a deliberate operator decision and
+    is written to the audit trail.
+    """
+    from services.brick_agent import BrickAgent as _BA_cls
+    from config import get_current_location_id
+
+    override = request.query_params.get("override", "").lower() in ("1", "true", "yes")
     location_id = get_current_location_id()
     agent = _BA_cls()
-    result = await agent.promote(location_id, location_id)
+    result = await agent.promote(location_id, location_id, override=override)
+
+    if not result.get("ok"):
+        # 409: the request is well-formed, the current state does not permit it.
+        status = 409 if result.get("unmet") else 400
+        return JSONResponse(result, status_code=status)
     return JSONResponse(result)
 
 

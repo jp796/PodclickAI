@@ -30,6 +30,19 @@ class Settings(BaseSettings):
     # tenant-scoped resources are implemented. Cloud deployments default locked.
     podclick_deployment_mode: str = Field(default="locked")
 
+    # Owner background automation (Brick's 04:00 planning cron, the nightly
+    # Foundation recompute, the release scheduler, the autopilot worker) in a
+    # DEPLOYED install. Separate from podclick_deployment_mode on purpose: that
+    # setting governs the HTTP/WebSocket/media perimeter via DeploymentBoundary,
+    # while this governs internal scheduling only and opens no network surface.
+    #
+    # Before Wave 1 the crons were registered inside a block that returned early
+    # for any non-local mode, so Brick's planning loop had never run anywhere but
+    # a laptop — the entire "wake up to a walk-through" premise was inert in
+    # deployment. Defaults False so the fail-closed posture is unchanged until an
+    # operator opts in; PODCLICK_AUTOMATION_DISABLED=1 still overrides it.
+    podclick_owner_automation: bool = Field(default=False)
+
     # ── Database ──────────────────────────────────────────────────────────────
     database_url: str = Field(
         ...,

@@ -53,6 +53,52 @@ TIER_ORDER: List[str] = [
     "gc",
 ]
 
+# What a tier costs to reach.
+#
+# Before Wave 1, promote() was a bare one-step increment: three clicks took Brick
+# from Owner-Builder to GC with zero completed work behind him, which meant the
+# "trust ladder" had no trust mechanism at all — just a label and a ceremony modal.
+#
+# Draftsman is deliberately free. It only suggests and drafts; nothing executes,
+# so there is no track record to earn first and gating it would be a deadlock —
+# Brick cannot build a record without being allowed to act. Everything above it
+# is earned from brick_track_record.
+#
+# `clean_days` is a recency gate: a tier that lets Brick reach an audience should
+# not be handed over days after a failure.
+TIER_REQUIREMENTS: Dict[str, Dict[str, Any]] = {
+    "owner_builder": {
+        "min_actions": 0,
+        "min_success_rate": 0.0,
+        "clean_days": 0,
+        "rationale": "The floor — Brick does nothing without you. Always reachable.",
+    },
+    "draftsman": {
+        "min_actions": 0,
+        "min_success_rate": 0.0,
+        "clean_days": 0,
+        "rationale": "Suggests and drafts only. Nothing executes, so nothing is owed first.",
+    },
+    "bricklayer": {
+        "min_actions": 5,
+        "min_success_rate": 80.0,
+        "clean_days": 0,
+        "rationale": "Queues drafts for review. A handful of clean drafts first.",
+    },
+    "foreman": {
+        "min_actions": 15,
+        "min_success_rate": 85.0,
+        "clean_days": 7,
+        "rationale": "Publishes and cuts clips — the first tier that reaches an audience.",
+    },
+    "gc": {
+        "min_actions": 40,
+        "min_success_rate": 90.0,
+        "clean_days": 14,
+        "rationale": "Emails guests, pitches sponsors, moves the calendar. Spends your name.",
+    },
+}
+
 # Which tier is required to propose/execute each action type
 ACTION_TIER_MAP: Dict[str, str] = {
     "suggest_post_idea":    "draftsman",
@@ -974,8 +1020,132 @@ class BrickAgent:
 
     # ── Permit management ─────────────────────────────────────────────────────
 
-    async def promote(self, location_id: str, user_id: str) -> Dict[str, Any]:
-        """Advance permit tier one step. Returns new tier."""
+    async def track_record(self, location_id: str) -> Dict[str, Any]:
+        """
+        Aggregate brick_track_record for one location.
+
+        The table is an event log — one row per executed action — not the
+        pre-aggregated counters the SOW sketched, so the numbers are computed here
+        and shared by both the eligibility check and the permit screen.
+        """
+        loc_uuid = uuid.UUID(location_id)
+        async with async_session() as session:
+            rows = await session.execute(
+                select(BrickTrackRecord.outcome, BrickTrackRecord.executed_at).where(
+                    BrickTrackRecord.location_id == loc_uuid
+                )
+            )
+            records = rows.all()
+
+        total = len(records)
+        success = sum(1 for outcome, _ in records if outcome == "success")
+        failure = sum(1 for outcome, _ in records if outcome == "failure")
+        rejected = sum(1 for outcome, _ in records if outcome == "rejected")
+
+        bad_times = [
+            when for outcome, when in records
+            if outcome in ("failure", "rejected") and when is not None
+        ]
+        last_bad = max(bad_times) if bad_times else None
+        days_clean = None
+        if last_bad is not None:
+            reference = datetime.now(last_bad.tzinfo) if last_bad.tzinfo else datetime.utcnow()
+            days_clean = max(0, (reference - last_bad).days)
+
+        return {
+            "total_actions": total,
+            "success_count": success,
+            "failure_count": failure,
+            "rejected_count": rejected,
+            # Rate over ALL recorded actions, so a rejection costs the same as a
+            # failure. Brick asking for the wrong thing is a trust event too.
+            "success_rate": round(success / total * 100, 1) if total else 0.0,
+            "last_setback_at": last_bad.isoformat() if last_bad else None,
+            "days_since_setback": days_clean,
+        }
+
+    async def eligibility(self, location_id: str) -> Dict[str, Any]:
+        """
+        What tier Brick could hold, and what is missing for the next one.
+
+        Returns the whole ladder so the permit screen can show why a tier is out
+        of reach rather than just greying out a button.
+        """
+        async with async_session() as session:
+            permit = await self._get_or_create_permit(session, location_id)
+            await session.commit()
+            current_tier = permit.current_tier
+
+        record = await self.track_record(location_id)
+        ladder = []
+        for tier in TIER_ORDER:
+            req = TIER_REQUIREMENTS[tier]
+            unmet = self._unmet_requirements(req, record)
+            ladder.append({
+                "tier": tier,
+                "rationale": req["rationale"],
+                "requirements": {
+                    "min_actions": req["min_actions"],
+                    "min_success_rate": req["min_success_rate"],
+                    "clean_days": req["clean_days"],
+                },
+                "eligible": not unmet,
+                "unmet": unmet,
+                "is_current": tier == current_tier,
+                "held": _tier_rank(tier) <= _tier_rank(current_tier),
+            })
+
+        rank = _tier_rank(current_tier)
+        next_tier = TIER_ORDER[rank + 1] if rank < len(TIER_ORDER) - 1 else None
+        next_unmet = (
+            self._unmet_requirements(TIER_REQUIREMENTS[next_tier], record)
+            if next_tier else ["Already at GC — the top of the ladder."]
+        )
+
+        return {
+            "current_tier": current_tier,
+            "next_tier": next_tier,
+            "can_promote": bool(next_tier) and not next_unmet,
+            "unmet": next_unmet,
+            "track_record": record,
+            "ladder": ladder,
+        }
+
+    @staticmethod
+    def _unmet_requirements(req: Dict[str, Any], record: Dict[str, Any]) -> List[str]:
+        """Plain-language list of what this tier still needs. Empty means eligible."""
+        unmet: List[str] = []
+        if record["total_actions"] < req["min_actions"]:
+            short = req["min_actions"] - record["total_actions"]
+            unmet.append(
+                f"{short} more completed action{'s' if short != 1 else ''} "
+                f"({record['total_actions']} of {req['min_actions']})"
+            )
+        if req["min_success_rate"] and record["total_actions"]:
+            if record["success_rate"] < req["min_success_rate"]:
+                unmet.append(
+                    f"success rate {record['success_rate']}% is below "
+                    f"{req['min_success_rate']}%"
+                )
+        if req["clean_days"]:
+            days = record["days_since_setback"]
+            if days is not None and days < req["clean_days"]:
+                unmet.append(
+                    f"{req['clean_days'] - days} more clean day"
+                    f"{'s' if req['clean_days'] - days != 1 else ''} since the last setback"
+                )
+        return unmet
+
+    async def promote(
+        self, location_id: str, user_id: str, override: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Advance permit tier one step, gated on the track record.
+
+        `override=True` skips the gate for a deliberate operator decision — it is
+        recorded in the audit trail rather than being silent, because an ungated
+        promotion is exactly the thing this method exists to prevent.
+        """
         async with async_session() as session:
             permit = await self._get_or_create_permit(session, location_id)
             current_rank = _tier_rank(permit.current_tier)
@@ -983,6 +1153,42 @@ class BrickAgent:
                 return {"ok": False, "error": "Already at GC tier", "tier": permit.current_tier}
 
             new_tier = TIER_ORDER[current_rank + 1]
+            record = await self.track_record(location_id)
+            unmet = self._unmet_requirements(TIER_REQUIREMENTS[new_tier], record)
+
+            if unmet and not override:
+                logger.info(
+                    "[brick.permit] Promotion to %s refused for %s — unmet: %s",
+                    new_tier, location_id, "; ".join(unmet),
+                )
+                return {
+                    "ok": False,
+                    "error": f"Brick has not earned {new_tier} yet.",
+                    "tier": permit.current_tier,
+                    "target_tier": new_tier,
+                    "unmet": unmet,
+                    "track_record": record,
+                }
+
+            if unmet and override:
+                from services.audit import write_audit_log
+                await write_audit_log(
+                    location_id,
+                    "brick.permit.override",
+                    {
+                        "from_tier": permit.current_tier,
+                        "to_tier": new_tier,
+                        "unmet": unmet,
+                        "track_record": record,
+                    },
+                    actor_type="user",
+                    actor_id=str(user_id),
+                )
+                logger.warning(
+                    "[brick.permit] OVERRIDE — promoted to %s for %s despite: %s",
+                    new_tier, location_id, "; ".join(unmet),
+                )
+
             permit.current_tier = new_tier
             permit.promoted_at = datetime.utcnow()
             permit.promoted_by = uuid.UUID(user_id)
@@ -990,7 +1196,7 @@ class BrickAgent:
             await session.commit()
 
         logger.info("[brick.permit] Promoted to %s for location %s", new_tier, location_id)
-        return {"ok": True, "tier": new_tier}
+        return {"ok": True, "tier": new_tier, "overridden": bool(unmet and override)}
 
     async def demote(self, location_id: str, user_id: str) -> Dict[str, Any]:
         """Reduce permit tier one step. Returns new tier."""
