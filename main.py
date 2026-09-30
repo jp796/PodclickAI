@@ -26,7 +26,19 @@ from typing import Optional, List
 
 import aiofiles
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, Request, UploadFile, WebSocket, WebSocketDisconnect
+# HTTPException was raised at 70 sites in this file and never imported — every one
+# of those raises would have been a NameError, surfacing as a bare 500 instead of
+# the intended 4xx. Found by a pyflakes undefined-name sweep during Wave 0b.
+from fastapi import (
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -38,6 +50,12 @@ app = FastAPI(title="Podcast Studio")
 from routers.foundation import router as foundation_router  # noqa: E402
 from routers.blueprint import router as blueprint_router  # noqa: E402
 from routers.billing import router as billing_router  # noqa: E402
+
+# Wave 0b — the two trust-floor primitives. write_audit_log replaces twelve
+# copy-pasted raw-SQL blocks that swallowed every failure with `except: pass`;
+# spawn replaces fire-and-forget task creation that let work vanish untraced.
+from services.audit import write_audit_log  # noqa: E402
+from services.task_guard import spawn  # noqa: E402
 
 app.include_router(foundation_router, prefix="/api/foundation", tags=["Foundation"])
 app.include_router(blueprint_router, prefix="/api/blueprint", tags=["Blueprint"])
@@ -113,14 +131,14 @@ async def _startup():
         print("[startup] Studio and owner automation locked pending deployment configuration.")
         return
     from pipeline.scheduler import scheduler_loop
-    asyncio.ensure_future(scheduler_loop())
+    spawn(scheduler_loop(), name="scheduler_loop")
     # Plans are opt-in and durable. The service checks the same automation
     # disable switch as the release queue, including during preview/testing.
-    asyncio.ensure_future(_podcast_autopilot().loop())
+    spawn(_podcast_autopilot().loop(), name="podcast_autopilot")
     # Sweep stale data/uploads/<job_id>/ dirs (default >7 days old)
     # every 6 hours. Keeps disk usage bounded without disturbing
     # recent failed jobs that a user might still retry.
-    asyncio.ensure_future(_uploads_sweep_loop())
+    spawn(_uploads_sweep_loop(), name="uploads_sweep_loop")
 
     # ── Brick daily planning cron (Phase 3A) ──────────────────────────────────
     # Fires at 04:00 America/Chicago every day (user.timezone default).
@@ -768,24 +786,8 @@ async def _auto_create_project(job_id: str, job: dict) -> None:
         session.add(project)
         await session.commit()
         await session.refresh(project)
-
-        # Audit log
-        try:
-            import json as _json_audit, uuid as _uuid_audit
-            import sqlalchemy as _sa_audit
-            async with _async_session() as audit_session:
-                await audit_session.execute(
-                    _sa_audit.text("""
-                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
-                        VALUES (:id, :loc_id, 'project.created', CAST(:payload AS jsonb), now())
-                        ON CONFLICT DO NOTHING
-                    """),
-                    {"id": str(_uuid_audit.uuid4()), "loc_id": str(location_id),
-                     "payload": _json_audit.dumps({"job_id": job_id, "project_id": str(project.id)})},
-                )
-                await audit_session.commit()
-        except Exception:
-            pass  # audit log is best-effort
+        # Audit trail — services/audit.py: never raises, never silent.
+        await write_audit_log(location_id, "project.created", {"job_id": job_id, "project_id": str(project.id)})
 
 
 def _project_to_dict(project) -> dict:
@@ -1149,7 +1151,7 @@ async def create_project_from_upload(
             await session.refresh(project)
 
             # Kick off transcription in the background
-            asyncio.create_task(_run_transcription(str(project_id)))
+            spawn(_run_transcription(str(project_id)), name=f"transcribe:{project_id}")
 
             return JSONResponse(
                 {
@@ -1438,7 +1440,7 @@ async def start_transcription(project_id: str):
                 {"error": "No recording attached to this project"}, status_code=422
             )
 
-    asyncio.create_task(_run_transcription(project_id))
+    spawn(_run_transcription(project_id), name=f"transcribe:{project_id}")
     return JSONResponse({"ok": True, "status": "started"})
 
 
@@ -1483,27 +1485,13 @@ async def transition_project_status(project_id: str, request: Request):
 
         await session.commit()
         await session.refresh(row)
-
-        # Audit log
-        try:
-            import json as _json_audit, uuid as _uuid_audit
-            import sqlalchemy as _sa_audit
-            from services.foundation import _get_default_location_id
-            loc_id = await _get_default_location_id()
-            async with _async_session() as audit_session:
-                await audit_session.execute(
-                    _sa_audit.text("""
-                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
-                        VALUES (:id, :loc_id, :action, CAST(:payload AS jsonb), now())
-                        ON CONFLICT DO NOTHING
-                    """),
-                    {"id": str(_uuid_audit.uuid4()), "loc_id": str(loc_id),
-                     "action": f"project.status.{new_status}",
-                     "payload": _json_audit.dumps({"project_id": str(row.id), "new_status": new_status})},
-                )
-                await audit_session.commit()
-        except Exception:
-            pass
+        # Audit trail — services/audit.py: never raises, never silent.
+        from services.foundation import _get_default_location_id
+        await write_audit_log(
+            await _get_default_location_id(),
+            "project.transition",
+            {"project_id": str(row.id), "new_status": new_status},
+        )
 
         return JSONResponse(_project_to_dict(row))
 
@@ -2094,7 +2082,7 @@ async def start_auto_broll(project_id: str):
     if cur and cur.get("status") == "running":
         return JSONResponse({"ok": True, "status": "running", "message": "Already editing…"})
     _broll_jobs[project_id] = {"status": "running", "step": "queued"}
-    _asyncio.create_task(_run_auto_broll(project_id))
+    spawn(_run_auto_broll(project_id), name=f"auto_broll:{project_id}")
     return JSONResponse({"ok": True, "status": "running",
                          "message": "Brick's adding b-roll — this takes a few minutes."})
 
@@ -2956,7 +2944,7 @@ async def ship_it(project_id: str, request: Request):
             print(f"[ship_it] using edited cut: {_edited_video} ({len(stored_words)} words)")
 
     # Kick off async processing
-    asyncio.create_task(_run_ship_it_async(
+    spawn(_run_ship_it_async(
         project_uuid=project_uuid,
         project_id=project_id,
         job_id=job_id,
@@ -2967,7 +2955,7 @@ async def ship_it(project_id: str, request: Request):
         stored_audio_path=stored_audio_path,
         stored_words=stored_words,
         stored_segments=stored_segments,
-    ))
+    ), name=f"ship_it:{project_uuid}")
 
     return JSONResponse({
         "status": "processing",
@@ -3516,21 +3504,8 @@ async def _run_ship_it_inner(
                         _flag_mod(proj, "legacy_metadata")
                         print(f"[ship_it.chapters] {len(_chapters)} chapter markers stored for project {project_uuid}")
                     await session.commit()
-
-            # Audit log for Foundation call
-            try:
-                import json as _j, sqlalchemy as _sa
-                async with _async_session() as audit_s:
-                    await audit_s.execute(
-                        _sa.text("INSERT INTO audit_log (id, location_id, action, payload, created_at) "
-                                 "VALUES (:id, :loc, 'project.show_notes', CAST(:p AS jsonb), now()) ON CONFLICT DO NOTHING"),
-                        {"id": str(_uuid.uuid4()), "loc": str(location_id),
-                         "p": _j.dumps({"project_id": str(project_uuid), "model": "claude-sonnet-4-5",
-                                        "sample_count": ctx.metadata.sample_count})}
-                    )
-                    await audit_s.commit()
-            except Exception:
-                pass
+            # Audit trail — services/audit.py: never raises, never silent.
+            await write_audit_log(location_id, "project.show_notes", {"project_id": str(project_uuid), "model": "claude-sonnet-4-5", "sample_count": ctx.metadata.sample_count})
 
         except Exception as _sn_err:
             import logging
@@ -3924,7 +3899,7 @@ async def _distribute_project_unlocked(project_id: str, closing_at_ts: float) ->
     YouTube (private). Adds Buzzsprout entry to the release queue so the scheduler
     flips it public at closing_scheduled_at.
 
-    Called from schedule_closing() via asyncio.create_task().
+    Called from schedule_closing() via services.task_guard.spawn().
     WIRE DON'T REWRITE — calls pipeline/upload.py and pipeline/youtube.py unchanged.
     """
     import logging as _log
@@ -4376,15 +4351,15 @@ async def _schedule_closing_legacy(project_id: str, request: Request):
                 _distribution_warnings.append(_yt_moved["message"])
 
     # Guest CRM: update linked guests → 'recorded' (async, non-fatal)
-    asyncio.create_task(_update_guest_statuses(
+    spawn(_update_guest_statuses(
         project_id=project_id,
         guest_ids=project_data.get("guest_ids", []),
         new_status="recorded",
-    ))
+    ), name=f"guest_statuses:{project_id}")
 
     # Create Post rows for the episode (replace prior posts on a re-schedule so
     # changing date/channels doesn't pile up duplicates).
-    asyncio.create_task(_create_closing_posts(
+    spawn(_create_closing_posts(
         project_id=project_id,
         project_uuid=pid,
         platforms=platforms,
@@ -4393,17 +4368,17 @@ async def _schedule_closing_legacy(project_id: str, request: Request):
         title=project_data.get("title", ""),
         show_notes=project_data.get("show_notes", ""),
         replace=_is_reschedule,
-    ))
+    ), name=f"closing_posts:{project_id}")
 
     # Distribution: upload to Buzzsprout (private draft) + YouTube (private).
     # Skip on a re-schedule that already distributed — re-running would create
     # duplicate Buzzsprout/YouTube uploads. Pending provider releases were moved
     # above; already-public episodes keep their visibility.
     if not (_is_reschedule and _already_distributed):
-        asyncio.create_task(_distribute_project(
+        spawn(_distribute_project(
             project_id=project_id,
             closing_at_ts=closing_at_ts,
-        ))
+        ), name=f"distribute:{project_id}")
 
     _when = closing_at.strftime('%B %d at %-I:%M %p')
     if _is_reschedule and _already_distributed:
@@ -5025,7 +5000,7 @@ async def redistribute_project(project_id: str):
         closing_at = proj.closing_scheduled_at
 
     closing_ts = closing_at.timestamp() if closing_at else _time.time()
-    asyncio.create_task(_distribute_project(project_id=project_id, closing_at_ts=closing_ts))
+    spawn(_distribute_project(project_id=project_id, closing_at_ts=closing_ts), name=f"distribute:{project_id}")
     return JSONResponse({
         "ok": True,
         "message": "Re-distributing (Buzzsprout + YouTube + asset package) in the background.",
@@ -5101,7 +5076,7 @@ async def build_asset_package(project_id: str):
             return JSONResponse({"error": "Project not found"}, status_code=404)
         guest_ids = list(project.guest_ids or [])
 
-    asyncio.create_task(_build_guest_asset_package(project_id=project_id))
+    spawn(_build_guest_asset_package(project_id=project_id), name=f"guest_assets:{project_id}")
     return JSONResponse({
         "ok": True,
         "project_id": project_id,
@@ -5172,7 +5147,7 @@ async def build_guest_assets_for_recipient(project_id: str, request: Request):
             flag_modified(project, "guest_ids")
             await session.commit()
 
-    asyncio.create_task(_build_guest_asset_package(project_id=project_id))
+    spawn(_build_guest_asset_package(project_id=project_id), name=f"guest_assets:{project_id}")
     return JSONResponse({
         "ok": True, "guest_id": gid, "recipient": email,
         "message": f"Building {name}'s package — uploading to Drive and drafting the email. This can take a minute.",
@@ -5468,7 +5443,7 @@ async def start_processing(
     }
     job_ws_queues[job_id] = asyncio.Queue()
 
-    asyncio.ensure_future(run_pipeline(job_id, saved_clips, model_size, podcast_name, studio_mode, subtitle_style, episode_number_override))
+    spawn(run_pipeline(job_id, saved_clips, model_size, podcast_name, studio_mode, subtitle_style, episode_number_override), name=f"pipeline:{job_id}")
 
     return JSONResponse({"job_id": job_id, "clips": jobs[job_id]["clips"]})
 
@@ -5579,10 +5554,10 @@ async def retry_from_uploads(
     }
     job_ws_queues[job_id] = asyncio.Queue()
 
-    asyncio.ensure_future(run_pipeline(
+    spawn(run_pipeline(
         job_id, saved_clips, model_size, podcast_name,
         studio_mode, subtitle_style, episode_number_override,
-    ))
+    ), name=f"pipeline:{job_id}")
 
     return JSONResponse({
         "job_id":   job_id,
@@ -5711,7 +5686,7 @@ async def start_upload(payload: dict):
             await tg_send(f"⚠️ *EP. {episode_number} upload failed*\n`{result['error']}`")
         await _send_result(job_id, {"status": job["status"]})
 
-    asyncio.ensure_future(do_upload())
+    spawn(do_upload(), name="buzzsprout_upload")
     return JSONResponse({"status": "uploading"})
 
 
@@ -5814,7 +5789,7 @@ async def schedule_episode(payload: dict):
             await _send_progress(job_id, f"Schedule failed: {result['error']}", "upload_error")
         await _send_result(job_id, {"status": job["status"]})
 
-    asyncio.ensure_future(do_schedule())
+    spawn(do_schedule(), name="buzzsprout_schedule")
     return JSONResponse({"status": "scheduling"})
 
 
@@ -6347,24 +6322,8 @@ Rules:
             messages=[{"role": "user", "content": prompt}],
         )
         text = (message.content[0].text if message.content else "").strip()
-
-        # Audit log (non-blocking)
-        try:
-            import uuid as _uuid
-            async with _async_session() as _audit:
-                await _audit.execute(
-                    __import__("sqlalchemy").text("""
-                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
-                        VALUES (:id, :loc_id, 'sponsor_pitch', CAST(:payload AS jsonb), now())
-                        ON CONFLICT DO NOTHING
-                    """),
-                    {"id": str(_uuid.uuid4()), "loc_id": location_id,
-                     "payload": _json.dumps({"topic": topic_str, "model": "claude-sonnet-4-5",
-                                             "sample_count": ctx.metadata.sample_count})},
-                )
-                await _audit.commit()
-        except Exception:
-            pass
+        # Audit trail — services/audit.py: never raises, never silent.
+        await write_audit_log(location_id, "sponsor_pitch", {"topic": topic_str, "model": "claude-sonnet-4-5", "sample_count": ctx.metadata.sample_count})
 
         return JSONResponse({
             "outreach": text,
@@ -6773,30 +6732,8 @@ async def generate_asset_email(guest_id: str):
             return JSONResponse({"error": str(exc), "foundation_not_ready": True}, status_code=422)
 
     email_text, used_foundation, sample_count = await _compose_guest_asset_email(guest)
-
-    # Audit log (non-blocking)
-    try:
-        import uuid as _uuid
-        async with _async_session() as _audit:
-            await _audit.execute(
-                __import__("sqlalchemy").text("""
-                    INSERT INTO audit_log (id, location_id, action, payload, created_at)
-                    VALUES (:id, :loc_id, 'guest_asset_email', CAST(:payload AS jsonb), now())
-                    ON CONFLICT DO NOTHING
-                """),
-                {
-                    "id": str(_uuid.uuid4()),
-                    "loc_id": location_id,
-                    "payload": _json.dumps({
-                        "topic": f"guest asset email for {guest['name']}",
-                        "model": "claude-sonnet-4-5",
-                        "sample_count": sample_count,
-                    }),
-                },
-            )
-            await _audit.commit()
-    except Exception:
-        pass
+    # Audit trail — services/audit.py: never raises, never silent.
+    await write_audit_log(location_id, "guest_asset_email", { "topic": f"guest asset email for {guest['name']}", "model": "claude-sonnet-4-5", "sample_count": sample_count, })
 
     return JSONResponse({
         "email": email_text,
@@ -7002,7 +6939,7 @@ async def start_clip_job(video: UploadFile = File(...),
         "error":      None,
     }
     clip_ws_queues[job_id] = asyncio.Queue()
-    asyncio.ensure_future(run_clip_job(job_id, tmp.name, model_size, num_clips))
+    spawn(run_clip_job(job_id, tmp.name, model_size, num_clips), name=f"clip_job:{job_id}")
     return JSONResponse({"job_id": job_id, "filename": video.filename})
 
 
@@ -7051,7 +6988,7 @@ async def post_clip_to_tiktok(job_id: str, payload: dict):
             clip["tiktok_status"] = "error"
             clip["tiktok_error"]  = str(exc)
 
-    asyncio.ensure_future(do_post())
+    spawn(do_post(), name="social_post")
     return JSONResponse({"status": "posting"})
 
 
@@ -7374,7 +7311,7 @@ async def transcribe_file(
             try: os.unlink(tmp.name)
             except: pass
 
-    asyncio.ensure_future(do_transcribe())
+    spawn(do_transcribe(), name="transcribe_upload")
     return JSONResponse(record, status_code=202)
 
 
@@ -7829,7 +7766,7 @@ async def vsl_render(
             _VSL_JOBS[job_id]["status"] = "error"
             _VSL_JOBS[job_id]["error"]  = str(exc)
 
-    asyncio.create_task(_render_bg())
+    spawn(_render_bg(), name="vsl_render")
     return JSONResponse({"job_id": job_id, "status": "running"})
 
 
@@ -8334,24 +8271,8 @@ async def studio_show_notes(request: Request):
             messages=[{"role": "user", "content": user_prompt}],
         )
         show_notes = (message.content[0].text if message.content else "").strip()
-
-        # Audit log (non-blocking)
-        try:
-            import uuid as _uuid
-            async with _async_session() as _audit:
-                await _audit.execute(
-                    __import__("sqlalchemy").text("""
-                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
-                        VALUES (:id, :loc_id, 'show_notes', CAST(:payload AS jsonb), now())
-                        ON CONFLICT DO NOTHING
-                    """),
-                    {"id": str(_uuid.uuid4()), "loc_id": location_id,
-                     "payload": _json.dumps({"topic": (topic or title), "model": "claude-sonnet-4-5",
-                                             "sample_count": ctx.metadata.sample_count})},
-                )
-                await _audit.commit()
-        except Exception:
-            pass
+        # Audit trail — services/audit.py: never raises, never silent.
+        await write_audit_log(location_id, "show_notes", {"topic": (topic or title), "model": "claude-sonnet-4-5", "sample_count": ctx.metadata.sample_count})
 
         return JSONResponse({
             "show_notes": show_notes,
@@ -9055,14 +8976,14 @@ async def automation_ingest(request: Request):
     }]
 
     # Kick off pipeline in background
-    asyncio.ensure_future(run_pipeline(
+    spawn(run_pipeline(
         job_id=job_id,
         clips=clips,
         model_size="base",
         podcast_name=podcast_name,
         studio_mode="audio",
         episode_number_override=episode_number,
-    ))
+    ), name=f"pipeline:{job_id}")
 
     return JSONResponse({
         "ok":     True,
@@ -9237,24 +9158,8 @@ async def social_hashtags_generate(request: Request):
         os.makedirs("data", exist_ok=True)
         with open(_SOCIAL_HASHTAGS_PATH, "w") as f:
             _json.dump(result, f, indent=2)
-
-        # Audit log (non-blocking)
-        try:
-            import uuid as _uuid
-            async with _async_session() as _audit:
-                await _audit.execute(
-                    __import__("sqlalchemy").text("""
-                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
-                        VALUES (:id, :loc_id, 'hashtag_set', CAST(:payload AS jsonb), now())
-                        ON CONFLICT DO NOTHING
-                    """),
-                    {"id": str(_uuid.uuid4()), "loc_id": location_id,
-                     "payload": _json.dumps({"topic": (niche_input or market), "model": "claude-sonnet-4-5",
-                                             "sample_count": ctx.metadata.sample_count})},
-                )
-                await _audit.commit()
-        except Exception:
-            pass
+        # Audit trail — services/audit.py: never raises, never silent.
+        await write_audit_log(location_id, "hashtag_set", {"topic": (niche_input or market), "model": "claude-sonnet-4-5", "sample_count": ctx.metadata.sample_count})
 
         result["_foundation_thin"] = ctx.metadata.sample_count < 15
         result["_sample_count"] = ctx.metadata.sample_count
@@ -9416,32 +9321,8 @@ async def social_forge(request: Request):
         raw = _re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=_re.IGNORECASE)
         raw = _re.sub(r"\s*```$", "", raw.strip())
         posts = _json.loads(raw.strip())
-
-        # ── 6. Audit log ─────────────────────────────────────────────────────
-        try:
-            import uuid as _uuid
-            async with _async_session() as audit_session:
-                await audit_session.execute(
-                    __import__("sqlalchemy").text("""
-                        INSERT INTO audit_log
-                            (id, location_id, action, payload, created_at)
-                        VALUES
-                            (:id, :loc_id, 'forge_post', CAST(:payload AS jsonb), now())
-                        ON CONFLICT DO NOTHING
-                    """),
-                    {
-                        "id": str(_uuid.uuid4()),
-                        "loc_id": location_id,
-                        "payload": _json.dumps({
-                            "mode": mode, "topic": topic, "model": "claude-sonnet-4-5",
-                            "sample_count": ctx.metadata.sample_count,
-                            "foundation_score": ctx.foundation_score,
-                        }),
-                    },
-                )
-                await audit_session.commit()
-        except Exception:
-            pass  # audit log failure must never block content delivery
+        # Audit trail — services/audit.py: never raises, never silent.
+        await write_audit_log(location_id, "forge_post", { "mode": mode, "topic": topic, "model": "claude-sonnet-4-5", "sample_count": ctx.metadata.sample_count, "foundation_score": ctx.foundation_score, })
 
         return JSONResponse({
             "linkedin":          posts.get("linkedin", ""),
@@ -9620,29 +9501,8 @@ async def social_repurpose(request: Request):
         raw = _re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=_re.IGNORECASE)
         raw = _re.sub(r"\s*```$", "", raw.strip())
         result = _json.loads(raw.strip())
-
-        # Audit log (non-blocking)
-        try:
-            import uuid as _uuid
-            async with _async_session() as _audit:
-                await _audit.execute(
-                    __import__("sqlalchemy").text("""
-                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
-                        VALUES (:id, :loc_id, 'repurpose_social', CAST(:payload AS jsonb), now())
-                        ON CONFLICT DO NOTHING
-                    """),
-                    {
-                        "id": str(_uuid.uuid4()),
-                        "loc_id": location_id,
-                        "payload": _json.dumps({
-                            "topic": topic_for_ctx, "model": "claude-sonnet-4-5",
-                            "sample_count": ctx.metadata.sample_count,
-                        }),
-                    },
-                )
-                await _audit.commit()
-        except Exception:
-            pass
+        # Audit trail — services/audit.py: never raises, never silent.
+        await write_audit_log(location_id, "repurpose_social", { "topic": topic_for_ctx, "model": "claude-sonnet-4-5", "sample_count": ctx.metadata.sample_count, })
 
         return JSONResponse({
             "angles": result.get("angles", []),
@@ -10356,8 +10216,11 @@ async def ghl_publish_multi(request: Request):
     # Enqueue arq jobs with stagger delay
     try:
         from arq import create_pool
+        from config import settings as _arq_settings
         from workers.publish_worker import WorkerSettings as _WS
-        redis = await create_pool(settings.redis_url if hasattr(settings, "redis_url") else None or _WS.redis_settings)
+        redis = await create_pool(
+            getattr(_arq_settings, "redis_url", None) or _WS.redis_settings
+        )
         for item in enqueued:
             await redis.enqueue_job(
                 "publish_variant",
@@ -10405,9 +10268,9 @@ async def start_competitor_spy(request: Request):
         "audience":       audience,
     }
 
-    asyncio.create_task(
+    spawn(
         _run_competitor_spy(job_id, city, audience, channels, yt_api_key)
-    )
+    , name=f"competitor_spy:{job_id}")
 
     return JSONResponse({"job_id": job_id, "status": "running"})
 
@@ -11392,24 +11255,8 @@ async def yt_script_formula(req: Request):
         raw = _re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=_re.IGNORECASE)
         raw = _re.sub(r"\s*```$", "", raw.strip())
         result = _json.loads(raw.strip())
-
-        # Audit log (non-blocking)
-        try:
-            import uuid as _uuid
-            async with _async_session() as _audit:
-                await _audit.execute(
-                    __import__("sqlalchemy").text("""
-                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
-                        VALUES (:id, :loc_id, 'script_formula', CAST(:payload AS jsonb), now())
-                        ON CONFLICT DO NOTHING
-                    """),
-                    {"id": str(_uuid.uuid4()), "loc_id": location_id,
-                     "payload": _json.dumps({"topic": topic, "model": "claude-sonnet-4-5",
-                                             "sample_count": ctx.metadata.sample_count})},
-                )
-                await _audit.commit()
-        except Exception:
-            pass
+        # Audit trail — services/audit.py: never raises, never silent.
+        await write_audit_log(location_id, "script_formula", {"topic": topic, "model": "claude-sonnet-4-5", "sample_count": ctx.metadata.sample_count})
 
         result["_foundation_thin"] = ctx.metadata.sample_count < 15
         result["_sample_count"] = ctx.metadata.sample_count
@@ -11621,29 +11468,8 @@ Return ONLY valid JSON:
         raw = _re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=_re.IGNORECASE)
         raw = _re.sub(r"\s*```$", "", raw.strip())
         result = _json.loads(raw.strip())
-
-        # Audit log (non-blocking)
-        try:
-            import uuid as _uuid
-            async with _async_session() as _audit:
-                await _audit.execute(
-                    __import__("sqlalchemy").text("""
-                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
-                        VALUES (:id, :loc_id, 'cover_forge', CAST(:payload AS jsonb), now())
-                        ON CONFLICT DO NOTHING
-                    """),
-                    {
-                        "id": str(_uuid.uuid4()),
-                        "loc_id": location_id,
-                        "payload": _json.dumps({
-                            "topic": topic, "model": "claude-sonnet-4-5",
-                            "sample_count": ctx.metadata.sample_count,
-                        }),
-                    },
-                )
-                await _audit.commit()
-        except Exception:
-            pass
+        # Audit trail — services/audit.py: never raises, never silent.
+        await write_audit_log(location_id, "cover_forge", { "topic": topic, "model": "claude-sonnet-4-5", "sample_count": ctx.metadata.sample_count, })
 
         result["_foundation_thin"] = ctx.metadata.sample_count < 15
         result["_sample_count"] = ctx.metadata.sample_count
@@ -11743,29 +11569,8 @@ Return ONLY valid JSON."""
         raw = _re.sub(r"^```(?:json)?\s*", "", raw.strip(), flags=_re.IGNORECASE)
         raw = _re.sub(r"\s*```$", "", raw.strip())
         result = _json.loads(raw.strip())
-
-        # Audit log (non-blocking)
-        try:
-            import uuid as _uuid
-            async with _async_session() as _audit:
-                await _audit.execute(
-                    __import__("sqlalchemy").text("""
-                        INSERT INTO audit_log (id, location_id, action, payload, created_at)
-                        VALUES (:id, :loc_id, 'repurpose_yt', CAST(:payload AS jsonb), now())
-                        ON CONFLICT DO NOTHING
-                    """),
-                    {
-                        "id": str(_uuid.uuid4()),
-                        "loc_id": location_id,
-                        "payload": _json.dumps({
-                            "topic": topic, "model": "claude-sonnet-4-5",
-                            "sample_count": ctx.metadata.sample_count,
-                        }),
-                    },
-                )
-                await _audit.commit()
-        except Exception:
-            pass
+        # Audit trail — services/audit.py: never raises, never silent.
+        await write_audit_log(location_id, "repurpose_yt", { "topic": topic, "model": "claude-sonnet-4-5", "sample_count": ctx.metadata.sample_count, })
 
         result["_foundation_thin"] = ctx.metadata.sample_count < 15
         result["_sample_count"] = ctx.metadata.sample_count
