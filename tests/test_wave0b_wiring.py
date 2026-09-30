@@ -64,16 +64,31 @@ def test_main_has_twentythree_guarded_task_sites():
 
 
 def test_every_audit_call_passes_an_action():
-    """write_audit_log(location, action, payload) — action is positional arg 2."""
+    """
+    write_audit_log(location, action, payload) — action is positional arg 2.
+
+    An f-string action is allowed. The original assertion here demanded an
+    ast.Constant, and that had a consequence worth recording: the
+    project.transition site previously built a dynamic
+    `f"project.status.{new_status}"`, and satisfying this test is what flattened
+    it to a literal. Forbidding dynamic actions was never a real requirement —
+    the real one is that every call names a non-empty action — so the test now
+    says that instead of shaping the code around itself.
+    """
     for node, name in _calls(REPO / "main.py"):
         if name != "write_audit_log":
             continue
         assert len(node.args) >= 2, f"line {node.lineno}: missing action argument"
         action = node.args[1]
-        assert isinstance(action, ast.Constant) and isinstance(action.value, str), (
-            f"line {node.lineno}: action must be a literal string"
-        )
-        assert action.value, f"line {node.lineno}: action is empty"
+        if isinstance(action, ast.Constant):
+            assert isinstance(action.value, str) and action.value, (
+                f"line {node.lineno}: action must be a non-empty string"
+            )
+        else:
+            assert isinstance(action, ast.JoinedStr), (
+                f"line {node.lineno}: action must be a string literal or f-string, "
+                f"got {type(action).__name__}"
+            )
 
 
 def test_every_spawn_passes_a_name():

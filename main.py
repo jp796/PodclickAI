@@ -56,6 +56,7 @@ from routers.billing import router as billing_router  # noqa: E402
 # spawn replaces fire-and-forget task creation that let work vanish untraced.
 from services.audit import write_audit_log  # noqa: E402
 from services.task_guard import spawn  # noqa: E402
+from services.task_outcome import on_task_failure  # noqa: E402
 
 app.include_router(foundation_router, prefix="/api/foundation", tags=["Foundation"])
 app.include_router(blueprint_router, prefix="/api/blueprint", tags=["Blueprint"])
@@ -131,14 +132,14 @@ async def _startup():
         print("[startup] Studio and owner automation locked pending deployment configuration.")
         return
     from pipeline.scheduler import scheduler_loop
-    spawn(scheduler_loop(), name="scheduler_loop")
+    spawn(scheduler_loop(), name="scheduler_loop", on_failure=on_task_failure("scheduler_loop"))
     # Plans are opt-in and durable. The service checks the same automation
     # disable switch as the release queue, including during preview/testing.
-    spawn(_podcast_autopilot().loop(), name="podcast_autopilot")
+    spawn(_podcast_autopilot().loop(), name="podcast_autopilot", on_failure=on_task_failure("podcast_autopilot"))
     # Sweep stale data/uploads/<job_id>/ dirs (default >7 days old)
     # every 6 hours. Keeps disk usage bounded without disturbing
     # recent failed jobs that a user might still retry.
-    spawn(_uploads_sweep_loop(), name="uploads_sweep_loop")
+    spawn(_uploads_sweep_loop(), name="uploads_sweep_loop", on_failure=on_task_failure("uploads_sweep_loop"))
 
     # ── Brick daily planning cron (Phase 3A) ──────────────────────────────────
     # Fires at 04:00 America/Chicago every day (user.timezone default).
@@ -1151,7 +1152,7 @@ async def create_project_from_upload(
             await session.refresh(project)
 
             # Kick off transcription in the background
-            spawn(_run_transcription(str(project_id)), name=f"transcribe:{project_id}")
+            spawn(_run_transcription(str(project_id)), name=f"transcribe:{project_id}", on_failure=on_task_failure("transcribe", project_id=project_id, fail_transcription=True))
 
             return JSONResponse(
                 {
@@ -1440,7 +1441,7 @@ async def start_transcription(project_id: str):
                 {"error": "No recording attached to this project"}, status_code=422
             )
 
-    spawn(_run_transcription(project_id), name=f"transcribe:{project_id}")
+    spawn(_run_transcription(project_id), name=f"transcribe:{project_id}", on_failure=on_task_failure("transcribe", project_id=project_id, fail_transcription=True))
     return JSONResponse({"ok": True, "status": "started"})
 
 
@@ -1486,6 +1487,10 @@ async def transition_project_status(project_id: str, request: Request):
         await session.commit()
         await session.refresh(row)
         # Audit trail — services/audit.py: never raises, never silent.
+        # The action is the event TYPE and the payload carries the detail. The
+        # pre-Wave-0b code built a dynamic `f"project.status.{new_status}"`,
+        # which put N values behind idx_audit_log_action for one logical event.
+        # `new_status` is queryable as payload->>'new_status' instead.
         from services.foundation import _get_default_location_id
         await write_audit_log(
             await _get_default_location_id(),
@@ -2073,7 +2078,7 @@ async def _run_auto_broll(project_id: str):
 @app.post("/api/projects/{project_id}/auto-broll")
 async def start_auto_broll(project_id: str):
     """Kick off the AI b-roll auto-edit for a project (background). Poll GET to track."""
-    import uuid as _uuid, asyncio as _asyncio
+    import uuid as _uuid
     try:
         _uuid.UUID(project_id)
     except ValueError:
@@ -2082,7 +2087,7 @@ async def start_auto_broll(project_id: str):
     if cur and cur.get("status") == "running":
         return JSONResponse({"ok": True, "status": "running", "message": "Already editing…"})
     _broll_jobs[project_id] = {"status": "running", "step": "queued"}
-    spawn(_run_auto_broll(project_id), name=f"auto_broll:{project_id}")
+    spawn(_run_auto_broll(project_id), name=f"auto_broll:{project_id}", on_failure=on_task_failure("auto_broll", project_id=project_id))
     return JSONResponse({"ok": True, "status": "running",
                          "message": "Brick's adding b-roll — this takes a few minutes."})
 
@@ -2955,7 +2960,7 @@ async def ship_it(project_id: str, request: Request):
         stored_audio_path=stored_audio_path,
         stored_words=stored_words,
         stored_segments=stored_segments,
-    ), name=f"ship_it:{project_uuid}")
+    ), name=f"ship_it:{project_uuid}", on_failure=on_task_failure("ship_it", project_id=project_id, fail_project=True))
 
     return JSONResponse({
         "status": "processing",
@@ -3244,7 +3249,6 @@ async def _run_ship_it_inner(
     from services.foundation import get_brand_context, assert_foundation_ready
     from schemas.foundation import BrandContextTaskType as _TaskType
     import anthropic as _anthropic
-    import uuid as _uuid
     from config import settings as _settings
 
     # Load job data (words + segments) from in-memory jobs dict if available
@@ -4355,7 +4359,7 @@ async def _schedule_closing_legacy(project_id: str, request: Request):
         project_id=project_id,
         guest_ids=project_data.get("guest_ids", []),
         new_status="recorded",
-    ), name=f"guest_statuses:{project_id}")
+    ), name=f"guest_statuses:{project_id}", on_failure=on_task_failure("guest_statuses", project_id=project_id))
 
     # Create Post rows for the episode (replace prior posts on a re-schedule so
     # changing date/channels doesn't pile up duplicates).
@@ -4368,7 +4372,7 @@ async def _schedule_closing_legacy(project_id: str, request: Request):
         title=project_data.get("title", ""),
         show_notes=project_data.get("show_notes", ""),
         replace=_is_reschedule,
-    ), name=f"closing_posts:{project_id}")
+    ), name=f"closing_posts:{project_id}", on_failure=on_task_failure("closing_posts", project_id=project_id))
 
     # Distribution: upload to Buzzsprout (private draft) + YouTube (private).
     # Skip on a re-schedule that already distributed — re-running would create
@@ -4378,7 +4382,7 @@ async def _schedule_closing_legacy(project_id: str, request: Request):
         spawn(_distribute_project(
             project_id=project_id,
             closing_at_ts=closing_at_ts,
-        ), name=f"distribute:{project_id}")
+        ), name=f"distribute:{project_id}", on_failure=on_task_failure("distribute", project_id=project_id))
 
     _when = closing_at.strftime('%B %d at %-I:%M %p')
     if _is_reschedule and _already_distributed:
@@ -5000,7 +5004,7 @@ async def redistribute_project(project_id: str):
         closing_at = proj.closing_scheduled_at
 
     closing_ts = closing_at.timestamp() if closing_at else _time.time()
-    spawn(_distribute_project(project_id=project_id, closing_at_ts=closing_ts), name=f"distribute:{project_id}")
+    spawn(_distribute_project(project_id=project_id, closing_at_ts=closing_ts), name=f"distribute:{project_id}", on_failure=on_task_failure("distribute", project_id=project_id))
     return JSONResponse({
         "ok": True,
         "message": "Re-distributing (Buzzsprout + YouTube + asset package) in the background.",
@@ -5076,7 +5080,7 @@ async def build_asset_package(project_id: str):
             return JSONResponse({"error": "Project not found"}, status_code=404)
         guest_ids = list(project.guest_ids or [])
 
-    spawn(_build_guest_asset_package(project_id=project_id), name=f"guest_assets:{project_id}")
+    spawn(_build_guest_asset_package(project_id=project_id), name=f"guest_assets:{project_id}", on_failure=on_task_failure("guest_assets", project_id=project_id))
     return JSONResponse({
         "ok": True,
         "project_id": project_id,
@@ -5147,7 +5151,7 @@ async def build_guest_assets_for_recipient(project_id: str, request: Request):
             flag_modified(project, "guest_ids")
             await session.commit()
 
-    spawn(_build_guest_asset_package(project_id=project_id), name=f"guest_assets:{project_id}")
+    spawn(_build_guest_asset_package(project_id=project_id), name=f"guest_assets:{project_id}", on_failure=on_task_failure("guest_assets", project_id=project_id))
     return JSONResponse({
         "ok": True, "guest_id": gid, "recipient": email,
         "message": f"Building {name}'s package — uploading to Drive and drafting the email. This can take a minute.",
@@ -5443,7 +5447,7 @@ async def start_processing(
     }
     job_ws_queues[job_id] = asyncio.Queue()
 
-    spawn(run_pipeline(job_id, saved_clips, model_size, podcast_name, studio_mode, subtitle_style, episode_number_override), name=f"pipeline:{job_id}")
+    spawn(run_pipeline(job_id, saved_clips, model_size, podcast_name, studio_mode, subtitle_style, episode_number_override), name=f"pipeline:{job_id}", on_failure=on_task_failure("pipeline", registry=jobs, job_id=job_id))
 
     return JSONResponse({"job_id": job_id, "clips": jobs[job_id]["clips"]})
 
@@ -5557,7 +5561,7 @@ async def retry_from_uploads(
     spawn(run_pipeline(
         job_id, saved_clips, model_size, podcast_name,
         studio_mode, subtitle_style, episode_number_override,
-    ), name=f"pipeline:{job_id}")
+    ), name=f"pipeline:{job_id}", on_failure=on_task_failure("pipeline", registry=jobs, job_id=job_id))
 
     return JSONResponse({
         "job_id":   job_id,
@@ -5686,7 +5690,7 @@ async def start_upload(payload: dict):
             await tg_send(f"⚠️ *EP. {episode_number} upload failed*\n`{result['error']}`")
         await _send_result(job_id, {"status": job["status"]})
 
-    spawn(do_upload(), name="buzzsprout_upload")
+    spawn(do_upload(), name="buzzsprout_upload", on_failure=on_task_failure("buzzsprout_upload", registry=jobs, job_id=job_id))
     return JSONResponse({"status": "uploading"})
 
 
@@ -5789,7 +5793,7 @@ async def schedule_episode(payload: dict):
             await _send_progress(job_id, f"Schedule failed: {result['error']}", "upload_error")
         await _send_result(job_id, {"status": job["status"]})
 
-    spawn(do_schedule(), name="buzzsprout_schedule")
+    spawn(do_schedule(), name="buzzsprout_schedule", on_failure=on_task_failure("buzzsprout_schedule", registry=jobs, job_id=job_id))
     return JSONResponse({"status": "scheduling"})
 
 
@@ -6234,7 +6238,6 @@ async def log_sponsor_episode(sponsor_id: str, request: Request):
 @app.get("/api/sponsors/{sponsor_id}/outreach")
 async def generate_outreach(sponsor_id: str):
     """Generate a personalized cold-pitch email — Foundation-powered."""
-    import json as _json
     import anthropic as _anthropic
     from db.engine import async_session as _async_session
     from config import get_current_location_id as _get_loc, settings as _settings
@@ -6710,7 +6713,6 @@ async def generate_asset_email(guest_id: str):
     Links are injected deterministically — the model never writes URLs.
     Delegates to _compose_guest_asset_email (single source of truth).
     """
-    import json as _json
     items = _load_guests()
     guest = next((g for g in items if g["id"] == guest_id), None)
     if not guest:
@@ -6733,7 +6735,7 @@ async def generate_asset_email(guest_id: str):
 
     email_text, used_foundation, sample_count = await _compose_guest_asset_email(guest)
     # Audit trail — services/audit.py: never raises, never silent.
-    await write_audit_log(location_id, "guest_asset_email", { "topic": f"guest asset email for {guest['name']}", "model": "claude-sonnet-4-5", "sample_count": sample_count, })
+    await write_audit_log(location_id, "guest_asset_email", { "topic": f"guest asset email for {guest.get('name', 'unknown')}", "model": "claude-sonnet-4-5", "sample_count": sample_count, })
 
     return JSONResponse({
         "email": email_text,
@@ -6939,7 +6941,7 @@ async def start_clip_job(video: UploadFile = File(...),
         "error":      None,
     }
     clip_ws_queues[job_id] = asyncio.Queue()
-    spawn(run_clip_job(job_id, tmp.name, model_size, num_clips), name=f"clip_job:{job_id}")
+    spawn(run_clip_job(job_id, tmp.name, model_size, num_clips), name=f"clip_job:{job_id}", on_failure=on_task_failure("clip_job", registry=clip_jobs, job_id=job_id))
     return JSONResponse({"job_id": job_id, "filename": video.filename})
 
 
@@ -6988,7 +6990,7 @@ async def post_clip_to_tiktok(job_id: str, payload: dict):
             clip["tiktok_status"] = "error"
             clip["tiktok_error"]  = str(exc)
 
-    spawn(do_post(), name="social_post")
+    spawn(do_post(), name="social_post", on_failure=on_task_failure("social_post", registry=clip_jobs, job_id=job_id))
     return JSONResponse({"status": "posting"})
 
 
@@ -7311,7 +7313,7 @@ async def transcribe_file(
             try: os.unlink(tmp.name)
             except: pass
 
-    spawn(do_transcribe(), name="transcribe_upload")
+    spawn(do_transcribe(), name="transcribe_upload", on_failure=on_task_failure("transcribe_upload"))
     return JSONResponse(record, status_code=202)
 
 
@@ -7766,7 +7768,7 @@ async def vsl_render(
             _VSL_JOBS[job_id]["status"] = "error"
             _VSL_JOBS[job_id]["error"]  = str(exc)
 
-    spawn(_render_bg(), name="vsl_render")
+    spawn(_render_bg(), name="vsl_render", on_failure=on_task_failure("vsl_render", registry=_VSL_JOBS, job_id=job_id))
     return JSONResponse({"job_id": job_id, "status": "running"})
 
 
@@ -8173,7 +8175,6 @@ async def studio_show_notes(request: Request):
       market    str — target market / city
       script    str — episode script (optional, used to extract real talking points)
     """
-    import json as _json
     import re as _re
     import anthropic as _anthropic
     from db.engine import async_session as _async_session
@@ -8983,7 +8984,7 @@ async def automation_ingest(request: Request):
         podcast_name=podcast_name,
         studio_mode="audio",
         episode_number_override=episode_number,
-    ), name=f"pipeline:{job_id}")
+    ), name=f"pipeline:{job_id}", on_failure=on_task_failure("pipeline", registry=jobs, job_id=job_id))
 
     return JSONResponse({
         "ok":     True,
@@ -10270,7 +10271,7 @@ async def start_competitor_spy(request: Request):
 
     spawn(
         _run_competitor_spy(job_id, city, audience, channels, yt_api_key)
-    , name=f"competitor_spy:{job_id}")
+    , name=f"competitor_spy:{job_id}", on_failure=on_task_failure("competitor_spy", registry=yt_spy_jobs, job_id=job_id))
 
     return JSONResponse({"job_id": job_id, "status": "running"})
 

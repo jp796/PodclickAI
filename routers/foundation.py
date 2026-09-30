@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config import get_current_location_id, settings
 from db.engine import get_db, async_session
 from services.task_guard import spawn
+from services.task_outcome import on_task_failure
 from schemas.foundation import (
     BrandContext,
     BrandContextTaskType,
@@ -84,7 +85,7 @@ async def route_ingest(
         )
         # Fire-and-forget: recompute Foundation score after every ingest.
         # Runs in background — does not block or affect this response.
-        spawn(_bg_recompute_score(location_id), name=f"foundation_score:{location_id}")
+        spawn(_bg_recompute_score(location_id), name=f"foundation_score:{location_id}", on_failure=on_task_failure("foundation_score", location_id=location_id))
         return result
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
@@ -224,7 +225,7 @@ async def route_transcribe_and_ingest(
         )
 
         # Fire-and-forget: recompute Foundation score after transcription ingest.
-        spawn(_bg_recompute_score(location_id), name=f"foundation_score:{location_id}")
+        spawn(_bg_recompute_score(location_id), name=f"foundation_score:{location_id}", on_failure=on_task_failure("foundation_score", location_id=location_id))
 
         return {
             "sample_id": result.sample_id,

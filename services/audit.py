@@ -155,6 +155,18 @@ async def write_audit_log(
         _health["failed"] += 1
         logger.error("[audit] database error writing action %r: %s", action, exc)
         return False
+    except Exception as exc:
+        # "Never raises" has to mean never. Twelve call sites in main.py now sit
+        # outside any try/except of their own, so anything that escapes here —
+        # a driver error that is not a SQLAlchemyError, a TypeError building the
+        # row, a cancellation of the surrounding request — would turn an audit
+        # hiccup into a 500 on work that already succeeded. Caught narrowly
+        # before this for precise messages; caught broadly here for the contract.
+        _health["failed"] += 1
+        logger.error(
+            "[audit] unexpected %s writing action %r: %s", type(exc).__name__, action, exc
+        )
+        return False
     _health["written"] += 1
     logger.debug("[audit] recorded %r (actor=%s)", action, actor_type)
     return True
