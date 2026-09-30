@@ -17,3 +17,15 @@ data/
 .DS_Store
 .vscode/
 .idea/
+
+# Node dependencies — reos-atlas-trace-demo/node_modules alone is 648MB / 16,729 files.
+# Absent from this file until 2026-09-30; a single `git add .` would have tried to push it.
+node_modules/
+bun.lock
+
+# Interceptor verification screenshots land in the repo root
+interceptor-screenshot-*.png
+
+# Test/tooling caches
+.pytest_cache/
+*.egg-info/
