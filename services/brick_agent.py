@@ -53,6 +53,22 @@ TIER_ORDER: List[str] = [
     "gc",
 ]
 
+# Dispatch results that mean "nothing actually happened."
+#
+# These earn no brick_track_record row. The distinction matters because Wave 1
+# made total_actions and success_rate the promotion gate: counting a no-op or a
+# skipped precondition as a success would let Brick climb the ladder on work he
+# never did, and counting it as a failure would punish him for a missing TikTok
+# token. Neither is true, so neither is recorded.
+NON_WORK_STATUSES = frozenset({
+    "no_op",          # unknown action_type fell through the dispatch table
+    "skipped",        # precondition absent (no rendered clip, no linked guest)
+    "needs_tiktok",   # a human must reconnect an account
+    "needs_gmail",
+    "needs_account",
+})
+
+
 # What a tier costs to reach.
 #
 # Before Wave 1, promote() was a bare one-step increment: three clicks took Brick
@@ -435,17 +451,52 @@ class BrickAgent:
                     f"{action.action_type} (requires {required_tier})"
                 )
 
-            # Phase 3A: only draftsman-tier actions (draft_post, suggest) are implemented
-            result = await self._dispatch_action(action, session)
+            try:
+                result = await self._dispatch_action(action, session)
+            except Exception as dispatch_err:
+                # A raised dispatch used to write NO track record at all, which
+                # made success_rate structurally 100% — a failure could not
+                # lower it. Wave 1 turned that rate into the promotion gate, so
+                # the omission stopped being cosmetic. Record, then re-raise so
+                # the caller still surfaces the error.
+                action.status = "failed"
+                session.add(BrickTrackRecord(
+                    location_id=action.location_id,
+                    action_type=action.action_type,
+                    outcome="failure",
+                    action_metadata={
+                        "action_id": action_id,
+                        "error": f"{type(dispatch_err).__name__}: {dispatch_err}"[:500],
+                    },
+                ))
+                await session.commit()
+                logger.error(
+                    "[brick.action] %s failed for action %s: %s",
+                    action.action_type, action_id, dispatch_err,
+                )
+                raise
 
             action.status = "executed"
-            track = BrickTrackRecord(
-                location_id=action.location_id,
-                action_type=action.action_type,
-                outcome="success",
-                action_metadata={"action_id": action_id, "result": result},
-            )
-            session.add(track)
+
+            # Only real work earns a track record. `outcome` was hardcoded
+            # "success" regardless of what dispatch returned, so an unknown
+            # action_type that fell through to no_op — or a skip for a missing
+            # precondition — counted toward the ladder exactly like a published
+            # post. No work means no credit and no penalty: the row is omitted so
+            # both total_actions and success_rate stay honest.
+            outcome_status = (result or {}).get("status")
+            if outcome_status in NON_WORK_STATUSES:
+                logger.info(
+                    "[brick.action] %s returned %r — no track record written",
+                    action.action_type, outcome_status,
+                )
+            else:
+                session.add(BrickTrackRecord(
+                    location_id=action.location_id,
+                    action_type=action.action_type,
+                    outcome="success",
+                    action_metadata={"action_id": action_id, "result": result},
+                ))
             await session.commit()
 
         return result
