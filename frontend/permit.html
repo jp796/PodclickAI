@@ -239,6 +239,19 @@
     .btn:disabled { opacity: 0.35; cursor: not-allowed; }
     .btn:not(:disabled):hover { opacity: 0.88; }
     .btn:not(:disabled):active { transform: scale(0.98); }
+    /* Why a rung is locked — the reasons the eligibility endpoint returns.
+       Without these a padlock says "not yet" and nothing else. */
+    .ladder-unmet {
+      margin-top: 6px;
+      font-family: 'Azeret Mono', ui-monospace, monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      letter-spacing: 0.02em;
+      color: var(--text-dim, #8a8a8a);
+    }
+    .ladder-row.is-locked .ladder-unmet { color: var(--orange, #ff6b1a); opacity: .85; }
+    .btn-promote:disabled { opacity: .45; cursor: not-allowed; }
+
     .btn-promote {
       background: var(--green-dim);
       border: 1px solid var(--green);
@@ -564,14 +577,83 @@
   }
 
   /* ── API ───────────────────────────────────────────────────────────── */
+  /* Eligibility — what each rung still costs.
+     The ladder used to mark every tier above the current one 🔒 purely by
+     position, with no reason attached, and Promote was always enabled. Since the
+     backend started refusing unearned tiers with a 409, that combination meant
+     the page invited a click it knew would fail and then reported it as
+     "Something went wrong. Try again." — wrong advice for "Brick hasn't earned
+     this yet." */
+  let eligibility = null;
+
   function loadPermit() {
-    fetch('/api/brick/permit')
-      .then(r => r.ok ? r.json() : Promise.reject(r))
-      .then(data => applyPermitData(data))
+    Promise.all([
+      fetch('/api/brick/permit').then(r => r.ok ? r.json() : Promise.reject(r)),
+      // Non-fatal: an older server without this route still renders the ladder,
+      // just without reasons.
+      fetch('/api/brick/eligibility')
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null),
+    ])
+      .then(([permit, elig]) => {
+        eligibility = elig;
+        applyPermitData(permit);
+        applyEligibility(elig);
+      })
       .catch(err => {
         console.error('[permit] load failed', err);
         pmToast('Could not load permit data. Is the server running?', 'error');
       });
+  }
+
+  function applyEligibility(elig) {
+    if (!elig) return;
+
+    // Per-tier reasons, so a padlock says WHY instead of just "not yet".
+    (elig.ladder || []).forEach(rung => {
+      const statusEl = document.getElementById('status-' + rung.tier);
+      if (!statusEl) return;
+      const row = statusEl.closest('.ladder-row') || statusEl.parentElement;
+      if (!row) return;
+
+      const old = row.querySelector('.ladder-unmet');
+      if (old) old.remove();
+
+      // Held tiers need no explanation; the current one is marked already.
+      if (rung.held) return;
+
+      if (rung.eligible) {
+        statusEl.textContent = '🔓';
+        statusEl.title = 'Earned — available to promote into';
+      } else {
+        statusEl.textContent = '🔒';
+        statusEl.title = (rung.unmet || []).join(' · ');
+      }
+
+      if ((rung.unmet || []).length) {
+        const note = document.createElement('div');
+        note.className = 'ladder-unmet';
+        note.textContent = 'Needs: ' + rung.unmet.join(' · ');
+        const body = row.querySelector('.ladder-body') || row;
+        body.appendChild(note);
+      }
+    });
+
+    // The button tells the truth about what clicking it will do.
+    const btn = document.getElementById('btn-promote');
+    if (!btn) return;
+    if (!elig.next_tier) {
+      btn.disabled = true;
+      btn.title = 'Brick is at GC — the top of the ladder.';
+    } else if (elig.can_promote) {
+      btn.disabled = false;
+      btn.title = 'Brick has earned ' + (TIER_META[elig.next_tier]?.label || elig.next_tier);
+    } else {
+      btn.disabled = true;
+      btn.title =
+        'Not yet — ' + (elig.unmet || []).join('; ') +
+        '. Demote is always available.';
+    }
   }
 
   function doAction(action) {
@@ -580,13 +662,26 @@
       : '/api/brick/permit/demote';
 
     fetch(url, { method: 'POST' })
-      .then(r => r.ok ? r.json() : Promise.reject(r))
-      .then(data => {
-        showCeremony(action, data.tier || currentTier);
+      .then(r => r.json().then(body => ({ ok: r.ok, status: r.status, body })))
+      .then(({ ok, status, body }) => {
+        if (ok) {
+          showCeremony(action, body.tier || currentTier);
+          return;
+        }
+        // 409 is not a transient error and "try again" is the wrong advice —
+        // nothing will change until the track record does.
+        if (status === 409 && body && body.unmet) {
+          const target = TIER_META[body.target_tier]?.label || body.target_tier || 'the next rung';
+          pmToast('Brick has not earned ' + target + ' yet: ' + body.unmet.join('; '), 'error');
+          applyEligibility(eligibility);
+          return;
+        }
+        console.error('[permit] action refused', status, body);
+        pmToast((body && body.error) || 'Something went wrong. Try again.', 'error');
       })
       .catch(err => {
         console.error('[permit] action failed', err);
-        pmToast('Something went wrong. Try again.', 'error');
+        pmToast('Could not reach the server. Try again.', 'error');
       });
   }
 

@@ -250,6 +250,28 @@
     .punch-badge-icon {
       width: 13px; height: 13px; object-fit: contain; vertical-align: middle; flex-shrink: 0;
     }
+    /* What you're approving — payload preview for non-guest actions. */
+    .action-preview {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-left: 2px solid var(--border-lit, #3a3a3a);
+      background: rgba(255,255,255,.02);
+    }
+    .ap-consequence {
+      font-size: 12px;
+      line-height: 1.55;
+      color: var(--text-dim, #9a9a9a);
+      margin-bottom: 8px;
+    }
+    .ap-fields { list-style: none; margin: 0; padding: 0; }
+    .ap-fields li {
+      display: flex; gap: 10px; align-items: baseline;
+      font-family: 'Azeret Mono', ui-monospace, monospace;
+      font-size: 11px; line-height: 1.7;
+    }
+    .ap-key { color: var(--text-dim, #8a8a8a); min-width: 108px; text-transform: uppercase; letter-spacing: .04em; }
+    .ap-val { color: var(--text, #e8e8e8); word-break: break-word; }
+
     .asset-preview {
       margin-top: 12px; padding: 12px; border-radius: 10px;
       background: rgba(255,255,255,0.03); border: 1px solid var(--border);
@@ -691,6 +713,73 @@ function checkPunchEmpty() {
   document.getElementById('punch-empty').classList.toggle('hidden', items.length > 0);
 }
 
+/* What you are actually approving.
+   Only guest_asset_package ever showed its payload; every other type rendered
+   Brick's one-line rationale and an Approve button, so a GC-tier action like
+   adjust_vyral_mix or publish_post was approved blind. These are the consequences
+   worth reading before clicking, in the action's own terms. */
+const ACTION_CONSEQUENCE = {
+  publish_post:     '⚠️ This posts publicly to every connected platform for the post. There is no undo beyond deleting the post.',
+  queue_draft:      'Schedules the draft. It still needs a publish step to go out.',
+  adjust_calendar:  'Moves a scheduled post. Nothing is published.',
+  cut_clip:         '⚠️ Uploads a rendered clip to TikTok. An unaudited app posts privately.',
+  write_show_notes: 'Writes show notes onto the project. Existing notes are kept unless overwrite is set.',
+  adjust_vyral_mix: '⚠️ Rewrites the Blueprint bucket weights. Every future auto-plan uses these.',
+  replan_calendar:  '⚠️ Deletes future auto-plan DRAFTS and lays down a fresh rotation. Scheduled, published and hand-written posts are untouched.',
+  pitch_sponsor:    'Drafts a pitch only. PodClick has no sponsor send path — nothing is emailed.',
+  send_guest_email: 'Points at the guest-email review screen. Approving here does not send anything.',
+  draft_post:       'Creates a draft post. Nothing is scheduled or published.',
+  suggest_post_idea:'Records an idea. Nothing is created.',
+};
+
+/* Keys worth showing per type, in the order a human reads them. */
+const ACTION_FIELDS = {
+  publish_post:     ['post_id', 'platform'],
+  queue_draft:      ['post_id', 'scheduled_at'],
+  adjust_calendar:  ['post_id', 'scheduled_at'],
+  cut_clip:         ['clip_id', 'project_id', 'privacy_level', 'title'],
+  write_show_notes: ['project_id', 'overwrite'],
+  adjust_vyral_mix: ['vyral_mix'],
+  replan_calendar:  ['slot_count', 'start_date'],
+  pitch_sponsor:    ['company', 'angle'],
+  draft_post:       ['topic', 'bucket', 'platform'],
+  suggest_post_idea:['topic', 'bucket', 'platform'],
+};
+
+function formatPayloadValue(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (typeof value === 'object') {
+    return Object.keys(value)
+      .map(k => k + ': ' + value[k])
+      .join('  ·  ');
+  }
+  return String(value);
+}
+
+function renderActionPreview(action) {
+  const type = action.action_type || '';
+  const payload = action.payload || {};
+  const consequence = ACTION_CONSEQUENCE[type];
+  const fields = ACTION_FIELDS[type] || Object.keys(payload).slice(0, 6);
+
+  const rows = fields
+    .filter(k => payload[k] !== undefined)
+    .map(k => (
+      '<li><span class="ap-key">' + escHtml(k.replace(/_/g, ' ')) + '</span>' +
+      '<span class="ap-val">' + escHtml(formatPayloadValue(payload[k])) + '</span></li>'
+    ))
+    .join('');
+
+  if (!consequence && !rows) return '';
+
+  return (
+    '<div class="action-preview">' +
+    (consequence ? '<div class="ap-consequence">' + escHtml(consequence) + '</div>' : '') +
+    (rows ? '<ul class="ap-fields">' + rows + '</ul>' : '') +
+    '</div>'
+  );
+}
+
 function renderPunchItem(action) {
   const id = escHtml(action.id);
   const rationale = escHtml(action.rationale || 'Brick queued this action.');
@@ -742,6 +831,8 @@ function renderPunchItem(action) {
         <button class="btn-copy-email" data-id="${id}">📋 Copy email</button>
       </div>
     `;
+  } else {
+    previewHtml = renderActionPreview(action);
   }
 
   let actionsHtml;
