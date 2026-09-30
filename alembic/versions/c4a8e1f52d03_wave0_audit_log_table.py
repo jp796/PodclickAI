@@ -15,8 +15,15 @@ time, and by action.
 point, and this migration must be safe to apply either way.
 
 Revision ID: c4a8e1f52d03
-Revises: b6e4d9f7a210
+Revises: a7b3c8e2f015
 Create Date: 2026-09-28
+
+Chain note: this originally revised b6e4d9f7a210 (Stripe billing). The live
+database sits at a7b3c8e2f015 and the billing migration has never been applied
+(its tables do not exist), so chaining from it would have forced a billing
+rollout as the price of fixing the audit trail — two unrelated decisions welded
+together. Re-parented to a7b3c8e2f015 and billing re-parented to follow this,
+which keeps the chain linear and lets each land on its own schedule.
 """
 
 from typing import Sequence, Union
@@ -26,7 +33,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "c4a8e1f52d03"
-down_revision: Union[str, None] = "b6e4d9f7a210"
+down_revision: Union[str, None] = "a7b3c8e2f015"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
