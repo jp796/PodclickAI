@@ -132,6 +132,10 @@ ACTION_TIER_MAP: Dict[str, str] = {
     "pitch_sponsor":        "gc",
     "adjust_vyral_mix":     "gc",
     "replan_calendar":      "gc",
+    # The Crew (AGENTS_HUB_SPEC §2.3). A human's approval IS the gate, so a
+    # Draftsman-tier user can approve — the guest_asset_package precedent. The
+    # agent's own commit_tier only governs unattended (Brick-initiated) commits.
+    "agent_commit":         "draftsman",
 }
 
 # ── Wave 4: the generators Brick could not reach ──────────────────────────────
@@ -214,6 +218,16 @@ GENERATOR_ACTIONS: Dict[str, Dict[str, Any]] = {
 # moves everything at once and nothing needs a second permission check.
 for _gen_action, _gen_spec in GENERATOR_ACTIONS.items():
     ACTION_TIER_MAP[_gen_action] = _gen_spec["tier"]
+
+# The Crew: Brick may START an agent on his own at max(run_tier, spend_tier).
+# Registered from the registry the same way generators are, so adding an agent
+# spec gates it automatically. The registry is pure data (no import of this
+# module), so this top-level import cannot cycle. Teaching the planning loop to
+# propose these is wave 3; wave 2 only makes the permit machinery aware of them.
+from services.agents.registry import REGISTRY as _AGENT_REGISTRY, agent_run_tier as _agent_run_tier  # noqa: E402
+
+for _agent_id, _agent_spec in _AGENT_REGISTRY.items():
+    ACTION_TIER_MAP["agent_run:" + _agent_id] = _agent_run_tier(_agent_spec)
 
 # ── Brick system prompt (brick-voice skill) ───────────────────────────────────
 
@@ -1633,6 +1647,23 @@ class BrickAgent:
         # /api/social. One branch serves all of them off the registry.
         if action_type in GENERATOR_ACTIONS:
             return await self._dispatch_generator(action, payload, session)
+
+        if action_type == "agent_commit":
+            # The Crew's single commit path: approving here (Walk-through punch
+            # list) or from /agents both land in jobs.commit_job, which is
+            # idempotent per job. A raised commit propagates so execute_action
+            # records the failure against the ladder.
+            from services.agents import jobs as _agent_jobs
+
+            job_id = str(payload.get("job_id") or "")
+            commit_result = await _agent_jobs.commit_job(job_id)
+            return {
+                "status": "committed",
+                "job_id": job_id,
+                "agent_id": payload.get("agent_id", ""),
+                "summary": payload.get("summary", ""),
+                "commit_result": commit_result,
+            }
 
         if action_type == "guest_asset_package":
             # The package (Drive folder + uploads + drafted email) was already built
