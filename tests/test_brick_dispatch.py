@@ -104,14 +104,29 @@ LATER = datetime(2026, 11, 1, 15, 0, tzinfo=timezone.utc)
 
 def test_no_action_type_falls_through_to_no_op():
     """
-    The headline fix. Every tier in ACTION_TIER_MAP must reach a branch, or
+    The headline fix. Every entry in ACTION_TIER_MAP must reach a branch, or
     promoting Brick to that tier still changes nothing.
+
+    Three routing mechanisms count, and all three are proven rather than assumed:
+    the explicit dispatch table, the remaining inline comparisons, and the Wave 4
+    GENERATOR_ACTIONS registry — which is only accepted as coverage if
+    _dispatch_action actually consults it.
     """
+    from services.brick_agent import GENERATOR_ACTIONS
+
     src = inspect.getsource(BrickAgent._dispatch_action)
     routed = set(re.findall(r'"([a-z_]+)": self\._dispatch_', src))
     inline = set(re.findall(r'"([a-z_]+)"', " ".join(re.findall(r"action_type in \(([^)]*)\)", src))))
     inline |= set(re.findall(r'action_type == "([a-z_]+)"', src))
-    covered = routed | inline
+
+    # Registry-routed actions count only if _dispatch_action really routes to
+    # _dispatch_generator. Checking for the substring is not enough: wrapping the
+    # branch in `if False and ...` leaves the text intact and the routing dead —
+    # which is exactly what happened when this guard was first written. The proof
+    # below is behavioural, asserted in its own test.
+    registry_routed = set(GENERATOR_ACTIONS) if _registry_routing_is_live() else set()
+
+    covered = routed | inline | registry_routed
     missing = sorted(a for a in ACTION_TIER_MAP if a not in covered)
     assert not missing, f"these still no-op: {missing}"
 
@@ -505,3 +520,57 @@ async def test_replan_creates_only_valid_buckets(agent):
         assert post.bucket in VALID_BUCKETS
         assert post.status == "draft"
         assert post.source == "auto_plan"
+
+def _registry_routing_is_live():
+    """
+    Behavioural check: does _dispatch_action actually hand a registered generator
+    to _dispatch_generator? Swap in a sentinel and see where the call lands.
+    """
+    import asyncio
+
+    from services.brick_agent import GENERATOR_ACTIONS
+
+    sample = next(iter(GENERATOR_ACTIONS))
+    agent = BrickAgent()
+    landed = {}
+
+    async def sentinel(self, action, payload, session):
+        landed["hit"] = action.action_type
+        return {"action_type": action.action_type, "status": "generated"}
+
+    original = BrickAgent._dispatch_generator
+    BrickAgent._dispatch_generator = sentinel
+    try:
+        out = asyncio.get_event_loop().run_until_complete(
+            agent._dispatch_action(FakeAction(sample), FakeSession())
+        ) if False else None
+        # _dispatch_action takes (action, session); call it directly.
+        out = asyncio.new_event_loop().run_until_complete(
+            agent._dispatch_action(FakeAction(sample), FakeSession())
+        )
+    finally:
+        BrickAgent._dispatch_generator = original
+
+    return landed.get("hit") == sample and (out or {}).get("status") != "no_op"
+
+
+async def test_registry_routing_is_behaviourally_live():
+    """
+    The guard above trusts this. A registered generator must reach
+    _dispatch_generator, not fall through to no_op.
+    """
+    from services.brick_agent import GENERATOR_ACTIONS
+
+    sample = next(iter(GENERATOR_ACTIONS))
+    agent = BrickAgent()
+    landed = {}
+
+    async def sentinel(action, payload, session):
+        landed["hit"] = action.action_type
+        return {"action_type": action.action_type, "status": "generated"}
+
+    agent._dispatch_generator = sentinel
+    out = await agent._dispatch_action(FakeAction(sample), FakeSession())
+
+    assert landed.get("hit") == sample, f"{sample} did not reach _dispatch_generator"
+    assert out["status"] != "no_op"

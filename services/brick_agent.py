@@ -134,6 +134,87 @@ ACTION_TIER_MAP: Dict[str, str] = {
     "replan_calendar":      "gc",
 }
 
+# ── Wave 4: the generators Brick could not reach ──────────────────────────────
+#
+# PodClick ships ~20 content generators behind /api/yt/*, /api/brand/* and
+# /api/social/*. None appeared in ACTION_TIER_MAP, so promoting Brick to GC gave
+# him authority over twelve action types while the app's twenty best capabilities
+# stayed out of his reach entirely.
+#
+# These are reached by calling the app's OWN route in-process (httpx
+# ASGITransport against studio_app) rather than reimplementing them. Every
+# generator's logic lives inline in a main.py route handler that takes a Request,
+# so it is not importable as a plain function, and copying twenty prompt bodies
+# into this file would guarantee drift. The in-process call reuses the exact
+# route — same validation, same Foundation gate, same model, same output shape —
+# with no network hop and no self-HTTP.
+#
+# It targets studio_app, the INNER app, deliberately: DeploymentBoundary governs
+# external HTTP, and this is the owner's own agent acting internally, not a
+# request from outside. That makes this registry a security boundary in its own
+# right, so it is a strict ALLOWLIST — never a prefix or a wildcard. Nothing that
+# publishes, disconnects an account, uploads a file or changes configuration is
+# listed here; publishing goes through publish_post and SocialService (contract #5).
+#
+# Tier rationale: a generator produces text for review and reaches no audience, so
+# draftsman is the honest floor. The two that spend a real external resource —
+# competitor_spy burns YouTube Data API quota (10k units/day, search.list costs
+# 100 a call) and cover_forge generates images — sit at bricklayer.
+GENERATOR_ACTIONS: Dict[str, Dict[str, Any]] = {
+    # ── YouTube / Click Studio ──
+    "yt_script_formula":  {"path": "/api/yt/script-formula",  "tier": "draftsman",
+                           "label": "Script Lab outline"},
+    "yt_script":          {"path": "/api/yt/script",          "tier": "draftsman",
+                           "label": "YouTube script"},
+    "yt_seo_package":     {"path": "/api/yt/seo-package",     "tier": "draftsman",
+                           "label": "title/description/tags"},
+    "yt_content_calendar":{"path": "/api/yt/content-calendar","tier": "draftsman",
+                           "label": "Trend Radar topics"},
+    "yt_pillar_plan":     {"path": "/api/yt/pillar-plan",     "tier": "draftsman",
+                           "label": "pillar content plan"},
+    "yt_adapt_concept":   {"path": "/api/yt/adapt-concept",   "tier": "draftsman",
+                           "label": "concept remixed for the market"},
+    "yt_scout_remix":     {"path": "/api/yt/scout-remix",     "tier": "draftsman",
+                           "label": "competitor concept in your voice"},
+    "yt_video_advisor":   {"path": "/api/yt/video-advisor",   "tier": "draftsman",
+                           "label": "video strategy advice"},
+    "yt_repurpose":       {"path": "/api/yt/repurpose",       "tier": "draftsman",
+                           "label": "repurposed shorts/IG/TikTok/blog"},
+    "yt_lead_page":       {"path": "/api/yt/lead-page",       "tier": "draftsman",
+                           "label": "lead page copy"},
+    "yt_competitor_spy":  {"path": "/api/yt/competitor-spy",  "tier": "bricklayer",
+                           "label": "Market Scout run",
+                           "cost": "spends YouTube Data API quota"},
+    "yt_cover_forge":     {"path": "/api/yt/cover-forge",     "tier": "bricklayer",
+                           "label": "thumbnail variants",
+                           "cost": "generates images"},
+
+    # ── Brand Studio ──
+    "brand_intake":        {"path": "/api/brand/intake",        "tier": "draftsman",
+                            "label": "brand brief"},
+    "brand_bio_pack":      {"path": "/api/brand/bio-pack",      "tier": "draftsman",
+                            "label": "platform bios"},
+    "brand_content_plan":  {"path": "/api/brand/content-plan",  "tier": "draftsman",
+                            "label": "12-month content plan"},
+    "brand_conversion":    {"path": "/api/brand/conversion",    "tier": "draftsman",
+                            "label": "lead magnet + VSL + emails"},
+    "brand_profile_audit": {"path": "/api/brand/profile-audit", "tier": "draftsman",
+                            "label": "profile audit + bio rewrite"},
+
+    # ── Social Studio ──
+    "social_forge":     {"path": "/api/social/forge",     "tier": "draftsman",
+                         "label": "4-platform social posts"},
+    "social_hashtags":  {"path": "/api/social/hashtags",  "tier": "draftsman",
+                         "label": "hashtag sets"},
+    "social_repurpose": {"path": "/api/social/repurpose", "tier": "draftsman",
+                         "label": "post angles from a URL or transcript"},
+}
+
+# Generators join the same gate the twelve core actions use, so a tier change
+# moves everything at once and nothing needs a second permission check.
+for _gen_action, _gen_spec in GENERATOR_ACTIONS.items():
+    ACTION_TIER_MAP[_gen_action] = _gen_spec["tier"]
+
 # ── Brick system prompt (brick-voice skill) ───────────────────────────────────
 
 _BRICK_SYSTEM_PROMPT = """You are Brick, JP's content GC.
@@ -1548,6 +1629,11 @@ class BrickAgent:
         if branch is not None:
             return await branch(action, payload, session)
 
+        # Wave 4 — the ~20 content generators behind /api/yt, /api/brand and
+        # /api/social. One branch serves all of them off the registry.
+        if action_type in GENERATOR_ACTIONS:
+            return await self._dispatch_generator(action, payload, session)
+
         if action_type == "guest_asset_package":
             # The package (Drive folder + uploads + drafted email) was already built
             # at Closing by _build_guest_asset_package; the punch-list payload carries
@@ -2318,6 +2404,121 @@ class BrickAgent:
             "start_date": start.isoformat(),
             "slots": created[:5],
             "note": "Captions are empty — draft_post or auto-plan fills them.",
+        }
+
+    async def _dispatch_generator(
+        self, action: BrickAction, payload: Dict[str, Any], session: AsyncSession
+    ) -> Dict[str, Any]:
+        """
+        Run one of the app's own content generators and hand back what it produced.
+
+        One branch serves all twenty rather than twenty near-identical ones. Each
+        generator's logic lives inline in a main.py route handler that takes a
+        Request, so it is not importable as a plain function — this calls the real
+        route in-process via httpx ASGITransport, which reuses its validation, its
+        Foundation gate, its model and its exact output shape. Copying twenty
+        prompt bodies in here would have guaranteed drift.
+
+        `main` is imported lazily: main imports this module at startup, so a
+        top-level import would be circular, but by the time a dispatch runs main is
+        fully loaded in sys.modules.
+
+        Nothing is persisted. A generator produces text for the punch list to show
+        and a human to use; writing it somewhere is a separate, higher-tier action.
+        """
+        import httpx
+
+        spec = GENERATOR_ACTIONS.get(action.action_type)
+        if spec is None:
+            # Unreachable via _dispatch_action's routing, but a direct caller could.
+            return {"action_type": action.action_type, "status": "no_op",
+                    "reason": "not a registered generator"}
+
+        import main as _main  # lazy — see docstring
+
+        app = getattr(_main, "studio_app", None)
+        if app is None:
+            return {
+                "action_type": action.action_type,
+                "status": "skipped",
+                "reason": "studio_app not available in this process",
+            }
+
+        # The body is the payload minus Brick's own bookkeeping keys. Each route
+        # validates its own inputs, so a bad body comes back as that route's 4xx
+        # rather than being second-guessed here.
+        body = {k: v for k, v in payload.items() if k not in ("_tier", "_label", "action_type")}
+
+        try:
+            transport = httpx.ASGITransport(app=app)
+            async with httpx.AsyncClient(
+                transport=transport, base_url="http://brick.internal", timeout=180.0
+            ) as client:
+                response = await client.post(spec["path"], json=body)
+        except Exception as call_err:
+            logger.warning(
+                "[brick.generator] %s (%s) failed: %s",
+                action.action_type, spec["path"], call_err,
+            )
+            # Raise so execute_action records a failure — an unreachable generator
+            # is a real failure, not a missing precondition.
+            raise
+
+        try:
+            data = response.json()
+        except Exception:
+            data = {"raw": response.text[:2000]}
+
+        if response.status_code >= 400:
+            reason = (
+                (data.get("error") if isinstance(data, dict) else None)
+                or f"HTTP {response.status_code}"
+            )
+            not_ready = isinstance(data, dict) and data.get("foundation_not_ready")
+
+            # 4xx and 5xx mean different things to the ladder, and Wave 1 made that
+            # distinction load-bearing. A 4xx is a precondition or a bad input —
+            # 422 foundation_not_ready is the common one, and Brick cannot write in
+            # a voice the Foundation has not learned yet, so penalising him for it
+            # would be wrong. A 5xx is the generator actually breaking (a truncated
+            # model response, a provider outage); that is a failure and must lower
+            # the success rate rather than vanish as a free skip.
+            if response.status_code >= 500:
+                logger.warning(
+                    "[brick.generator] %s broke in %s (HTTP %s): %s",
+                    action.action_type, spec["path"], response.status_code, reason,
+                )
+                raise RuntimeError(
+                    f"{spec['path']} failed with HTTP {response.status_code}: {reason}"
+                )
+
+            logger.info(
+                "[brick.generator] %s refused by %s: %s",
+                action.action_type, spec["path"], reason,
+            )
+            return {
+                "action_type": action.action_type,
+                "status": "skipped",
+                "reason": reason,
+                "foundation_not_ready": bool(not_ready),
+                "http_status": response.status_code,
+                "generator": spec["path"],
+            }
+
+        logger.info(
+            "[brick.generator] %s produced %s via %s",
+            action.action_type, spec.get("label", "output"), spec["path"],
+        )
+        return {
+            "action_type": action.action_type,
+            "status": "generated",
+            "label": spec.get("label", action.action_type),
+            "generator": spec["path"],
+            "tier_required": spec["tier"],
+            "cost": spec.get("cost"),
+            "result": data,
+            "persisted": False,
+            "note": "Generated for review. Nothing was saved or published.",
         }
 
     async def _touch_memories(self, memory_ids: List[str]) -> None:
