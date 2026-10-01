@@ -22,12 +22,13 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from services.agents.contract import AgentResult, CommitPlan, Output
+from services.agents.contract import AgentResult, CommitPlan, Output, StepError
 
-ALLOWED_ROUTES = (
-    "POST /api/social/forge",
-    "POST /api/foundation/ingest",
-    "GET /api/projects/{project_id}",
+# Exact internal paths ctx.call_route may hit ("{param}" = one path segment).
+ROUTES = (
+    "/api/social/forge",
+    "/api/foundation/ingest",
+    "/api/projects/{project_id}",
 )
 
 PLATFORMS = (("linkedin", "LinkedIn"), ("facebook", "Facebook"), ("instagram", "Instagram"),
@@ -77,18 +78,18 @@ def _atomic_write_json(path: Path, data: Any) -> None:
 async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
     mode = str(inp.get("mode") or "idea")
     if mode not in MODES:
-        raise RuntimeError("Mode has to be idea, episode, or template.")
+        raise StepError("Mode has to be idea, episode, or template.")
     body: Dict[str, Any] = {"mode": mode, "topic": str(inp.get("topic") or "").strip(),
                             "market": str(inp.get("market") or "").strip()}
 
     if mode == "episode":
         pid = str(inp.get("project_id") or "").strip()
         if not pid:
-            raise RuntimeError("Pick the episode to write from.")
+            raise StepError("Pick the episode to write from.")
         async with ctx.step("episode", "Reading the episode"):
             status, project = await ctx.call_route(f"/api/projects/{pid}", None, method="GET")
             if status != 200 or not isinstance(project, dict):
-                raise RuntimeError(_err(project, "Can't find that episode on the Job Site."))
+                raise StepError(_err(project, "Can't find that episode on the Job Site."))
             body["title"] = project.get("title") or ""
             notes = (project.get("show_notes") or "").strip()
             body["hook_line"] = notes.splitlines()[0][:300] if notes else ""
@@ -96,19 +97,19 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
     elif mode == "template":
         template = str(inp.get("template") or "")
         if template not in TEMPLATES:
-            raise RuntimeError("Pick one of the templates.")
+            raise StepError("Pick one of the templates.")
         body["template"] = template
     if not body["topic"] and mode == "idea":
-        raise RuntimeError("Give me a topic to write about.")
+        raise StepError("Give me a topic to write about.")
 
     outputs: List[Any] = []
     async with ctx.step("draft", "Drafting the posts"):
         status, data = await ctx.call_route("/api/social/forge", body)
         if status != 200 or not isinstance(data, dict):
-            raise RuntimeError(_err(data, "Post Forge didn't answer."))
+            raise StepError(_err(data, "Post Forge didn't answer."))
         drafted = {k: str(data.get(k) or "").strip() for k, _ in PLATFORMS}
         if not any(drafted.values()):
-            raise RuntimeError("The draft came back empty — run it again.")
+            raise StepError("The draft came back empty — run it again.")
 
     if data.get("_foundation_thin"):
         ctx.warn(f"Thin Foundation ({data.get('_sample_count', 0)} samples) — output will sound less like you.")
@@ -157,7 +158,7 @@ async def commit(ctx, job: Dict[str, Any], edits: Dict[str, Any]) -> Dict[str, A
         if done.exists():
             return json.loads(done.read_text())
         if started.exists():
-            raise RuntimeError("A previous commit was interrupted partway — check /calendar before "
+            raise StepError("A previous commit was interrupted partway — check /calendar before "
                                "running this again so nothing lands twice.")
 
         finals: Dict[str, str] = {}
@@ -171,7 +172,7 @@ async def commit(ctx, job: Dict[str, Any], edits: Dict[str, Any]) -> Dict[str, A
                     finals[oid] = text
                     originals[oid] = str((_get(o, "meta") or {}).get("original") or text)
         if not finals:
-            raise RuntimeError("Nothing to put on the calendar — every post is empty.")
+            raise StepError("Nothing to put on the calendar — every post is empty.")
 
         started.write_text("{}")
         try:

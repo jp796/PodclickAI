@@ -8,9 +8,12 @@ Blueprint — one source of truth for the default.
 """
 from typing import Any, Dict, List
 
-from services.agents.contract import AgentResult, Output
+from services.agents.contract import AgentResult, Output, StepError
 
-ALLOWED_ROUTES = ("POST /api/yt/pillar-plan",)
+# Exact internal paths ctx.call_route may hit ("{param}" = one path segment).
+ROUTES = (
+    "/api/yt/pillar-plan",
+)
 
 
 def _err(data: Any, fallback: str) -> str:
@@ -44,7 +47,7 @@ def to_cards(plan: Dict[str, Any]) -> List[Dict[str, Any]]:
 async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
     market = str(inp.get("market") or "").strip()
     if not market:
-        raise RuntimeError("Give me a market to plan for.")
+        raise StepError("Give me a market to plan for.")
     body = {
         "market": market,
         "agent_name": str(inp.get("agent_name") or "").strip(),
@@ -55,10 +58,10 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
     async with ctx.step("plan", "Laying out the 90-day plan"):
         status, data = await ctx.call_route("/api/yt/pillar-plan", body)
         if status != 200 or not isinstance(data, dict):
-            raise RuntimeError(_err(data, "Pillar Planner didn't answer."))
+            raise StepError(_err(data, "Pillar Planner didn't answer."))
         cards = to_cards(data)
         if not any(c["ideas"] for c in cards):
-            raise RuntimeError("The plan came back with no video ideas — run it again.")
+            raise StepError("The plan came back with no video ideas — run it again.")
 
     if data.get("_foundation_thin"):
         ctx.warn(f"Thin Foundation ({data.get('_sample_count', 0)} samples) — output will sound less like you.")

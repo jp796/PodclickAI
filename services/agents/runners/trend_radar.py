@@ -8,11 +8,12 @@ An optional finished Market Scout job feeds its report in as competitor_insights
 """
 from typing import Any, Dict, Iterable, List, Optional
 
-from services.agents.contract import AgentResult, Output
+from services.agents.contract import AgentResult, Output, StepError
 
-ALLOWED_ROUTES = (
-    "POST /api/yt/content-calendar",
-    "GET /api/agents/jobs/{job_id}",
+# Exact internal paths ctx.call_route may hit ("{param}" = one path segment).
+ROUTES = (
+    "/api/yt/content-calendar",
+    "/api/agents/jobs/{job_id}",
 )
 
 
@@ -40,11 +41,11 @@ def _find_output(job: Dict[str, Any], oid: str) -> Optional[Any]:
 async def _load_ref_job(ctx, job_id: str, agents: Iterable[str]) -> Dict[str, Any]:
     status, job = await ctx.call_route(f"/api/agents/jobs/{job_id}", None, method="GET")
     if status != 200 or not isinstance(job, dict):
-        raise RuntimeError("Couldn't find that work order.")
+        raise StepError("Couldn't find that work order.")
     if job.get("agent_id") not in tuple(agents):
-        raise RuntimeError("That work order came from the wrong crew member.")
+        raise StepError("That work order came from the wrong crew member.")
     if job.get("status") != "done":
-        raise RuntimeError("That work order isn't built yet — wait for it to finish.")
+        raise StepError("That work order isn't built yet — wait for it to finish.")
     return job
 
 
@@ -58,7 +59,7 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
     audience = str(inp.get("audience") or "Relocation Buyers").strip()
     scout_job = str(inp.get("scout_job") or "").strip()
     if not city:
-        raise RuntimeError("Give me a city for the radar.")
+        raise StepError("Give me a city for the radar.")
 
     insights: Dict[str, Any] = {}
     if scout_job:
@@ -73,10 +74,10 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
             "city": city, "audience": audience, "competitor_insights": insights,
         })
         if status != 200 or not isinstance(data, dict):
-            raise RuntimeError(_err(data, "Trend Radar didn't answer."))
+            raise StepError(_err(data, "Trend Radar didn't answer."))
         topics = list(data.get("calendar") or [])
         if not topics:
-            raise RuntimeError("Trend Radar came back empty — run it again.")
+            raise StepError("Trend Radar came back empty — run it again.")
 
     if data.get("_foundation_thin"):
         ctx.warn(f"Thin Foundation ({data.get('_sample_count', 0)} samples) — output will sound less like you.")

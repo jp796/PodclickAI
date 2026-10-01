@@ -15,12 +15,12 @@ import asyncio
 import time
 from typing import Any, Dict, List, Optional
 
-from services.agents.contract import AgentResult, Output
+from services.agents.contract import AgentResult, Output, StepError
 
-# Exact internal routes this runner may call (call_route allowlist).
-ALLOWED_ROUTES = (
-    "POST /api/yt/competitor-spy",
-    "POST /api/yt/scout-remix",
+# Exact internal paths ctx.call_route may hit ("{param}" = one path segment).
+ROUTES = (
+    "/api/yt/competitor-spy",
+    "/api/yt/scout-remix",
 )
 
 POLL_FIRST_S = 0.25        # fast polls while a quota-empty run would still be finishing
@@ -55,15 +55,15 @@ async def _wait_for_spy(ctx, spy_id: str, started: float):
     while True:
         job = _spy_jobs().get(spy_id)
         if job is None:
-            raise RuntimeError("Lost track of the Scout run — run it again.")
+            raise StepError("Lost track of the Scout run — run it again.")
         status = job.get("status")
         if status == "complete":
             return job.get("result") or {}, time.monotonic() - started
         if status == "error":
-            raise RuntimeError(f"Market Scout stalled: {job.get('error') or 'no reason given'}.")
+            raise StepError(f"Market Scout stalled: {job.get('error') or 'no reason given'}.")
         elapsed = time.monotonic() - started
         if elapsed > TIMEOUT_S:
-            raise RuntimeError("Market Scout ran past 15 minutes — check the YouTube key and run it again.")
+            raise StepError("Market Scout ran past 15 minutes — check the YouTube key and run it again.")
         ctx.check_cancelled()
         await asyncio.sleep(POLL_FIRST_S if elapsed < FAST_POLL_WINDOW_S else POLL_S)
 
@@ -77,7 +77,7 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
     except (TypeError, ValueError):
         remix_top = 0
     if not city:
-        raise RuntimeError("Give me a city to scout.")
+        raise StepError("Give me a city to scout.")
 
     outputs: List[Any] = []
 
@@ -85,12 +85,12 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
         status, data = await ctx.call_route(
             "/api/yt/competitor-spy", {"city": city, "audience": audience, "channels": channels})
         if status != 200 or not isinstance(data, dict) or not data.get("job_id"):
-            raise RuntimeError(_err(data, "Market Scout didn't start."))
+            raise StepError(_err(data, "Market Scout didn't start."))
         started = time.monotonic()
         result, elapsed = await _wait_for_spy(ctx, str(data["job_id"]), started)
         videos = list(result.get("top_videos_ranked") or [])
         if not videos and elapsed < QUOTA_WINDOW_S:
-            raise RuntimeError(QUOTA_MSG)
+            raise StepError(QUOTA_MSG)
 
     if not videos:
         ctx.warn(f"No local videos turned up for {city} — the report is built from search signals only.")

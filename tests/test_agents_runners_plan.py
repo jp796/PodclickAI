@@ -25,6 +25,7 @@ from tests import agents_standin
 agents_standin.install()
 
 from tests.agents_standin import FakeCtx, output_to_dict  # noqa: E402
+from services.agents.contract import StepError  # noqa: E402
 
 
 def run(coro):
@@ -311,7 +312,7 @@ def test_scheduler_commit_refuses_after_an_interrupted_commit(scheduler_env):
     ctx = FakeCtx(output_dir=out_dir)
     run(cs.run(ctx, {"topics": "One topic", "start_date": "2026-10-05"}))
     (out_dir / cs.COMMIT_STARTED).write_text("{}")  # simulated crash mid-commit
-    with pytest.raises(RuntimeError, match="interrupted"):
+    with pytest.raises(StepError, match="interrupted"):
         run(cs.commit(ctx, ctx.as_job(), {}))
     assert log["added"] == []
 
@@ -334,7 +335,7 @@ def test_scheduler_refuses_an_unfinished_reference_job(scheduler_env):
     cs, _, _, out_dir = scheduler_env
     ctx = FakeCtx(output_dir=out_dir, routes={"GET /api/agents/jobs/tr-2": (
         200, {"id": "tr-2", "agent_id": "trend_radar", "status": "running", "outputs": []})})
-    with pytest.raises(RuntimeError):
+    with pytest.raises(StepError):
         run(cs.run(ctx, {"topics_job": "tr-2"}))
 
 
@@ -363,7 +364,7 @@ def test_market_scout_quota_empty_fails_with_the_quota_message(scout, tmp_path):
     ms, spy = scout
     empty = {"market_demand": "", "top_videos_ranked": []}
     ctx = FakeCtx(output_dir=tmp_path, routes={"POST /api/yt/competitor-spy": _spy_route(spy, empty)})
-    with pytest.raises(RuntimeError) as ei:
+    with pytest.raises(StepError) as ei:
         run(ms.run(ctx, {"city": "Springfield, MO"}))
     assert "quota" in str(ei.value).lower() and "midnight Pacific" in str(ei.value)
     assert ctx.step_status("scan") == "failed"
@@ -401,7 +402,7 @@ def test_market_scout_ships_report_and_videos_and_skips_remix_when_foundation_no
 def test_market_scout_surfaces_a_stalled_spy_job(scout, tmp_path):
     ms, spy = scout
     ctx = FakeCtx(output_dir=tmp_path, routes={"POST /api/yt/competitor-spy": _spy_route(spy, None, "error")})
-    with pytest.raises(RuntimeError):
+    with pytest.raises(StepError):
         run(ms.run(ctx, {"city": "Springfield, MO"}))
 
 
@@ -443,7 +444,7 @@ def _cs_routes(project_states, clips=None):
 
 def test_click_studio_refuses_a_project_already_on_the_line(clickstudio, tmp_path):
     ctx = FakeCtx(output_dir=tmp_path, routes=_cs_routes([_project("processing")]))
-    with pytest.raises(RuntimeError, match="already on the line"):
+    with pytest.raises(StepError, match="already on the line"):
         run(clickstudio.run(ctx, {"project_id": PID}))
     assert [c for c in ctx.calls if c[0] == "POST"] == [], "touched a project that was mid-processing"
 
@@ -473,7 +474,7 @@ def test_click_studio_force_reedit_runs_auto_edit_over_existing_cuts(clickstudio
 def test_click_studio_reports_a_failed_ship_it(clickstudio, tmp_path):
     states = [_project("recording_done"), _project("processing"), _project("failed")]
     ctx = FakeCtx(output_dir=tmp_path, routes=_cs_routes(states))
-    with pytest.raises(RuntimeError, match="Ship It stalled"):
+    with pytest.raises(StepError, match="Ship It stalled"):
         run(clickstudio.run(ctx, {"project_id": PID, "auto_edit": False}))
     assert ctx.step_status("ship_it") == "failed"
 
@@ -504,7 +505,7 @@ def test_trend_radar_runner_fails_loudly_on_foundation_422(tmp_path):
     from services.agents.runners import trend_radar as tr
     ctx = FakeCtx(output_dir=tmp_path, routes={"POST /api/yt/content-calendar": (
         422, {"error": "foundation_not_ready: pour it", "foundation_not_ready": True})})
-    with pytest.raises(RuntimeError):
+    with pytest.raises(StepError):
         run(tr.run(ctx, {"city": "Springfield, MO"}))
     assert ctx.output("topics") is None
 
@@ -579,7 +580,7 @@ def test_draftsman_surfaces_foundation_not_ready(tmp_path):
     from services.agents.runners import draftsman as dm
     ctx = FakeCtx(output_dir=tmp_path, routes={"POST /api/social/forge": (
         422, {"error": "foundation_not_ready: pour it", "foundation_not_ready": True})})
-    with pytest.raises(RuntimeError):
+    with pytest.raises(StepError):
         run(dm.run(ctx, {"mode": "idea", "topic": "x"}))
 
 

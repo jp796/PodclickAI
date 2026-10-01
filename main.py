@@ -51,6 +51,7 @@ app = FastAPI(title="Podcast Studio")
 from routers.foundation import router as foundation_router  # noqa: E402
 from routers.blueprint import router as blueprint_router  # noqa: E402
 from routers.billing import router as billing_router  # noqa: E402
+from routers.agents import router as agents_router  # noqa: E402  (The Crew, AGENTS_HUB_SPEC §2.4)
 
 # Wave 0b — the two trust-floor primitives. write_audit_log replaces twelve
 # copy-pasted raw-SQL blocks that swallowed every failure with `except: pass`;
@@ -62,19 +63,8 @@ from services.task_outcome import on_task_failure  # noqa: E402
 app.include_router(foundation_router, prefix="/api/foundation", tags=["Foundation"])
 app.include_router(blueprint_router, prefix="/api/blueprint", tags=["Blueprint"])
 app.include_router(billing_router)
+app.include_router(agents_router, tags=["Crew"])
 
-# The Crew (AGENTS_HUB_SPEC §2.4). Lanes merge in any order, so a missing
-# routers/agents.py must not take the studio down — but ONLY that module being
-# absent is tolerated; an import error inside it still raises.
-try:
-    from routers.agents import router as agents_router  # noqa: E402
-except ModuleNotFoundError as _agents_exc:
-    if _agents_exc.name != "routers.agents":
-        raise
-    agents_router = None
-    print("[agents] routers/agents.py not on site yet — /agents and /api/agents not mounted")
-if agents_router is not None:
-    app.include_router(agents_router)
 
 
 @app.get("/billing")

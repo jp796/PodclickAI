@@ -45,6 +45,10 @@ def _build_contract_module() -> types.ModuleType:
         outputs: List[Any] = dataclasses.field(default_factory=list)
         commit: Optional[CommitPlan] = None
 
+    class StepError(Exception):
+        pass
+
+    mod.StepError = StepError
     mod.Output = Output
     mod.CommitPlan = CommitPlan
     mod.AgentResult = AgentResult

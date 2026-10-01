@@ -32,9 +32,12 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from services.agents.contract import AgentResult, CommitPlan, Output
+from services.agents.contract import AgentResult, CommitPlan, Output, StepError
 
-ALLOWED_ROUTES = ("GET /api/agents/jobs/{job_id}",)
+# Exact internal paths ctx.call_route may hit ("{param}" = one path segment).
+ROUTES = (
+    "/api/agents/jobs/{job_id}",
+)
 
 SCHEDULER_FILE = Path(__file__).resolve().parents[3] / "data" / "scheduler.json"
 COMMIT_DONE = "commit.json"
@@ -75,11 +78,11 @@ def _emit(ctx, outputs: List[Any], output: Any) -> None:
 async def _load_ref_job(ctx, job_id: str, agents: Iterable[str]) -> Dict[str, Any]:
     status, job = await ctx.call_route(f"/api/agents/jobs/{job_id}", None, method="GET")
     if status != 200 or not isinstance(job, dict):
-        raise RuntimeError("Couldn't find that work order.")
+        raise StepError("Couldn't find that work order.")
     if job.get("agent_id") not in tuple(agents):
-        raise RuntimeError("That work order came from the wrong crew member.")
+        raise StepError("That work order came from the wrong crew member.")
     if job.get("status") != "done":
-        raise RuntimeError("That work order isn't built yet — wait for it to finish.")
+        raise StepError("That work order isn't built yet — wait for it to finish.")
     return job
 
 
@@ -162,7 +165,7 @@ async def _collect_topics(ctx, inp: Dict[str, Any]) -> Tuple[List[Dict[str, str]
         topics = [{"title": ln.strip(), "pillar": "", "hook": ""} for ln in lines if ln.strip()]
     topics = [t for t in topics if t["title"]][:MAX_TOPICS]
     if not topics:
-        raise RuntimeError("No topics to schedule — pick a Trend Radar or Pillar Planner work order, "
+        raise StepError("No topics to schedule — pick a Trend Radar or Pillar Planner work order, "
                            "or paste one topic per line.")
     return topics, market
 
@@ -184,7 +187,7 @@ def _parse_start(raw: Any) -> date:
         try:
             return date.fromisoformat(str(raw)[:10])
         except ValueError:
-            raise RuntimeError("That start date doesn't read as YYYY-MM-DD.")
+            raise StepError("That start date doesn't read as YYYY-MM-DD.")
     return date.today() + timedelta(days=1)
 
 
@@ -206,12 +209,12 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
         start = _parse_start(inp.get("start_date"))
         cadence = str(inp.get("cadence") or "3/week")
         if cadence not in CADENCE_PER_WEEK:
-            raise RuntimeError("Cadence has to be 3/week, 5/week, or daily.")
+            raise StepError("Cadence has to be 3/week, 5/week, or daily.")
         shoot_days = normalize_days(inp.get("shoot_days") or sched.get("shoot_days"))
         platforms = [p for p in (inp.get("platforms") or []) if p in ALLOWED_PLATFORMS]
         dates = plan_dates(start, cadence, shoot_days, len(topics))
         if len(dates) < len(topics):
-            raise RuntimeError("Couldn't find enough open days with those shoot days.")
+            raise StepError("Couldn't find enough open days with those shoot days.")
         buckets = distribute_buckets(await _load_vyral_mix(ctx.location_id), len(topics))
         market = market or str(sched.get("market") or "")
         rows = []
@@ -287,12 +290,12 @@ async def commit(ctx, job: Dict[str, Any], edits: Dict[str, Any]) -> Dict[str, A
         if done.exists():
             return json.loads(done.read_text())
         if started.exists():
-            raise RuntimeError("A previous commit was interrupted partway — check /calendar before "
+            raise StepError("A previous commit was interrupted partway — check /calendar before "
                                "running this again so nothing lands twice.")
         plan = _find_output(job, "slot_plan")
         rows = list(_get(plan, "value") or []) if plan is not None else []
         if not rows:
-            raise RuntimeError("Nothing on the slot plan to commit.")
+            raise StepError("Nothing on the slot plan to commit.")
 
         started.write_text(json.dumps({"job_id": job_id, "at": datetime.now(timezone.utc).isoformat()}))
         try:

@@ -20,11 +20,12 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from services.agents.contract import AgentResult, Output
+from services.agents.contract import AgentResult, Output, StepError
 
-ALLOWED_ROUTES = (
-    "POST /api/yt/cover-forge",
-    "GET /api/projects/{project_id}",
+# Exact internal paths ctx.call_route may hit ("{param}" = one path segment).
+ROUTES = (
+    "/api/yt/cover-forge",
+    "/api/projects/{project_id}",
 )
 
 FORMATS = ("youtube_thumbnail", "episode_poster")
@@ -71,12 +72,12 @@ async def _provider_plate(ctx, provider: Any, prompt: str, dest: Path) -> Option
     started = time.monotonic()
     while str(getattr(job, "status", "")).lower() not in ("done", "completed", "succeeded", "failed", "error"):
         if time.monotonic() - started > PROVIDER_CEILING_S:
-            raise RuntimeError("image provider took too long")
+            raise StepError("image provider took too long")
         ctx.check_cancelled()
         await asyncio.sleep(PROVIDER_POLL_S)
         job = await provider.poll(job)
     if str(getattr(job, "status", "")).lower() in ("failed", "error"):
-        raise RuntimeError("image provider reported a failed render")
+        raise StepError("image provider reported a failed render")
     asset = await provider.fetch(job, dest)
     return str(getattr(asset, "path", dest))
 
@@ -86,10 +87,10 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
 
     fmt = str(inp.get("format") or "youtube_thumbnail")
     if fmt not in FORMATS:
-        raise RuntimeError("Format has to be a YouTube thumbnail or an episode poster.")
+        raise StepError("Format has to be a YouTube thumbnail or an episode poster.")
     title = str(inp.get("title") or "").strip()
     if not title:
-        raise RuntimeError("Give me the video title.")
+        raise StepError("Give me the video title.")
     out_dir = Path(ctx.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -107,10 +108,10 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
             "selected_persona_photo_id": persona.get("id") if persona else "",
         })
         if status != 200 or not isinstance(concepts, dict):
-            raise RuntimeError(_err(concepts, "Cover Forge didn't answer."))
+            raise StepError(_err(concepts, "Cover Forge didn't answer."))
         variants = [v for v in (concepts.get("variants") or []) if isinstance(v, dict)][:3]
         if not variants:
-            raise RuntimeError("Cover Forge came back with no concepts — run it again.")
+            raise StepError("Cover Forge came back with no concepts — run it again.")
 
     loop = asyncio.get_event_loop()
     images: List[Dict[str, Any]] = []
@@ -139,10 +140,10 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
         else:
             pid = str(inp.get("project_id") or "").strip()
             if not pid:
-                raise RuntimeError("Poster mode needs the episode project.")
+                raise StepError("Poster mode needs the episode project.")
             status, project = await ctx.call_route(f"/api/projects/{pid}", None, method="GET")
             if status != 200 or not isinstance(project, dict):
-                raise RuntimeError(_err(project, "Can't find that episode on the Job Site."))
+                raise StepError(_err(project, "Can't find that episode on the Job Site."))
             by_id = {g.get("id"): g for g in _guests()}
             guest = next((by_id[g] for g in (project.get("guest_ids") or []) if g in by_id), None) or {}
             gname = guest.get("name") or "Guest"
@@ -156,7 +157,7 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
                     None, make_poster, str(out_dir / name), project.get("episode_number"),
                     v.get("thumbnail_text") or project.get("title") or title, gname, headshot, tagline)
                 if not ok:
-                    raise RuntimeError(f"Poster {i} didn't render: {note}")
+                    raise StepError(f"Poster {i} didn't render: {note}")
                 if note:
                     ctx.warn(f"Poster {i}: {note}.")
                 images.append({"file": name, "url": _file_url(ctx, name),

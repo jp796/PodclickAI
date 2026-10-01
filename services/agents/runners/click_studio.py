@@ -21,15 +21,15 @@ import asyncio
 import time
 from typing import Any, Dict, List
 
-from services.agents.contract import AgentResult, Output
+from services.agents.contract import AgentResult, Output, StepError
 
-ALLOWED_ROUTES = (
-    "GET /api/projects/{project_id}",
-    "GET /api/projects/{project_id}/clips",
-    "POST /api/projects/{project_id}/auto-edit",
-    "POST /api/projects/{project_id}/ship-it",
-    "POST /api/projects/{project_id}/auto-broll",
-    "GET /api/projects/{project_id}/auto-broll",
+# Exact internal paths ctx.call_route may hit ("{param}" = one path segment).
+ROUTES = (
+    "/api/projects/{project_id}",
+    "/api/projects/{project_id}/clips",
+    "/api/projects/{project_id}/auto-edit",
+    "/api/projects/{project_id}/ship-it",
+    "/api/projects/{project_id}/auto-broll",
 )
 
 ALLOWED_START = ("recording_done", "review", "failed")
@@ -63,15 +63,15 @@ def _emit(ctx, outputs: List[Any], output: Any) -> None:
 async def _get_project(ctx, pid: str) -> Dict[str, Any]:
     status, data = await ctx.call_route(f"/api/projects/{pid}", None, method="GET")
     if status == 404:
-        raise RuntimeError("Can't find that project on the Job Site.")
+        raise StepError("Can't find that project on the Job Site.")
     if status != 200 or not isinstance(data, dict):
-        raise RuntimeError(_err(data, "Couldn't load the project."))
+        raise StepError(_err(data, "Couldn't load the project."))
     return data
 
 
 async def _sleep(ctx, started: float, ceiling: float, what: str) -> None:
     if time.monotonic() - started > ceiling:
-        raise RuntimeError(f"{what} ran past {int(ceiling // 60)} minutes — check the project page.")
+        raise StepError(f"{what} ran past {int(ceiling // 60)} minutes — check the project page.")
     ctx.check_cancelled()
     await asyncio.sleep(POLL_S)
 
@@ -79,7 +79,7 @@ async def _sleep(ctx, started: float, ceiling: float, what: str) -> None:
 async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
     pid = str(inp.get("project_id") or "").strip()
     if not pid:
-        raise RuntimeError("Pick a project to work on.")
+        raise StepError("Pick a project to work on.")
     do_edit = _flag(inp, "auto_edit", True)
     do_ship = _flag(inp, "ship_it", True)
     do_broll = _flag(inp, "broll", False)
@@ -89,9 +89,9 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
         project = await _get_project(ctx, pid)
         status = project.get("status")
         if status == "processing":
-            raise RuntimeError("That project's already on the line.")
+            raise StepError("That project's already on the line.")
         if status not in ALLOWED_START:
-            raise RuntimeError(f"That project is '{status}' — Click Studio only works recorded, "
+            raise StepError(f"That project is '{status}' — Click Studio only works recorded, "
                                "in-review, or stalled projects.")
 
     if do_edit:
@@ -104,14 +104,14 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
                 ctx.check_cancelled()
                 code, data = await ctx.call_route(f"/api/projects/{pid}/auto-edit", {})
                 if code != 200:
-                    raise RuntimeError(_err(data, "Auto-edit didn't finish."))
+                    raise StepError(_err(data, "Auto-edit didn't finish."))
 
     if do_ship:
         async with ctx.step("ship_it", "Running Ship It"):
             ctx.check_cancelled()
             code, data = await ctx.call_route(f"/api/projects/{pid}/ship-it", {})
             if code != 200:
-                raise RuntimeError(_err(data, "Ship It didn't start."))
+                raise StepError(_err(data, "Ship It didn't start."))
             started = time.monotonic()
             while True:
                 await _sleep(ctx, started, SHIP_IT_CEILING_S, "Ship It")
@@ -119,14 +119,14 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
                 if project.get("status") == "review":
                     break
                 if project.get("status") == "failed":
-                    raise RuntimeError("Ship It stalled — open the project to see where it stopped.")
+                    raise StepError("Ship It stalled — open the project to see where it stopped.")
 
     if do_broll:
         async with ctx.step("broll", "Adding b-roll"):
             ctx.check_cancelled()
             code, data = await ctx.call_route(f"/api/projects/{pid}/auto-broll", {})
             if code != 200:
-                raise RuntimeError(_err(data, "B-roll didn't start."))
+                raise StepError(_err(data, "B-roll didn't start."))
             started = time.monotonic()
             while True:
                 await _sleep(ctx, started, BROLL_CEILING_S, "B-roll")
@@ -138,7 +138,7 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
                     ctx.warn("B-roll found no good cutaway moments — the episode ships without it.")
                     break
                 if state == "failed":
-                    raise RuntimeError(_err(job, "B-roll stalled."))
+                    raise StepError(_err(job, "B-roll stalled."))
 
     outputs: List[Any] = []
     project = await _get_project(ctx, pid)

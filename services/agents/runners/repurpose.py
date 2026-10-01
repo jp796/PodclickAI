@@ -14,11 +14,12 @@ runner adds no GHL call of its own and a second approve cannot double-draft.
 """
 from typing import Any, Dict, List
 
-from services.agents.contract import AgentResult, CommitPlan, Output
+from services.agents.contract import AgentResult, CommitPlan, Output, StepError
 
-ALLOWED_ROUTES = (
-    "GET /api/projects/{project_id}/clips",
-    "POST /api/projects/{project_id}/distribute-shorts",
+# Exact internal paths ctx.call_route may hit ("{param}" = one path segment).
+ROUTES = (
+    "/api/projects/{project_id}/clips",
+    "/api/projects/{project_id}/distribute-shorts",
 )
 
 PLATFORMS = ("instagram", "tiktok")
@@ -50,18 +51,18 @@ def _settings(inp: Dict[str, Any]):
 async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
     pid, max_clips, platforms = _settings(inp)
     if not pid:
-        raise RuntimeError("Pick the episode whose clips you want sent.")
+        raise StepError("Pick the episode whose clips you want sent.")
 
     outputs: List[Any] = []
     async with ctx.step("clips", "Picking the best moments"):
         status, clips = await ctx.call_route(f"/api/projects/{pid}/clips", None, method="GET")
         if status != 200 or not isinstance(clips, list):
-            raise RuntimeError(_err(clips, "Couldn't load that project's clips."))
+            raise StepError(_err(clips, "Couldn't load that project's clips."))
         ready = [c for c in clips if c.get("rendered_url") and c.get("status") != "removed"]
         ready.sort(key=lambda c: float(c.get("virality_score") or 0), reverse=True)
         picks = ready[:max_clips]
         if not picks:
-            raise RuntimeError("No rendered clips on that project yet — run Click Studio first.")
+            raise StepError("No rendered clips on that project yet — run Click Studio first.")
 
     cards = []
     for c in picks:
@@ -88,11 +89,11 @@ async def commit(ctx, job: Dict[str, Any], edits: Dict[str, Any]) -> Dict[str, A
         return stored
     pid, max_clips, platforms = _settings(job.get("input") or {})
     if not pid:
-        raise RuntimeError("This work order lost its project — run it again.")
+        raise StepError("This work order lost its project — run it again.")
     status, data = await ctx.call_route(f"/api/projects/{pid}/distribute-shorts",
                                         {"platforms": platforms, "max_clips": max_clips})
     if status != 200 or not isinstance(data, dict):
-        raise RuntimeError(_err(data, "GHL didn't take the drafts."))
+        raise StepError(_err(data, "GHL didn't take the drafts."))
     return {
         "created": data.get("created") or [],
         "skipped": data.get("skipped") or [],
