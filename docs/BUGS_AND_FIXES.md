@@ -2439,3 +2439,55 @@ blocking a TikTok publish — a passing media/caption check would not have caugh
 
 `tests/test_ghl_update_post.py` (23 tests) pins all three API asymmetries plus the server-owned-field
 exclusion, and asserts contract #5 still holds (no `social-media-posting` string outside the adapter).
+
+### 2026-10-01 (same day, review follow-up) — update_post erased the schedule it was built to set
+
+A review pass on the `update_post()` commit above found a **critical latent bug in the new code**:
+any update that did not explicitly restate the time **erased the schedule**.
+
+`_UPDATABLE_FIELDS` carries fields forward from the GET, but GHL reports a stored schedule as
+**`displayDate`** — which the PUT does not accept — so there was no schedule key to carry. The
+`scheduleDate` key was only ever set from the caller's `scheduled_at`. So
+`update_post(loc, pid, caption="...")` on an already-scheduled post sent `status="scheduled"` with
+**no time at all**, and GHL accepts that silently. It then publishes immediately or never. On a live
+Instagram account both outcomes are wrong. The stored value was sitting in `current["displayDate"]`,
+unread.
+
+Reproduced before fixing: a caption-only edit on a scheduled post produced
+`status='scheduled', scheduleDate=None`.
+
+**Why the first round of tests missed it:** the `STORED` fixture was a *draft* with no `displayDate`,
+so it could not represent a scheduled post at all — and `test_no_schedule_date_is_sent_when_none_given`
+asserted the drop was *correct*. For a draft it is; for a scheduled post it is the bug. A fixture that
+cannot express the dangerous state will not catch the dangerous case.
+
+**Fixed, plus the adjacent findings from the same pass:**
+
+- Stored `displayDate` is carried forward as `scheduleDate` on every update.
+- `status="scheduled"` with no resolvable time is **refused** rather than sent.
+- Caller-supplied `scheduled_at` must be timezone-qualified — an unzoned string let GHL pick the zone,
+  a 5–6 hour error from Springfield. A value carried forward from GHL is trusted as-is on purpose:
+  hard-failing ordinary caption edits because GHL omitted an offset would be the worse trade.
+- The echoed `displayDate` is compared against the requested instant; a 2xx that stored a different
+  time now raises instead of reading as success — which is what the docstring already promised.
+- A GET body with **no media** is refused. GHL *accepts* an empty media array, making this the one
+  path with no server-side backstop: it would silently strip the video off a clip post.
+- A `published` post is no longer blindly re-PUT without an explicit status.
+- `_unwrap_post()` is now shared by `get_post()` and `update_post()`. They previously used different
+  rules (truthiness vs isinstance), so a `{"post": {}}` body returned the envelope from one and `{}`
+  from the other — a caller would see every field missing depending on which it called.
+- `get_post()` now wraps transport errors in `SocialProviderError`. It was the only method in the
+  adapter that did not, so a worker catching that type to back off took a raw `httpx.ConnectError`.
+- Both `firstComment` and `followUpComment` are whitelisted. `_build_payload` sends the former, GHL's
+  docs use the latter, and a post with neither set cannot settle which is real; listing both is safe
+  because the `is not None` filter only echoes a key GHL itself returned.
+
+Verified by live round-trip on a **disposable scratch post**, not on the real clips: armed far-future,
+caption-edited, schedule confirmed intact, then reverted to draft. All ten real posts re-read
+afterwards — unchanged. Tests 23 → 36.
+
+**Still open and deliberately untouched:** `_build_payload` sends `scheduledAt` on the `schedule()`
+*create* path, a key no GHL response mentions. If `scheduleDate` is the real key — verified today on
+PUT — then `schedule()` has been sending something GHL ignores, and any post created through it never
+had a stored time. It is unexercised in this codebase (`publish()` never passes `scheduled_at`), and a
+speculative edit to a create path risks real posting, so it stays flagged pending a deliberate probe.

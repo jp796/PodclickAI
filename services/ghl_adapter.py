@@ -74,6 +74,42 @@ _MIME_BY_EXT = {
 }
 
 
+def _unwrap_post(data: Any) -> Dict[str, Any]:
+    """Pull the post object out of GHL's response envelope.
+
+    GHL nests it under `results.post` on some endpoints, under `post` on others, and
+    returns it flat on the rest. get_post() and update_post() used to unwrap this
+    with different rules — truthiness vs isinstance — so a `{"post": {}}` body came
+    back as the whole envelope from one and as `{}` from the other, which made a
+    caller see every field as missing depending on which method it had called. One
+    rule, used by both.
+    """
+    if not isinstance(data, dict):
+        raise SocialProviderError(f"GHL returned a non-object post body: {type(data).__name__}")
+    for candidate in ((data.get("results") or {}).get("post"), data.get("post")):
+        if isinstance(candidate, dict) and candidate:
+            return candidate
+    return data
+
+
+def _require_utc_instant(value: str) -> None:
+    """Reject a schedule time that does not pin its timezone.
+
+    The adapter documents `scheduled_at` as a UTC instant, but nothing enforced it —
+    a naive "2026-10-02T14:00:00" passed straight through and let GHL pick the zone.
+    Springfield is UTC-5/-6, so that is a five-to-six-hour publish error on a live
+    account. Only caller-supplied values are checked; a value carried forward from
+    GHL's own `displayDate` is trusted as-is, because turning a silent bug into a
+    hard failure on ordinary caption edits would be a worse trade.
+    """
+    v = str(value)
+    if not (v.endswith("Z") or "+" in v[10:] or "-" in v[10:]):
+        raise SocialPublishError(
+            f"scheduled_at must be a timezone-qualified instant (got {value!r}); "
+            "an unzoned time lets GHL choose, which is a multi-hour publish error"
+        )
+
+
 def _to_mime_media(item: Dict[str, Any]) -> Dict[str, Any]:
     """Translate a stored GHL media object into the MIME-typed form PUT requires.
 
@@ -238,21 +274,33 @@ class GHLAdapter(SocialService):
         loc = self._get_location(location_id)
         url = f"{_GHL_API_BASE}/social-media-posting/{loc}/posts/{provider_post_id}"
 
-        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
-            resp = await client.get(url, headers=_ghl_headers(token))
-            _raise_for_status(resp)
-            data = resp.json()
+        # Every other method in this adapter converts transport failures into the
+        # SocialProviderError taxonomy; this one did not, so a worker catching
+        # SocialProviderError to back off took a raw httpx.ConnectError instead.
+        try:
+            async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
+                resp = await client.get(url, headers=_ghl_headers(token))
+                _raise_for_status(resp)
+                data = resp.json()
+        except (SocialAuthError, SocialRateLimitError, SocialProviderError, SocialPublishError):
+            raise
+        except httpx.RequestError as exc:
+            raise SocialProviderError(f"Network error fetching GHL post: {exc}")
 
-        # GHL nests the object under results.post on some endpoints and returns it
-        # flat on others; hand back whichever is present.
-        return (data.get("results") or {}).get("post") or data.get("post") or data
+        return _unwrap_post(data)
 
     # Fields GHL's planner PUT accepts. The API rejects unknown properties, so an
     # update is a read-modify-write over this whitelist rather than a blind merge of
     # the stored post — the GET returns server-owned keys (_id, insights, createdAt,
     # previewLink, ...) that the PUT refuses.
     _UPDATABLE_FIELDS = (
-        "type", "accountIds", "summary", "media", "followUpComment",
+        # Both comment spellings are listed on purpose: _build_payload sends
+        # `firstComment` while GHL's own docs use `followUpComment`, and a post that
+        # has neither set cannot settle it. The `is not None` filter below means a key
+        # is only echoed back when GHL itself returned it, so listing both cannot
+        # invent a field — it just stops the Instagram first comment being dropped by
+        # whichever spelling turns out to be real.
+        "type", "accountIds", "summary", "media", "followUpComment", "firstComment",
         "tiktokPostDetails", "instagramPostDetails", "gmbPostDetails",
         "ogTagsDetails", "tags", "userId",
     )
@@ -286,6 +334,19 @@ class GHLAdapter(SocialService):
         loc   = self._get_location(location_id)
 
         current = await self.get_post(location_id, provider_post_id)
+        if not isinstance(current, dict) or not current:
+            raise SocialProviderError(
+                f"GHL returned no usable body for post {provider_post_id}; refusing to "
+                "PUT a payload built from it"
+            )
+        if not (current.get("media") or []):
+            # An empty media array is ACCEPTED by GHL, so this is the one failure mode
+            # with no server-side backstop — it would quietly strip the video off a
+            # clip post rather than 422.
+            raise SocialProviderError(
+                f"GHL post {provider_post_id} came back with no media; refusing to PUT "
+                "a payload that would strip it"
+            )
 
         payload: Dict[str, Any] = {
             k: current[k] for k in self._UPDATABLE_FIELDS if current.get(k) is not None
@@ -307,9 +368,36 @@ class GHLAdapter(SocialService):
             payload["status"] = status
         else:
             payload["status"] = current.get("status") or "draft"
-        if scheduled_at:
-            # GHL's request key. The response echoes it as `displayDate`.
-            payload["scheduleDate"] = scheduled_at
+        # The schedule needs restating on EVERY update, because PUT replaces the post
+        # and `scheduleDate` is not something the GET hands back under that name — it
+        # comes back as `displayDate`, which is not in _UPDATABLE_FIELDS. Without this,
+        # a caption-only edit on a scheduled post sent status="scheduled" with no time
+        # at all, leaving GHL to publish it immediately or never. The stored value was
+        # sitting in `current` the whole time, unread. (Found in review, 2026-10-01.)
+        want = (scheduled_at or "").strip() or None
+        if want is not None:
+            _require_utc_instant(want)
+        elif payload["status"] == "scheduled":
+            want = (current.get("displayDate") or "").strip() or None
+        if want is not None:
+            payload["scheduleDate"] = want
+
+        # A scheduled post with no time is not a thing we are willing to send. GHL
+        # accepts it silently, and the two ways it can resolve — publish now, or never
+        # publish — are both wrong on a live account.
+        if payload["status"] == "scheduled" and not payload.get("scheduleDate"):
+            raise SocialPublishError(
+                f"refusing to mark GHL post {provider_post_id} scheduled with no date: "
+                "pass scheduled_at, or the stored displayDate was missing"
+            )
+
+        # Re-PUTting a published post is a different act from editing a draft, and
+        # whether GHL re-publishes is not something to discover on a real account.
+        if (current.get("status") or "").lower() == "published" and status is None:
+            raise SocialPublishError(
+                f"GHL post {provider_post_id} is already published; pass an explicit "
+                "status to act on it deliberately"
+            )
 
         url = f"{_GHL_API_BASE}/social-media-posting/{loc}/posts/{provider_post_id}"
         try:
@@ -322,12 +410,20 @@ class GHLAdapter(SocialService):
         except httpx.RequestError as exc:
             raise SocialProviderError(f"Network error updating GHL post: {exc}")
 
-        body = data.get("post") if isinstance(data.get("post"), dict) else data
-        results = data.get("results")
-        if isinstance(results, dict) and isinstance(results.get("post"), dict):
-            body = results["post"]
+        body = _unwrap_post(data)
         logger.info("[ghl.update_post] %s status=%s displayDate=%s",
                     provider_post_id, body.get("status"), body.get("displayDate"))
+
+        # The docstring says a 2xx does not prove the time took, so check it here
+        # instead of leaving every caller to remember. Minute tolerance: GHL returns
+        # millisecond precision and may normalise the zone.
+        if payload.get("scheduleDate"):
+            echoed = str(body.get("displayDate") or "")
+            if echoed and echoed[:16] != payload["scheduleDate"][:16]:
+                raise SocialPublishError(
+                    f"GHL stored a different time for post {provider_post_id}: "
+                    f"asked {payload['scheduleDate']}, stored {echoed}"
+                )
         return body
 
     async def fetch_analytics(
