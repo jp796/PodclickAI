@@ -112,3 +112,28 @@ studio.html: checkInboundScript() runs on DOMContentLoaded
 ### Content Schedule (Today's Topic)
 - `GET /api/studio/today-topic` reads `data/schedule.json`, finds today's shoot day
 - `POST /api/studio/generate-script` calls GPT-4o with topic/pillar/market/notes → returns {script, title, hook_line}
+
+## Agents hub and media providers (planned, wave 2)
+
+> Status: **planned, wave 2.** Source: `AGENTS_HUB_SPEC.md` §1, §2, §4. Nothing here is verified shipped; revise as lanes A-D merge. Verified provider facts: `MEDIA_PROVIDERS_VERIFIED.md`.
+
+**Idea.** An agent is a named, approvable wrapper around generators that already exist, not a new framework. Brick's `GENERATOR_ACTIONS` allowlist and `_dispatch_generator` (in-process calls through `httpx.ASGITransport` against `studio_app`) are the model; agents call the same routes through `ctx.call_route`, so validation, the Foundation gate and output shape do not drift.
+
+**Layout (planned).**
+```
+services/agents/   registry.py (12 AgentSpec entries, pure data), contract.py, jobs.py, internal.py,
+                   render_thumbnail.py, runners/<agent_id>.py
+services/media/    base.py, registry.py, elevenlabs.py, higgsfield.py, ffmpeg_local.py
+routers/agents.py  /api/agents routes + GET /agents
+```
+Adding an agent = one `AgentSpec` entry plus one runner module. The registry tolerates a missing runner (`not_built`).
+
+**Jobs.** In-memory `AGENT_JOBS` dict plus an atomic file write (tmp then `os.replace`) to `data/agent_jobs/{job_id}.json` on every status/step transition, the `podcast_autopilot` durability pattern. Runs start through `services/task_guard.spawn` with `on_task_failure`. No DB migration. On startup, jobs left in `queued|running|committing` become `failed` ("Interrupted by a restart"). Concurrency: one overall semaphore (4) plus one per media provider (2). Lifecycle: `queued -> running -> done | needs_approval -> committing -> done | rejected`; any non-terminal state can go to `cancelled`; failures go to `failed`.
+
+**Approval path.** Each agent declares `run_tier`, `spend_tier`, `commit_tier` on Brick's existing ladder. User-initiated jobs always stop at `needs_approval` before a commit. Approval is a `BrickAction(action_type="agent_commit")` registered at `draftsman` in `ACTION_TIER_MAP` (the `guest_asset_package` precedent: the human click is the gate), and `_dispatch_action` gains one branch calling `services.agents.jobs.commit_job`. Approving from `/agents` and from the Walk-through punch list therefore commits the same job. Commits are idempotent per job.
+
+**Constraints carried over from the codebase.** Agent bookkeeping is never written to `PostVariant.platform_specific` (GHL 422 risk, BUGS_AND_FIXES 2026-05-27). Provider keys are read from `config.settings` first, `os.getenv` fallback only (`.env` is not exported to the process environment). Agent output files live under `data/agent_outputs/{job_id}/` and are served only by the files route.
+
+**Media provider layer.** `MediaProvider` interface with capabilities `tts`, `voices`, `avatar_video`, `image_to_video`, `text_to_video`, `text_to_image`, `ken_burns`. `get_provider(capability)` returns the first configured provider or `None` and never raises for a missing key. Hard requirements make an agent `needs_setup` before any job starts; soft requirements use a fallback (Ken Burns, captions-only, color plate) and add a job warning. `health()` is cached and never runs in a poll loop. A `submit` is never auto-retried after an uncertain response (double-charge risk); only reads and polls retry. Provider errors map to Brick-voice step errors.
+
+**Settings.** ElevenLabs, Higgsfield, `PODCLICK_MEDIA_PREFERENCE`, and the `PODCLICK_AGENTS_DISABLED` kill switch (lists everything `not_built`, run returns 423); names are listed in `API.md`. No key, voice id or provider URL is logged, stored in a job file, or sent to a browser; job files record `provider` and `usage` only. PodClick does not read the PAI voice server's key.
