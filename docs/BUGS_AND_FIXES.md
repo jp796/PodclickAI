@@ -2491,3 +2491,18 @@ afterwards — unchanged. Tests 23 → 36.
 PUT — then `schedule()` has been sending something GHL ignores, and any post created through it never
 had a stored time. It is unexercised in this codebase (`publish()` never passes `scheduled_at`), and a
 speculative edit to a create path risks real posting, so it stays flagged pending a deliberate probe.
+
+---
+
+## 2026-10-01 — Trend Radar and Pillar Planner skipped Foundation (Contract #3); uploader findings
+
+Found during the Agents Hub design pass (`AGENTS_HUB_SPEC.md` §0 item 4 and §1). Documented at spec time; the fix is **planned, wave 2** (lane C) and is not verified shipped.
+
+**Contract #3 violation:** `/api/yt/content-calendar` (Trend Radar) and `/api/yt/pillar-plan` (Pillar Planner) never call `get_brand_context()` (no `get_brand_context` call inside either handler). Their output is therefore not shaped by the Blueprint (audience, pain points, pillars). Both are among the routes Brick can already dispatch through `GENERATOR_ACTIONS` (`yt_content_calendar`, `yt_pillar_plan`), so wrapping them as agents would have shipped generic topics.
+
+**Planned fix (wave 2, lane C):** add a `get_brand_context` call inside `generate_content_calendar` and `yt_pillar_plan` in `main.py`, reusing an existing `BrandContextTaskType` member (do not add enum values without checking the retrieval filters that key off them). When the Blueprint has pillars they replace the hardcoded five; with none, the five real-estate defaults stay. Planned check: Trend Radar output changes when Blueprint pillars change.
+
+**Uploader findings (reported, not yet fixed):**
+- `projects.html` "↑ Upload" linked to `/studio` rather than an upload path.
+- `POST /api/projects/from-upload` accepts only an extension whitelist (mp4, mov, webm, mp3, m4a) and reads the whole file into memory.
+- Possible double transcription on the upload path (needs confirmation before any change).

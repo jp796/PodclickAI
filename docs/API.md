@@ -990,3 +990,115 @@ per-install with `PODCLICK_PUBLISH_BROLL=0`. Clips/Shorts still build from the e
 requests for inline playback (206 + `Content-Range` + `Accept-Ranges: bytes`). Required for the
 editor video to be seekable/scrubbable/fast-forwardable — without it Chrome marks the media
 non-seekable. `?download=1` still returns the full file as an attachment.
+
+---
+
+## The Crew — Agents Hub (planned, wave 2)
+
+> Status: **planned, wave 2.** Source: `AGENTS_HUB_SPEC.md` §2.4. None of these routes is verified shipped; update this section as lanes A-D merge. Router: `routers/agents.py`. Declare `/api/agents/jobs...` and `/api/agents/uploads` before `/api/agents/{agent_id}` so "jobs" is never captured as an agent id. All routes sit inside `DeploymentBoundary` like every other studio route. No secret appears in any response; provider state is booleans only.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/agents` | Serve `frontend/agents.html` (planned, wave 2) |
+| GET | `/api/agents` | Roster grouped by category with permit tier, Foundation tier and per-agent state `ready`/`needs_setup`/`not_built` (planned, wave 2) |
+| GET | `/api/agents/{agent_id}` | One agent's spec plus its last 5 job summaries; 404 on unknown id (planned, wave 2) |
+| POST | `/api/agents/{agent_id}/run` | Validate input and start a job; returns 202 `{job_id, status:"queued"}` (planned, wave 2) |
+| GET | `/api/agents/jobs` | List job summaries, newest first (planned, wave 2) |
+| GET | `/api/agents/jobs/{job_id}` | Full job record (planned, wave 2) |
+| POST | `/api/agents/jobs/{job_id}/approve` | Approve and commit a job in `needs_approval`, with optional edits (planned, wave 2) |
+| POST | `/api/agents/jobs/{job_id}/reject` | Reject a job awaiting approval (planned, wave 2) |
+| POST | `/api/agents/jobs/{job_id}/cancel` | Cancel a non-terminal job (planned, wave 2) |
+| GET | `/api/agents/jobs/{job_id}/files/{name}` | Stream one output file, Range-aware (planned, wave 2) |
+| POST | `/api/agents/uploads` | Multipart upload of images/video for agent inputs (planned, wave 2) |
+
+### GET /api/agents (planned, wave 2)
+```json
+Response: {
+  "permit": { "current_tier": "draftsman" },
+  "foundation": { "tier": "deep", "sample_count": 198 },
+  "categories": [
+    { "id": "research", "label": "Research", "agents": [
+      { "id": "market_scout", "name": "Market Scout", "category": "research", "job": "...", "icon": "...",
+        "state": "ready|needs_setup|not_built", "missing": ["elevenlabs"],
+        "foundation": "none|required|optional|inherited",
+        "run_tier": "draftsman", "spend_tier": "bricklayer", "commit_tier": null,
+        "spends": ["YouTube quota"], "fields": [ ... ] }
+    ] }
+  ]
+}
+Notes: `not_built` means the runner module failed to import; the registry tolerates missing runner files
+       so lanes can merge in any order. `missing`/`state` are computed from `is_configured()` with no network calls.
+```
+
+### POST /api/agents/{agent_id}/run (planned, wave 2)
+```json
+Request:  { "input": { ... } }
+Response: 202 { "job_id": "uuid", "status": "queued" }
+Errors:   400 { "error": "...", "fields": { "<name>": "<message>" } } — validation
+          404 — unknown agent
+          409 { "error": "...", "needs_setup": true, "missing": ["elevenlabs"] } — required provider not configured
+          422 { "error": "...", "foundation_not_ready": true } — reuses the existing Foundation error shape
+          423 { "error": "not_built" } — runner missing, or PODCLICK_AGENTS_DISABLED=1
+```
+
+### GET /api/agents/jobs (planned, wave 2)
+```json
+Query:    ?agent_id=&status=a,b&limit=25   (limit default 25, max 100)
+Response: { "jobs": [ { ...job minus outputs[].value and input..., "output_count": 3 } ] }
+Notes:    Newest first by updated_at.
+```
+
+### GET /api/agents/jobs/{job_id} (planned, wave 2)
+```json
+Response: {
+  "id": "uuid", "agent_id": "trend_radar",
+  "status": "queued|running|needs_approval|committing|done|failed|rejected|cancelled",
+  "initiator": "user|brick", "location_id": "...", "input": { ... },
+  "steps": [ { "key": "...", "label": "...", "status": "pending|running|completed|failed|skipped",
+               "error": null, "started_at": "...", "ended_at": "..." } ],
+  "outputs": [ { "id": "o1", "kind": "text|cards|table|json|audio|video|images|file|link", "label": "...",
+                 "value": "...", "file": "...", "url": "/api/agents/jobs/{id}/files/{name}", "meta": {} } ],
+  "warnings": [ "..." ],
+  "foundation": { "used": true, "sample_count": 198, "tier": "deep" },
+  "needs_approval": false,
+  "approval": { "action_id": "uuid", "summary": "...", "commit_tier": "bricklayer", "current_tier": "draftsman" },
+  "commit_result": null, "committed_at": null,
+  "usage": [ { "provider": "elevenlabs", "unit": "characters", "amount": 812 } ],
+  "error": null, "created_at": "...", "updated_at": "..."
+}
+Errors:   404
+Notes:    Persisted at data/agent_jobs/{job_id}.json (atomic write). Errors are user-facing, Brick voice.
+```
+
+### POST /api/agents/jobs/{job_id}/approve (planned, wave 2)
+```json
+Request:  { "edits": { "<output_id>": "<new value>" } }   (optional; only text/cards outputs are editable)
+Response: 200 { "ok": true, "job": { ... } }
+Errors:   409 — job is not in needs_approval
+Notes:    Idempotent once committed — a second approve returns the stored commit_result.
+          Thin wrapper over BrickAction approval (action_type "agent_commit").
+```
+
+### POST /api/agents/jobs/{job_id}/reject and /cancel (planned, wave 2)
+```json
+Reject  Request:  { "reason": "..." }   (optional)       Response: { "ok": true, "job": { ... } }
+Cancel  Request:  (no body)                              Response: { "ok": true, "job": { ... } }
+Errors: cancel returns 409 if the job is already terminal.
+Notes:  Cancel sets a flag checked between steps. A provider job already submitted is not killed; its result is discarded.
+```
+
+### GET /api/agents/jobs/{job_id}/files/{name} (planned, wave 2)
+```
+`name` must match ^[A-Za-z0-9._-]+$ and resolve inside the job's output dir (`..` rejected).
+Honors HTTP Range (206 + Content-Range + Accept-Ranges) so <video>/<audio> are seekable — same reason as the 2026-09-17 source-video fix.
+```
+
+### POST /api/agents/uploads (planned, wave 2)
+```json
+Request:  multipart/form-data — files[] (images: jpg/png/webp/heic; video: mp4/mov). Max 25 files, 50 MB each.
+Response: { "uploads": [ { "upload_id": "uuid", "filename": "...", "kind": "image|video" } ] }
+Notes:    Stored at data/agent_uploads/{upload_id}. A `files` field in an agent's input carries upload ids.
+```
+
+### Environment (planned, wave 2)
+New settings read via `config.settings` first, `os.getenv` fallback: `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`, `ELEVENLABS_MAX_CHARS`, `ELEVENLABS_VOICE_SETTINGS`, `HIGGSFIELD_API_KEY`, `HIGGSFIELD_API_SECRET`, `HIGGSFIELD_BASE_URL`, `HIGGSFIELD_MAX_SECONDS`, `PODCLICK_MEDIA_PREFERENCE`, `PODCLICK_AGENTS_DISABLED`. Provider facts: see `MEDIA_PROVIDERS_VERIFIED.md`. Planned contract fix: `/api/yt/content-calendar` and `/api/yt/pillar-plan` gain `get_brand_context` (see BUGS_AND_FIXES 2026-10-01).

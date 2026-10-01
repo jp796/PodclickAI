@@ -543,3 +543,41 @@ Build/serve/check commands and interaction inventory are in `reos-superapp-conce
 | `tlSeek(ev)` | Click the timeline to seek the video. |
 
 The timeline (`#tl`) sits under the video; the Section-cut card holds Mark In / Mark Out / Cut section.
+
+---
+
+## agents.html — The Crew (`/agents`) (planned, wave 2)
+
+> Status: **planned, wave 2** (lane B). Source: `AGENTS_HUB_SPEC.md` §3. Not verified shipped. Nothing below is built until the lane merges and an Interceptor pass confirms it.
+
+Static page, same three includes as `calendar.html`/`walkthrough.html`: `/podclick-design.css`, `/static/podclick-nav.js?v=…`, `/brick-chat.js`. Design tokens only (no hex values, no new custom properties, no new fonts). Nav gets a `Crew` entry after Walk-through; the `?v=` query must be bumped on every page that loads `podclick-nav.js` (see BUGS_AND_FIXES 2026-06-12).
+
+Layout: category-grouped chip grid (Research, Plan, Create, Publish, Grow; empty categories hidden) with counted headers, plus a right rail holding the Punch list (jobs in `needs_approval`) and Work orders (latest 15 jobs). A right-side drawer has two modes: Run mode (needs-checklist, generated run form, cost line, recent jobs, "Wraps:" footer) and Job mode (status, steps, warnings, outputs by kind, footer actions by status). Mobile (<760px): single column, drawer becomes a full-screen sheet.
+
+### agents.html — JS functions (names fixed by spec; planned, wave 2)
+
+| Function | Description |
+|----------|-------------|
+| `loadCrew()` | GET `/api/agents`; render grid, Permit/Foundation badges, skeleton and error states |
+| `renderCategory(cat)` | Group header with count, then its chips |
+| `renderChip(agent)` | Chip with status dot (ready / needs setup / not built) and running ring |
+| `openAgentDrawer(agentId)` | Run mode: needs-checklist, `buildRunForm(fields)`, cost line, recent jobs |
+| `buildRunForm(fields)` | Generate inputs by `FieldSpec.type` (text, textarea, number, select, multiselect, checkbox, date, project, job_ref, persona, files) |
+| `readRunForm()` | Collect and validate form values client-side |
+| `uploadAgentFiles(input)` | XHR POST to `/api/agents/uploads` with per-file progress; returns upload ids |
+| `submitRun(agentId)` | POST run; map 400/409/422/423 to drawer states; on 202 call `openJobDrawer(jobId)` |
+| `openJobDrawer(jobId)` | Job mode shell |
+| `renderJob(job)` | Render status header, `renderSteps`, warnings, `renderOutputs` (by kind), footer actions |
+| `pollJob(jobId)` | GET `/api/agents/jobs/{id}` every 2 s for 60 s then every 5 s; 3-strike reconnect; stops on terminal state or drawer close |
+| `approveJob(jobId)` | POST approve (with edits); check the HTTP result before claiming success |
+| `rejectJob(jobId)` | POST reject; check the HTTP result |
+| `cancelJob(jobId)` | POST cancel; check the HTTP result |
+| `loadPunchList()` | Rail: jobs with `status=needs_approval`; independent error state |
+| `loadWorkOrders(filter)` | Rail: latest 15 jobs; filters All / On site / Built / Stalled; independent error state |
+| `handOff(fromJob, toAgentId)` | Open the target agent's drawer with `job_ref` pre-filled |
+| `crewToast(msg, kind)` | Toast, same pattern as `ysToast`/`ssToast` |
+| `escHtml(s)` | Shared escaping for every dynamic string |
+
+Encoding rule reminder: text-output Copy buttons use `btn.dataset.text` + `addEventListener` (see "Encoding Conventions" above); never `JSON.stringify` inside `onclick`. Rail polling runs every 10 s only while a job is running and the tab is visible.
+
+Planned review gates (lane B): `rg -n '#[0-9a-fA-F]{3,8}\b' frontend/agents.html` returns nothing outside comments; `rg -ni 'ai-powered|leverage|unlock|synergy|settings|dashboard|workflow' frontend/agents.html` returns nothing user-visible.
