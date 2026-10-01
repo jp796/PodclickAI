@@ -121,6 +121,16 @@
     .hero-badge { flex-shrink: 0; }
 
     /* ── Tier badge ────────────────────────────────────────────────── */
+    /* Foundation match - the score Brick plans against. */
+    .tier-score {
+      margin-top: 8px; padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,.10);
+      font-family: 'Azeret Mono', ui-monospace, monospace;
+      font-size: 12px; letter-spacing: .02em;
+    }
+    #tier-score-val { font-weight: 700; }
+    .tier-score-when { display: block; margin-top: 2px; opacity: .6; font-size: 10px; }
+    
     .tier-badge {
       display: flex; flex-direction: column; align-items: center;
       background: var(--surface); border: 1px solid var(--border);
@@ -448,6 +458,14 @@
         <div class="tier-label">Foundation</div>
         <div class="tier-name not-ready" id="tier-name">Not Ready</div>
         <div class="tier-count" id="tier-count">0 samples</div>
+        <!-- The score Brick actually plans against. /api/foundation/status returns
+        latest_score and /api/foundation/score returns it with a timestamp -
+        this page called NEITHER, so the number the whole tier system reads
+        was computed nightly and never shown to its owner. -->
+        <div class="tier-score" id="tier-score" title="Foundation match - how closely Brick's output tracks your own writing">
+        <span id="tier-score-val">&mdash;</span>
+        <span class="tier-score-when" id="tier-score-when"></span>
+        </div>
       </div>
     </div>
   </div>
@@ -655,11 +673,38 @@
       const res  = await fetch('/api/foundation/status');
       const data = await res.json();
       if (typeof data.sample_count === 'number') updateBadge(data.sample_count);
+      renderScore(data.latest_score, data.computed_at);
     } catch (e) {
       console.warn('[Foundation] status fetch failed:', e);
     }
   }
 
+  /* ── Foundation match ─────────────────────────────────────────────────── */
+  function renderScore(score, computedAt) {
+    const valEl  = document.getElementById('tier-score-val');
+    const whenEl = document.getElementById('tier-score-when');
+    if (!valEl) return;
+  
+    if (typeof score !== 'number') {
+      // "Not computed yet" is not zero. Conflating them is what made the
+      // walk-through report 0% against 197 real samples for weeks.
+      valEl.textContent = 'not computed yet';
+      valEl.style.color = 'var(--text-dim, #8a8a8a)';
+      whenEl.textContent = 'Runs nightly at 03:00 once you have 5+ samples.';
+      return;
+    }
+  
+    const pct = Math.round(score * 1000) / 10;   // 0.6507 -> 65.1
+    valEl.textContent = pct + '% Foundation match';
+    valEl.style.color = pct >= 70 ? 'var(--green, #5fb85f)'
+                      : pct >= 50 ? 'var(--orange, #ff6b1a)'
+                      : 'var(--coral, #e2563f)';
+    whenEl.textContent = computedAt
+      ? 'Last computed ' + new Date(computedAt).toLocaleDateString('en-US',
+          { month: 'short', day: 'numeric', year: 'numeric' })
+      : '';
+  }
+  
   /* ── Feed UI ──────────────────────────────────────────────────────────── */
   function addFeedItem(text, source) {
     sessionPoured += 1;

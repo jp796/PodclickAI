@@ -719,6 +719,29 @@ function checkPunchEmpty() {
    adjust_vyral_mix or publish_post was approved blind. These are the consequences
    worth reading before clicking, in the action's own terms. */
 const ACTION_CONSEQUENCE = {
+  /* Generators produce text for review and reach no audience. The two that
+     spend a real external resource say so. */
+  brand_bio_pack: 'Generates platform bios for review. Nothing is saved or published.',
+  brand_content_plan: 'Generates 12-month content plan for review. Nothing is saved or published.',
+  brand_conversion: 'Generates lead magnet + VSL + emails for review. Nothing is saved or published.',
+  brand_intake: 'Generates brand brief for review. Nothing is saved or published.',
+  brand_profile_audit: 'Generates profile audit + bio rewrite for review. Nothing is saved or published.',
+  social_forge: 'Generates 4-platform social posts for review. Nothing is saved or published.',
+  social_hashtags: 'Generates hashtag sets for review. Nothing is saved or published.',
+  social_repurpose: 'Generates post angles from a URL or transcript for review. Nothing is saved or published.',
+  yt_adapt_concept: 'Generates concept remixed for the market for review. Nothing is saved or published.',
+  yt_competitor_spy: 'Generates Market Scout run. \u26a0\ufe0f Spends YouTube Data API quota. Nothing is saved or published.',
+  yt_content_calendar: 'Generates Trend Radar topics for review. Nothing is saved or published.',
+  yt_cover_forge: 'Generates thumbnail variants. \u26a0\ufe0f Generates images. Nothing is saved or published.',
+  yt_lead_page: 'Generates lead page copy for review. Nothing is saved or published.',
+  yt_pillar_plan: 'Generates pillar content plan for review. Nothing is saved or published.',
+  yt_repurpose: 'Generates repurposed shorts/IG/TikTok/blog for review. Nothing is saved or published.',
+  yt_scout_remix: 'Generates competitor concept in your voice for review. Nothing is saved or published.',
+  yt_script: 'Generates YouTube script for review. Nothing is saved or published.',
+  yt_script_formula: 'Generates Script Lab outline for review. Nothing is saved or published.',
+  yt_seo_package: 'Generates title/description/tags for review. Nothing is saved or published.',
+  yt_video_advisor: 'Generates video strategy advice for review. Nothing is saved or published.',
+
   publish_post:     '⚠️ This posts publicly to every connected platform for the post. There is no undo beyond deleting the post.',
   queue_draft:      'Schedules the draft. It still needs a publish step to go out.',
   adjust_calendar:  'Moves a scheduled post. Nothing is published.',
@@ -734,6 +757,30 @@ const ACTION_CONSEQUENCE = {
 
 /* Keys worth showing per type, in the order a human reads them. */
 const ACTION_FIELDS = {
+  /* Wave 4 generators — one entry each, generated from GENERATOR_ACTIONS so the
+     preview cannot drift from the registry. They take free-form bodies, so the
+     common inputs are listed and renderActionPreview skips any that are absent. */
+  brand_bio_pack: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  brand_content_plan: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  brand_conversion: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  brand_intake: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  brand_profile_audit: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  social_forge: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  social_hashtags: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  social_repurpose: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  yt_adapt_concept: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  yt_competitor_spy: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  yt_content_calendar: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  yt_cover_forge: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  yt_lead_page: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  yt_pillar_plan: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  yt_repurpose: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  yt_scout_remix: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  yt_script: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  yt_script_formula: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  yt_seo_package: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+  yt_video_advisor: ['topic', 'market', 'city', 'audience', 'company', 'url'],
+
   publish_post:     ['post_id', 'platform'],
   queue_draft:      ['post_id', 'scheduled_at'],
   adjust_calendar:  ['post_id', 'scheduled_at'],
