@@ -380,8 +380,8 @@
 
     <!-- Overwrite warning (shown when blueprint already has data) -->
     <div class="overwrite-warning" id="overwrite-warn">
-      ⚠ You already have a Blueprint. This analysis will overwrite it with a fresh draft
-      drawn from your current voice samples. Review the draft before confirming.
+      ⚠ This replaced your previous Blueprint. It was saved the moment the analysis
+      finished — there is no draft step and no revert. Read it over; rebuild if it is wrong.
     </div>
 
     <!-- Blueprint draft panel -->
@@ -465,13 +465,13 @@
       <!-- Confirm strip -->
       <div class="confirm-strip" id="confirm-strip">
         <div class="confirm-msg">
-          This Blueprint is <strong>not saved yet</strong>. Looks right? Click <strong>Lock It In</strong>
-          and Brick will start writing in this voice immediately.
+          This Blueprint is <strong>already saved and live</strong> — Brick is writing in this
+          voice from now on. Read it over; <strong>Got It</strong> just clears this strip.
         </div>
         <div class="confirm-actions">
           <button class="btn-secondary" onclick="discardDraft()">Discard</button>
           <button class="btn-confirm" id="btn-confirm" onclick="confirmBlueprint()">
-            Lock It In ✓
+            Got It ✓
           </button>
         </div>
       </div>
@@ -493,6 +493,7 @@
     // ── State ──────────────────────────────────────────────────────────
     let _draftData = null;        // raw response from auto-generate
     let _alreadyExisted = false;  // whether blueprint already had data
+    let _hasBlueprint   = false;  // known pre-build, from /api/foundation/status
 
     // ── On load: fetch Foundation status ───────────────────────────────
     window.addEventListener('DOMContentLoaded', loadFoundationStatus);
@@ -503,6 +504,9 @@
         if (!res.ok) return;
         const data = await res.json();
         const count = data.sample_count || 0;
+        // Needed BEFORE building: auto_generate_blueprint UPSERTs and commits
+        // server-side, so by the time a response arrives the old Blueprint is gone.
+        _hasBlueprint = !!data.has_blueprint;
         const tier = computeTier(count);
         const tierEl = document.getElementById('ft-tier');
         tierEl.textContent = tier.label;
@@ -538,6 +542,21 @@
 
     // ── Build Blueprint ────────────────────────────────────────────────
     async function startBuild() {
+      // services/foundation.py auto_generate_blueprint does an
+      // `ON CONFLICT (location_id) DO UPDATE` and commits BEFORE returning. This
+      // page used to warn "this analysis will overwrite it" only AFTER the
+      // response -- by which point the old Blueprint was already gone -- and then
+      // offered a Discard that claimed "Original Blueprint unchanged". Ask first.
+      if (_hasBlueprint) {
+        const ok = window.confirm(
+          'This replaces your current Blueprint immediately and cannot be undone.\n\n' +
+          'Brick rebuilds it from your voice samples and saves it on the spot. There ' +
+          'is no draft step and no revert \u2014 anything you hand-tuned is lost.\n\n' +
+          'Rebuild it?'
+        );
+        if (!ok) return;
+      }
+
       const btn = document.getElementById('btn-build');
       btn.disabled = true;
       document.getElementById('spinner-wrap').classList.add('visible');
@@ -680,7 +699,9 @@
       document.getElementById('overwrite-warn').classList.remove('visible');
       document.getElementById('confirm-strip').classList.remove('visible');
       document.getElementById('btn-build').disabled = false;
-      bpToast('Draft discarded. Original Blueprint unchanged.', 'info');
+      // It was never a draft and the original is gone — saying otherwise is how
+      // someone loses a hand-tuned Blueprint believing they declined.
+      bpToast('View cleared. Your Blueprint still holds these values — rebuild to replace them.', 'info');
     }
 
     // ── Utilities ──────────────────────────────────────────────────────

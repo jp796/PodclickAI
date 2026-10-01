@@ -78,6 +78,20 @@
     }
     .progress-card.show { display: block; }
     .prog-bar-wrap { background: #272420; border-radius: 4px; height: 6px; overflow: hidden; margin: 12px 0; }
+    /* Working, with no claimed percentage — the server reports a stage string,
+       not a number, so a filling bar would be inventing one. */
+    .prog-bar.indeterminate {
+      background-image: linear-gradient(90deg,
+        rgba(240,112,48,.15) 0%, rgba(240,112,48,1) 45%,
+        rgba(217,95,30,1) 55%, rgba(240,112,48,.15) 100%);
+      background-size: 45% 100%;
+      background-repeat: no-repeat;
+      animation: prog-sweep 1.1s ease-in-out infinite;
+    }
+    @keyframes prog-sweep {
+      0%   { background-position: -45% 0; }
+      100% { background-position: 145% 0; }
+    }
     .prog-bar { height: 100%; background: linear-gradient(90deg, #d95f1e, #f07030);
                 border-radius: 4px; width: 0%; transition: width 0.3s; }
     .prog-msg  { font-size: 13px; color: #847d74; }
@@ -306,20 +320,25 @@ Dollar amounts in the CTA section are auto-detected for the pricing card."></tex
     const { job_id } = await resp.json();
     btn.textContent = '⚡ Auto-Edit VSL';
 
-    // Poll
-    let pct = 10;
-    const msgs = ['Parsing script…','Building filter chain…','Rendering overlays…','Encoding…','Finalizing…'];
-    let msgIdx = 0;
-    _pollTimer = setInterval(async () => {
-      pct = Math.min(pct + 8, 90);
-      document.getElementById('prog-bar').style.width = pct + '%';
-      document.getElementById('prog-msg').textContent = msgs[Math.min(msgIdx++, msgs.length-1)];
+    // Poll.
+    //
+    // The bar used to climb `pct + 8` per tick, capped at 90%, and a rotating list
+    // of invented stage names was written over the real one each tick. The server
+    // reports a progress STRING (_VSL_JOBS[id]["progress"]) and no percentage at
+    // all, so there is no number to show — an indeterminate bar says "working"
+    // without claiming a completion figure nobody computed.
+    const bar = document.getElementById('prog-bar');
+    bar.classList.add('indeterminate');
+    bar.style.width = '100%';
+    document.getElementById('prog-msg').textContent = 'Starting…';
 
+    _pollTimer = setInterval(async () => {
       const s = await fetch('/api/vsl/render/' + job_id).then(r => r.json()).catch(() => null);
       if (!s) return;
       if (s.status === 'done') {
         clearInterval(_pollTimer);
-        document.getElementById('prog-bar').style.width = '100%';
+        bar.classList.remove('indeterminate');
+        bar.style.width = '100%';   // now this 100% is true
         document.getElementById('prog-msg').style.display = 'none';
         const done = document.getElementById('prog-done');
         done.style.display = 'block';
@@ -328,6 +347,7 @@ Dollar amounts in the CTA section are auto-detected for the pricing card."></tex
         toast('VSL edited! Ready to download.', 'ok');
       } else if (s.status === 'error') {
         clearInterval(_pollTimer);
+        bar.classList.remove('indeterminate');
         showError(s.error || 'Render failed');
         btn.disabled = false;
       } else if (s.progress) {

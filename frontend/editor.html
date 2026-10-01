@@ -314,32 +314,36 @@
     document.getElementById('editor-grid').style.display = 'grid';
   }
 
-  // ── Transcription (Phase 0 stub — Phase 1 wires the real call) ─────────────
+  // ── Transcription — NOT implemented here; the page says so and links out ──
   async function startTranscription() {
     if (!_meta) return;
 
     document.getElementById('transcript-state-idle').style.display = 'none';
     document.getElementById('transcript-state-running').style.display = '';
 
-    // Phase 1: call POST /api/editor/transcribe with { vid_id, media_uri }
-    // Returns { words: Word[] } (see packages/editor-core/src/types.ts)
-    // For now, surface the placeholder with a note.
-    await new Promise(r => setTimeout(r, 800)); // simulate async
-
+    // There is no transcription on this page. /api/editor/transcribe does not
+    // exist — `grep -c 'api/editor/transcribe' main.py` returns 0. This block
+    // used to wait 800ms, show a placeholder, ENABLE Export and toast
+    // "Transcription complete" — a success state with no server effect behind it.
+    // social-studio.html hands users this page as a share link, so they land here.
+    //
+    // Word-level editing DOES exist, on projects at /project/{id}/edit. Say that.
     document.getElementById('transcript-state-running').style.display = 'none';
     document.getElementById('transcript-state-done').style.display = '';
     document.getElementById('transcript-area').innerHTML =
       '<div class="transcript-placeholder" style="padding:20px 0;">' +
-      '<h3>Transcription endpoint (Phase 1)</h3>' +
-      '<p>POST /api/editor/transcribe will return Word[] from WhisperX.<br>' +
-      'Word-level editing surface builds here in Phase 1.</p></div>';
+      '<h3>Transcription isn\u2019t wired on this page</h3>' +
+      '<p>This is the video-library editor; it has no transcription backend.</p>' +
+      '<p><strong>The working word-level editor is on projects.</strong> Record or ' +
+      'upload from the <a href="/studio" style="color:#f07030;font-weight:700;">Studio</a>, ' +
+      'then open the project and hit <em>Edit Video</em> \u2014 that path transcribes, ' +
+      'cuts by word, and re-renders the video for real.</p>' +
+      '<p><a href="/projects" style="color:#f07030;font-weight:700;">Go to the Job Site \u2192</a></p>' +
+      '</div>';
 
-    document.getElementById('btn-export').disabled = false;
-    document.getElementById('btn-export').style.cssText =
-      'width:100%;padding:10px;font-size:13px;font-weight:700;' +
-      'background:linear-gradient(135deg,#d95f1e,#f07030);color:#fff;' +
-      'border:none;border-radius:8px;cursor:pointer;';
-    toast('Transcription complete (Phase 1 stub — real WhisperX wired next).', 'ok');
+    // Export stays disabled — there is nothing to export.
+    document.getElementById('btn-export').disabled = true;
+    toast('No transcription on this page \u2014 use a project\u2019s Edit Video instead.', 'info');
   }
 
   document.addEventListener('DOMContentLoaded', boot);
