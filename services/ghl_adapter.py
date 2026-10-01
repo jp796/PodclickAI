@@ -67,6 +67,34 @@ def _raise_for_status(response: httpx.Response) -> None:
         )
 
 
+_MIME_BY_EXT = {
+    ".mp4": "video/mp4", ".m4v": "video/x-m4v", ".mov": "video/quicktime",
+    ".webm": "video/webm", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+    ".png": "image/png", ".gif": "image/gif", ".webp": "image/webp",
+}
+
+
+def _to_mime_media(item: Dict[str, Any]) -> Dict[str, Any]:
+    """Translate a stored GHL media object into the MIME-typed form PUT requires.
+
+    GHL stores and returns `type: "video"`, but its own PUT only accepts
+    `type: "video/mp4"`. The extension is the authority; the stored bare type is
+    the fallback when the URL carries no usable extension (CDN links with query
+    strings are handled by stripping at "?").
+    """
+    out = dict(item)
+    existing = str(out.get("type") or "")
+    if "/" in existing:
+        return out
+    url = str(out.get("url") or "").split("?", 1)[0].lower()
+    for ext, mime in _MIME_BY_EXT.items():
+        if url.endswith(ext):
+            out["type"] = mime
+            return out
+    out["type"] = "video/mp4" if existing == "video" else "image/jpeg"
+    return out
+
+
 class GHLAdapter(SocialService):
     """
     Implements SocialService against GHL Social Planner API.
@@ -218,6 +246,89 @@ class GHLAdapter(SocialService):
         # GHL nests the object under results.post on some endpoints and returns it
         # flat on others; hand back whichever is present.
         return (data.get("results") or {}).get("post") or data.get("post") or data
+
+    # Fields GHL's planner PUT accepts. The API rejects unknown properties, so an
+    # update is a read-modify-write over this whitelist rather than a blind merge of
+    # the stored post — the GET returns server-owned keys (_id, insights, createdAt,
+    # previewLink, ...) that the PUT refuses.
+    _UPDATABLE_FIELDS = (
+        "type", "accountIds", "summary", "media", "followUpComment",
+        "tiktokPostDetails", "instagramPostDetails", "gmbPostDetails",
+        "ogTagsDetails", "tags", "userId",
+    )
+
+    async def update_post(
+        self,
+        location_id: str,
+        provider_post_id: str,
+        status: Optional[str] = None,
+        scheduled_at: Optional[str] = None,
+        caption: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Update an existing planner post in place. Returns the stored post.
+
+        PUT /social-media-posting/{locationId}/posts/{postId}
+
+        This is the only way to move a draft to scheduled — `publish()` and
+        `schedule()` both CREATE a post, so using them on an already-drafted clip
+        duplicates it in the planner instead of promoting it.
+
+        Read-modify-write: GHL's PUT replaces the post, so the current body is
+        fetched and the untouched fields are carried forward. Dropping them would
+        silently wipe the media and the `tiktokPostDetails` block that TikTok video
+        posts require (see the 2026-07-27 fix in _build_payload).
+
+        `scheduled_at` must be an ISO-8601 UTC instant. GHL stores it and reports it
+        back as `displayDate`, NOT as the request key — verify a schedule by reading
+        `displayDate`, never by trusting a 2xx.
+        """
+        token = self._get_token(location_id)
+        loc   = self._get_location(location_id)
+
+        current = await self.get_post(location_id, provider_post_id)
+
+        payload: Dict[str, Any] = {
+            k: current[k] for k in self._UPDATABLE_FIELDS if current.get(k) is not None
+        }
+        payload.setdefault("type", "post")
+        # GHL's planner is asymmetric about media types: POST accepts the bare
+        # "video"/"image" that _build_payload sends, and the GET echoes it back the
+        # same way — but the PUT rejects it with 422 "media.0.Invalid media format
+        # type" and demands a real MIME type. Omitting `media` is not an escape
+        # either ("media must be an array with media objects"). So the stored value
+        # has to be translated on the way back in. Verified against the live API
+        # 2026-10-01.
+        payload["media"] = [_to_mime_media(m) for m in (current.get("media") or [])]
+        if not payload.get("userId") and settings.ghl_user_id:
+            payload["userId"] = settings.ghl_user_id
+        if caption is not None:
+            payload["summary"] = caption
+        if status is not None:
+            payload["status"] = status
+        else:
+            payload["status"] = current.get("status") or "draft"
+        if scheduled_at:
+            # GHL's request key. The response echoes it as `displayDate`.
+            payload["scheduleDate"] = scheduled_at
+
+        url = f"{_GHL_API_BASE}/social-media-posting/{loc}/posts/{provider_post_id}"
+        try:
+            async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
+                resp = await client.put(url, headers=_ghl_headers(token), json=payload)
+                _raise_for_status(resp)
+                data = resp.json()
+        except (SocialAuthError, SocialRateLimitError, SocialProviderError, SocialPublishError):
+            raise
+        except httpx.RequestError as exc:
+            raise SocialProviderError(f"Network error updating GHL post: {exc}")
+
+        body = data.get("post") if isinstance(data.get("post"), dict) else data
+        results = data.get("results")
+        if isinstance(results, dict) and isinstance(results.get("post"), dict):
+            body = results["post"]
+        logger.info("[ghl.update_post] %s status=%s displayDate=%s",
+                    provider_post_id, body.get("status"), body.get("displayDate"))
+        return body
 
     async def fetch_analytics(
         self,

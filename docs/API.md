@@ -347,6 +347,22 @@ Notes:    angles array has 5 items. At least one of url or transcript required.
 
 All GHL API calls are exclusively in `services/ghl_adapter.py`. No other file may call `services.leadconnectorhq.com`.
 
+### `GHLAdapter.update_post(location_id, post_id, status=, scheduled_at=, caption=)`
+
+The only way to modify an existing planner post — `publish()` and `schedule()` both CREATE, so using
+them on an already-drafted clip duplicates it. `PUT /social-media-posting/{locationId}/posts/{postId}`.
+
+- **Read-modify-write.** GHL's PUT *replaces* the post. Fields are carried forward from `get_post()`
+  over a `_UPDATABLE_FIELDS` whitelist; omitting them wipes media/caption/`tiktokPostDetails`, and
+  echoing the GET verbatim fails because server-owned keys (`_id`, `insights`, `createdAt`,
+  `previewLink`, `locationId`, `deleted`) are rejected as unknown properties.
+- **`scheduled_at` must be an ISO-8601 UTC instant.** The request key GHL wants is `scheduleDate`;
+  it reports the value back as **`displayDate`**. Verify a schedule by reading `displayDate` — a 2xx
+  alone does not prove the time took.
+- **Media type must be MIME on PUT** (`video/mp4`), though POST and GET both use the bare `video`.
+  `_to_mime_media()` handles the translation from the URL extension. The `media` key is mandatory.
+- Only drafts and scheduled posts can be updated.
+
 | Method | Path | Purpose |
 |--------|------|---------|
 | GET | `/api/social/ghl/accounts` | List connected GHL social accounts via GHLAdapter |

@@ -2393,3 +2393,49 @@ TikTok, so partial runs complete rather than being skipped wholesale.
 - Those tests were verified by deliberately disabling the guard (5 failures) and by making the merge
   erase earlier runs (3 failures). An earlier grep-shaped test in this build passed while the code it
   claimed to check was disabled, which is why these assert behaviour instead of source text.
+
+---
+
+## 2026-10-01 — nothing in PodClick could actually publish; GHL's PUT is asymmetric
+
+**Symptom:** asked to publish ten existing GHL drafts, there was no code path that could do it.
+`GHLAdapter.publish()` is misleadingly named — it calls `_build_payload(..., status="draft")`, so it
+CREATES a draft. `schedule()` also creates. The adapter had no PUT or PATCH anywhere, so "promote
+this draft" was unimplementable and doing it with `publish()` would have put a second copy of every
+clip in the planner.
+
+**Three live-API findings, each counter-intuitive** (verified against the real GHL social planner):
+
+1. **The scheduling request key is `scheduleDate`; GHL echoes it back as `displayDate`.** The post
+   object contains neither `scheduledAt` nor `scheduleDate` on read. `_build_payload` sends
+   `scheduledAt` — which no GHL response ever mentions — so the `schedule()` path looks unexercised
+   and is suspect. Left alone here rather than changed blind, because `publish()` never passes
+   `scheduled_at` and a speculative edit to a create path could affect posting. **Flagged, not fixed.**
+2. **Media type is asymmetric.** POST accepts `{"type": "video"}` and the GET returns
+   `{"type": "video"}`, but the PUT rejects that exact value with
+   `422 media.0.Invalid media format type` and requires a real MIME type (`video/mp4`). Handled by
+   `_to_mime_media()`, which derives MIME from the URL extension (stripping query strings, since the
+   CDN signs its links) and falls back to the stored bare kind.
+3. **Omitting `media` is not an escape** — `422 media must be an array with media objects or an
+   empty array`. The key is mandatory on every update.
+
+**Fix:** `GHLAdapter.update_post()` — read-modify-write over a `_UPDATABLE_FIELDS` whitelist. GHL's
+PUT *replaces* the post, so untouched fields must be carried forward or the media, caption and
+`tiktokPostDetails` are silently wiped; and the GET returns server-owned keys (`_id`, `insights`,
+`createdAt`, `previewLink`, `locationId`, `deleted`) that the PUT rejects as unknown properties, so a
+blind merge fails too. The whitelist is what sits between those two failures.
+
+**Method discipline worth keeping:** the first PUT attempt was made against a *real* draft and 422'd —
+harmless only because GHL rejects atomically. The payload shape was then found on a **disposable
+scratch post**, not on the five real clips. The scratch post was created as a draft, briefly became
+`scheduled` during the probe (it would have really posted to Instagram on Oct 2), and was reverted to
+`draft` immediately on discovery. **Experiment on a throwaway; a write path you have never exercised
+is not something to learn on live artifacts.**
+
+**Verification:** `displayDate` read back from GHL on all ten posts, not the 2xx. `tiktokPostDetails`
+checked separately on all five TikTok posts (7 keys, `privacyLevel: PUBLIC_TO_EVERYONE`) because the
+whitelist carries `{}` through unchanged and an empty block is the documented cause of GHL's planner
+blocking a TikTok publish — a passing media/caption check would not have caught its loss.
+
+`tests/test_ghl_update_post.py` (23 tests) pins all three API asymmetries plus the server-owned-field
+exclusion, and asserts contract #5 still holds (no `social-media-posting` string outside the adapter).
