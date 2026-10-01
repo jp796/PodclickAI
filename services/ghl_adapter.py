@@ -191,6 +191,34 @@ class GHLAdapter(SocialService):
         except httpx.RequestError as exc:
             raise SocialProviderError(f"Network error fetching GHL status: {exc}")
 
+    async def get_post(
+        self,
+        location_id: str,
+        provider_post_id: str,
+    ) -> Dict[str, Any]:
+        """
+        Return the stored GHL post verbatim.
+
+        get_status() normalises the response down to a single canonical status
+        string and discards the body, which makes it impossible to confirm what
+        was actually stored — whether the media came through as a video, whether
+        tiktokPostDetails is populated, which account it targets. Verification
+        needs the raw object, and contract #5 says every GHL HTTP call lives in
+        this adapter, so the read belongs here rather than at a call site.
+        """
+        token = self._get_token(location_id)
+        loc = self._get_location(location_id)
+        url = f"{_GHL_API_BASE}/social-media-posting/{loc}/posts/{provider_post_id}"
+
+        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
+            resp = await client.get(url, headers=_ghl_headers(token))
+            _raise_for_status(resp)
+            data = resp.json()
+
+        # GHL nests the object under results.post on some endpoints and returns it
+        # flat on others; hand back whichever is present.
+        return (data.get("results") or {}).get("post") or data.get("post") or data
+
     async def fetch_analytics(
         self,
         location_id: str,
