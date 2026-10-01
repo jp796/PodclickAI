@@ -129,6 +129,28 @@ class Settings(BaseSettings):
     linkedin_client_id: str = Field(default="", description="LinkedIn Client ID")
     linkedin_client_secret: str = Field(default="", description="LinkedIn Client Secret")
 
+    # ── Media providers (Agents Hub, AGENTS_HUB_SPEC §4.5) ────────────────────
+    # Read through services.media.base.setting() — never logged, never sent to
+    # the browser, never written to a job file.
+    elevenlabs_api_key: str = Field(default="", description="ElevenLabs API key (Voiceover / Avatar)")
+    elevenlabs_voice_id: str = Field(default="", description="Default ElevenLabs voice id (your cloned voice)")
+    elevenlabs_model_id: str = Field(default="eleven_v4", description="ElevenLabs TTS model; falls back to eleven_multilingual_v2 if rejected")
+    elevenlabs_max_chars: int = Field(default=5000, description="Per-job character cap, enforced before any call")
+    elevenlabs_voice_settings: str = Field(default="", description="JSON overrides for the voice-settings presets")
+    hf_api_key: str = Field(default="", description="Higgsfield API key id")
+    hf_api_secret: str = Field(default="", description="Higgsfield API key secret")
+    higgsfield_base_url: str = Field(default="https://api.higgsfield.ai", description="Higgsfield API base")
+    higgsfield_max_seconds: int = Field(default=60, description="Per-job cap on generated seconds, enforced before submit")
+    higgsfield_avatar_model: str = Field(default="wan/v2.7/image-to-video", description="Talking-head model id (image + audio)")
+    higgsfield_image_to_video_model: str = Field(default="wan/v2.7/image-to-video", description="Photo-motion model id")
+    higgsfield_text_to_video_model: str = Field(default="", description="Unverified — empty keeps text_to_video off")
+    higgsfield_resolution: str = Field(default="720p", description="720p or 1080p")
+    higgsfield_concurrency: int = Field(default=2, description="Max in-flight Higgsfield jobs (over-limit returns 400)")
+    higgsfield_poll_timeout_s: int = Field(default=1200, description="Give up polling (never resubmit) after this long")
+    podclick_media_preference: str = Field(default="", description="Comma list of media providers in preference order")
+    podclick_public_media_base_url: str = Field(default="", description="Public https origin that serves /api/agents/jobs/{id}/files/* — Higgsfield fetches photos/audio from here")
+    podclick_agents_disabled: str = Field(default="", description="1 = Crew kill switch (every agent not_built)")
+
     @model_validator(mode="after")
     def _validate_required(self) -> "Settings":
         missing = []
