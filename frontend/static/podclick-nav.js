@@ -14,6 +14,36 @@
 
   if (window.location.pathname.startsWith('/onboarding')) return;
 
+  /* ── First-run gate ─────────────────────────────────────────────────────────
+   * The onboarding redirect used to live in walkthrough.html ALONE, so a new user
+   * landing on /projects, /studio, /calendar, /youtube-studio, /blueprint or
+   * anywhere else skipped setup entirely and hit empty-Foundation errors - the
+   * generators 422 with foundation_not_ready and nothing explains why.
+   *
+   * It belongs here because this script is the one thing 15 of 17 pages load, so
+   * one gate covers all of them instead of fifteen copies drifting apart.
+   *
+   * Deliberately non-blocking: an unreachable API must never lock someone out of
+   * their own studio, and the sessionStorage latch means even a broken response
+   * cannot produce a redirect loop.
+   */
+  (function firstRunGate() {
+    try {
+      if (sessionStorage.getItem('podclick_onboarding_checked') === '1') return;
+    } catch (e) { return; }   // storage blocked - skip rather than risk a loop
+    fetch('/api/onboarding/state')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (state) {
+        try { sessionStorage.setItem('podclick_onboarding_checked', '1'); } catch (e) {}
+        if (state && !state.completed_at) {
+          window.location.href = '/onboarding';
+        }
+      })
+      .catch(function () {
+        try { sessionStorage.setItem('podclick_onboarding_checked', '1'); } catch (e) {}
+      });
+  })();
+
   const NAV_ITEMS = [
     { href: '/walkthrough',    label: 'Walk-through' },
     { href: '/foundation',     label: 'Foundation'   },

@@ -975,7 +975,7 @@ Four parallel audit agents swept all 16 pages, ~150 API routes, and the studio/c
 - `podclick-nav.js` `inject()`: only replace a `.topbar` that contains a `nav` element or `.brand` (a genuine site nav); otherwise prepend the nav above it and leave page content alone.
 - `project.html` boot() catch now logs `console.error('[project] boot failed:', err)` so failures are diagnosable.
 
-**Note:** browsers cache the nav script — hard-refresh (Cmd+Shift+R) once per page after nav updates.
+**Note:** browsers cached the nav script, so a nav change needed a hard-refresh per page. Fixed 2026-09-30 — the `<script src>` now carries `?v=` like `podclick-design.css` already did. **Bump that version whenever you edit `podclick-nav.js`**, or your change will not reach anyone who has already loaded a page. This stopped being cosmetic when the first-run onboarding gate moved into that file: a cached nav means a new user silently bypasses setup.
 
 **Files:** `static/podclick-nav.js`, `frontend/static/podclick-nav.js`, `frontend/project.html`
 

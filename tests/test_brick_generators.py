@@ -176,3 +176,48 @@ def test_the_registry_grew_brick_reach_substantially():
     """The point of the wave: twelve action types became thirty-two."""
     assert len(GENERATOR_ACTIONS) >= 20
     assert len(ACTION_TIER_MAP) >= 32
+
+
+# ── the registry must match the live app, not just main.py's source ───────────
+
+def test_every_registered_path_resolves_as_a_post_route_in_the_live_app():
+    """
+    Source-grepping for '@app.post("...")' proves the decorator exists; this proves
+    the route is actually mounted on studio_app — the app the dispatch calls. A
+    typo would 404 at dispatch time and read as a generator failure rather than a
+    registry bug, and checking it costs nothing next to 20 LLM calls.
+    """
+    import main
+
+    routes = {}
+    for r in main.studio_app.routes:
+        path = getattr(r, "path", None)
+        if path:
+            routes.setdefault(path, set()).update(getattr(r, "methods", set()) or set())
+
+    problems = []
+    for action, spec in sorted(GENERATOR_ACTIONS.items()):
+        methods = routes.get(spec["path"])
+        if methods is None:
+            problems.append(f"{action} -> {spec['path']} is not mounted")
+        elif "POST" not in methods:
+            problems.append(f"{action} -> {spec['path']} has no POST ({sorted(methods)})")
+    assert not problems, "registry does not match the live app:\n  " + "\n  ".join(problems)
+
+
+def test_no_publish_or_disconnect_route_is_allowlisted_in_the_live_app():
+    """
+    The dispatch bypasses DeploymentBoundary, so the allowlist is the only control.
+    Checked against the real route table rather than a string match on paths, so a
+    route renamed into a publishing path would still be caught.
+    """
+    import main
+
+    dangerous = {
+        getattr(r, "path", "") for r in main.studio_app.routes
+        if any(bad in (getattr(r, "path", "") or "")
+               for bad in ("publish", "disconnect", "/auth", "/callback"))
+    }
+    listed = {spec["path"] for spec in GENERATOR_ACTIONS.values()}
+    overlap = sorted(dangerous & listed)
+    assert not overlap, f"allowlist contains dangerous routes: {overlap}"

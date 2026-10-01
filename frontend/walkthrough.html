@@ -473,7 +473,7 @@
     .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
     .brick-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; }
   </style>
-  <script src="/static/podclick-nav.js" defer></script>
+  <script src="/static/podclick-nav.js?v=20260930-1" defer></script>
 </head>
 <body>
 
@@ -1206,8 +1206,10 @@ async function loadPermit() {
 /* ── Onboarding redirect guard ────────────────────────────────── */
 (async function () {
   try {
-    const s = await fetch('/api/onboarding/state').then(r => r.json());
-    if (!s.completed_at) { window.location.href = '/onboarding'; }
+    // The first-run gate moved into /static/podclick-nav.js, which 15 of 17 pages
+    // load - one gate instead of fifteen copies that drift. Kept as a pointer so
+    // the next person looks there rather than re-adding it here.
+    void 0;
   } catch (e) { /* unreachable API — don't block walk-through */ }
 })();
 
