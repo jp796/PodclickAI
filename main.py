@@ -63,6 +63,19 @@ app.include_router(foundation_router, prefix="/api/foundation", tags=["Foundatio
 app.include_router(blueprint_router, prefix="/api/blueprint", tags=["Blueprint"])
 app.include_router(billing_router)
 
+# The Crew (AGENTS_HUB_SPEC §2.4). Lanes merge in any order, so a missing
+# routers/agents.py must not take the studio down — but ONLY that module being
+# absent is tolerated; an import error inside it still raises.
+try:
+    from routers.agents import router as agents_router  # noqa: E402
+except ModuleNotFoundError as _agents_exc:
+    if _agents_exc.name != "routers.agents":
+        raise
+    agents_router = None
+    print("[agents] routers/agents.py not on site yet — /agents and /api/agents not mounted")
+if agents_router is not None:
+    app.include_router(agents_router)
+
 
 @app.get("/billing")
 async def billing_page():
@@ -10615,6 +10628,51 @@ async def generate_content_calendar(request: Request):
     if not city:
         return JSONResponse({"error": "city is required"}, status_code=400)
 
+    # ── Foundation (contract #3) — Blueprint audience + pillars + voice ─────
+    # AGENTS_HUB_SPEC §1.1: this route never called get_brand_context, so Trend
+    # Radar shipped generic topics. Same task type as Script Lab.
+    from db.engine import async_session as _async_session
+    from config import get_current_location_id as _get_loc
+    from services.foundation import (
+        assert_foundation_ready as _assert_ready,
+        get_brand_context as _get_brand_ctx,
+        BrandContextError as _BrandContextError,
+    )
+    from schemas.foundation import BrandContextTaskType as _TaskType
+
+    location_id = _get_loc()
+    async with _async_session() as session:
+        try:
+            await _assert_ready(session=session, location_id=location_id)
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc), "foundation_not_ready": True}, status_code=422)
+        try:
+            ctx = await _get_brand_ctx(
+                session=session,
+                location_id=location_id,
+                task_type=_TaskType.podcast_script_outline,
+                topic=f"{city} {audience} trending local video topics",
+                platform=None,
+                audience=None,
+            )
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+
+    bp = ctx.brand_profile
+    vp = ctx.voice_profile
+    bp_pillars = [str(p.get("name")).strip() for p in (bp.pillars or [])
+                  if isinstance(p, dict) and str(p.get("name") or "").strip()]
+    pillar_names = bp_pillars or ["Relocation", "Market Updates", "Neighborhood Deep Dive",
+                                  "Home Tour", "Lifestyle & Community"]
+    pillar_list = ", ".join(pillar_names)
+    voice_lines = [f"- Tone: {', '.join(vp.tone) if vp.tone else 'direct, genuine'}"]
+    if bp.audience_primary:
+        voice_lines.append(f"- Who this agent actually serves: {bp.audience_primary}")
+    if ctx.voice_samples:
+        voice_lines.append("- How this agent talks (match it in titles and hooks):")
+        voice_lines += [f'  — "{s.text[:240]}"' for s in ctx.voice_samples[:3]]
+    voice_block = "AGENT PROFILE (from their Foundation):\n" + "\n".join(voice_lines) + "\n\n"
+
     try:
         from pipeline.content import _get_client
         client = _get_client()
@@ -10623,20 +10681,22 @@ async def generate_content_calendar(request: Request):
 
     context = f"\nCompetitor insights: {json.dumps(competitor_insights)}" if competitor_insights else ""
     prompt = (
-        f"Create an 8-video Trend Radar for a real estate agent in {city} "
+        voice_block
+        + f"Create an 8-video Trend Radar for a real estate agent in {city} "
         f"targeting {audience}.{context}\n\n"
         "The ideas should feel like topics before they peak: hyper-local, search-friendly, "
         "timely for 2026, and specific enough to attract buyer/seller leads without chasing broad virality.\n\n"
-        "Distribute across these 5 pillars: Relocation, Market Updates, Neighborhood Deep Dive, Home Tour, Lifestyle & Community.\n\n"
+        f"Distribute across these {len(pillar_names)} pillars: {pillar_list}.\n\n"
         "For each idea include:\n"
         "- week: 1-8\n"
         "- title: clickable YouTube title with the local keyword near the front\n"
-        "- pillar: one of the five pillar names above\n"
+        "- pillar: one of the pillar names above\n"
         "- why: why this can trend or produce leads in this market\n"
         "- hook: a first-30-seconds curiosity hook angle\n"
         "- search_intent: what the viewer is trying to decide\n\n"
         "Return ONLY valid JSON:\n"
-        '{"calendar": [{"week": 1, "title": "...", "pillar": "Relocation", "why": "...", "hook": "...", "search_intent": "..."}, ...]}'
+        '{"calendar": [{"week": 1, "title": "...", "pillar": "' + pillar_names[0].replace('"', "'")
+        + '", "why": "...", "hook": "...", "search_intent": "..."}, ...]}'
     )
 
     try:
@@ -10647,6 +10707,8 @@ async def generate_content_calendar(request: Request):
             temperature=0.7,
         )
         data = json.loads(completion.choices[0].message.content)
+        data["_foundation_thin"] = ctx.metadata.sample_count < 15
+        data["_sample_count"] = ctx.metadata.sample_count
         return JSONResponse(data)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
@@ -11390,14 +11452,79 @@ async def yt_pillar_plan(req: Request):
     agent_name       = body.get("agent_name", "")
     months_in_market = body.get("months_in_market", "Just Starting")
 
-    system_prompt = (
+    # ── Foundation (contract #3) — Blueprint pillars, weights, name, voice ──
+    # AGENTS_HUB_SPEC §1.2: this route never called get_brand_context.
+    from db.engine import async_session as _async_session
+    from config import get_current_location_id as _get_loc
+    from services.foundation import (
+        assert_foundation_ready as _assert_ready,
+        get_brand_context as _get_brand_ctx,
+        BrandContextError as _BrandContextError,
+    )
+    from schemas.foundation import BrandContextTaskType as _TaskType
+
+    location_id = _get_loc()
+    async with _async_session() as session:
+        try:
+            await _assert_ready(session=session, location_id=location_id)
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc), "foundation_not_ready": True}, status_code=422)
+        try:
+            ctx = await _get_brand_ctx(
+                session=session,
+                location_id=location_id,
+                task_type=_TaskType.podcast_script_outline,
+                topic=f"{market} 90-day video plan",
+                platform=None,
+                audience=None,
+            )
+        except _BrandContextError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=422)
+
+    bp = ctx.brand_profile
+    vp = ctx.voice_profile
+    agent_name = agent_name or (bp.full_name or "")
+    bp_pillars = [p for p in (bp.pillars or [])
+                  if isinstance(p, dict) and str(p.get("name") or "").strip()]
+    if bp_pillars:
+        pillar_lines = []
+        for i, p in enumerate(bp_pillars, 1):
+            try:
+                share = f" — about {round(float(p.get('weight')) * 100)}% of the plan"
+            except (TypeError, ValueError):
+                share = ""
+            pillar_lines.append(f"{i}. {str(p['name']).strip()}{share}.")
+        pillar_names = [str(p["name"]).strip() for p in bp_pillars]
+        pillar_section = (
+            f"THE AGENT'S {len(pillar_names)} CONTENT PILLARS (from their Blueprint — use exactly these, "
+            "and size each pillar's share of ideas to its weight):\n" + "\n".join(pillar_lines) + "\n\n"
+        )
+    else:
+        pillar_names = ["Relocation", "Market Updates", "Neighborhood Deep Dive", "Home Tour",
+                        "Lifestyle & Community"]
+        pillar_section = (
+            "THE 5 CONTENT PILLARS AND THEIR LEAD PURPOSE:\n"
+            "1. Relocation — FASTEST leads. People actively planning to move. High buyer intent.\n"
+            "2. Market Updates — Seller leads + serious buyers watching trends.\n"
+            "3. Neighborhood Deep Dive — Hyper-local, evergreen content. Builds long-term search traffic.\n"
+            "4. Home Tour — Portfolio building + seller leads (sellers see you marketing homes).\n"
+            "5. Lifestyle & Community — 99% of your audience. Low conversion but highest volume. Builds trust.\n\n"
+        )
+    voice_lines = [f"- Tone: {', '.join(vp.tone) if vp.tone else 'direct, genuine'}"]
+    if bp.audience_primary:
+        voice_lines.append(f"- Primary audience: {bp.audience_primary}")
+    if ctx.voice_samples:
+        voice_lines.append("- How this agent talks (match it in the titles):")
+        voice_lines += [f'  — "{s.text[:240]}"' for s in ctx.voice_samples[:3]]
+    voice_block = "AGENT PROFILE (from their Foundation):\n" + "\n".join(voice_lines) + "\n\n"
+    pillar_json = ",\n".join(
+        '    {"name": "' + n.replace('"', "'") + '", "lead_type": "...", "frequency": "...", "video_ideas": ["...", "..."]}'
+        for n in pillar_names
+    )
+
+    system_prompt = voice_block + (
         "You are a YouTube content strategist specializing in real estate lead generation through video.\n\n"
-        "THE 5 CONTENT PILLARS AND THEIR LEAD PURPOSE:\n"
-        "1. Relocation — FASTEST leads. People actively planning to move. High buyer intent.\n"
-        "2. Market Updates — Seller leads + serious buyers watching trends.\n"
-        "3. Neighborhood Deep Dive — Hyper-local, evergreen content. Builds long-term search traffic.\n"
-        "4. Home Tour — Portfolio building + seller leads (sellers see you marketing homes).\n"
-        "5. Lifestyle & Community — 99% of your audience. Low conversion but highest volume. Builds trust.\n\n"
+        + pillar_section +
         "HYPER-LOCAL CONTENT STRATEGY:\n"
         "The more specific to the market, the better the SEO and the stronger the trust signal. "
         "A video titled 'Moving to Springfield Missouri in 2026' beats 'Moving to a Midwest City' every time.\n\n"
@@ -11416,28 +11543,23 @@ async def yt_pillar_plan(req: Request):
         f"- Market: {market}\n"
         f"- Agent/Brand: {agent_name or 'a real estate agent'}\n"
         f"- Time in Market: {months_in_market}\n\n"
-        "Return JSON with this exact structure:\n"
+        "Return JSON with this exact structure (one entry per pillar, in this order):\n"
         "{\n"
         '  "pillars": [\n'
-        "    {\n"
-        '      "name": "Relocation",\n'
-        '      "lead_type": "Relocation Buyers — fastest leads",\n'
-        '      "frequency": "1-2x per month",\n'
-        '      "video_ideas": ["...", "...", "...", "..."]\n'
-        "    },\n"
-        '    {"name": "Market Updates", "lead_type": "...", "frequency": "...", "video_ideas": [...]},\n'
-        '    {"name": "Neighborhood Deep Dive", "lead_type": "...", "frequency": "...", "video_ideas": [...]},\n'
-        '    {"name": "Home Tour", "lead_type": "...", "frequency": "...", "video_ideas": [...]},\n'
-        '    {"name": "Lifestyle & Community", "lead_type": "...", "frequency": "...", "video_ideas": [...]}\n'
+        + pillar_json + "\n"
         "  ]\n"
         "}\n\n"
         f"Each pillar should have 3-5 video ideas specific to {market}. "
         "Titles should be clickable, front-loaded with the local keyword, and include the year (2026) where natural. "
         f"Adjust difficulty of ideas to the agent's experience level: {months_in_market}. "
-        "Make the full set work as a 90-day test plan: enough repetition across pillars to learn what the market rewards, "
-        "with relocation as the fastest buyer-lead pillar, market updates for seller leads, neighborhood deep dives for evergreen search, "
-        "home tours as portfolio proof, and lifestyle/community for the 99% not ready to transact yet. "
-        "Return ONLY valid JSON."
+        "Make the full set work as a 90-day test plan: enough repetition across pillars to learn what the market rewards"
+        + (
+            ", weighted the way the agent's Blueprint weights their pillars. "
+            if bp_pillars else
+            ", with relocation as the fastest buyer-lead pillar, market updates for seller leads, neighborhood deep dives for evergreen search, "
+            "home tours as portfolio proof, and lifestyle/community for the 99% not ready to transact yet. "
+        )
+        + "Return ONLY valid JSON."
     )
 
     client = _openai.AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -11451,7 +11573,10 @@ async def yt_pillar_plan(req: Request):
             response_format={"type": "json_object"},
             temperature=0.8,
         )
-        return JSONResponse(json.loads(resp.choices[0].message.content))
+        data = json.loads(resp.choices[0].message.content)
+        data["_foundation_thin"] = ctx.metadata.sample_count < 15
+        data["_sample_count"] = ctx.metadata.sample_count
+        return JSONResponse(data)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 
