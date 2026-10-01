@@ -844,7 +844,7 @@ Notes:    Triggers the same logic as the 4am cron. Useful for manual testing.
 | GET | `/api/projects/{id}/source-video` | Stream the current take (edited cut if any, else raw). `?download=1` → attachment, clean title filename (raw full file, no clips) |
 | GET | `/api/projects/{id}/download-final` | Download ONE full video = current-take video + polished loudnorm audio muxed in (no clips/Shorts/distribution). Caches `{stem}.final.mp4` by mtime |
 | GET | `/api/projects/{id}/clips/{clipId}/video.mp4` | Alias of `/video` with a real extension so external fetchers (GHL) classify it as video |
-| POST | `/api/projects/{id}/distribute-shorts` | Post the episode's rendered Shorts to Instagram + TikTok via GHL as **drafts**. Body `{platforms:["instagram","tiktok"], max_clips:3}`. Uploads each clip to the GHL media library (GHL-hosted CDN — no public URL/tunnel needed) then drafts one post per platform. Review + publish in the GHL planner. In-app trigger: project Step 3 "📲 Send to Instagram + TikTok" |
+| POST | `/api/projects/{id}/distribute-shorts` | Post the episode's rendered Shorts to Instagram + TikTok via GHL as **drafts**. Body `{platforms:["instagram","tiktok"], max_clips:3}`. Uploads each clip to the GHL media library (GHL-hosted CDN — no public URL/tunnel needed) then drafts one post per platform. Review + publish in the GHL planner. **Idempotent** — clip/platform pairs already drafted are recorded at `project.legacy_metadata.shorts_distributed` ({clip_id: [platform]}) and returned in `skipped` with reason `already_drafted`; pass `force:true` to re-draft. A clip drafted to one platform only is still eligible for the other. In-app trigger: project Step 3 "📲 Send to Instagram + TikTok" |
 
 ### GET /api/projects
 ```json

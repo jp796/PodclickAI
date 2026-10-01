@@ -1697,11 +1697,33 @@ async def distribute_shorts_to_social(project_id: str, request: Request):
             _select(Clip).where(Clip.project_id == pid)
         )).scalars().all()
 
+    # `skipped` is populated by the idempotency guard below as well as by the
+    # account check further down, so it is initialised before either runs.
+    skipped: list = []
+
     # Rendered, not-removed clips — best moments first (virality desc).
     ready = [c for c in clips
              if (c.rendered_url and Path(c.rendered_url).exists()
                  and (c.status or "") != "removed")]
     ready.sort(key=lambda c: (c.virality_score or 0.0), reverse=True)
+
+    # Idempotency. This route had none: it took the top N by score and drafted
+    # every one, so hitting Step 3's "Send to Instagram + TikTok" twice produced a
+    # second full set of drafts in the GHL planner with nothing to distinguish
+    # them. Same class as auto-plan only ever appending. Already-drafted
+    # clip/platform pairs are recorded on the project and skipped; pass
+    # force:true to re-draft deliberately.
+    _force = bool(body.get("force"))
+    if not _force:
+        from services.shorts import partition_drafted as _partition_drafted
+
+        _distributed = (proj.legacy_metadata or {}).get("shorts_distributed") or {}
+        _by_id = {str(c.id): c for c in ready}
+        _pending_ids, _already = _partition_drafted(
+            [str(c.id) for c in ready], req_platforms, _distributed)
+        skipped += _already
+        ready = [_by_id[cid] for cid in _pending_ids]
+
     ready = ready[:max_clips]
     if not ready:
         return JSONResponse({"ok": False, "error": "no_clips",
@@ -1721,8 +1743,8 @@ async def distribute_shorts_to_social(project_id: str, request: Request):
         platform_to_account[plat] = a.get("id")
 
     live_platforms = [p for p in req_platforms if platform_to_account.get(p)]
-    skipped = [{"platform": p, "reason": "no_connected_ghl_account"}
-               for p in req_platforms if not platform_to_account.get(p)]
+    skipped += [{"platform": p, "reason": "no_connected_ghl_account"}
+                for p in req_platforms if not platform_to_account.get(p)]
     if not live_platforms:
         return JSONResponse({"ok": False, "error": "no_accounts", "skipped": skipped,
                              "message": "No connected GHL account for the requested platforms."},
@@ -1758,6 +1780,25 @@ async def distribute_shorts_to_social(project_id: str, request: Request):
             except Exception as exc:
                 skipped.append({"platform": plat, "clip_id": str(c.id),
                                 "reason": f"ghl_publish_failed: {exc}"})
+
+    # Persist what was drafted so the guard above can skip it next time. JSONB
+    # needs a fresh object plus flag_modified — mutating in place is the
+    # documented reason YouTube chapters silently failed to persist.
+    if created:
+        from sqlalchemy.orm.attributes import flag_modified as _flag_modified
+
+        from services.shorts import merge_distributed as _merge_distributed
+
+        async with _async_session() as _session:
+            _proj = (await _session.execute(
+                _select(Project).where(Project.id == pid))).scalar_one_or_none()
+            if _proj is not None:
+                _meta = dict(_proj.legacy_metadata or {})
+                _meta["shorts_distributed"] = _merge_distributed(
+                    _meta.get("shorts_distributed") or {}, created)
+                _proj.legacy_metadata = _meta
+                _flag_modified(_proj, "legacy_metadata")
+                await _session.commit()
 
     return JSONResponse({
         "ok": True,

@@ -2365,3 +2365,31 @@ own timestamp and **flip-flopped** (a dark/gesture frame → wrong orientation),
 **Verification:** 253 tests passed with mocked billing providers/store; offline migration SQL generated. Local studio200, forwarding spoof403, unsigned billing401, configuration false. Landing build/typecheck/authored-source lint and terminal private deployment status passed. No live charges, schema writes, or DNS changes.
 
 **Not complete:** Customer identity/tenant ownership, per-tenant integration/OAuth security, quotas, hosted storage/workers, sandbox end-to-end, approved Stripe pricing, and confirmed GoDaddy DNS/TLS remain launch blockers. See `CHECKPOINT_SAAS_2026-09-25.md`. Do not label this a production-ready multi-tenant SaaS.
+
+---
+
+## 2026-09-30 — distribute-shorts drafted duplicates on every press
+
+**Symptom:** pressing Step 3's "📲 Send to Instagram + TikTok" twice created a second full set of
+Instagram + TikTok drafts in the GHL planner, identical to the first and with nothing to tell them
+apart. The response reported `ok: true, created: N` both times, so nothing surfaced the duplication.
+
+**Cause:** the route had no idempotency of any kind. It selected rendered clips, sorted by virality
+descending, sliced `[:max_clips]` and drafted every one of them. No record of what had already been
+sent existed, so a repeat press was indistinguishable from a first. Same class as auto-plan only ever
+appending.
+
+**Fix:** `services/shorts.py` — `partition_drafted()` splits the selection against a stored record at
+`project.legacy_metadata["shorts_distributed"]` ({clip_id: [platform]}), and `merge_distributed()`
+folds newly created drafts back into it. Already-drafted pairs are returned in `skipped` with reason
+`already_drafted — pass force:true to repeat`. A clip drafted to Instagram only is still eligible for
+TikTok, so partial runs complete rather than being skipped wholesale.
+
+**Notes:**
+- The record is written with a **fresh dict + `flag_modified`**. In-place JSONB mutation does not
+  persist — the documented cause of the YouTube chapters failure above.
+- Both helpers are pure functions in `services/` rather than inline route code, so the behaviour is
+  testable without a database or a GHL account: `tests/test_shorts_idempotency.py` (15 tests).
+- Those tests were verified by deliberately disabling the guard (5 failures) and by making the merge
+  erase earlier runs (3 failures). An earlier grep-shaped test in this build passed while the code it
+  claimed to check was disabled, which is why these assert behaviour instead of source text.
