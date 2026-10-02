@@ -19,12 +19,14 @@ from services.media.base import CAPABILITIES, MediaProvider
 from services.media.elevenlabs import ElevenLabsProvider
 from services.media.ffmpeg_local import FfmpegLocalProvider
 from services.media.higgsfield import HiggsfieldProvider
+from services.media.muse import MuseProvider
 
-BUILTIN_ORDER = ("elevenlabs", "higgsfield", "ffmpeg_local")
+BUILTIN_ORDER = ("elevenlabs", "higgsfield", "muse", "ffmpeg_local")
 
 _FACTORIES: Dict[str, Callable[[], MediaProvider]] = {
     "elevenlabs": ElevenLabsProvider,
     "higgsfield": HiggsfieldProvider,
+    "muse": MuseProvider,
     "ffmpeg_local": FfmpegLocalProvider,
 }
 
@@ -64,6 +66,7 @@ def _ffmpeg_ready() -> bool:
 REQUIREMENT_CHECKS: Dict[str, Callable[[], bool]] = {
     "elevenlabs": lambda: ElevenLabsProvider().is_configured(),
     "higgsfield": lambda: HiggsfieldProvider().is_configured(),
+    "muse": lambda: MuseProvider().is_configured(),
     "pexels": _pexels_ready,
     "ffmpeg": _ffmpeg_ready,
 }

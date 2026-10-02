@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -147,6 +147,15 @@ class Settings(BaseSettings):
     higgsfield_resolution: str = Field(default="720p", description="720p or 1080p")
     higgsfield_concurrency: int = Field(default=2, description="Max in-flight Higgsfield jobs (over-limit returns 400)")
     higgsfield_poll_timeout_s: int = Field(default=1200, description="Give up polling (never resubmit) after this long")
+    # Meta Muse (text + image) — services/media/muse.py. Key from dev.meta.ai; env MODEL_API_KEY or META_MODEL_API_KEY.
+    meta_model_api_key: str = Field(default="", validation_alias=AliasChoices("meta_model_api_key", "model_api_key"), description="Meta Model API key (Muse)")
+    meta_muse_model: str = Field(default="muse-spark-1.3", description="Muse text model (standard tier)")
+    meta_muse_allow_contributor: str = Field(default="", description="1 = allow -contributor models (Meta may train on prompts/outputs). Off by default; never used for PII")
+    meta_muse_max_tokens: int = Field(default=2048, description="Default max output tokens per call (reasoning tokens bill as output)")
+    meta_muse_max_tokens_cap: int = Field(default=8192, description="Hard ceiling on max_tokens, enforced before any call")
+    meta_muse_max_prompt_chars: int = Field(default=100000, description="Per-call prompt+system character cap, enforced before any call")
+    meta_muse_timeout_s: int = Field(default=120, description="Per-request timeout for Muse calls")
+    meta_muse_image_model: str = Field(default="muse-image", description="Muse image model ($0.01/image, 150 rpm)")
     podclick_media_preference: str = Field(default="", description="Comma list of media providers in preference order")
     podclick_public_media_base_url: str = Field(default="", description="Public https origin that serves /api/agents/jobs/{id}/files/* — Higgsfield fetches photos/audio from here")
     podclick_agents_disabled: str = Field(default="", description="1 = Crew kill switch (every agent not_built)")

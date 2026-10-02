@@ -36,6 +36,30 @@ Spec corrections: §4.4 assumed the surface was unverifiable and might be empty;
 - Auth: header `x-api-key`
 - Role: caption generation.
 
+## Meta Muse (text + image)
+
+Facts supplied by the spec owner (verified 2026-10-02). Adapter: `services/media/muse.py`.
+
+- Base URL: `https://api.meta.ai/v1`
+- Auth: header `Authorization: Bearer <key>`. Key from dev.meta.ai, setting `meta_model_api_key` (env `MODEL_API_KEY` or `META_MODEL_API_KEY`).
+- Text: OpenAI-compatible `POST /v1/chat/completions` (Responses and Anthropic Messages formats also exist; not used).
+- Models: `muse-spark-1.3` (default; text out; image/video/document in; 1M context; tool calling; streaming), `muse-spark-1.2`, `muse-spark-1.1`.
+- `-contributor` variants (e.g. `muse-spark-1.3-contributor`) are cheaper, but Meta may use prompts and outputs for training.
+- Image model: `muse-image`, $0.01 per image, 150 rpm. Standard limit 3000 rpm. US-only public preview. Reasoning tokens are billed as output.
+- Acceptable use: outputs must not be presented as human-written; keep any provenance watermark/metadata on `muse-image` outputs; no fake reviews or engagement; no impersonating a real person's voice or face.
+
+How the adapter applies them:
+
+- Missing key: `needs_setup` (`ProviderNotConfigured`), zero network calls.
+- Standard model is the default. Contributor needs `META_MUSE_ALLOW_CONTRIBUTOR=1` AND a per-call `contributor=True` (or a `-contributor` model id). `pii=True` refuses an explicit contributor request and downgrades a contributor default to standard. Runners must pass `pii=True` for any client/lead data.
+- Caps before any call: `META_MUSE_MAX_TOKENS` (default 2048), `META_MUSE_MAX_TOKENS_CAP` (8192), `META_MUSE_MAX_PROMPT_CHARS` (100000); timeout `META_MUSE_TIMEOUT_S` (120).
+- 401/403 give a key message; 403 with region wording gives a US-only message. No exception text or key is ever put in a user message. A timeout after send is `ProviderUncertainError` and is never retried; 429 backs off 5/15/45 s; 5xx is not retried.
+- Runner API: `await MuseProvider().complete(prompt, system=None, pii=False, ...)` returns text; `complete_detailed` adds model and usage; `generate_image` returns `MuseImage(data, mime, model, provenance)`; `generate(GenerationRequest("text_to_image", ...), dest)` writes the exact bytes plus `<file>.provenance.json`.
+- Every result carries `ai_generated=True` and a disclosure string; callers must keep it.
+- Registry: provider `muse`, capability `text_to_image`, requirement name `muse`. There is no `text` capability in `base.CAPABILITIES`, so text is reached by calling `complete()` directly.
+
+Not verified: the image route. The adapter assumes OpenAI-compatible `POST /v1/images/generations` with `{model, prompt, n: 1}` and a response of `data[0].b64_json` or `data[0].url`. Confirm against dev.meta.ai before relying on it. Which response fields carry the provenance marker is also unconfirmed, so the adapter keeps every non-pixel field and any provenance-looking header.
+
 ## Still open (not covered by the facts above)
 
 1. ElevenLabs `with-timestamps` response field names and `/v1/user/subscription` field names (spec §4.3).
