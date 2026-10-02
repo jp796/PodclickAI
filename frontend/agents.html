@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <link rel="stylesheet" href="/podclick-design.css?v=20261002-1">
+  <meta charset="UTF-8" />
+  <link rel="icon" href="/static/podclick-mark.png" type="image/png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Crew · PodClickAI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; }
+    body { font-family: var(--font-body); background: var(--bg); color: var(--text-pri); min-height: 100vh; overflow-x: hidden; }
+    button { font-family: inherit; color: inherit; cursor: pointer; }
+    a { color: var(--orange-hi); }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .hidden { display: none !important; }
+
+    .content-area { max-width: 1400px; width: 100%; margin: 0 auto; padding: 28px 24px; }
+    .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .page-head h1 { font-family: var(--font-display); font-size: 34px; font-weight: 700; letter-spacing: .02em; }
+    .page-head .sub { color: var(--text-sec); font-size: 14px; margin-top: 4px; }
+    .badges { display: flex; gap: 10px; flex-wrap: wrap; }
+    .badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--border-lit); border-radius: var(--radius);
+      background: var(--bg-card); text-decoration: none; color: var(--text-pri); font-family: var(--font-cond); font-size: 13px; letter-spacing: .04em; text-transform: uppercase; }
+    .badge:hover { border-color: var(--border-hot); background: var(--orange-mist); }
+    .badge .k { color: var(--text-dim); }
+
+    .layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 28px; align-items: start; }
+    .layout > * { min-width: 0; }
+
+    /* Category grid */
+    .cat { margin-bottom: 26px; }
+    .cat-head { display: flex; align-items: baseline; gap: 10px; padding-bottom: 8px; margin-bottom: 12px; border-bottom: 1px solid var(--border);
+      font-family: var(--font-cond); text-transform: uppercase; letter-spacing: .08em; color: var(--text-sec); font-size: 15px; font-weight: 600; }
+    .cat-head .n { color: var(--text-dim); }
+    .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+    .chip { position: relative; text-align: left; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 12px 34px 12px 14px; min-width: 0; display: block; width: 100%; }
+    .chip:hover { border-color: var(--border-hot); background: var(--orange-mist); }
+    .chip:focus-visible, .btn:focus-visible, .pill:focus-visible, .row:focus-visible, .drawer-x:focus-visible, .pick:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+    .chip .nm { font-family: var(--font-cond); font-size: 16px; color: var(--text-pri); display: block; font-weight: 600; letter-spacing: .02em; }
+    .chip .jb { color: var(--text-sec); font-size: 12px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+    .chip .dot { position: absolute; top: 12px; right: 12px; width: 9px; height: 9px; border-radius: 50%; background: var(--green); }
+    .chip.s-needs_setup .dot { background: var(--yellow); }
+    .chip.s-not_built { opacity: .5; }
+    .chip.s-not_built .dot { background: var(--text-dim); }
+    .chip.running { border-color: var(--orange); }
+    .chip.running .dot { background: var(--orange); animation: crewPulse 1.2s ease-in-out infinite; box-shadow: 0 0 0 3px var(--orange-glow); }
+    @keyframes crewPulse { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
+
+    .skel { height: 62px; background: var(--bg-raised); border-radius: var(--radius); animation: crewPulse 1.4s ease-in-out infinite; }
+    .loading-note { color: var(--text-sec); font-family: var(--font-cond); letter-spacing: .06em; margin-bottom: 12px; }
+
+    .panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+    .panel.err { border-color: var(--border-hot); }
+    .panel p { color: var(--text-sec); font-size: 14px; margin-bottom: 10px; }
+
+    /* Rail */
+    .rail section { margin-bottom: 22px; }
+    .rail h2 { font-family: var(--font-cond); text-transform: uppercase; letter-spacing: .08em; font-size: 15px; color: var(--text-sec); font-weight: 600;
+      display: flex; align-items: center; gap: 8px; padding-bottom: 8px; margin-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .count { background: var(--bg-raised); color: var(--text-sec); border-radius: var(--radius); padding: 1px 8px; font-size: 12px; }
+    .count.hot { background: var(--orange); color: var(--text-pri); }
+    .rail-toggle { all: unset; display: flex; align-items: center; gap: 8px; width: 100%; cursor: pointer; }
+    .row { display: block; width: 100%; text-align: left; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 9px 12px; margin-bottom: 8px; min-width: 0; }
+    .row:hover { border-color: var(--border-hot); background: var(--orange-mist); }
+    .row .t { display: flex; justify-content: space-between; gap: 8px; font-family: var(--font-cond); font-size: 15px; }
+    .row .m { color: var(--text-sec); font-size: 12px; margin-top: 3px; overflow-wrap: anywhere; }
+    .row .id { font-family: var(--font-mono); color: var(--text-dim); font-size: 11px; }
+    .st { font-family: var(--font-cond); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+    .st-done { color: var(--green-hi); } .st-failed { color: var(--red); } .st-needs_approval { color: var(--orange-hi); }
+    .st-running, .st-committing { color: var(--orange); } .st-queued { color: var(--yellow); }
+    .st-rejected, .st-cancelled { color: var(--text-sec); }
+    .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .pill { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 3px 10px; font-size: 12px; font-family: var(--font-cond); letter-spacing: .04em; }
+    .pill[aria-pressed="true"] { border-color: var(--orange); color: var(--orange-hi); background: var(--orange-mist); }
+    .empty { color: var(--text-dim); font-size: 13px; padding: 6px 2px; }
+    .link-btn { background: none; border: none; color: var(--orange-hi); text-decoration: underline; padding: 0; font-size: 13px; }
+
+    /* Buttons */
+    .btn { background: var(--bg-raised); border: 1px solid var(--border-lit); border-radius: var(--radius); padding: 8px 16px; font-family: var(--font-cond);
+      font-size: 14px; letter-spacing: .05em; text-transform: uppercase; text-decoration: none; color: var(--text-pri); display: inline-block; }
+    .btn:hover:not(:disabled) { border-color: var(--border-hot); }
+    .btn.primary { background: var(--orange); border-color: var(--orange); }
+    .btn.primary:hover:not(:disabled) { background: var(--orange-hi); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn.sm { padding: 3px 10px; font-size: 12px; }
+
+    /* Drawer */
+    .scrim { position: fixed; inset: 0; background: var(--bg); opacity: .7; z-index: 1000; }
+    .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 520px; max-width: 100%; background: var(--bg-panel); border-left: 1px solid var(--border-lit);
+      z-index: 1001; display: flex; flex-direction: column; }
+    .drawer-head { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; }
+    .drawer-head h2 { font-family: var(--font-display); font-size: 26px; font-weight: 700; overflow-wrap: anywhere; }
+    .drawer-head .cat-l { font-family: var(--font-cond); text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); font-size: 12px; }
+    .drawer-head .jb { color: var(--text-sec); font-size: 13px; margin-top: 4px; }
+    .drawer-x { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius); width: 32px; height: 32px; font-size: 16px; flex-shrink: 0; }
+    .drawer-body { padding: 16px 18px; overflow-y: auto; overflow-x: hidden; flex: 1; min-width: 0; }
+    .drawer-foot { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .drawer h3 { font-family: var(--font-cond); text-transform: uppercase; letter-spacing: .08em; font-size: 13px; color: var(--text-sec); margin: 16px 0 8px; font-weight: 600; }
+    .drawer h3:first-child { margin-top: 0; }
+
+    .need { display: flex; gap: 8px; font-size: 13px; padding: 5px 0; align-items: baseline; flex-wrap: wrap; }
+    .need .mk { font-family: var(--font-mono); width: 16px; }
+    .need.ok .mk { color: var(--green-hi); } .need.bad .mk { color: var(--yellow); }
+    .need a { margin-left: auto; font-size: 12px; }
+    pre.code, pre.out { font-family: var(--font-mono); font-size: 12px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 10px 12px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-pri); }
+    .banner { border: 1px solid var(--border-hot); background: var(--orange-mist); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 12px; font-size: 13px; }
+    .banner.warn { border-color: var(--yellow); background: var(--bg-card); }
+    .banner.err { border-color: var(--red); background: var(--bg-card); }
+
+    .field { margin-bottom: 14px; }
+    .field label.lb, .field .lb { display: block; font-size: 13px; color: var(--text-sec); margin-bottom: 4px; font-family: var(--font-cond); letter-spacing: .04em; }
+    .field .req { color: var(--orange-hi); }
+    .field .help { color: var(--text-dim); font-size: 12px; margin-top: 3px; }
+    .field .ferr { color: var(--red); font-size: 12px; margin-top: 3px; }
+    input[type=text], input[type=number], input[type=date], select, textarea {
+      width: 100%; background: var(--bg-inset); border: 1px solid var(--border-lit); border-radius: var(--radius); color: var(--text-pri);
+      padding: 8px 10px; font-family: var(--font-body); font-size: 14px; }
+    textarea { min-height: 90px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { outline: 2px solid var(--orange); outline-offset: 0; }
+    .field.invalid input, .field.invalid select, .field.invalid textarea { border-color: var(--red); }
+    .checks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+    .checks label { font-size: 13px; display: flex; gap: 6px; align-items: center; }
+    .drop { border: 1px dashed var(--border-hot); border-radius: var(--radius); padding: 14px; text-align: center; color: var(--text-sec); font-size: 13px; background: var(--bg-inset); }
+    .drop.over { background: var(--orange-mist); border-color: var(--orange); }
+    .upl { display: flex; gap: 8px; align-items: center; font-size: 12px; margin-top: 6px; min-width: 0; }
+    .upl .fn { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar { height: 4px; background: var(--bg-raised); border-radius: 2px; flex: 0 0 90px; }
+    .bar i { display: block; height: 100%; background: var(--orange); border-radius: 2px; width: 0; }
+    .picker { display: flex; gap: 8px; flex-wrap: wrap; }
+    .pick { border: 2px solid var(--border); background: var(--bg-card); border-radius: var(--radius); padding: 0; width: 64px; height: 64px; overflow: hidden; }
+    .pick[aria-pressed="true"] { border-color: var(--orange); }
+    .pick img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .cost { color: var(--text-sec); font-size: 12px; font-family: var(--font-mono); margin-bottom: 10px; overflow-wrap: anywhere; }
+    .wraps { color: var(--text-dim); font-family: var(--font-mono); font-size: 11px; overflow-wrap: anywhere; margin-top: 14px; }
+
+    /* Job */
+    .jhead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .jhead .lbl { font-family: var(--font-display); font-size: 22px; font-weight: 700; }
+    .jhead .mono { font-family: var(--font-mono); font-size: 12px; color: var(--text-dim); overflow-wrap: anywhere; }
+    .steps { list-style: none; margin-bottom: 8px; }
+    .steps li { display: flex; gap: 8px; font-size: 13px; padding: 3px 0; align-items: baseline; }
+    .steps .ic { font-family: var(--font-mono); width: 14px; color: var(--text-dim); }
+    .steps li.running .ic { color: var(--orange); animation: crewPulse 1.2s ease-in-out infinite; }
+    .steps li.completed .ic { color: var(--green-hi); } .steps li.failed .ic, .steps li.failed { color: var(--red); }
+    .out { margin-bottom: 16px; min-width: 0; }
+    .out .ol { font-family: var(--font-cond); font-size: 14px; letter-spacing: .04em; margin-bottom: 6px; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; font-size: 13px; overflow-wrap: anywhere; }
+    .card .ct { font-family: var(--font-cond); font-size: 15px; }
+    .card .kv { color: var(--text-sec); margin-top: 3px; }
+    .card .kv b { color: var(--text-dim); font-weight: 500; font-family: var(--font-cond); letter-spacing: .04em; }
+    .card img { max-width: 100%; border-radius: var(--radius); margin-bottom: 6px; display: block; }
+    .tag { display: inline-block; border: 1px solid var(--border-lit); border-radius: var(--radius); padding: 0 7px; font-size: 11px; color: var(--text-sec); margin-right: 6px; font-family: var(--font-cond); }
+    .tbl { width: 100%; overflow-x: auto; }
+    .tbl table { border-collapse: collapse; font-size: 12px; width: 100%; }
+    .tbl th, .tbl td { border-bottom: 1px solid var(--border); padding: 5px 8px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+    .tbl th { color: var(--text-dim); font-family: var(--font-cond); letter-spacing: .06em; text-transform: uppercase; font-weight: 500; }
+    video, audio { width: 100%; max-width: 100%; border-radius: var(--radius); background: var(--bg-inset); }
+    .imgs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .imgs figure img { width: 100%; border-radius: var(--radius); display: block; }
+    .line-note { color: var(--text-sec); font-size: 12px; margin: 6px 0; }
+    .toast-wrap { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 1100; display: flex; flex-direction: column; gap: 8px; max-width: calc(100% - 32px); }
+    .toast { background: var(--bg-raised); border: 1px solid var(--border-hot); border-radius: var(--radius); padding: 9px 14px; font-size: 13px; }
+    .toast.err { border-color: var(--red); } .toast.ok { border-color: var(--green); }
+
+    @media (max-width: 1099px) {
+      .layout { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 759px) {
+      .content-area { padding: 18px 16px; }
+      .page-head h1 { font-size: 28px; }
+      .chips { grid-template-columns: minmax(0, 1fr); }
+      .drawer { width: 100%; border-left: none; }
+      .imgs { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+  <script src="/static/podclick-nav.js?v=20261002-1" defer></script>
+</head>
+<body>
+<main class="content-area">
+  <div class="page-head">
+    <div>
+      <h1>The Crew</h1>
+      <div class="sub">Put a crew member to work. Anything that ships lands on your punch list first.</div>
+    </div>
+    <div class="badges">
+      <a class="badge" href="/permit" id="permit-badge"><span class="k">Permit</span> <span id="permit-tier">&mdash;</span></a>
+      <a class="badge" href="/foundation" id="found-badge"><span class="k">Foundation</span> <span id="found-tier">&mdash;</span></a>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div id="crew-main" aria-live="polite"></div>
+    <aside class="rail" aria-label="Punch list and work orders">
+      <section id="punch-sec">
+        <h2><button class="rail-toggle" type="button" data-toggle="punch-body" aria-expanded="true">Punch list <span class="count" id="punch-count">0</span></button></h2>
+        <div id="punch-body"></div>
+      </section>
+      <section id="orders-sec">
+        <h2><button class="rail-toggle" type="button" data-toggle="orders-body" aria-expanded="true">Work orders <span class="count" id="orders-count">0</span></button></h2>
+        <div id="orders-body">
+          <div class="pills" id="order-pills" role="group" aria-label="Filter work orders">
+            <button class="pill" type="button" data-filter="all" aria-pressed="true">All</button>
+            <button class="pill" type="button" data-filter="active" aria-pressed="false">On site</button>
+            <button class="pill" type="button" data-filter="built" aria-pressed="false">Built</button>
+            <button class="pill" type="button" data-filter="stalled" aria-pressed="false">Stalled</button>
+          </div>
+          <div id="orders-list"></div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<div id="scrim" class="scrim hidden"></div>
+<div id="drawer" class="drawer hidden" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+  <div class="drawer-head">
+    <div style="min-width:0">
+      <div class="cat-l" id="drawer-cat"></div>
+      <h2 id="drawer-title"></h2>
+      <div class="jb" id="drawer-job"></div>
+    </div>
+    <button class="drawer-x" id="drawer-x" type="button" aria-label="Close">&#10005;</button>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+  <div class="drawer-foot" id="drawer-foot"></div>
+</div>
+<div class="toast-wrap" id="toasts" aria-live="polite"></div>
+
+<script>
+/* ── helpers ─────────────────────────────────────────────────── */
+var ENV_NAMES = { youtube_api: 'YOUTUBE_DATA_API_KEY', pexels: 'PEXELS_API_KEY', openai: 'OPENAI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY', ghl: 'GHL_TOKEN', elevenlabs: 'ELEVENLABS_API_KEY', higgsfield: 'HIGGSFIELD_API_KEY' };
+var PROVIDER_NAMES = { youtube_api: 'YouTube data key', pexels: 'Pexels', openai: 'OpenAI', anthropic: 'Anthropic',
+  ghl: 'GoHighLevel', elevenlabs: 'ElevenLabs', higgsfield: 'Higgsfield' };
+var STATUS_WORDS = { queued: 'Staged', running: 'On site', committing: 'Committing', needs_approval: 'On your punch list',
+  done: 'Built', failed: 'Stalled', rejected: 'Sent back', cancelled: 'Stopped' };
+var TERMINAL = { done: 1, failed: 1, rejected: 1, cancelled: 1 };
+
+var crew = null;          // last GET /api/agents payload
+var agentsById = {};
+var recentJobs = [];      // work orders cache
+var drawer = { mode: null, agentId: null, jobId: null, opener: null };
+var pollTimer = null, pollStart = 0, pollFails = 0, railTimer = null, timerTick = null;
+var uploads = {};         // fieldName -> [{upload_id, filename}]
+var persona = [];
+var orderFilter = 'all';
+var currentJob = null;
+
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function $(id) { return document.getElementById(id); }
+function shortId(id) { return String(id || '').slice(0, 8); }
+function ago(iso) {
+  var t = Date.parse(iso); if (isNaN(t)) return '';
+  var s = Math.max(0, Math.round((Date.now() - t) / 1000));
+  if (s < 60) return 'just now'; if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago'; return Math.floor(s / 86400) + 'd ago';
+}
+function crewToast(msg, kind) {
+  var d = document.createElement('div'); d.className = 'toast ' + (kind || '');
+  d.textContent = msg; $('toasts').appendChild(d);
+  setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 4000);
+}
+function api(path, opts) {
+  opts = opts || {};
+  var init = { method: opts.method || 'GET', headers: {} };
+  if (opts.body !== undefined) { init.headers['Content-Type'] = 'application/json'; init.body = JSON.stringify(opts.body); }
+  return fetch(path, init).then(function (r) {
+    return r.text().then(function (t) {
+      var data = null; try { data = t ? JSON.parse(t) : null; } catch (e) { data = null; }
+      return { status: r.status, ok: r.ok, data: data };
+    });
+  }).catch(function () { return { status: 0, ok: false, data: null }; });
+}
+function agentName(id) { var a = agentsById[id]; return a ? a.name : String(id || '').replace(/_/g, ' '); }
+function isRunning(j) { return j && (j.status === 'queued' || j.status === 'running' || j.status === 'committing'); }
+
+/* ── page: loadCrew ─────────────────────────────────────────── */
+function renderSkeleton() {
+  var h = '<div class="loading-note">Rounding up the crew…</div>';
+  for (var c = 0; c < 2; c++) { h += '<div class="cat"><div class="chips">' + '<div class="skel"></div>'.repeat(3) + '</div></div>'; }
+  $('crew-main').innerHTML = h;
+}
+function loadCrew() {
+  renderSkeleton();
+  return api('/api/agents').then(function (r) {
+    if (r.status === 503) {
+      $('crew-main').innerHTML = '<div class="panel err"><p>The Crew only runs on your local studio right now.</p></div>'; return;
+    }
+    if (!r.ok || !r.data || !r.data.categories) {
+      $('crew-main').innerHTML = '<div class="panel err"><p>Couldn\'t reach the crew — the server didn\'t answer.</p>' +
+        '<button class="btn" type="button" id="crew-retry">Try again</button></div>';
+      $('crew-retry').addEventListener('click', loadCrew); return;
+    }
+    crew = r.data; agentsById = {};
+    var html = '';
+    crew.categories.forEach(function (cat) {
+      (cat.agents || []).forEach(function (a) { agentsById[a.id] = a; });
+      html += renderCategory(cat);
+    });
+    $('crew-main').innerHTML = html || '<div class="panel"><p>No crew members on site yet.</p></div>';
+    $('permit-tier').textContent = (crew.permit && crew.permit.current_tier) || '—';
+    var f = crew.foundation || {};
+    $('found-tier').textContent = f.tier ? (f.tier + (f.sample_count != null ? ' · ' + f.sample_count : '')) : '—';
+    markRunning();
+  });
+}
+function renderCategory(cat) {
+  var agents = cat.agents || [];
+  if (!agents.length) return '';
+  return '<div class="cat"><div class="cat-head"><span>' + escHtml(cat.label) + '</span><span class="n">' + agents.length + '</span></div>' +
+    '<div class="chips">' + agents.map(renderChip).join('') + '</div></div>';
+}
+function renderChip(a) {
+  var st = a.state || 'ready';
+  var word = st === 'ready' ? 'Ready' : st === 'needs_setup' ? 'Needs setup' : 'Not on site yet';
+  return '<button type="button" class="chip s-' + escHtml(st) + '" data-agent-id="' + escHtml(a.id) + '">' +
+    '<span class="nm">' + escHtml(a.name) + '</span><span class="jb" title="' + escHtml(a.job) + '">' + escHtml(a.job) + '</span>' +
+    '<span class="dot" aria-hidden="true"></span><span class="sr-only">' + word + '</span></button>';
+}
+function markRunning() {
+  var live = {};
+  recentJobs.forEach(function (j) { if (isRunning(j)) live[j.agent_id] = 1; });
+  var chips = document.querySelectorAll('.chip[data-agent-id]');
+  for (var i = 0; i < chips.length; i++) chips[i].classList.toggle('running', !!live[chips[i].getAttribute('data-agent-id')]);
+}
+
+/* ── rail ───────────────────────────────────────────────────── */
+function rowHtml(j, withSummary) {
+  var word = STATUS_WORDS[j.status] || j.status;
+  var h = '<button type="button" class="row" data-job-id="' + escHtml(j.id) + '"><div class="t"><span>' + escHtml(agentName(j.agent_id)) + '</span>' +
+    '<span class="st st-' + escHtml(j.status) + '">' + escHtml(word) + '</span></div>';
+  if (withSummary && j.approval && j.approval.summary) h += '<div class="m">' + escHtml(j.approval.summary) + '</div>';
+  h += '<div class="m">' + escHtml(ago(j.updated_at || j.created_at)) + ' · <span class="id">' + escHtml(shortId(j.id)) + '</span></div></button>';
+  return h;
+}
+function loadPunchList() {
+  return api('/api/agents/jobs?status=needs_approval&limit=25').then(function (r) {
+    var el = $('punch-body');
+    if (!r.ok || !r.data) {
+      el.innerHTML = '<div class="empty">Couldn\'t load the punch list. <button class="link-btn" type="button" data-retry="punch">Try again</button></div>'; return;
+    }
+    var jobs = r.data.jobs || [];
+    $('punch-count').textContent = jobs.length; $('punch-count').classList.toggle('hot', jobs.length > 0);
+    el.innerHTML = jobs.length ? jobs.map(function (j) {
+      return rowHtml(j, true).replace('</button>', '<span class="btn sm primary" style="margin-top:6px">Review</span></button>');
+    }).join('') : '<div class="empty">Punch list\'s clear.</div>';
+  });
+}
+function filterJobs(jobs) {
+  return jobs.filter(function (j) {
+    if (orderFilter === 'active') return isRunning(j) || j.status === 'needs_approval';
+    if (orderFilter === 'built') return j.status === 'done';
+    if (orderFilter === 'stalled') return j.status === 'failed';
+    return true;
+  });
+}
+function loadWorkOrders(filter) {
+  if (filter) orderFilter = filter;
+  var pills = document.querySelectorAll('#order-pills .pill');
+  for (var i = 0; i < pills.length; i++) pills[i].setAttribute('aria-pressed', pills[i].getAttribute('data-filter') === orderFilter ? 'true' : 'false');
+  return api('/api/agents/jobs?limit=15').then(function (r) {
+    var el = $('orders-list');
+    if (!r.ok || !r.data) {
+      el.innerHTML = '<div class="empty">Couldn\'t load work orders. <button class="link-btn" type="button" data-retry="orders">Try again</button></div>'; return;
+    }
+    recentJobs = r.data.jobs || [];
+    $('orders-count').textContent = recentJobs.length;
+    var shown = filterJobs(recentJobs);
+    el.innerHTML = !recentJobs.length ? '<div class="empty">No work orders yet. Pick a crew member and put them to work.</div>' :
+      shown.length ? shown.map(function (j) { return rowHtml(j, false); }).join('') : '<div class="empty">Nothing here.</div>';
+    markRunning(); scheduleRail();
+  });
+}
+function scheduleRail() {
+  clearTimeout(railTimer);
+  if (document.hidden) return;
+  if (recentJobs.some(isRunning)) railTimer = setTimeout(refreshRail, 10000);
+}
+function refreshRail() { loadPunchList(); loadWorkOrders(); }
+
+/* ── drawer shell ───────────────────────────────────────────── */
+function focusables() {
+  return $('drawer').querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])');
+}
+function showDrawer(opener) {
+  $('drawer').classList.remove('hidden'); $('scrim').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+function closeDrawer() {
+  stopPoll(); clearInterval(timerTick);
+  $('drawer').classList.add('hidden'); $('scrim').classList.add('hidden');
+  document.body.style.overflow = '';
+  var o = drawer.opener; drawer = { mode: null, agentId: null, jobId: null, opener: null }; currentJob = null;
+  if (o && o.focus && document.body.contains(o)) o.focus();
+}
+function setHead(cat, title, job) {
+  $('drawer-cat').textContent = cat || ''; $('drawer-title').textContent = title || ''; $('drawer-job').textContent = job || '';
+}
+
+/* ── run mode ───────────────────────────────────────────────── */
+function foundationState(a) {
+  var tier = crew && crew.foundation ? crew.foundation.tier : null;
+  var n = crew && crew.foundation ? crew.foundation.sample_count : null;
+  return { tier: tier, n: n, notReady: a.foundation === 'required' && tier === 'not_ready', thin: a.foundation !== 'none' && tier === 'thin' };
+}
+function checklistHtml(a) {
+  var h = '', fs = foundationState(a);
+  if (a.foundation && a.foundation !== 'none') {
+    var ok = fs.tier && fs.tier !== 'not_ready';
+    h += '<div class="need ' + (ok ? 'ok' : 'bad') + '"><span class="mk">' + (ok ? '✓' : '✗') + '</span><span>Foundation' +
+      (fs.tier ? ' (' + escHtml(fs.tier) + (fs.n != null ? ', ' + escHtml(fs.n) + ' samples' : '') + ')' : '') +
+      (a.foundation === 'optional' || a.foundation === 'inherited' ? ' — helps, not required' : '') + '</span><a href="/foundation">Open</a></div>';
+  }
+  var missing = a.missing || [];
+  (a.requires || []).forEach(function (req) {
+    var bad = missing.indexOf(req) >= 0;
+    h += '<div class="need ' + (bad ? 'bad' : 'ok') + '"><span class="mk">' + (bad ? '✗' : '✓') + '</span><span>' +
+      escHtml(PROVIDER_NAMES[req] || req) + (bad ? ' not connected' : ' connected') + '</span>' +
+      (req === 'youtube_api' && bad ? '<a href="/api/youtube/auth">Connect</a>' : '') + '</div>';
+    if (bad && ENV_NAMES[req]) {
+      h += '<div style="margin:2px 0 6px 24px"><pre class="code">' + escHtml(ENV_NAMES[req]) + '=</pre>' +
+        '<div class="line-note">in <code>.env</code>, then restart the server.</div></div>';
+    }
+  });
+  missing.forEach(function (req) {
+    if ((a.requires || []).indexOf(req) >= 0) return;
+    h += '<div class="need bad"><span class="mk">✗</span><span>' + escHtml(PROVIDER_NAMES[req] || req) + ' not connected</span></div>';
+    if (ENV_NAMES[req]) h += '<div style="margin:2px 0 6px 24px"><pre class="code">' + escHtml(ENV_NAMES[req]) + '=</pre><div class="line-note">in <code>.env</code>, then restart the server.</div></div>';
+  });
+  h += '<div class="need ok"><span class="mk">✓</span><span>Permit: ' + escHtml(a.run_tier || 'draftsman') + ' can run this</span><a href="/permit">Open</a></div>';
+  return h;
+}
+function openAgentDrawer(agentId, prefill, opener) {
+  var a = agentsById[agentId]; if (!a) return;
+  stopPoll(); clearInterval(timerTick);
+  var o = opener || (drawer.mode ? drawer.opener : document.activeElement);
+  drawer = { mode: 'run', agentId: agentId, jobId: null, opener: o };
+  var cat = ''; (crew.categories || []).forEach(function (c) { if (c.id === a.category) cat = c.label; });
+  setHead(cat, a.name, a.job);
+  var body = $('drawer-body'), foot = $('drawer-foot');
+  if (a.state === 'not_built') {
+    body.innerHTML = '<div class="banner">This crew member isn\'t on site yet.</div>';
+    foot.innerHTML = '<button class="btn" type="button" data-act="close">Close</button>';
+    showDrawer(o); $('drawer-x').focus(); return;
+  }
+  var fs = foundationState(a), blocked = a.state === 'needs_setup' || fs.notReady;
+  var h = '<div id="run-banners">';
+  if (fs.notReady) h += '<div class="banner">I can\'t write in your voice until I know your voice. <a href="/foundation">Pour foundation first.</a></div>';
+  if (fs.thin) h += '<div class="banner warn">Thin Foundation (' + escHtml(fs.n) + ' samples) — output will sound less like you.</div>';
+  h += '</div><h3>What this crew member needs</h3>' + checklistHtml(a);
+  if (!(a.state === 'not_built')) h += '<h3>Work order</h3><form id="run-form" novalidate>' + buildRunForm(a.fields || [], prefill || {}) + '</form>';
+  if ((a.spends || []).length) h += '<div class="cost" id="cost-line"></div>';
+  h += '<h3>Last 5 work orders</h3><div id="recent-jobs"><div class="empty">Loading…</div></div>';
+  if ((a.wraps || []).length) h += '<div class="wraps">Wraps: ' + a.wraps.map(escHtml).join(' · ') + '</div>';
+  body.innerHTML = h;
+  foot.innerHTML = '<button class="btn primary" type="button" id="run-go" data-act="run"' + (blocked ? ' disabled' : '') + '>' +
+    (blocked ? 'Finish setup first' : 'Put to work') + '</button><button class="btn" type="button" data-act="close">Cancel</button>';
+  showDrawer(o);
+  hydrateRunForm(a, prefill || {});
+  updateCost(a);
+  var first = body.querySelector('input, select, textarea'); (first || $('drawer-x')).focus();
+  api('/api/agents/jobs?agent_id=' + encodeURIComponent(agentId) + '&limit=5').then(function (r) {
+    var el = $('recent-jobs'); if (!el || drawer.agentId !== agentId) return;
+    var jobs = r.ok && r.data ? (r.data.jobs || []) : null;
+    el.innerHTML = jobs === null ? '<div class="empty">Couldn\'t load work orders.</div>' : jobs.length ? jobs.map(function (j) { return rowHtml(j, false); }).join('') : '<div class="empty">No work orders yet.</div>';
+  });
+}
+function fieldDefault(f, prefill) {
+  if (prefill && prefill[f.name] != null) return prefill[f.name];
+  if (f.default != null) return f.default;
+  if (f.name === 'market' || f.name === 'city') { try { return localStorage.getItem('podclick_saved_market') || ''; } catch (e) { return ''; } }
+  return '';
+}
+function buildRunForm(fields, prefill) {
+  return fields.map(function (f) {
+    var id = 'f_' + f.name, v = fieldDefault(f, prefill), t = f.type, input = '';
+    var nm = 'data-field="' + escHtml(f.name) + '"';
+    if (t === 'textarea') input = '<textarea id="' + id + '" ' + nm + (f.max_len ? ' maxlength="' + Number(f.max_len) + '"' : '') + '>' + escHtml(v) + '</textarea>';
+    else if (t === 'number') input = '<input type="number" id="' + id + '" ' + nm + ' value="' + escHtml(v) + '"' + (f.min_value != null ? ' min="' + Number(f.min_value) + '"' : '') + (f.max_value != null ? ' max="' + Number(f.max_value) + '"' : '') + ' step="any">';
+    else if (t === 'date') input = '<input type="date" id="' + id + '" ' + nm + ' value="' + escHtml(v) + '">';
+    else if (t === 'checkbox') input = '<label class="checks"><input type="checkbox" id="' + id + '" ' + nm + (v === true || v === 'true' ? ' checked' : '') + '> <span>' + escHtml(f.label) + '</span></label>';
+    else if (t === 'select') input = '<select id="' + id + '" ' + nm + '>' + (f.required ? '' : '<option value="">—</option>') +
+      (f.options || []).map(function (o) { return '<option value="' + escHtml(o) + '"' + (String(v) === String(o) ? ' selected' : '') + '>' + escHtml(o) + '</option>'; }).join('') + '</select>';
+    else if (t === 'multiselect') { var sel = Array.isArray(v) ? v : []; input = '<div class="checks" id="' + id + '" ' + nm + ' role="group">' +
+      (f.options || []).map(function (o) { return '<label><input type="checkbox" value="' + escHtml(o) + '"' + (sel.indexOf(o) >= 0 ? ' checked' : '') + '> ' + escHtml(o) + '</label>'; }).join('') + '</div>'; }
+    else if (t === 'project' || t === 'job_ref') input = '<select id="' + id + '" ' + nm + ' data-kind="' + t + '" data-want="' + escHtml(v) + '"><option value="">Loading…</option></select>';
+    else if (t === 'persona') input = '<div class="picker" id="' + id + '" ' + nm + ' data-kind="persona" data-want="' + escHtml(v) + '"><span class="empty">Loading…</span></div>';
+    else if (t === 'files') input = '<div class="drop" id="' + id + '" ' + nm + ' data-kind="files"><div>Drop files here or <button class="link-btn" type="button" data-pick="' + escHtml(f.name) + '">choose</button></div>' +
+      '<input type="file" class="hidden" multiple accept="image/jpeg,image/png,image/webp,image/heic,video/mp4,video/quicktime" data-fileinput="' + escHtml(f.name) + '"><div class="ulist" data-ulist="' + escHtml(f.name) + '"></div></div>';
+    else input = '<input type="text" id="' + id + '" ' + nm + ' value="' + escHtml(v) + '"' + (f.max_len ? ' maxlength="' + Number(f.max_len) + '"' : '') + '>';
+    var label = t === 'checkbox' ? '' : '<label class="lb" for="' + id + '">' + escHtml(f.label) + (f.required ? ' <span class="req" aria-hidden="true">*</span><span class="sr-only">(required)</span>' : '') + '</label>';
+    return '<div class="field" data-wrap="' + escHtml(f.name) + '">' + label + input +
+      (f.help ? '<div class="help">' + escHtml(f.help) + '</div>' : '') + '<div class="ferr" data-err="' + escHtml(f.name) + '" role="alert"></div></div>';
+  }).join('');
+}
+function hydrateRunForm(a, prefill) {
+  (a.fields || []).forEach(function (f) {
+    var el = $('f_' + f.name); if (!el) return;
+    var want = el.getAttribute('data-want') || '';
+    if (f.type === 'project') {
+      api('/api/projects?limit=50').then(function (r) {
+        var list = r.ok && Array.isArray(r.data) ? r.data : [];
+        el.innerHTML = '<option value="">' + (r.ok ? 'Pick a project' : 'Couldn\'t load projects') + '</option>' + list.map(function (p) {
+          return '<option value="' + escHtml(p.id) + '"' + (String(p.id) === want ? ' selected' : '') + '>' + escHtml(p.title || 'Untitled') + ' — ' + escHtml(p.status || '') + '</option>'; }).join('');
+      });
+    } else if (f.type === 'job_ref') {
+      api('/api/agents/jobs?agent_id=' + encodeURIComponent((f.job_ref_agents || []).join(',')) + '&status=done&limit=25').then(function (r) {
+        var list = r.ok && r.data ? (r.data.jobs || []) : [];
+        el.innerHTML = '<option value="">' + (list.length ? 'Pick a finished work order' : 'No finished work orders yet') + '</option>' + list.map(function (j) {
+          return '<option value="' + escHtml(j.id) + '"' + (j.id === want ? ' selected' : '') + '>' + escHtml(agentName(j.agent_id)) + ' · ' + escHtml(ago(j.updated_at)) + ' · ' + escHtml(shortId(j.id)) + '</option>'; }).join('');
+      });
+    } else if (f.type === 'persona') {
+      api('/api/yt/ai-persona').then(function (r) {
+        var ph = r.ok && r.data ? (r.data.photos || []) : [];
+        el.innerHTML = ph.length ? ph.map(function (p) {
+          return '<button type="button" class="pick" data-persona="' + escHtml(p.id) + '" aria-pressed="' + (String(p.id) === want ? 'true' : 'false') + '" aria-label="Photo"><img src="' + escHtml(p.url) + '" alt=""></button>'; }).join('') :
+          '<span class="empty">No persona photos yet.</span>';
+      });
+    }
+  });
+  var form = $('run-form');
+  if (form) form.addEventListener('input', function () { updateCost(a); });
+}
+function updateCost(a) {
+  var el = $('cost-line'); if (!el) return;
+  var parts = (a.spends || []).slice(), s = $('f_script');
+  var isTts = (a.spends || []).join(' ').toLowerCase().indexOf('elevenlabs') >= 0;
+  var txt = 'Spends ' + parts.map(escHtml).join(', ');
+  if (isTts && s && s.value) txt += ' (~' + s.value.length + ' characters for this script)';
+  el.innerHTML = txt;
+}
+function readRunForm(a) {
+  var input = {}, errors = {};
+  (a.fields || []).forEach(function (f) {
+    var el = $('f_' + f.name), v = null; if (!el) return;
+    if (f.type === 'checkbox') v = el.checked;
+    else if (f.type === 'multiselect') { v = []; el.querySelectorAll('input:checked').forEach(function (c) { v.push(c.value); }); }
+    else if (f.type === 'files') v = (uploads[f.name] || []).map(function (u) { return u.upload_id; });
+    else if (f.type === 'persona') { var p = el.querySelector('[aria-pressed="true"]'); v = p ? p.getAttribute('data-persona') : ''; }
+    else if (f.type === 'number') { v = el.value === '' ? '' : Number(el.value); }
+    else v = el.value.trim();
+    var empty = v === '' || v == null || (Array.isArray(v) && !v.length);
+    if (f.type === 'checkbox') empty = false;
+    if (empty) { if (f.required) errors[f.name] = 'Required.'; if (f.type !== 'checkbox') return; }
+    if (f.type === 'number' && !empty) {
+      if (isNaN(v)) errors[f.name] = 'Enter a number.';
+      else if (f.min_value != null && v < f.min_value) errors[f.name] = 'At least ' + f.min_value + '.';
+      else if (f.max_value != null && v > f.max_value) errors[f.name] = 'At most ' + f.max_value + '.';
+    }
+    if (f.max_len && typeof v === 'string' && v.length > f.max_len) errors[f.name] = 'Keep it under ' + f.max_len + ' characters.';
+    if (f.type === 'files' && !empty) {
+      if (f.min_value != null && v.length < f.min_value) errors[f.name] = 'Add at least ' + f.min_value + ' files.';
+      if (f.max_value != null && v.length > f.max_value) errors[f.name] = 'At most ' + f.max_value + ' files.';
+    }
+    if (!empty || f.type === 'checkbox') input[f.name] = v;
+  });
+  (a.require_one_of || []).forEach(function (group) {
+    var any = group.some(function (n) { var v = input[n]; return v !== undefined && v !== '' && !(Array.isArray(v) && !v.length) && v !== false; });
+    if (!any && group.length) {
+      var labels = group.map(function (n) { var f = (a.fields || []).filter(function (x) { return x.name === n; })[0]; return f ? f.label : n; });
+      if (!errors[group[0]]) errors[group[0]] = 'Fill in at least one of: ' + labels.join(' or ') + '.';
+    }
+  });
+  return { input: input, errors: errors };
+}
+function showFieldErrors(errors) {
+  var firstEl = null;
+  document.querySelectorAll('#run-form .field').forEach(function (w) {
+    var n = w.getAttribute('data-wrap'), msg = errors[n];
+    w.classList.toggle('invalid', !!msg);
+    var e = w.querySelector('[data-err]'); if (e) e.textContent = msg || '';
+    if (msg && !firstEl) firstEl = w.querySelector('input, select, textarea, button');
+  });
+  if (firstEl) firstEl.focus();
+}
+function uploadAgentFiles(fieldName, fileList) {
+  var box = document.querySelector('[data-ulist="' + fieldName + '"]'); if (!box) return;
+  Array.prototype.forEach.call(fileList, function (file) {
+    var row = document.createElement('div'); row.className = 'upl';
+    row.innerHTML = '<span class="fn">' + escHtml(file.name) + '</span><span class="bar"><i></i></span><span class="pct">0%</span>';
+    box.appendChild(row);
+    var fd = new FormData(); fd.append('files', file);
+    var x = new XMLHttpRequest(); x.open('POST', '/api/agents/uploads');
+    x.upload.onprogress = function (e) { if (e.lengthComputable) { var p = Math.round(e.loaded / e.total * 100); row.querySelector('i').style.width = p + '%'; row.querySelector('.pct').textContent = p + '%'; } };
+    x.onload = function () {
+      var d = null; try { d = JSON.parse(x.responseText); } catch (e) {}
+      if (x.status >= 200 && x.status < 300 && d && d.uploads && d.uploads.length) {
+        uploads[fieldName] = (uploads[fieldName] || []).concat(d.uploads);
+        row.querySelector('.pct').textContent = 'Done'; row.querySelector('i').style.width = '100%';
+      } else { row.querySelector('.pct').textContent = (d && d.error) ? String(d.error).slice(0, 60) : 'Failed'; row.querySelector('.pct').style.color = 'var(--red)'; }
+    };
+    x.onerror = function () { row.querySelector('.pct').textContent = 'Failed'; row.querySelector('.pct').style.color = 'var(--red)'; };
+    x.send(fd);
+  });
+}
+function submitRun(agentId) {
+  var a = agentsById[agentId]; if (!a) return;
+  var rd = readRunForm(a);
+  if (Object.keys(rd.errors).length) { showFieldErrors(rd.errors); return; }
+  showFieldErrors({});
+  var btn = $('run-go'); btn.disabled = true; btn.textContent = 'Sending…';
+  var mk = rd.input.market || rd.input.city;
+  if (mk) { try { localStorage.setItem('podclick_saved_market', mk); } catch (e) {} }
+  api('/api/agents/' + encodeURIComponent(agentId) + '/run', { method: 'POST', body: { input: rd.input } }).then(function (r) {
+    var d = r.data || {};
+    if (r.status === 202 && d.job_id) { uploads = {}; openJobDrawer(d.job_id); refreshRail(); return; }
+    btn.disabled = false; btn.textContent = 'Put to work';
+    var ban = $('run-banners');
+    if (r.status === 400) { showFieldErrors(d.fields || {}); if (!d.fields) ban.innerHTML = '<div class="banner err">' + escHtml(d.error || 'That work order didn\'t pass inspection.') + '</div>'; }
+    else if (r.status === 409 && d.needs_setup) {
+      a.state = 'needs_setup'; a.missing = d.missing || a.missing || []; openAgentDrawer(agentId, rd.input, drawer.opener);
+    } else if (r.status === 422) {
+      if (crew && crew.foundation) crew.foundation.tier = 'not_ready';
+      ban.innerHTML = '<div class="banner">I can\'t write in your voice until I know your voice. <a href="/foundation">Pour foundation first.</a></div>'; btn.disabled = true; btn.textContent = 'Finish setup first';
+    } else if (r.status === 423) {
+      a.state = 'not_built'; openAgentDrawer(agentId, null, drawer.opener); loadCrew();
+    } else {
+      ban.innerHTML = '<div class="banner err">' + (r.status === 0 ? 'Couldn\'t reach the crew — the server didn\'t answer.' : escHtml(d.error || 'Something went sideways. Try again.')) + '</div>';
+    }
+  });
+}
+
+/* ── job mode ───────────────────────────────────────────────── */
+function openJobDrawer(jobId, opener) {
+  stopPoll(); clearInterval(timerTick); pollStart = 0; pollFails = 0;
+  var o = opener || (drawer.mode ? drawer.opener : document.activeElement);
+  drawer = { mode: 'job', agentId: null, jobId: jobId, opener: o }; currentJob = null;
+  setHead('Work order', 'Loading…', ''); $('drawer-body').innerHTML = '<div class="empty">Loading the work order…</div>'; $('drawer-foot').innerHTML = '';
+  showDrawer(o); $('drawer-x').focus();
+  fetchJob(jobId, true);
+}
+function fetchJob(jobId, first) {
+  return api('/api/agents/jobs/' + encodeURIComponent(jobId)).then(function (r) {
+    if (drawer.jobId !== jobId) return;
+    if (r.ok && r.data) { pollFails = 0; currentJob = r.data; renderJob(r.data); if (!TERMINAL[r.data.status] && r.data.status !== 'needs_approval') startPoll(jobId); else stopPoll(); return; }
+    if (r.status === 404) { $('drawer-body').innerHTML = '<div class="banner err">That work order isn\'t on file.</div>'; return; }
+    pollFails++;
+    if (first && !currentJob) { $('drawer-body').innerHTML = '<div class="banner err">Couldn\'t load that work order.</div><button class="btn" type="button" data-act="reconnect">Reconnect</button>'; return; }
+    if (pollFails >= 3) { stopPoll(); var n = $('poll-note'); if (n) n.innerHTML = 'Lost the line. <button class="btn sm" type="button" data-act="reconnect">Reconnect</button>'; }
+    else { var n2 = $('poll-note'); if (n2) n2.textContent = 'Lost the line — retrying…'; }
+  });
+}
+function startPoll(jobId) {
+  stopPoll(); if (!pollStart) pollStart = Date.now();
+  var delay = (Date.now() - pollStart) < 60000 ? 2000 : 5000;
+  pollTimer = setTimeout(function () { pollJob(jobId); }, delay);
+}
+function pollJob(jobId) {
+  if (drawer.jobId !== jobId) return;
+  fetchJob(jobId, false).then(function () { if (drawer.jobId === jobId && pollFails > 0 && pollFails < 3) startPoll(jobId); });
+}
+function stopPoll() { clearTimeout(pollTimer); pollTimer = null; }
+function renderSteps(steps) {
+  var ic = { pending: '○', running: '●', completed: '✓', failed: '✗', skipped: '–' };
+  return '<ul class="steps">' + (steps || []).map(function (s) {
+    return '<li class="' + escHtml(s.status) + '"><span class="ic" aria-hidden="true">' + (ic[s.status] || '○') + '</span><span>' + escHtml(s.label || s.key) +
+      '<span class="sr-only"> (' + escHtml(s.status) + ')</span>' + (s.error ? ' — ' + escHtml(s.error) : '') + '</span></li>'; }).join('') + '</ul>';
+}
+function mediaUrl(o, job) { return o.url || (o.file ? '/api/agents/jobs/' + encodeURIComponent(job.id) + '/files/' + encodeURIComponent(o.file) : ''); }
+function cardHtml(c, schema) {
+  if (c == null || typeof c !== 'object') return '<div class="card">' + escHtml(c) + '</div>';
+  var title = c.title || c.name || c.label || c.topic || '', skip = { title: 1, name: 1, label: 1, thumbnail: 1, thumb: 1, url: 1, video_url: 1, clip_url: 1, pillar: 1, score: 1, popular: 1 };
+  var h = '<div class="card">';
+  var th = c.thumbnail || c.thumb; if (th && /^(https?:)?\/\//.test(th) || (th && th.charAt(0) === '/')) h += '<img src="' + escHtml(th) + '" alt="" loading="lazy">';
+  var vu = c.video_url || c.clip_url; if (vu && (vu.charAt(0) === '/' || /^https?:/.test(vu))) h += '<video controls playsinline preload="metadata" src="' + escHtml(vu) + '"></video>';
+  if (c.pillar) h += '<span class="tag">' + escHtml(c.pillar) + '</span>';
+  if (c.score != null) h += '<span class="tag">Score ' + escHtml(c.score) + '</span>';
+  if (c.popular) h += '<span class="tag">Popular</span>';
+  if (title) h += '<div class="ct">' + escHtml(title) + '</div>';
+  Object.keys(c).forEach(function (k) {
+    if (skip[k] || k === 'title' || c[k] == null || c[k] === '') return;
+    var v = typeof c[k] === 'object' ? JSON.stringify(c[k]) : c[k];
+    h += '<div class="kv"><b>' + escHtml(k.replace(/_/g, ' ')) + ':</b> ' + escHtml(v) + '</div>';
+  });
+  return h + '</div>';
+}
+function renderOutput(o, job, editable) {
+  var h = '<div class="out" data-out="' + escHtml(o.id) + '"><div class="ol"><span>' + escHtml(o.label || o.kind) + '</span>';
+  var v = o.value, url = mediaUrl(o, job);
+  if (o.kind === 'text') {
+    var txt = typeof v === 'string' ? v : JSON.stringify(v, null, 2);
+    h += '<button class="btn sm" type="button" data-copy-out="' + escHtml(o.id) + '">Copy</button></div>';
+    h += editable ? '<textarea data-edit="' + escHtml(o.id) + '" data-edit-kind="text" style="min-height:160px">' + escHtml(txt) + '</textarea>' : '<pre class="out">' + escHtml(txt) + '</pre>';
+  } else if (o.kind === 'cards') {
+    h += '</div>' + (Array.isArray(v) ? v.map(function (c) { return cardHtml(c, o.schema); }).join('') : cardHtml(v, o.schema));
+    if (editable) h += '<details><summary class="line-note">Edit before approving (JSON)</summary><textarea data-edit="' + escHtml(o.id) + '" data-edit-kind="cards" style="min-height:140px;font-family:var(--font-mono)">' + escHtml(JSON.stringify(v, null, 2)) + '</textarea><div class="ferr" data-edit-err="' + escHtml(o.id) + '"></div></details>';
+  } else if (o.kind === 'table') {
+    var rows = Array.isArray(v) ? v : [], cols = []; rows.forEach(function (r) { Object.keys(r || {}).forEach(function (k) { if (cols.indexOf(k) < 0) cols.push(k); }); });
+    h += '</div><div class="tbl"><table><thead><tr>' + cols.map(function (c) { return '<th>' + escHtml(c.replace(/_/g, ' ')) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      rows.map(function (r) { return '<tr>' + cols.map(function (c) { var x = r[c]; return '<td>' + escHtml(Array.isArray(x) ? x.join(', ') : (x != null && typeof x === 'object' ? JSON.stringify(x) : x)) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>';
+  } else if (o.kind === 'audio') {
+    h += '</div><audio controls preload="metadata" src="' + escHtml(url) + '"></audio>';
+  } else if (o.kind === 'video') {
+    h += '<a class="btn sm" href="' + escHtml(url) + '" download>Download</a></div><video controls playsinline preload="metadata" src="' + escHtml(url) + '"></video>';
+  } else if (o.kind === 'images') {
+    var list = Array.isArray(v) ? v : (o.files || []);
+    h += '</div><div class="imgs">' + list.map(function (it) {
+      var u = typeof it === 'string' ? (it.charAt(0) === '/' || /^https?:/.test(it) ? it : '/api/agents/jobs/' + encodeURIComponent(job.id) + '/files/' + encodeURIComponent(it)) : (it.url || '');
+      return '<figure><img src="' + escHtml(u) + '" alt="" loading="lazy"><a class="btn sm" href="' + escHtml(u) + '" download>Download</a></figure>'; }).join('') + '</div>';
+    if (!list.length && url) h += '<img src="' + escHtml(url) + '" alt="" style="max-width:100%">';
+  } else if (o.kind === 'link') {
+    h += '</div><a class="btn" href="' + escHtml(url) + '">' + escHtml(o.label || 'Open') + '</a>';
+  } else if (o.kind === 'file') {
+    h += '</div>' + (url ? '<a class="btn" href="' + escHtml(url) + '" download>Download</a>' : '<div class="card">' + escHtml(typeof v === 'object' ? JSON.stringify(v) : v) + '</div>');
+  } else {
+    h += '</div><pre class="out">' + escHtml(typeof v === 'string' ? v : JSON.stringify(v, null, 2)) + '</pre>';
+  }
+  return h + '</div>';
+}
+var HANDOFFS = { trend_radar: ['content_scheduler', 'Send to Content Scheduler'], market_scout: ['trend_radar', 'Send to Trend Radar'] };
+function renderJob(job) {
+  var a = agentsById[job.agent_id];
+  setHead('Work order', a ? a.name : agentName(job.agent_id), a ? a.job : '');
+  var st = job.status, word = STATUS_WORDS[st] || st;
+  var h = '<div class="jhead"><span class="lbl st-' + escHtml(st) + '">' + escHtml(word) + '</span><span class="mono">' + escHtml(shortId(job.id)) + ' · <span id="elapsed"></span></span></div>';
+  if (st === 'queued') h += '<div class="line-note">Staged — waiting for a free crew slot.</div>';
+  if (st === 'committing') h += '<div class="line-note">Committing…</div>';
+  if ((job.warnings || []).length) h += job.warnings.map(function (w) { return '<div class="banner warn">' + escHtml(w) + '</div>'; }).join('');
+  if (st === 'failed') h += '<div class="banner err">' + escHtml(job.error || 'This one stalled. Run it again.') + '</div>';
+  h += '<h3>Steps</h3>' + renderSteps(job.steps) + '<div class="line-note" id="poll-note"></div>';
+  var editable = st === 'needs_approval';
+  if ((job.outputs || []).length) { h += '<h3>Outputs</h3>' + job.outputs.map(function (o) { return renderOutput(o, job, editable && (o.kind === 'text' || o.kind === 'cards')); }).join(''); }
+  if (st === 'needs_approval' && job.approval) h += '<div class="banner">On your punch list: ' + escHtml(job.approval.summary || '') + '</div>';
+  if (st === 'done' && job.commit_result) {
+    var cr = job.commit_result, msg = typeof cr === 'string' ? cr : (cr.summary || cr.message || ''), href = cr.url || cr.link || '';
+    h += '<div class="banner">' + escHtml(msg || 'Committed.') + (href ? ' <a href="' + escHtml(href) + '">Open</a>' : '') + '</div>';
+  }
+  $('drawer-body').innerHTML = h;
+  var f = '';
+  if (st === 'queued' || st === 'running') f = '<button class="btn" type="button" data-act="cancel">Stop</button>';
+  else if (st === 'needs_approval') f = '<button class="btn primary" type="button" data-act="approve">Approve &amp; commit</button><button class="btn" type="button" data-act="reject">Reject</button>';
+  else if (st === 'committing') f = '<button class="btn primary" type="button" disabled>Committing…</button>';
+  else if (st === 'done' || st === 'failed' || st === 'rejected' || st === 'cancelled') {
+    f = '<button class="btn" type="button" data-act="again">Run again</button>';
+    if (st === 'done' && HANDOFFS[job.agent_id] && agentsById[HANDOFFS[job.agent_id][0]]) f += '<button class="btn primary" type="button" data-act="handoff" data-to="' + escHtml(HANDOFFS[job.agent_id][0]) + '">' + escHtml(HANDOFFS[job.agent_id][1]) + '</button>';
+  }
+  f += '<button class="btn" type="button" data-act="close">Close</button>';
+  $('drawer-foot').innerHTML = f;
+  clearInterval(timerTick);
+  var t0 = Date.parse(job.created_at), t1 = TERMINAL[st] ? Date.parse(job.updated_at) : null;
+  function tick() { var e = $('elapsed'); if (!e || isNaN(t0)) return; var s = Math.max(0, Math.round(((t1 || Date.now()) - t0) / 1000)); e.textContent = Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2); }
+  tick(); if (!t1) timerTick = setInterval(tick, 1000);
+}
+function collectEdits() {
+  var edits = {}, bad = false;
+  document.querySelectorAll('[data-edit]').forEach(function (el) {
+    var id = el.getAttribute('data-edit'), kind = el.getAttribute('data-edit-kind');
+    var orig = (currentJob.outputs || []).filter(function (o) { return o.id === id; })[0]; if (!orig) return;
+    if (kind === 'text') { if (el.value !== orig.value) edits[id] = el.value; }
+    else { try { var parsed = JSON.parse(el.value); if (JSON.stringify(parsed) !== JSON.stringify(orig.value)) edits[id] = parsed; var e = document.querySelector('[data-edit-err="' + id + '"]'); if (e) e.textContent = ''; }
+      catch (err) { bad = true; var e2 = document.querySelector('[data-edit-err="' + id + '"]'); if (e2) e2.textContent = 'That isn\'t valid JSON.'; } }
+  });
+  return bad ? null : edits;
+}
+function mutate(jobId, action, body, okMsg) {
+  var btns = $('drawer-foot').querySelectorAll('button'); btns.forEach(function (b) { b.disabled = true; });
+  return api('/api/agents/jobs/' + encodeURIComponent(jobId) + '/' + action, { method: 'POST', body: body || {} }).then(function (r) {
+    if (r.ok && r.data && r.data.job) { currentJob = r.data.job; if (drawer.jobId === jobId) renderJob(r.data.job); crewToast(okMsg, 'ok'); if (!TERMINAL[r.data.job.status] && r.data.job.status !== 'needs_approval') startPoll(jobId); refreshRail(); }
+    else { crewToast((r.data && r.data.error) || (r.status === 0 ? 'Couldn\'t reach the crew.' : 'That didn\'t go through.'), 'err'); if (currentJob && drawer.jobId === jobId) renderJob(currentJob); }
+  });
+}
+function approveJob(jobId) {
+  var edits = collectEdits(); if (edits === null) return;
+  var sum = currentJob && currentJob.approval ? currentJob.approval.summary : 'Commit this work?';
+  if (!window.confirm(sum + '\n\nApprove & commit?')) return;
+  mutate(jobId, 'approve', Object.keys(edits).length ? { edits: edits } : {}, 'Approved. On the job.');
+}
+function rejectJob(jobId) { if (window.confirm('Send this one back?')) mutate(jobId, 'reject', {}, 'Sent back.'); }
+function cancelJob(jobId) { mutate(jobId, 'cancel', {}, 'Stopped.'); }
+function handOff(fromJob, toAgentId) {
+  var a = agentsById[toAgentId]; if (!a) return;
+  var pre = {}; (a.fields || []).forEach(function (f) { if (f.type === 'job_ref' && (f.job_ref_agents || []).indexOf(fromJob.agent_id) >= 0) pre[f.name] = fromJob.id; });
+  openAgentDrawer(toAgentId, pre, drawer.opener);
+}
+
+/* ── events ─────────────────────────────────────────────────── */
+document.addEventListener('click', function (e) {
+  var t = e.target;
+  var chip = t.closest('.chip[data-agent-id]'); if (chip) { openAgentDrawer(chip.getAttribute('data-agent-id'), null, chip); return; }
+  var row = t.closest('.row[data-job-id]'); if (row) { openJobDrawer(row.getAttribute('data-job-id'), row); return; }
+  var tog = t.closest('[data-toggle]'); if (tog) { var b = $(tog.getAttribute('data-toggle')); var hide = !b.classList.contains('hidden'); b.classList.toggle('hidden', hide); tog.setAttribute('aria-expanded', hide ? 'false' : 'true'); return; }
+  var pill = t.closest('.pill[data-filter]'); if (pill) { loadWorkOrders(pill.getAttribute('data-filter')); return; }
+  var rt = t.closest('[data-retry]'); if (rt) { if (rt.getAttribute('data-retry') === 'punch') loadPunchList(); else loadWorkOrders(); return; }
+  if (t.closest('#drawer-x') || t.id === 'scrim') { closeDrawer(); return; }
+  var pk = t.closest('[data-persona]'); if (pk) { var sib = pk.parentNode.querySelectorAll('[data-persona]'); for (var i = 0; i < sib.length; i++) sib[i].setAttribute('aria-pressed', sib[i] === pk && pk.getAttribute('aria-pressed') !== 'true' ? 'true' : 'false'); return; }
+  var fp = t.closest('[data-pick]'); if (fp) { var inp = document.querySelector('[data-fileinput="' + fp.getAttribute('data-pick') + '"]'); if (inp) inp.click(); return; }
+  var cp = t.closest('[data-copy-out]'); if (cp && currentJob) {
+    var o = (currentJob.outputs || []).filter(function (x) { return x.id === cp.getAttribute('data-copy-out'); })[0]; if (!o) return;
+    var ta = document.querySelector('[data-edit="' + o.id + '"]');
+    var txt = ta ? ta.value : (typeof o.value === 'string' ? o.value : JSON.stringify(o.value, null, 2));
+    cp.dataset.text = txt;
+    (navigator.clipboard ? navigator.clipboard.writeText(cp.dataset.text) : Promise.reject()).then(function () { crewToast('Copied.', 'ok'); }, function () { crewToast('Couldn\'t copy — select the text and copy by hand.', 'err'); });
+    return;
+  }
+  var act = t.closest('[data-act]'); if (!act) return;
+  var k = act.getAttribute('data-act');
+  if (k === 'close') closeDrawer();
+  else if (k === 'run') submitRun(drawer.agentId);
+  else if (k === 'approve') approveJob(drawer.jobId);
+  else if (k === 'reject') rejectJob(drawer.jobId);
+  else if (k === 'cancel') cancelJob(drawer.jobId);
+  else if (k === 'again' && currentJob) openAgentDrawer(currentJob.agent_id, currentJob.input || {}, drawer.opener);
+  else if (k === 'handoff' && currentJob) handOff(currentJob, act.getAttribute('data-to'));
+  else if (k === 'reconnect') { pollFails = 0; pollStart = Date.now(); fetchJob(drawer.jobId, true); }
+});
+document.addEventListener('change', function (e) {
+  var fi = e.target.getAttribute && e.target.getAttribute('data-fileinput');
+  if (fi) { uploadAgentFiles(fi, e.target.files); e.target.value = ''; }
+});
+document.addEventListener('dragover', function (e) { var d = e.target.closest && e.target.closest('.drop'); if (d) { e.preventDefault(); d.classList.add('over'); } });
+document.addEventListener('dragleave', function (e) { var d = e.target.closest && e.target.closest('.drop'); if (d) d.classList.remove('over'); });
+document.addEventListener('drop', function (e) {
+  var d = e.target.closest && e.target.closest('.drop'); if (!d) return;
+  e.preventDefault(); d.classList.remove('over'); uploadAgentFiles(d.getAttribute('data-field'), e.dataTransfer.files);
+});
+document.addEventListener('keydown', function (e) {
+  if ($('drawer').classList.contains('hidden')) return;
+  if (e.key === 'Escape') { closeDrawer(); return; }
+  if (e.key === 'Tab') {
+    var f = focusables(); if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+});
+document.addEventListener('visibilitychange', function () { if (!document.hidden) { refreshRail(); } else clearTimeout(railTimer); });
+
+document.addEventListener('DOMContentLoaded', function () {
+  loadCrew().then(function () { loadPunchList(); loadWorkOrders(); });
+});
+</script>
+<script src="/brick-chat.js" defer></script>
+</body>
+</html>
