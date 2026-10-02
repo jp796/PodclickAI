@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.test_agents_routes import *  # noqa: F401,F403  (reuse harness/client fixtures)
+from tests.test_agents_routes import client, harness  # noqa: F401  (fixtures)
 
 PAGE = Path(__file__).resolve().parent.parent / "frontend" / "agents.html"
 
