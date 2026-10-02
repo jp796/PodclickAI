@@ -209,7 +209,7 @@ class MuseProvider(MediaProvider):
 
     def _quota(self) -> ProviderQuotaError:
         return ProviderQuotaError("quota", provider=self.name,
-                                  user_message="Out of Muse credits — top up at dev.meta.ai and run it again.")
+                                  user_message="Muse needs billing sorted — add a payment method or top up at dev.meta.ai, then run it again.")
 
     async def _post(self, path: str, payload: Dict[str, Any]) -> httpx.Response:
         """One write. Retries only definite 429s; returns the 200 response."""
