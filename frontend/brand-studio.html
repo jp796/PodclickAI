@@ -8,25 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/podclick-design.css?v=20261001-2">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
-      --bg:       #030B2C;
-      --surface:  #050E3D;
-      --surface2: #091660;
-      --surface3: #102078;
-      --border:   #1a2c6b;
-      --accent:   #05C3F9;
-      --accent2:  #00FBF0;
-      --coral:    #FF557E;
-      --text:     #F5F7FA;
-      --text-dim: #8AAFC5;
-      --green:    #2EE49C;
-      --yellow:   #FFB340;
-      --radius:   12px;
-      --font:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
+    /* Design tokens come from /podclick-design.css. Legacy aliases only: */
+    :root { --text-dim: var(--text-sec); }
 
     html, body { height: 100%; }
     body {
@@ -455,29 +442,17 @@
     .onboard-continue-btn:hover { opacity: 0.9; }
     .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
   </style>
-  <script src="/static/podclick-nav.js?v=20260930-1" defer></script>
+  <script src="/static/podclick-nav.js?v=20261001-2" defer></script>
 </head>
 <body>
 
   <!-- ── Header ──────────────────────────────────────────────────────── -->
-  <header>
-    <div style="display:flex; align-items:baseline; gap:4px;">
-      <div class="brand">
-        <img src="/static/podclick-logo.png" alt="PodClick AI" class="nav-logo" onerror="this.style.display='none'">
-        <span class="sub">Brand Studio</span>
-      </div>
+  <div class="pc-page-title">
+    <div>
+      <h1>Brand Studio</h1>
+      <p>Audit · voice · bio pack · content plan · conversion</p>
     </div>
-    <nav class="nav-toggle">
-      <a href="/walkthrough">Walk-through</a>
-      <a href="/foundation">Foundation</a>
-      <a href="/permit">Permit</a>
-      <a href="/calendar">Calendar</a>
-      <a href="/studio">Studio</a>
-      <a href="/projects">Job Site</a>
-      <a href="/youtube-studio">Scout</a>
-      <a href="/blueprint" class="active">Blueprint</a>
-    </nav>
-  </header>
+  </div>
 
   <!-- ── Onboarding Screen ───────────────────────────────────────────── -->
   <div id="onboarding-screen">

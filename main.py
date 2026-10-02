@@ -1131,7 +1131,8 @@ async def create_project_from_upload(
     """
     Phase C — Upload entry point.
 
-    Accepts a pre-recorded MP4/MOV/WebM/MP3/M4A file from disk.
+    Accepts a pre-recorded MP4/MOV/WebM/MKV/MP3/M4A/WAV/FLAC/AAC file from disk
+    (all normalised by ffmpeg in _run_transcription / Ship It).
     Saves to data/recordings/{project_id}.{ext}, creates a Project record,
     kicks off Whisper transcription in the background.
 
@@ -1145,7 +1146,7 @@ async def create_project_from_upload(
     from sqlalchemy import select as _select
     from config import settings as _settings
 
-    _ALLOWED_EXTS = {"mp4", "mov", "webm", "mp3", "m4a"}
+    _ALLOWED_EXTS = {"mp4", "mov", "webm", "mkv", "mp3", "m4a", "wav", "flac", "aac"}
 
     location_id_str = _settings.titan_location_id
     if not location_id_str:

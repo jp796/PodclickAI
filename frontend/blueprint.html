@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <link rel="stylesheet" href="/podclick-design.css">
+  <link rel="stylesheet" href="/podclick-design.css?v=20261001-2">
   <meta charset="UTF-8" />
   <link rel="icon" href="/static/podclick-mark.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,48 +9,7 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
-  --bg:          #0b0a08;
-  --bg-panel:    #111009;
-  --bg-card:     #161410;
-  --bg-raised:   #1e1b16;
-  --bg-inset:    #0d0c0a;
-  --surface:     #111009;
-  --surface2:    #161410;
-  --surface3:    #1e1b16;
-  --border:      #272420;
-  --border-lit:  #352f28;
-  --border-hot:  #4a3820;
-  --orange:      #d95f1e;
-  --orange-hi:   #f07030;
-  --orange-dim:  #6b2e0e;
-  --orange-glow: rgba(217,95,30,0.10);
-  --orange-mist: rgba(217,95,30,0.05);
-  --accent:      #d95f1e;
-  --accent2:     #f07030;
-  --green:       #3d8c5c;
-  --green-hi:    #52c47a;
-  --green-dim:   #1a3d28;
-  --yellow:      #c4961c;
-  --yellow-dim:  #5a4008;
-  --red:         #a03838;
-  --blue:        #3a6ea8;
-  --blue-dim:    #1a3050;
-  --purple:      #7a4aa8;
-  --coral:       #a03838;
-  --text:        #ede8e0;
-  --text-pri:    #ede8e0;
-  --text-sec:    #847d74;
-  --text-dim:    #4a4540;
-  --text-muted:  #847d74;
-  --text-acc:    #d95f1e;
-  --font:         'Barlow', sans-serif;
-  --font-display: 'Big Shoulders Display', sans-serif;
-  --font-mono:    'Azeret Mono', monospace;
-  --font-body:    'Barlow', sans-serif;
-  --font-cond:    'Barlow Condensed', sans-serif;
-  --radius: 7px;
-}
+    /* Design tokens come from /podclick-design.css (single source of truth). */
 
     html, body { height: 100%; }
     body {
@@ -317,27 +276,10 @@
     }
     .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
   </style>
-  <script src="/static/podclick-nav.js?v=20260930-1" defer></script>
+  <script src="/static/podclick-nav.js?v=20261001-2" defer></script>
 </head>
 <body>
 
-  <!-- ── Header ──────────────────────────────────────────────────────── -->
-  <header>
-    <div class="brand">
-      <img src="/static/podclick-logo.png" alt="PodClick AI" class="nav-logo" onerror="this.style.display='none'">
-      <span class="sub">Blueprint</span>
-    </div>
-    <nav class="nav-toggle">
-      <a href="/walkthrough">Walk-through</a>
-      <a href="/foundation">Foundation</a>
-      <a href="/permit">Permit</a>
-      <a href="/calendar">Calendar</a>
-      <a href="/studio">Studio</a>
-      <a href="/projects">Job Site</a>
-      <a href="/youtube-studio">Scout</a>
-      <a href="/blueprint" class="active">Blueprint</a>
-    </nav>
-  </header>
 
   <!-- ── Page body ───────────────────────────────────────────────────── -->
   <div class="page-body">

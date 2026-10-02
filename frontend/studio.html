@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" href="/static/podclick-mark.png" type="image/png">
-  <link rel="stylesheet" href="/podclick-design.css">
+  <link rel="stylesheet" href="/podclick-design.css?v=20261001-2">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PodClickAI Studio · Solo</title>
   <style>
@@ -11,18 +11,14 @@
 
     :root {
       /* Studio-specific overrides — base design system from podclick-design.css */
-      --grad-from: #d95f1e;
-      --grad-to:   #f07030;
-      --grad:      linear-gradient(135deg, #d95f1e, #f07030);
+      /* Palette tokens (--red/--yellow/--green/--accent…) come from podclick-design.css;
+         only token aliases and studio-only accents live here. */
+      --grad-from: var(--orange);
+      --grad-to:   var(--orange-hi);
+      --grad:      linear-gradient(135deg, var(--orange), var(--orange-hi));
       --grad-glow: 0 0 22px rgba(217,95,30,0.30), 0 0 8px rgba(240,112,48,0.20);
-      --accent:    var(--orange);
-      --accent2:   var(--orange-hi);
-      --pink:      #FF557E;
-      --text:      var(--text-pri);
+      --pink:      var(--orange-hi);
       --text-dim:  var(--text-muted);
-      --red:       #FF557E;
-      --yellow:    #FFB340;
-      --green:     #3d8c5c;
       --seaglass:  #BFDDDB;
       --cobalt:    var(--bg-raised);
       --slate:     #615B56;
@@ -636,7 +632,7 @@
 }
   .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
   </style>
-  <script src="/static/podclick-nav.js?v=20260930-1" defer></script>
+  <script src="/static/podclick-nav.js?v=20261001-2" defer></script>
 </head>
 <body>
 <!-- ── Device Check Modal ────────────────────────────────────────── -->
@@ -829,24 +825,15 @@
   </div>
   <div style="font-size:11px;color:var(--text-dim);min-width:40px;text-align:right;" id="file-xfer-pct">0%</div>
 </div>
-  <header>
-    <div style="display:flex; align-items:baseline;">
-      <div class="brand"><img src="/static/podclick-logo.png" alt="PodClick AI" class="nav-logo" onerror="this.style.display='none'"> Studio</div>
-      <div class="tagline">Solo · voice-driven teleprompter · local capture</div>
+  <div class="pc-page-title">
+    <div>
+      <h1>Studio</h1>
+      <p>Solo · voice-driven teleprompter · local capture</p>
     </div>
-    <div class="header-right">
-      <nav class="nav-toggle">
-        <a href="/walkthrough">Walk-through</a>
-        <a href="/foundation">Foundation</a>
-        <a href="/permit">Permit</a>
-        <a href="/calendar">Calendar</a>
-        <a href="/studio" class="active">Studio</a>
-        <a href="/projects">Job Site</a>
-        <a href="/youtube-studio">Scout</a>
-        <a href="/blueprint">Blueprint</a>
-      </nav>
+    <div class="pc-page-actions">
+      <a href="/studio#upload" class="btn ghost">Upload a recording instead ↓</a>
     </div>
-  </header>
+  </div>
 
   <main>
     <!-- ── Left: preview + transport ─────────────────────────────── -->

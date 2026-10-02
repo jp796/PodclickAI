@@ -2491,3 +2491,56 @@ afterwards — unchanged. Tests 23 → 36.
 PUT — then `schedule()` has been sending something GHL ignores, and any post created through it never
 had a stored time. It is unexercised in this codebase (`publish()` never passes `scheduled_at`), and a
 speculative edit to a create path risks real posting, so it stays flagged pending a deliberate probe.
+
+---
+
+## 2026-10-01 — Two menus at once, inconsistent colors, and no way to find the podcast uploader
+
+**Symptom (JP):** "2 menus going at the same time", "UI is inconsistent", "colors are not consistent",
+"Podcast uploader is nowhere to be found."
+
+**Cause:** `podclick-nav.js` injected a top bar (`#pc-topbar`) on every page, but it only *replaced*
+elements with class `.topbar`. Nine pages shipped their own `<header><nav class="nav-toggle">`, so they
+rendered both. `youtube-studio.html` rendered three (shell, a Tailwind sidebar, and a nav-toggle).
+`index.html` restyled the shell into a left sidebar with CSS scoped to that page only and injected its
+own "Podcast" link, so the sidebar with Podcast in it appeared on `/` and nowhere else. No page linked to
+`/`, which is where the Episode builder lives. Seven pages never loaded `podclick-design.css`, and
+`brand-studio`, `social-studio` and `index` redefined `--bg`/`--accent`/`--text-dim` with the retired
+navy/cyan/purple palette in their own `:root`.
+
+**Fix:**
+- `frontend/static/podclick-nav.js` now renders the only site navigation: `<nav id="pc-shell">`, a fixed
+  left sidebar at ≥1024px and a fixed top bar plus slide-in drawer below that (Escape, scrim and link
+  clicks close it). Sections: Home (Walk-through) · Create (Podcast `/`, Studio, Social, Video/VSL, Brand)
+  · Plan & publish (Calendar, Job Site) · Grow (Scout, Agents with a SOON badge since `/agents` does not
+  exist yet) · Foundation (Foundation, Blueprint, Permit). It never replaces page elements.
+- A persistent **Upload episode** button (sidebar and mobile bar), plus the Job Site "↑ Upload" button,
+  opens a file picker and a dialog that POSTs `/api/projects/from-upload` and redirects to
+  `/project/{id}`. Shared JS lives in the nav script (`[data-pc-upload]`, `window.PodClickUpload.open()`).
+  `/studio#upload` is the no-JS fallback: it dismisses the camera check and scrolls to the studio tray.
+- `main.py` `create_project_from_upload`: whitelist widened to `mkv, wav, flac, aac` (in addition to
+  `mp4, mov, webm, mp3, m4a`). All of these are normalised by ffmpeg in `_run_transcription` / Ship It.
+- Removed every page-local site nav (blueprint, brand-studio, calendar, foundation, permit,
+  social-studio, studio, walkthrough, youtube-studio, projects). Walk-through's permit badge moved into
+  its page head (same IDs). Page-local tabs (Podcast workspace, Social Studio, Scout) now use the shared
+  `.pc-subtabs` style and are `role="group"` divs, so each page has exactly one `<nav>`.
+- `podclick-design.css` is loaded on every page. The duplicated `:root` token copies were removed from
+  blueprint/calendar/foundation/permit/walkthrough, and the navy/cyan/purple `:root` palettes in
+  brand-studio, social-studio, index and studio were replaced with token aliases.
+- The mobile bar is `position: fixed` with body `padding-top`, not sticky. Several pages pin `body` to
+  100vh, which ends a sticky element's containing block after one screen.
+
+**Verified:** a second uvicorn ran from the worktree on :8767 in the in-app browser. At 375px and
+1366px, `/`, `/studio`, `/social-studio`, `/youtube-studio`, `/projects`, `/calendar` and `/foundation`
+(plus walkthrough, permit, blueprint, brand-studio and vsl-editor at 375px) each had exactly one `<nav>`
+(`#pc-shell`), the correct active item, no legacy nav elements, and `scrollWidth == innerWidth`. The
+upload dialog opened from the shell button, and a `.xyz` file came back with the server's 400 listing
+the new whitelist. Drawer open/close, focus and aria-expanded were checked. No successful real upload
+was run, so no project was created in the shared DB. The only console error was that deliberate 400.
+
+**Left for wave 2:** in-body off-token hexes and Inter font overrides (see `docs/UI_CONSISTENCY.md`),
+and the studio.html mobile panel overlap.
+
+**Files:** `frontend/static/podclick-nav.js`, `static/podclick-nav.js` (mirror), `frontend/podclick-design.css`,
+all `frontend/*.html` head/nav regions, `main.py` (upload whitelist), `docs/UI_CONSISTENCY.md`,
+`docs/FRONTEND.md`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`
