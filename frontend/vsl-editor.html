@@ -5,11 +5,11 @@
   <link rel="icon" href="/static/podclick-mark.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VSL Editor · PodClick</title>
-  <script src="/static/podclick-nav.js?v=20260930-1" defer></script>
+  <script src="/static/podclick-nav.js?v=20261002-1" defer></script>
+  <link rel="stylesheet" href="/podclick-design.css?v=20261002-1">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { background: #0b0a08; color: #F5F7FA; min-height: 100vh; font-family: 'Inter', sans-serif; }
+    html, body { background: #0b0a08; color: #F5F7FA; min-height: 100vh; font-family: var(--font-body); }
 
     .shell { max-width: 1080px; margin: 0 auto; padding: 28px 22px 80px; }
     .page-head { margin-bottom: 24px; }
@@ -25,7 +25,7 @@
 
     textarea {
       width: 100%; background: #0d0c0a; border: 1px solid #352f28; border-radius: 8px;
-      color: #F5F7FA; padding: 12px 14px; font-family: 'Inter', sans-serif;
+      color: #F5F7FA; padding: 12px 14px; font-family: var(--font-body);
       font-size: 13px; line-height: 1.6; resize: vertical; min-height: 420px;
     }
     textarea:focus { outline: none; border-color: #d95f1e; }

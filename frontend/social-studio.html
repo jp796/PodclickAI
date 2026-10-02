@@ -7,26 +7,12 @@
   <title>Social Studio · PodClickAI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/podclick-design.css?v=20261002-1">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
-      --bg:       #030B2C;
-      --surface:  #050E3D;
-      --surface2: #0a1845;
-      --surface3: #102078;
-      --border:   #1a2c6b;
-      --accent:   #05C3F9;
-      --accent2:  #00FBF0;
-      --coral:    #FF557E;
-      --text:     #e2e8f0;
-      --text-muted: #8899cc;
-      --green:    #2EE49C;
-      --yellow:   #FFB340;
-      --radius:   12px;
-      --font:     'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    }
+    /* Design tokens come from /podclick-design.css. Legacy aliases only: */
+    :root { --text-dim: var(--text-sec); }
 
     html, body { height: 100%; }
     body {
@@ -562,30 +548,20 @@
     .rec-save-title:focus { border-color: var(--accent); outline: none; }
     .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
   </style>
-  <script src="/static/podclick-nav.js?v=20260930-1" defer></script>
+  <script src="/static/podclick-nav.js?v=20261002-1" defer></script>
 </head>
 <body>
 
 <!-- ── Header ─────────────────────────────────────────────────────── -->
-<header>
-  <div class="brand">
-    <img src="/static/podclick-logo.png" alt="PodClick AI" class="nav-logo" onerror="this.style.display='none'">
-    <span class="sub">Social Studio</span>
+<div class="pc-page-title">
+  <div>
+    <h1>Social Studio</h1>
+    <p>Draft · schedule · hashtags · repurpose · connections</p>
   </div>
-  <nav class="nav-toggle">
-    <a href="/walkthrough">Walk-through</a>
-    <a href="/foundation">Foundation</a>
-    <a href="/permit">Permit</a>
-    <a href="/calendar">Calendar</a>
-    <a href="/studio">Studio</a>
-    <a href="/projects">Job Site</a>
-    <a href="/youtube-studio">Scout</a>
-    <a href="/blueprint">Blueprint</a>
-  </nav>
-</header>
+</div>
 
 <!-- ── Tab bar ────────────────────────────────────────────────────── -->
-<div class="tab-bar">
+<div class="tab-bar pc-subtabs" role="group" aria-label="Social Studio tools">
   <button class="active" data-tab="forge" onclick="switchPanel('forge')">✍️ Draftsman</button>
   <button data-tab="calendar" onclick="switchPanel('calendar')">📅 Content Calendar</button>
   <button data-tab="hashtags" onclick="switchPanel('hashtags')">🏷️ Hashtag Lab</button>

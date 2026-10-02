@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" href="/static/podclick-mark.png" type="image/png">
-  <link rel="stylesheet" href="/podclick-design.css">
+  <link rel="stylesheet" href="/podclick-design.css?v=20261002-1">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Click Studio · PodClickAI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -23,14 +22,14 @@
             accent:   '#d95f1e',
             accent2:  '#f07030',
           },
-          fontFamily: { inter: ['Inter', 'sans-serif'] }
+          fontFamily: { inter: ['Barlow', 'sans-serif'] }
         }
       }
     }
   </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', sans-serif; background: #0b0a08; color: #F5F7FA; min-height: 100vh; }
+    body { font-family: var(--font-body); background: #0b0a08; color: #F5F7FA; min-height: 100vh; }
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
@@ -69,7 +68,7 @@
     .btn-secondary:hover { border-color: #d95f1e; color: #f07030; }
 
     /* Input / select / textarea */
-    .field { background: #161410; border: 1px solid #272420; border-radius: 9px; padding: 10px 14px; color: #F5F7FA; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.15s; width: 100%; }
+    .field { background: #161410; border: 1px solid #272420; border-radius: 9px; padding: 10px 14px; color: #F5F7FA; font-size: 14px; font-family: var(--font-body); outline: none; transition: border-color 0.15s; width: 100%; }
     .field:focus { border-color: #d95f1e; }
     .field::placeholder { color: #4a4a6a; }
     select.field option { background: #161410; }
@@ -105,7 +104,7 @@
     .panel-section p, .panel-section .content { font-size: 13px; line-height: 1.7; color: #c0c0d8; white-space: pre-wrap; }
 
     /* Copy button */
-    .copy-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #6a6a8a; cursor: pointer; padding: 4px 8px; border-radius: 5px; border: 1px solid #272420; background: transparent; font-family: 'Inter', sans-serif; transition: all 0.15s; }
+    .copy-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #6a6a8a; cursor: pointer; padding: 4px 8px; border-radius: 5px; border: 1px solid #272420; background: transparent; font-family: var(--font-body); transition: all 0.15s; }
     .copy-btn:hover { color: #f07030; border-color: #d95f1e; }
     .copy-btn.copied { color: #2EE49C; border-color: #2EE49C; }
 
@@ -243,85 +242,26 @@
     .nav-toggle a.active { background:#111009; color:#d95f1e; }
     .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
   </style>
-  <script src="/static/podclick-nav.js?v=20260930-1" defer></script>
+  <script src="/static/podclick-nav.js?v=20261002-1" defer></script>
 </head>
 <body class="font-inter">
 
 <!-- ── LAYOUT ── -->
 <div class="flex h-screen overflow-hidden">
 
-  <!-- Sidebar -->
-  <aside id="sidebar" class="flex flex-col w-56 flex-shrink-0 border-r border-border bg-surface" style="min-width:220px;">
-    <!-- Logo -->
-    <div class="p-5 border-b border-border">
-      <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-lg grad flex items-center justify-center">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2L2 14h12L8 2z" fill="white"/></svg>
-        </div>
-        <div>
-          <img src="/static/podclick-logo.png" alt="PodClick AI" class="nav-logo" onerror="this.style.display='none'">
-          <div class="text-xs" style="color:#5a5a7a;">Click Studio — Scout & Build</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Nav -->
-    <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
-      <a href="/" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-        Studio Board
-      </a>
-      <div class="nav-item active">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46A2.78 2.78 0 001.46 6.42 29 29 0 001 12a29 29 0 00.46 5.58 2.78 2.78 0 001.95 1.96C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 001.95-1.96A29 29 0 0023 12a29 29 0 00-.46-5.58z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="currentColor" stroke="none"/></svg>
-        Click Studio
-      </div>
-      <a href="/studio" class="nav-item">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/></svg>
-        Social Studio
-      </a>
-      <div class="nav-item" style="opacity:0.5;cursor:default;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-        Brand Studio
-      </div>
-      <div class="nav-item" style="opacity:0.5;cursor:default;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        Brick
-      </div>
-    </nav>
-
-    <!-- Footer -->
-    <div class="p-4 border-t border-border">
-      <div class="text-xs" style="color:#3a3a5a;">PodClickAI v2.0</div>
-    </div>
-  </aside>
-
   <!-- Main content -->
   <main class="flex-1 flex flex-col overflow-hidden">
 
     <!-- Top bar -->
-    <header class="flex items-center justify-between px-6 py-4 border-b" style="border-color:#272420; background:#0b0a08; flex-shrink:0;">
+    <div class="pc-page-title" style="flex-shrink:0;">
       <div>
-        <h1 class="text-lg font-bold text-white">Click Studio</h1>
-        <p class="text-xs mt-0.5" style="color:#5a5a7a;">Plan · Create · Grow your channel</p>
+        <h1>Scout</h1>
+        <p>Click Studio · plan · create · grow your channel</p>
       </div>
-      <div class="flex items-center gap-3">
-        <!-- Mobile menu toggle -->
-        <button class="md:hidden btn-secondary" onclick="document.getElementById('sidebar').classList.toggle('open')">Menu</button>
-        <nav class="nav-toggle">
-          <a href="/walkthrough">Walk-through</a>
-          <a href="/foundation">Foundation</a>
-          <a href="/permit">Permit</a>
-          <a href="/calendar">Calendar</a>
-          <a href="/studio">Studio</a>
-          <a href="/projects">Job Site</a>
-          <a href="/youtube-studio" class="active">Scout</a>
-          <a href="/blueprint">Blueprint</a>
-        </nav>
-      </div>
-    </header>
+    </div>
 
     <!-- Tab bar -->
-    <div class="flex items-center gap-2 px-6 py-3 border-b" style="border-color:#272420; background:#0b0a08; flex-shrink:0;">
+    <div class="pc-subtabs flex items-center px-6" role="group" aria-label="Scout sections" style="background:var(--bg); flex-shrink:0;">
       <button class="tab-btn active" id="tab-plan" onclick="switchTab('plan')">PLAN</button>
       <button class="tab-btn" id="tab-create" onclick="switchTab('create')">CREATE</button>
       <button class="tab-btn" id="tab-grow" onclick="switchTab('grow')">GROW</button>

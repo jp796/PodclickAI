@@ -5,11 +5,11 @@
   <link rel="icon" href="/static/podclick-mark.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Episodes · PodClick</title>
+  <link rel="stylesheet" href="/podclick-design.css?v=20261002-1">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { background: #0b0a08; color: #F5F7FA; min-height: 100vh; font-family: 'Inter', sans-serif; }
+    html, body { background: #0b0a08; color: #F5F7FA; min-height: 100vh; font-family: var(--font-body); }
     a { color: #f07030; text-decoration: none; }
 
     /* ── Top bar ── */
@@ -221,28 +221,16 @@
       .filter-btn { font-size: 11px; padding: 7px 11px; }
     }
   </style>
-  <script src="/static/podclick-nav.js?v=20260930-1" defer></script>
+  <script src="/static/podclick-nav.js?v=20261002-1" defer></script>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="brand">Pod<em>Click</em></div>
-  <nav>
-    <a href="/walkthrough">Walk-through</a>
-    <a href="/foundation">Foundation</a>
-    <a href="/calendar">Calendar</a>
-    <a href="/studio">Studio</a>
-    <a href="/projects" class="active">Job Site</a>
-    <a href="/youtube-studio">Scout</a>
-    <a href="/blueprint">Blueprint</a>
-  </nav>
-</div>
 
 <div class="page">
 
   <header class="library-hero">
     <div><div class="library-eyebrow">Your production workspace</div><h1>Good conversations.<br>Ready for the world.</h1><p>Every episode, from the first take to its next listener. Review your work and set a publishing plan that keeps it moving.</p></div>
-    <div class="actions"><a href="/studio" class="btn-upload">↑ Upload</a><a href="/studio" class="btn-new">+ Record an episode</a></div>
+    <div class="actions"><a href="/studio#upload" class="btn-upload" data-pc-upload>↑ Upload</a><a href="/studio" class="btn-new">+ Record an episode</a></div>
   </header>
 
   <!-- Stats -->

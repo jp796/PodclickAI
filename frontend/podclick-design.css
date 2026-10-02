@@ -99,14 +99,153 @@ body {
   margin-left: 10px;
 }
 
-/* Nav toggle items: Barlow Condensed */
-.nav-toggle a {
-  font-family: var(--font-cond);
-  font-weight: 500;
-  font-size: 12px;
-  letter-spacing: 0.02em;
+/* ══════════════════════════════════════════════════════════════════════════
+   APP SHELL — rendered ONLY by /static/podclick-nav.js (#pc-shell).
+   Pages must not ship their own site navigation. Desktop: fixed left
+   sidebar. < 1024px: sticky top bar + slide-in drawer.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --pc-shell-w: 232px;
+  --pc-shell-bar-h: 56px;
+  --pc-sticky-top: 0px;          /* offset page-local sticky headers by this */
 }
-.nav-toggle a.active { color: var(--orange); }
+.pc-shell { z-index: 900; font-family: var(--font-body); color: var(--text-pri); }
+.pc-shell, .pc-shell *, .pc-shell *::before, .pc-shell *::after { box-sizing: border-box; }
+.pc-shell a { text-decoration: none; }
+.pc-shell :is(a, button):focus-visible { outline: 2px solid var(--orange-hi); outline-offset: 2px; }
+.pc-shell .pc-ico { width: 16px; height: 16px; flex-shrink: 0; display: block; }
+
+.pc-brand {
+  font: 800 26px/1 var(--font-display);
+  letter-spacing: .01em; color: var(--text-pri) !important; white-space: nowrap;
+}
+.pc-brand em { color: var(--orange-hi); font-style: normal; }
+
+.pc-cta, .pc-bar-cta {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--orange); color: #fff !important; border: 1px solid var(--orange);
+  border-radius: var(--radius); font: 700 14px/1 var(--font-cond);
+  letter-spacing: .06em; text-transform: uppercase; white-space: nowrap;
+  transition: background .12s ease, border-color .12s ease;
+}
+.pc-cta { min-height: 42px; padding: 10px 14px; }
+.pc-cta:hover, .pc-bar-cta:hover { background: var(--orange-hi); border-color: var(--orange-hi); }
+
+.pc-group { display: flex; flex-direction: column; gap: 2px; }
+.pc-group-label {
+  font: 400 9px/1.4 var(--font-mono); letter-spacing: .16em; text-transform: uppercase;
+  color: var(--text-sec); padding: 0 10px 6px;
+}
+.pc-link {
+  display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 7px 10px;
+  border-radius: 6px; border: 1px solid transparent; color: var(--text-sec) !important;
+  font: 500 15px/1.2 var(--font-cond); letter-spacing: .01em;
+  transition: background .12s ease, color .12s ease;
+}
+.pc-link:hover { background: var(--bg-raised); color: var(--text-pri) !important; }
+.pc-link.pc-active { color: var(--orange-hi) !important; background: var(--orange-glow); border-color: var(--orange-dim); }
+.pc-link.pc-soon { opacity: .72; }
+.pc-link-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pc-badge {
+  font: 500 8px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
+  padding: 3px 5px; border-radius: 3px; color: var(--text-sec); border: 1px solid var(--border-lit);
+}
+.pc-shell-foot {
+  margin-top: auto; padding: 18px 10px 0; color: var(--text-sec);
+  font: 400 9px/1.8 var(--font-mono); letter-spacing: .12em; text-transform: uppercase;
+}
+.pc-burger {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; margin-right: -8px; padding: 0;
+  background: transparent; border: 0; border-radius: 6px; color: var(--text-pri); cursor: pointer;
+}
+.pc-burger .pc-ico { width: 22px; height: 22px; }
+.pc-burger .pc-ico-close, .pc-shell.pc-open .pc-burger .pc-ico-menu { display: none; }
+.pc-shell.pc-open .pc-burger .pc-ico-close { display: block; }
+
+@media (min-width: 1024px) {
+  body.pc-shell-on { padding-left: var(--pc-shell-w) !important; }
+  .pc-shell {
+    position: fixed; top: 0; left: 0; bottom: 0; width: var(--pc-shell-w);
+    display: flex; flex-direction: column;
+    background: var(--bg-panel); border-right: 1px solid var(--border);
+  }
+  .pc-shell-bar { padding: 22px 20px 16px; }
+  .pc-burger, .pc-bar-cta, .pc-scrim { display: none !important; }
+  .pc-shell-menu {
+    flex: 1; min-height: 0; overflow-y: auto; padding: 4px 12px 20px;
+    display: flex; flex-direction: column; gap: 18px; scrollbar-width: thin;
+  }
+}
+@media (max-width: 1023.98px) {
+  :root { --pc-sticky-top: var(--pc-shell-bar-h); }
+  /* fixed, not sticky: several pages pin body to 100vh, which ends a sticky
+     element's containing block after one screen */
+  body.pc-shell-on { padding-top: var(--pc-shell-bar-h) !important; }
+  .pc-shell {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: var(--bg-panel); border-bottom: 1px solid var(--border);
+  }
+  .pc-shell-bar {
+    height: var(--pc-shell-bar-h); display: flex; align-items: center; gap: 10px; padding: 0 16px;
+  }
+  .pc-shell-bar .pc-brand { font-size: 23px; margin-right: auto; }
+  .pc-bar-cta { height: 34px; padding: 0 12px; font-size: 13px; }
+  .pc-shell-menu {
+    position: fixed; top: 0; left: 0; bottom: 0; width: min(300px, 86vw);
+    display: flex; flex-direction: column; gap: 18px; overflow-y: auto;
+    padding: 18px 14px 24px; background: var(--bg-panel); border-right: 1px solid var(--border);
+    transform: translateX(-102%); visibility: hidden;
+    transition: transform .2s ease, visibility 0s linear .2s; z-index: 960;
+  }
+  .pc-shell.pc-open .pc-shell-menu { transform: none; visibility: visible; transition: transform .2s ease; }
+  .pc-shell.pc-open .pc-burger { position: relative; z-index: 970; }
+  .pc-scrim { position: fixed; inset: 0; z-index: 955; background: rgba(0,0,0,.6); display: none; }
+  .pc-scrim.pc-open { display: block; }
+  html.pc-drawer-open, html.pc-drawer-open body { overflow: hidden; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pc-shell-menu, .pc-link, .pc-cta, .pc-bar-cta { transition: none !important; }
+}
+
+/* Page title row (for pages with no hero of their own) */
+.pc-page-title {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 20px;
+  flex-wrap: wrap; padding: 20px 24px 14px; border-bottom: 1px solid var(--border);
+}
+.pc-page-title h1 {
+  margin: 0; font: 700 28px/1.1 var(--font-display); letter-spacing: .04em; color: var(--text-pri);
+}
+.pc-page-title p {
+  margin: 6px 0 0; font: 400 9px/1.5 var(--font-mono); letter-spacing: .14em;
+  text-transform: uppercase; color: var(--text-sec);
+}
+.pc-page-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* Page-local sub-tabs — subordinate to the shell, never a copy of it.
+   :root prefix lifts specificity over legacy page tab rules. */
+.pc-subtabs {
+  display: flex; align-items: stretch; gap: 2px; min-width: 0;
+  overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--border);
+}
+.pc-subtabs::-webkit-scrollbar { display: none; }
+:root .pc-subtabs > :is(button, a) {
+  appearance: none; flex-shrink: 0; margin: 0 0 -1px; padding: 11px 12px;
+  background: transparent !important; box-shadow: none !important; text-shadow: none;
+  border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+  color: var(--text-sec); font: 600 13px/1.2 var(--font-cond); letter-spacing: .07em;
+  text-transform: uppercase; white-space: nowrap; cursor: pointer; text-decoration: none;
+}
+:root .pc-subtabs > :is(button, a):hover { color: var(--text-pri); }
+:root .pc-subtabs > :is(.active, [aria-selected="true"], [aria-pressed="true"]) {
+  color: var(--orange-hi); border-bottom-color: var(--orange);
+}
+:root .pc-subtabs > :is(button, a):focus-visible { outline: 2px solid var(--orange-hi); outline-offset: -2px; }
+
+/* Deep-link highlight (e.g. /studio#upload) */
+@keyframes pc-flash { 0% { box-shadow: 0 0 0 0 rgba(240,112,48,.65); } 100% { box-shadow: 0 0 0 14px rgba(240,112,48,0); } }
+.pc-flash { animation: pc-flash 1.2s ease-out 2; border-color: var(--orange) !important; }
+#upload-tray { scroll-margin-top: calc(var(--pc-sticky-top) + 16px); }
 
 /* ── Stat blocks ─────────────────────────────────────────────────────────── */
 .stat-num,
@@ -425,7 +564,6 @@ body.podclick-studio {
   --grad: linear-gradient(120deg, #d95f1e, #f07030);
   --pink: var(--orange-hi);
   --red: #e48078;
-  padding-left: 208px;
   font-size: 15px;
   line-height: 1.5;
   color-scheme: dark;
@@ -436,34 +574,14 @@ body.podclick-studio {
 .podclick-studio button { touch-action: manipulation; }
 .podclick-studio :is(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 2px solid var(--orange-hi); outline-offset: 4px; }
 .podclick-studio input, .podclick-studio select, .podclick-studio textarea { min-width: 0; max-width: 100%; }
-.podclick-studio .studio-skip-link { position: fixed; top: -80px; left: 220px; z-index: 2000; background: var(--orange); color: white; padding: 10px 18px; border-radius: 6px; }
+.podclick-studio .studio-skip-link { position: fixed; top: -80px; left: 16px; z-index: 2000; background: var(--orange); color: white; padding: 10px 18px; border-radius: 6px; }
 .podclick-studio .studio-skip-link:focus { top: 12px; }
+@media (min-width: 1024px) { .podclick-studio .studio-skip-link { left: calc(var(--pc-shell-w) + 16px); } }
 
-/* One persistent platform navigation, with page-local tools in the toolbar. */
-.podclick-studio #pc-topbar {
-  position: fixed;
-  inset: 0 auto 0 0;
-  width: 208px;
-  padding: 28px 18px;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 28px;
-  border-bottom: 0;
-  border-right: 1px solid var(--border);
-  background: var(--bg-panel);
-  overflow-y: auto;
-}
-.podclick-studio #pc-topbar::after { content: 'YOUR CONTENT.\A YOUR VOICE.'; white-space: pre; margin-top: auto; padding: 28px 10px 0; color: #807569; font: 9px/1.8 var(--font-mono); letter-spacing: .12em; }
-.podclick-studio #pc-topbar .pc-brand { font: 800 32px/1 var(--font-display); letter-spacing: .01em; padding: 0 10px; }
-.podclick-studio #pc-topbar .pc-links { display: flex; flex-direction: column; align-items: stretch; overflow: visible; gap: 5px; margin: 0; }
-.podclick-studio #pc-topbar .pc-links::before { content: 'WORKSPACE'; font: 9px var(--font-mono); color: #847d74; letter-spacing: .16em; padding: 0 12px 12px; }
-.podclick-studio #pc-topbar .pc-links a { padding: 10px 12px; font: 500 16px/1.2 var(--font-cond); color: #a79d91; border-radius: 5px; }
-.podclick-studio #pc-topbar .pc-links a:hover { color: var(--text-pri); background: var(--bg-raised); }
-.podclick-studio #pc-topbar .pc-links a.pc-active { color: var(--orange-hi); border-color: var(--orange-dim); background: var(--orange-glow); }
-.podclick-studio .studio-toolbar { min-height: 68px; padding: 12px 28px; top: 0; gap: 14px; background: var(--bg-panel); backdrop-filter: none; flex-wrap: wrap; }
-.podclick-studio .tab-nav { margin: 0; gap: 2px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
-.podclick-studio .tab-btn { flex-shrink: 0; padding: 9px 10px; font: 500 15px var(--font-cond); border-radius: 5px; white-space: nowrap; }
-.podclick-studio .tab-btn.active { color: var(--orange-hi); background: var(--orange-glow); border-color: var(--orange-dim); text-shadow: none; }
+/* Site navigation comes from the shell (#pc-shell); this toolbar holds only
+   the Podcast page's own sub-tabs and tools. */
+.podclick-studio .studio-toolbar { min-height: 56px; padding: 0 28px; top: var(--pc-sticky-top); gap: 14px; background: var(--bg-panel); backdrop-filter: none; flex-wrap: wrap; align-items: center; }
+.podclick-studio .tab-nav { margin: 0; flex: 1; min-width: 0; align-self: stretch; border-bottom: 0; }
 .podclick-studio .studio-record-link { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border-lit); padding: 8px 11px; color: var(--text-pri); text-decoration: none; border-radius: 5px; font: 500 14px var(--font-cond); white-space: nowrap; }
 .podclick-studio .studio-record-link span { color: var(--orange-hi); font-size: 9px; }
 .podclick-studio #header-status { border: 0; padding: 5px 0; background: transparent; font: 10px var(--font-mono); white-space: nowrap; }
@@ -599,8 +717,6 @@ body.podclick-studio {
   .podclick-studio #podcast-tab-panel { padding-top: 48px; gap: 26px; }
 }
 @media (max-width: 1180px) {
-  body.podclick-studio { padding-left: 172px; }
-  .podclick-studio #pc-topbar { width: 172px; padding-inline: 12px; }
   .podclick-studio .studio-toolbar { padding-inline: 22px; }
   .podclick-studio #podcast-tab-panel { padding: 28px 22px 40px; gap: 18px; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
   .podclick-studio .panel { padding: 20px; }
@@ -614,12 +730,6 @@ body.podclick-studio {
   .podclick-studio .settings-row .field:first-child { grid-column: 1 / -1; }
 }
 @media (max-width: 920px) {
-  body.podclick-studio { padding-left: 0; }
-  .podclick-studio #pc-topbar { position: relative; inset: auto; width: 100%; padding: 15px 20px; flex-direction: row; align-items: center; gap: 24px; border-right: 0; border-bottom: 1px solid var(--border); overflow: hidden; }
-  .podclick-studio #pc-topbar::after, .podclick-studio #pc-topbar .pc-links::before { display: none; }
-  .podclick-studio #pc-topbar .pc-brand { font-size: 27px; padding: 0; }
-  .podclick-studio #pc-topbar .pc-links { flex-direction: row; align-items: center; overflow-x: auto; gap: 4px; }
-  .podclick-studio #pc-topbar .pc-links a { padding: 7px 9px; font-size: 15px; }
   .podclick-studio .studio-toolbar { position: relative; min-height: 60px; gap: 12px; }
   .podclick-studio .studio-skip-link { left: 14px; }
   .podclick-studio .studio-intro h1 { font-size: 46px; }
@@ -632,7 +742,6 @@ body.podclick-studio {
   .podclick-studio .studio-project-link > span:last-child { margin-left: auto; }
   .podclick-studio .studio-toolbar { padding: 8px 16px 12px; }
   .podclick-studio .tab-nav { flex-basis: 100%; padding-bottom: 2px; }
-  .podclick-studio .tab-btn { padding: 9px 10px; }
   .podclick-studio .studio-record-link { margin-right: auto; }
   .podclick-studio #header-status { margin-left: 0 !important; }
   .podclick-studio #active-profile-pill { order: initial; }
@@ -660,3 +769,44 @@ body.podclick-studio {
 @media (prefers-reduced-motion: reduce) {
   .podclick-studio *, .podclick-studio *::before, .podclick-studio *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ── Shell: page-layout adjustments ─────────────────────────────────────── */
+@media (max-width: 1023.98px) {
+  /* full-height app layouts (e.g. Scout) sit below the sticky shell bar */
+  body.pc-shell-on > .h-screen { height: calc(100vh - var(--pc-shell-bar-h)); height: calc(100dvh - var(--pc-shell-bar-h)); }
+  /* page-local sticky bars sit below the sticky shell bar */
+  body.pc-shell-on .topbar[style*="sticky"], body.pc-shell-on > .topbar { top: var(--pc-sticky-top); }
+}
+
+/* ── Shared "Upload episode" dialog (opened by podclick-nav.js) ─────────── */
+.pc-upload-backdrop {
+  position: fixed; inset: 0; z-index: 10000; display: grid; place-items: center;
+  padding: 16px; background: rgba(0,0,0,.65);
+}
+.pc-upload-box {
+  width: min(460px, 100%); padding: 24px; border-radius: var(--radius); box-sizing: border-box;
+  background: var(--bg-card); border: 1px solid var(--border-lit); color: var(--text-pri); font-family: var(--font-body);
+}
+.pc-upload-box * { box-sizing: border-box; }
+.pc-upload-eyebrow { margin: 0; font: 400 9px/1.5 var(--font-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--text-sec); }
+.pc-upload-box h2 { margin: 6px 0 4px; font: 700 26px/1.1 var(--font-display); letter-spacing: .03em; }
+.pc-upload-file { margin: 0 0 16px; font-size: 13px; color: var(--orange-hi); overflow-wrap: anywhere; }
+.pc-upload-box label { display: block; margin-bottom: 6px; font: 400 9px/1.5 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--text-sec); }
+.pc-upload-box input {
+  width: 100%; min-height: 40px; padding: 9px 12px; border-radius: 6px;
+  background: var(--bg-inset); border: 1px solid var(--border); color: var(--text-pri); font: 14px var(--font-body);
+}
+.pc-upload-box input:focus { outline: none; border-color: var(--orange-dim); }
+.pc-upload-track { height: 4px; margin-top: 16px; border-radius: 4px; background: var(--border); overflow: hidden; }
+.pc-upload-fill { width: 0; height: 100%; background: linear-gradient(90deg, var(--orange), var(--orange-hi)); transition: width .2s ease; }
+.pc-upload-status { min-height: 18px; margin: 10px 0 0; font-size: 12px; color: var(--text-sec); }
+.pc-upload-status.pc-upload-err { color: var(--red); }
+.pc-upload-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.pc-upload-actions button {
+  min-height: 40px; padding: 0 16px; border-radius: 6px; cursor: pointer;
+  font: 700 14px/1 var(--font-cond); letter-spacing: .06em; text-transform: uppercase;
+}
+.pc-upload-cancel { background: transparent; border: 1px solid var(--border-lit); color: var(--text-sec); }
+.pc-upload-go { background: var(--orange); border: 1px solid var(--orange); color: #fff; }
+.pc-upload-go:hover:not(:disabled) { background: var(--orange-hi); }
+.pc-upload-go:disabled { opacity: .5; cursor: progress; }

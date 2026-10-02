@@ -1,5 +1,23 @@
 # PodClick Frontend Reference
 
+## October 1 — one app shell (`podclick-nav.js`)
+
+`frontend/static/podclick-nav.js` renders the **only** site navigation, `<nav id="pc-shell" aria-label="PodClick">`, on every page except `/onboarding`. Billing is script-free, so it has no shell either. Styles live in `podclick-design.css` (`.pc-shell*`, `.pc-link`, `.pc-cta`, `.pc-subtabs`, `.pc-page-title`, `.pc-upload-*`). At ≥1024px it is a fixed 232px left sidebar, and `body.pc-shell-on` gets `padding-left`. Below that it is a fixed 56px top bar (brand, Upload, menu) with a slide-in drawer, and `--pc-sticky-top` offsets page-local sticky bars. The repo-root `static/podclick-nav.js` is a byte-identical mirror; the served copy is `frontend/static/`. Bump `?v=` on every page after editing either file (current `20261001-2`).
+
+**IA** — Home: Walk-through · Create: Podcast (`/`), Studio, Social, Video / VSL, Brand · Plan & publish: Calendar, Job Site (also active on `/project/*`, `/editor/*`) · Grow: Scout, Agents (`/agents`, SOON badge until the route exists) · Foundation: Foundation, Blueprint, Permit.
+
+| Shell function | Purpose |
+|---|---|
+| `firstRunGate()` | Redirects to `/onboarding` until `/api/onboarding/state.completed_at`; a sessionStorage latch prevents loops |
+| `isActive(item)` | Path match (exact for `/`, prefix plus `match[]` otherwise) → `.pc-active` + `aria-current` |
+| `buildShell()` / `inject()` | Build and prepend the nav + scrim; add `body.pc-shell-on`; never replaces page markup |
+| `ensureDesignCss()` | Injects `/podclick-design.css` if a page has no link to it |
+| `wireDrawer(nav, scrim)` | Mobile drawer: burger toggle, scrim click, Escape, link click, auto-close on resize to desktop |
+| `startUpload()` / `openUploadDialog(file)` | Any `[data-pc-upload]` click opens a file picker (`UPLOAD_ACCEPT` mirrors the server whitelist), then a dialog. It sends an XHR POST to `/api/projects/from-upload` with progress and redirects to `/project/{id}`; errors show inline with a retry. Exposed as `window.PodClickUpload.open()` |
+| `focusStudioUpload()` | `/studio#upload` fallback: calls the page's `dcSkip()`, stops any late camera stream, scrolls to and flashes `#upload-tray` |
+
+Page conventions: no page-local site nav. Pages without a hero use `.pc-page-title`. In-page tabs use `.pc-subtabs` (index Podcast workspace, Social Studio tools, Scout PLAN/CREATE/GROW/BOARD) as `role="group"` divs, so each page has exactly one `<nav>`. Remaining off-token colors are listed in `docs/UI_CONSISTENCY.md`.
+
 ## September 25 — SaaS follow-up
 
 `frontend/billing.html` is a server-served, script-free local setup screen at `/billing`. It deliberately collects no payment while real customer authentication and Stripe setup are incomplete. The outer deployment perimeter covers this page along with every existing studio route.
@@ -21,7 +39,7 @@ The marketing page is isolated in `../podclick-marketing` with its own source re
 | `saveAutopilotPlan`, `controlAutopilot` | Save explicit plans and approve/pause/resume/cancel |
 | `_apData`, `_apDirty`, `_apBusy`, `_apTimer`, `_apLoading` | State, unsaved-form protection, and 15-second polling of saved active plans |
 
-Home-page helpers: `updateStudioGuidance()` derives file count and next action from actual slots/processing state; `initStudioShell()` sets up Podcast navigation and keyboard-accessible upload headers; `studioEscapeHtml()` protects dynamic queue output; `renderQueueEntry()` presents retry/error states; `showQueueError()` displays failed actions. `queuePublishNow`, `queueCancel`, and `queueReschedule` accept an initiating button, check HTTP results, and restore controls after errors. `openScheduler()` defaults to 09:00 local time.
+Home-page helpers: `updateStudioGuidance()` derives file count and next action from actual slots/processing state; `initStudioShell()` sets up keyboard-accessible upload headers (site navigation comes from the shell); `studioEscapeHtml()` protects dynamic queue output; `renderQueueEntry()` presents retry/error states; `showQueueError()` displays failed actions. `queuePublishNow`, `queueCancel`, and `queueReschedule` accept an initiating button, check HTTP results, and restore controls after errors. `openScheduler()` defaults to 09:00 local time.
 
 The legacy release queue shows retry attempts, next retry time, provider errors, and explicit failed-release recovery. Mutation responses must be checked before reporting success. Phone-width layouts collapse to one column; tool/navigation strips remain scrollable within their own containers.
 > Last updated: 2026-05-26 | Update on new functions or state changes.
@@ -581,3 +599,4 @@ Layout: category-grouped chip grid (Research, Plan, Create, Publish, Grow; empty
 Encoding rule reminder: text-output Copy buttons use `btn.dataset.text` + `addEventListener` (see "Encoding Conventions" above); never `JSON.stringify` inside `onclick`. Rail polling runs every 10 s only while a job is running and the tab is visible.
 
 Planned review gates (lane B): `rg -n '#[0-9a-fA-F]{3,8}\b' frontend/agents.html` returns nothing outside comments; `rg -ni 'ai-powered|leverage|unlock|synergy|settings|dashboard|workflow' frontend/agents.html` returns nothing user-visible.
+- `window.PodClickUpload.open()` (static/podclick-nav.js): opens file picker + dialog, POSTs `/api/projects/from-upload`, redirects to `/project/{id}`. Any element with `[data-pc-upload]` triggers it. Nav group "Grow" lists Scout and Crew (`/agents`, "soon" badge).

@@ -176,6 +176,7 @@ ROSTER = {
     "market_reel":       ("create", "draftsman", "bricklayer", None, "required"),
     "content_scheduler": ("publish", "draftsman", None, "bricklayer", "none"),
     "repurpose":         ("publish", "draftsman", None, "bricklayer", "inherited"),
+    "facebook_page":     ("publish", "draftsman", None, "bricklayer", "required"),
 }
 
 
@@ -191,7 +192,7 @@ def test_category_counts_match_the_ui_headers():
     counts = {c: 0 for c in CATEGORY_IDS}
     for s in REGISTRY.values():
         counts[s.category] += 1
-    assert counts == {"research": 2, "plan": 1, "create": 7, "publish": 2, "grow": 0}
+    assert counts == {"research": 2, "plan": 1, "create": 7, "publish": 3, "grow": 0}
 
 
 def test_every_spec_is_internally_consistent():

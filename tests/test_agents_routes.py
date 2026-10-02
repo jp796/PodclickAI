@@ -50,7 +50,7 @@ async def test_roster_lists_all_categories_and_states(harness, client, monkeypat
     assert body["foundation"] == {"tier": "solid", "sample_count": 40}
     assert [c["id"] for c in body["categories"]] == ["research", "plan", "create", "publish", "grow"]
     agents = {a["id"]: a for c in body["categories"] for a in c["agents"]}
-    assert len(agents) == 12
+    assert len(agents) == 13
     assert agents["trend_radar"]["state"] == "ready"
     assert agents["market_scout"]["state"] == "needs_setup"
     assert agents["market_scout"]["missing"] == ["youtube_api"]

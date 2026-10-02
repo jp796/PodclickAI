@@ -874,7 +874,7 @@ Response: [ { "id", "title", "status", "wizard_step", "episode_number", "mp3_url
 ```
 Request:  multipart/form-data — file (UploadFile, required), title (str, optional)
 Response: { "project_id": "uuid", "project": {...} }
-Accepted: .mp4, .mov, .webm, .mp3, .m4a
+Accepted: .mp4, .mov, .webm, .mkv, .mp3, .m4a, .wav, .flac, .aac
 Errors:   400 — unsupported extension | 500 — location not configured or DB error
 Notes:    Saves file to data/recordings/{project_id}.{ext}. Creates Project with
           status='recording_done', transcription_status='pending'.
