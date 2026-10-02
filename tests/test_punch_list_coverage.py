@@ -27,7 +27,11 @@ def _js_object_keys(name):
     html = WALKTHROUGH.read_text()
     m = re.search(r"const " + name + r" = \{(.*?)\n\};", html, re.S)
     assert m, f"{name} not found in walkthrough.html"
-    return set(re.findall(r"^\s*([a-z_]+):", m.group(1), re.M))
+    # Keys are bare identifiers (foo_bar:) or quoted colon-bearing ids
+    # ('agent_run:some-id':). Agent ids may carry digits/hyphens/underscores.
+    pairs = re.findall(
+        r"^\s*(?:(['\"])([a-z_]+:[a-z0-9_-]+)\1|([a-z_]+)):", m.group(1), re.M)
+    return {quoted or bare for _q, quoted, bare in pairs}
 
 
 def test_every_action_type_has_a_consequence_line():

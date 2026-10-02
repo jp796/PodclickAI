@@ -1665,6 +1665,31 @@ class BrickAgent:
                 "commit_result": commit_result,
             }
 
+        if action_type.startswith("agent_run:"):
+            # The Crew: Brick starts an agent on his own. Bookkeeping only, like
+            # the other branches: jobs.start validates input, gates on setup and
+            # Foundation, persists the job and spawns the run, then returns the
+            # queued job. Nothing is committed or published here; any commit is a
+            # separate agent_commit approval. A refusal (AgentError) propagates so
+            # execute_action records the failure against the ladder.
+            from services.agents import jobs as _agent_jobs
+
+            agent_id = action_type.split(":", 1)[1]
+            raw_input = payload.get("input")
+            job = await _agent_jobs.start(
+                agent_id,
+                raw_input if isinstance(raw_input, dict) else {},
+                initiator="brick",
+                location_id=str(action.location_id) if action.location_id else None,
+            )
+            return {
+                "status": "started",
+                "job_id": job.get("id", ""),
+                "agent_id": agent_id,
+                "job_status": job.get("status", ""),
+                "summary": payload.get("summary", ""),
+            }
+
         if action_type == "guest_asset_package":
             # The package (Drive folder + uploads + drafted email) was already built
             # at Closing by _build_guest_asset_package; the punch-list payload carries

@@ -118,6 +118,14 @@ def test_no_action_type_falls_through_to_no_op():
     routed = set(re.findall(r'"([a-z_]+)": self\._dispatch_', src))
     inline = set(re.findall(r'"([a-z_]+)"', " ".join(re.findall(r"action_type in \(([^)]*)\)", src))))
     inline |= set(re.findall(r'action_type == "([a-z_]+)"', src))
+    # Family routing (agent_run:{id}): a literal prefix test on action_type. The
+    # prefix must end in ":" and a key is covered only if it really starts with it.
+    # Text alone is not trusted (see the registry note below): a prefix only counts
+    # if a real key under it demonstrably reaches jobs.start when dispatched.
+    prefixes = {
+        p for p in re.findall(r'action_type\.startswith\("([a-z_]+:)"\)', src)
+        if _prefix_routing_is_live(p)
+    }
 
     # Registry-routed actions count only if _dispatch_action really routes to
     # _dispatch_generator. Checking for the substring is not enough: wrapping the
@@ -127,7 +135,10 @@ def test_no_action_type_falls_through_to_no_op():
     registry_routed = set(GENERATOR_ACTIONS) if _registry_routing_is_live() else set()
 
     covered = routed | inline | registry_routed
-    missing = sorted(a for a in ACTION_TIER_MAP if a not in covered)
+    missing = sorted(
+        a for a in ACTION_TIER_MAP
+        if a not in covered and not any(a.startswith(p) for p in prefixes)
+    )
     assert not missing, f"these still no-op: {missing}"
 
 
@@ -574,3 +585,57 @@ async def test_registry_routing_is_behaviourally_live():
 
     assert landed.get("hit") == sample, f"{sample} did not reach _dispatch_generator"
     assert out["status"] != "no_op"
+
+
+def _prefix_routing_is_live(prefix):
+    """
+    Behavioural proof for family routing: dispatch a real ACTION_TIER_MAP key
+    under `prefix` with jobs.start swapped for a sentinel and see that it lands.
+    Only agent_run: has a dispatcher today; any other prefix is never live.
+    """
+    import asyncio
+
+    from services.agents import jobs as agent_jobs
+
+    if prefix != "agent_run:":
+        return False
+    sample = next((a for a in ACTION_TIER_MAP if a.startswith(prefix)), None)
+    if sample is None:
+        return False
+    landed = {}
+
+    async def sentinel(agent_id, raw_input, initiator="user", location_id=None):
+        landed["agent_id"] = agent_id
+        return {"id": "job-1", "status": "queued"}
+
+    original = agent_jobs.start
+    agent_jobs.start = sentinel
+    try:
+        asyncio.new_event_loop().run_until_complete(
+            BrickAgent()._dispatch_action(FakeAction(sample), FakeSession())
+        )
+    finally:
+        agent_jobs.start = original
+    return landed.get("agent_id") == sample.split(":", 1)[1]
+
+
+async def test_agent_run_starts_the_agent_as_brick(agent, monkeypatch):
+    from services.agents import jobs as agent_jobs
+
+    seen = {}
+
+    async def fake_start(agent_id, raw_input, initiator="user", location_id=None):
+        seen.update(agent_id=agent_id, raw_input=raw_input,
+                    initiator=initiator, location_id=location_id)
+        return {"id": "job-9", "status": "queued"}
+
+    monkeypatch.setattr(agent_jobs, "start", fake_start)
+    action = FakeAction("agent_run:trend_radar")
+    action.payload = {"input": {"city": "Springfield, MO"}, "summary": "weekly radar"}
+    out = await agent._dispatch_action(action, FakeSession())
+
+    assert seen["agent_id"] == "trend_radar"
+    assert seen["initiator"] == "brick"
+    assert seen["raw_input"] == {"city": "Springfield, MO"}
+    assert seen["location_id"] == str(LOC)
+    assert out["status"] == "started" and out["job_id"] == "job-9"
