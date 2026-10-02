@@ -155,7 +155,7 @@ class Settings(BaseSettings):
     meta_muse_max_tokens_cap: int = Field(default=8192, description="Hard ceiling on max_tokens, enforced before any call")
     meta_muse_max_prompt_chars: int = Field(default=100000, description="Per-call prompt+system character cap, enforced before any call")
     meta_muse_timeout_s: int = Field(default=120, description="Per-request timeout for Muse calls")
-    meta_muse_image_model: str = Field(default="muse-image", description="Muse image model ($0.01/image, 150 rpm)")
+    meta_muse_image_model: str = Field(default="muse-image-1.0", description="Muse image model ($0.01/image, 150 rpm)")
     podclick_media_preference: str = Field(default="", description="Comma list of media providers in preference order")
     podclick_public_media_base_url: str = Field(default="", description="Public https origin that serves /api/agents/jobs/{id}/files/* — Higgsfield fetches photos/audio from here")
     podclick_agents_disabled: str = Field(default="", description="1 = Crew kill switch (every agent not_built)")

@@ -695,6 +695,20 @@ const ACTION_CONSEQUENCE = {
   send_guest_email: 'Points at the guest-email review screen. Approving here does not send anything.',
   draft_post:       'Creates a draft post. Nothing is scheduled or published.',
   suggest_post_idea:'Records an idea. Nothing is created.',
+  agent_commit: '\u26a0\ufe0f Applies a finished Crew work order to the app (posts, schedule or clips, per the agent). Runs once per work order; approving it again returns the same result.',
+  'agent_run:market_scout': 'Starts Market Scout on a new work order. Nothing is committed or published; any commit is a separate approval. \u26a0\ufe0f Spends: YouTube quota.',
+  'agent_run:trend_radar': 'Starts Trend Radar on a new work order. Nothing is committed or published; any commit is a separate approval.',
+  'agent_run:pillar_planner': 'Starts Pillar Planner on a new work order. Nothing is committed or published; any commit is a separate approval.',
+  'agent_run:click_studio': 'Starts Click Studio on a new work order. Nothing is committed or published; any commit is a separate approval. \u26a0\ufe0f Spends: OpenAI transcription, Pexels stock footage (b-roll only).',
+  'agent_run:draftsman': 'Starts Draftsman on a new work order. Nothing is committed or published; any commit is a separate approval.',
+  'agent_run:thumbnail': 'Starts Painter on a new work order. Nothing is committed or published; any commit is a separate approval. \u26a0\ufe0f Spends: image generation (only if an image provider is connected).',
+  'agent_run:voiceover': 'Starts Voiceover on a new work order. Nothing is committed or published; any commit is a separate approval. \u26a0\ufe0f Spends: ElevenLabs characters.',
+  'agent_run:avatar_video': 'Starts Avatar Video on a new work order. Nothing is committed or published; any commit is a separate approval. \u26a0\ufe0f Spends: ElevenLabs characters, Higgsfield credits.',
+  'agent_run:home_tour': 'Starts Home Tour Video on a new work order. Nothing is committed or published; any commit is a separate approval. \u26a0\ufe0f Spends: Higgsfield credits (if connected), ElevenLabs characters (if connected).',
+  'agent_run:market_reel': 'Starts Market Update Reel on a new work order. Nothing is committed or published; any commit is a separate approval. \u26a0\ufe0f Spends: ElevenLabs characters (if connected).',
+  'agent_run:content_scheduler': 'Starts Content Scheduler on a new work order. Nothing is committed or published; any commit is a separate approval.',
+  'agent_run:repurpose': 'Starts Clip Dispatcher on a new work order. Nothing is committed or published; any commit is a separate approval.',
+  'agent_run:facebook_page': 'Starts Facebook Page on a new work order. Drafts only; nothing is published, and any commit is a separate approval. \u26a0\ufe0f Spends: model tokens (Muse tokens if that provider is chosen).',
 };
 
 /* Keys worth showing per type, in the order a human reads them. */
@@ -733,6 +747,20 @@ const ACTION_FIELDS = {
   pitch_sponsor:    ['company', 'angle'],
   draft_post:       ['topic', 'bucket', 'platform'],
   suggest_post_idea:['topic', 'bucket', 'platform'],
+  agent_commit: ['job_id', 'agent_id', 'summary'],
+  'agent_run:market_scout': ['input', 'summary'],
+  'agent_run:trend_radar': ['input', 'summary'],
+  'agent_run:pillar_planner': ['input', 'summary'],
+  'agent_run:click_studio': ['input', 'summary'],
+  'agent_run:draftsman': ['input', 'summary'],
+  'agent_run:thumbnail': ['input', 'summary'],
+  'agent_run:voiceover': ['input', 'summary'],
+  'agent_run:avatar_video': ['input', 'summary'],
+  'agent_run:home_tour': ['input', 'summary'],
+  'agent_run:market_reel': ['input', 'summary'],
+  'agent_run:content_scheduler': ['input', 'summary'],
+  'agent_run:repurpose': ['input', 'summary'],
+  'agent_run:facebook_page': ['input', 'summary'],
 };
 
 function formatPayloadValue(value) {

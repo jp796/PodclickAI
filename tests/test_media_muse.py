@@ -322,7 +322,7 @@ async def test_image_bytes_returned_untouched_with_provenance_kept(keyed, net):
     img = await MuseProvider().generate_image("a craftsman house")
     assert img.data == PNG and img.ai_generated
     assert str(net.requests[0].url) == "https://api.meta.ai/v1/images/generations"
-    assert sent(net)["model"] == "muse-image"
+    assert sent(net)["model"] == "muse-image-1.0"
     assert img.provenance["c2pa_manifest"] == "abc123"
     assert img.provenance["watermark"]["id"] == "w1"
     assert img.provenance["provenance"]["generator"] == "muse-image"
