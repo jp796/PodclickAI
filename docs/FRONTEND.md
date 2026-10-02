@@ -564,9 +564,9 @@ The timeline (`#tl`) sits under the video; the Section-cut card holds Mark In / 
 
 ---
 
-## agents.html — The Crew (`/agents`) (planned, wave 2)
+## agents.html — The Crew (`/agents`) (shipped 2026-10-02)
 
-> Status: **planned, wave 2** (lane B). Source: `AGENTS_HUB_SPEC.md` §3. Not verified shipped. Nothing below is built until the lane merges and an Interceptor pass confirms it.
+> Status: **shipped 2026-10-02.** Source: `AGENTS_HUB_SPEC.md` §3. 
 
 Static page, same three includes as `calendar.html`/`walkthrough.html`: `/podclick-design.css`, `/static/podclick-nav.js?v=…`, `/brick-chat.js`. Design tokens only (no hex values, no new custom properties, no new fonts). Nav gets a `Crew` entry after Walk-through; the `?v=` query must be bumped on every page that loads `podclick-nav.js` (see BUGS_AND_FIXES 2026-06-12).
 

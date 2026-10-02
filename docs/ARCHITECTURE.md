@@ -113,9 +113,9 @@ studio.html: checkInboundScript() runs on DOMContentLoaded
 - `GET /api/studio/today-topic` reads `data/schedule.json`, finds today's shoot day
 - `POST /api/studio/generate-script` calls GPT-4o with topic/pillar/market/notes → returns {script, title, hook_line}
 
-## Agents hub and media providers (planned, wave 2)
+## Agents hub and media providers (shipped 2026-10-02)
 
-> Status: **planned, wave 2.** Source: `AGENTS_HUB_SPEC.md` §1, §2, §4. Nothing here is verified shipped; revise as lanes A-D merge. Verified provider facts: `MEDIA_PROVIDERS_VERIFIED.md`.
+> Status: **shipped 2026-10-02 (provider live calls unverified; Muse and Higgsfield need keys).** Source: `AGENTS_HUB_SPEC.md` §1, §2, §4.  Verified provider facts: `MEDIA_PROVIDERS_VERIFIED.md`.
 
 **Idea.** An agent is a named, approvable wrapper around generators that already exist, not a new framework. Brick's `GENERATOR_ACTIONS` allowlist and `_dispatch_generator` (in-process calls through `httpx.ASGITransport` against `studio_app`) are the model; agents call the same routes through `ctx.call_route`, so validation, the Foundation gate and output shape do not drift.
 

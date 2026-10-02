@@ -993,25 +993,25 @@ non-seekable. `?download=1` still returns the full file as an attachment.
 
 ---
 
-## The Crew — Agents Hub (planned, wave 2)
+## The Crew — Agents Hub (shipped 2026-10-02)
 
-> Status: **planned, wave 2.** Source: `AGENTS_HUB_SPEC.md` §2.4. None of these routes is verified shipped; update this section as lanes A-D merge. Router: `routers/agents.py`. Declare `/api/agents/jobs...` and `/api/agents/uploads` before `/api/agents/{agent_id}` so "jobs" is never captured as an agent id. All routes sit inside `DeploymentBoundary` like every other studio route. No secret appears in any response; provider state is booleans only.
+> Status: **shipped 2026-10-02 (provider live calls unverified; Muse and Higgsfield need keys).** Source: `AGENTS_HUB_SPEC.md` §2.4.  Router: `routers/agents.py`. Declare `/api/agents/jobs...` and `/api/agents/uploads` before `/api/agents/{agent_id}` so "jobs" is never captured as an agent id. All routes sit inside `DeploymentBoundary` like every other studio route. No secret appears in any response; provider state is booleans only.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/agents` | Serve `frontend/agents.html` (planned, wave 2) |
-| GET | `/api/agents` | Roster grouped by category with permit tier, Foundation tier and per-agent state `ready`/`needs_setup`/`not_built` (planned, wave 2) |
-| GET | `/api/agents/{agent_id}` | One agent's spec plus its last 5 job summaries; 404 on unknown id (planned, wave 2) |
-| POST | `/api/agents/{agent_id}/run` | Validate input and start a job; returns 202 `{job_id, status:"queued"}` (planned, wave 2) |
-| GET | `/api/agents/jobs` | List job summaries, newest first (planned, wave 2) |
-| GET | `/api/agents/jobs/{job_id}` | Full job record (planned, wave 2) |
-| POST | `/api/agents/jobs/{job_id}/approve` | Approve and commit a job in `needs_approval`, with optional edits (planned, wave 2) |
-| POST | `/api/agents/jobs/{job_id}/reject` | Reject a job awaiting approval (planned, wave 2) |
-| POST | `/api/agents/jobs/{job_id}/cancel` | Cancel a non-terminal job (planned, wave 2) |
-| GET | `/api/agents/jobs/{job_id}/files/{name}` | Stream one output file, Range-aware (planned, wave 2) |
-| POST | `/api/agents/uploads` | Multipart upload of images/video for agent inputs (planned, wave 2) |
+| GET | `/agents` | Serve `frontend/agents.html` (shipped 2026-10-02) |
+| GET | `/api/agents` | Roster grouped by category with permit tier, Foundation tier and per-agent state `ready`/`needs_setup`/`not_built` (shipped 2026-10-02) |
+| GET | `/api/agents/{agent_id}` | One agent's spec plus its last 5 job summaries; 404 on unknown id (shipped 2026-10-02) |
+| POST | `/api/agents/{agent_id}/run` | Validate input and start a job; returns 202 `{job_id, status:"queued"}` (shipped 2026-10-02) |
+| GET | `/api/agents/jobs` | List job summaries, newest first (shipped 2026-10-02) |
+| GET | `/api/agents/jobs/{job_id}` | Full job record (shipped 2026-10-02) |
+| POST | `/api/agents/jobs/{job_id}/approve` | Approve and commit a job in `needs_approval`, with optional edits (shipped 2026-10-02) |
+| POST | `/api/agents/jobs/{job_id}/reject` | Reject a job awaiting approval (shipped 2026-10-02) |
+| POST | `/api/agents/jobs/{job_id}/cancel` | Cancel a non-terminal job (shipped 2026-10-02) |
+| GET | `/api/agents/jobs/{job_id}/files/{name}` | Stream one output file, Range-aware (shipped 2026-10-02) |
+| POST | `/api/agents/uploads` | Multipart upload of images/video for agent inputs (shipped 2026-10-02) |
 
-### GET /api/agents (planned, wave 2)
+### GET /api/agents (shipped 2026-10-02)
 ```json
 Response: {
   "permit": { "current_tier": "draftsman" },
@@ -1030,7 +1030,7 @@ Notes: `not_built` means the runner module failed to import; the registry tolera
        so lanes can merge in any order. `missing`/`state` are computed from `is_configured()` with no network calls.
 ```
 
-### POST /api/agents/{agent_id}/run (planned, wave 2)
+### POST /api/agents/{agent_id}/run (shipped 2026-10-02)
 ```json
 Request:  { "input": { ... } }
 Response: 202 { "job_id": "uuid", "status": "queued" }
@@ -1041,14 +1041,14 @@ Errors:   400 { "error": "...", "fields": { "<name>": "<message>" } } — valida
           423 { "error": "not_built" } — runner missing, or PODCLICK_AGENTS_DISABLED=1
 ```
 
-### GET /api/agents/jobs (planned, wave 2)
+### GET /api/agents/jobs (shipped 2026-10-02)
 ```json
 Query:    ?agent_id=&status=a,b&limit=25   (limit default 25, max 100)
 Response: { "jobs": [ { ...job minus outputs[].value and input..., "output_count": 3 } ] }
 Notes:    Newest first by updated_at.
 ```
 
-### GET /api/agents/jobs/{job_id} (planned, wave 2)
+### GET /api/agents/jobs/{job_id} (shipped 2026-10-02)
 ```json
 Response: {
   "id": "uuid", "agent_id": "trend_radar",
@@ -1070,7 +1070,7 @@ Errors:   404
 Notes:    Persisted at data/agent_jobs/{job_id}.json (atomic write). Errors are user-facing, Brick voice.
 ```
 
-### POST /api/agents/jobs/{job_id}/approve (planned, wave 2)
+### POST /api/agents/jobs/{job_id}/approve (shipped 2026-10-02)
 ```json
 Request:  { "edits": { "<output_id>": "<new value>" } }   (optional; only text/cards outputs are editable)
 Response: 200 { "ok": true, "job": { ... } }
@@ -1079,7 +1079,7 @@ Notes:    Idempotent once committed — a second approve returns the stored comm
           Thin wrapper over BrickAction approval (action_type "agent_commit").
 ```
 
-### POST /api/agents/jobs/{job_id}/reject and /cancel (planned, wave 2)
+### POST /api/agents/jobs/{job_id}/reject and /cancel (shipped 2026-10-02)
 ```json
 Reject  Request:  { "reason": "..." }   (optional)       Response: { "ok": true, "job": { ... } }
 Cancel  Request:  (no body)                              Response: { "ok": true, "job": { ... } }
@@ -1087,18 +1087,18 @@ Errors: cancel returns 409 if the job is already terminal.
 Notes:  Cancel sets a flag checked between steps. A provider job already submitted is not killed; its result is discarded.
 ```
 
-### GET /api/agents/jobs/{job_id}/files/{name} (planned, wave 2)
+### GET /api/agents/jobs/{job_id}/files/{name} (shipped 2026-10-02)
 ```
 `name` must match ^[A-Za-z0-9._-]+$ and resolve inside the job's output dir (`..` rejected).
 Honors HTTP Range (206 + Content-Range + Accept-Ranges) so <video>/<audio> are seekable — same reason as the 2026-09-17 source-video fix.
 ```
 
-### POST /api/agents/uploads (planned, wave 2)
+### POST /api/agents/uploads (shipped 2026-10-02)
 ```json
 Request:  multipart/form-data — files[] (images: jpg/png/webp/heic; video: mp4/mov). Max 25 files, 50 MB each.
 Response: { "uploads": [ { "upload_id": "uuid", "filename": "...", "kind": "image|video" } ] }
 Notes:    Stored at data/agent_uploads/{upload_id}. A `files` field in an agent's input carries upload ids.
 ```
 
-### Environment (planned, wave 2)
+### Environment (shipped 2026-10-02)
 New settings read via `config.settings` first, `os.getenv` fallback: `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`, `ELEVENLABS_MAX_CHARS`, `ELEVENLABS_VOICE_SETTINGS`, `HIGGSFIELD_API_KEY`, `HIGGSFIELD_API_SECRET`, `HIGGSFIELD_BASE_URL`, `HIGGSFIELD_MAX_SECONDS`, `PODCLICK_MEDIA_PREFERENCE`, `PODCLICK_AGENTS_DISABLED`. Provider facts: see `MEDIA_PROVIDERS_VERIFIED.md`. Planned contract fix: `/api/yt/content-calendar` and `/api/yt/pillar-plan` gain `get_brand_context` (see BUGS_AND_FIXES 2026-10-01).
