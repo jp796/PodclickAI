@@ -5,11 +5,11 @@
 
 ## Rules (single source of truth)
 
-1. **Navigation** is rendered only by `frontend/static/podclick-nav.js` (`<nav id="pc-shell">`). No page ships its own site nav (`.nav-toggle`, sidebars, `.topbar nav`). The repo-root `static/podclick-nav.js` is a byte-identical mirror; the served file is `frontend/static/` (`STATIC_DIR` in `main.py`).
+1. **Navigation** is rendered only by `frontend/static/podclick-nav.js` (`<nav id="pc-shell">`). No page ships its own site nav (`.nav-toggle`, sidebars, `.topbar nav`). The repo-root `static/podclick-nav.js` duplicate was deleted (nothing referenced it; `STATIC_DIR` in `main.py` is `frontend/static/`).
 2. **Tokens** live in `frontend/podclick-design.css` `:root`. Every page loads it via `<link rel="stylesheet" href="/podclick-design.css?v=…">` (and `podclick-nav.js` injects it if a page forgets). Pages may define only token *aliases* (`--grad: linear-gradient(135deg, var(--orange), var(--orange-hi))`) or page-only accents; they must not redefine `--bg`, `--surface*`, `--border`, `--accent*`, `--text*`, `--radius`, `--font`.
 3. **Page-local tabs** use the shared `.pc-subtabs` class (orange underline, condensed caps) and must never repeat a global destination.
 4. **Pages without a hero** use `.pc-page-title` (`h1` + mono eyebrow `p`, optional `.pc-page-actions`).
-5. **Cache-bust**: bump `?v=` on every page whenever `podclick-nav.js` or `podclick-design.css` changes. Current: `20261001-2`.
+5. **Cache-bust**: bump `?v=` on every page whenever `podclick-nav.js` or `podclick-design.css` changes. Current: `20261002-1`.
 
 ## Remaining off-token hex values (wave 2)
 
@@ -39,7 +39,9 @@ Suggested mapping for wave 2: `#f5f7fa`→`var(--text-pri)`, `#5a5a7a`/`#7a7a9a`
 
 ## Other inconsistencies left for wave 2
 
-- **Fonts**: projects, project, editor, vsl-editor, project-editor, brand-studio, social-studio and youtube-studio set `font-family: 'Inter'` in page CSS, overriding the design system's Barlow / Big Shoulders. The shell and `.pc-page-title` use design fonts, so headings differ from body copy on those pages.
+- **Fonts**: Inter was replaced with `var(--font-body)` (Barlow) and its Google Font imports removed on all pages (2026-10-02). `index.html` still sets its own Helvetica Neue body stack.
 - **Dead legacy CSS**: `.nav-toggle`, `#sidebar`, `.topbar nav`, `.header-right a` rules remain in several page `<style>` blocks (no markup uses them now). Safe to delete.
 - **studio.html mobile**: at 375px the "Today's topic" panel overlaps the "Upload a pre-recorded file" tray (page grid, pre-existing). The shell's Upload button does not depend on that tray.
 - **onboarding.html** intentionally has no shell (full-screen first-run flow); **billing.html** is script-free, so it has no shell either (design CSS is loaded but its own light styles win).
+
+- **Verified 2026-10-02** (uvicorn :8766, local deployment mode): /, /studio, /social-studio, /youtube-studio, /projects, /calendar, /foundation each have exactly one `<nav>` (`#pc-shell`), no page-level horizontal overflow at desktop and 375px. Console 500s are API calls failing without a database.

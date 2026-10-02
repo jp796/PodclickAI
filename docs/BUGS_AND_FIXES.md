@@ -2544,3 +2544,8 @@ and the studio.html mobile panel overlap.
 **Files:** `frontend/static/podclick-nav.js`, `static/podclick-nav.js` (mirror), `frontend/podclick-design.css`,
 all `frontend/*.html` head/nav regions, `main.py` (upload whitelist), `docs/UI_CONSISTENCY.md`,
 `docs/FRONTEND.md`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`
+
+## 2026-10-02 — Upload hardening and transcription race
+- `POST /api/projects/from-upload` read the whole file into memory (`await file.read()`). It now streams to disk in 1MB chunks, rejects empty files (400), and caps uploads at 2GB (413 with a clear message); partial files are deleted on any failure.
+- Double transcription: from-upload spawned `_run_transcription` while project.html's auto-transcribe also POSTed `/transcribe` during `pending`. Both paths now go through `_run_transcription_once` and an in-flight `_transcribing_ids` set; `/transcribe` returns `already_running` if a task is in flight.
+- Shared Upload flow (`[data-pc-upload]` in `static/podclick-nav.js`) wired to the shell button and the Projects page "Upload" link.

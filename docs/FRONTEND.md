@@ -561,3 +561,5 @@ Build/serve/check commands and interaction inventory are in `reos-superapp-conce
 | `tlSeek(ev)` | Click the timeline to seek the video. |
 
 The timeline (`#tl`) sits under the video; the Section-cut card holds Mark In / Mark Out / Cut section.
+
+- `window.PodClickUpload.open()` (static/podclick-nav.js): opens file picker + dialog, POSTs `/api/projects/from-upload`, redirects to `/project/{id}`. Any element with `[data-pc-upload]` triggers it. Nav group "Grow" lists Scout and Crew (`/agents`, "soon" badge).
