@@ -1170,12 +1170,32 @@ async def create_project_from_upload(
     recording_filename = f"{project_id}.{ext}"
     recording_path = str(recordings_dir / recording_filename)
 
+    # Stream to disk in 1MB chunks (never hold the whole upload in memory) and
+    # enforce a size cap so a runaway upload cannot fill the disk.
+    _MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024  # 2GB
+    _written = 0
     try:
-        contents = await file.read()
         with open(recording_path, "wb") as f:
-            f.write(contents)
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                _written += len(chunk)
+                if _written > _MAX_UPLOAD_BYTES:
+                    raise ValueError("too_large")
+                f.write(chunk)
+    except ValueError:
+        Path(recording_path).unlink(missing_ok=True)
+        return JSONResponse(
+            {"error": "File is too large. The upload limit is 2GB. Export a smaller or audio-only version and try again."},
+            status_code=413,
+        )
     except Exception as exc:
+        Path(recording_path).unlink(missing_ok=True)
         return JSONResponse({"error": f"Failed to save file: {exc}"}, status_code=500)
+    if _written == 0:
+        Path(recording_path).unlink(missing_ok=True)
+        return JSONResponse({"error": "The uploaded file is empty."}, status_code=400)
 
     # ── Build title ───────────────────────────────────────────────────────
     effective_title = title.strip()
@@ -1221,7 +1241,8 @@ async def create_project_from_upload(
             await session.refresh(project)
 
             # Kick off transcription in the background
-            spawn(_run_transcription(str(project_id)), name=f"transcribe:{project_id}", on_failure=on_task_failure("transcribe", project_id=project_id, fail_transcription=True))
+            _transcribing_ids.add(str(project_id))
+            spawn(_run_transcription_once(str(project_id)), name=f"transcribe:{project_id}", on_failure=on_task_failure("transcribe", project_id=project_id, fail_transcription=True))
 
             return JSONResponse(
                 {
@@ -1236,6 +1257,17 @@ async def create_project_from_upload(
         except Exception:
             pass
         return JSONResponse({"error": f"Failed to create project: {exc}"}, status_code=500)
+
+
+_transcribing_ids: set = set()  # project ids with an in-flight _run_transcription task
+
+
+async def _run_transcription_once(project_id_str: str) -> None:
+    """Run _run_transcription and always clear the in-flight marker (dedupes /transcribe)."""
+    try:
+        await _run_transcription(project_id_str)
+    finally:
+        _transcribing_ids.discard(project_id_str)
 
 
 async def _run_transcription(project_id_str: str) -> None:
@@ -1501,7 +1533,8 @@ async def start_transcription(project_id: str):
         ).scalar_one_or_none()
         if not project:
             return JSONResponse({"error": "Project not found"}, status_code=404)
-        if project.transcription_status == "running":
+        if project.transcription_status == "running" or project_id in _transcribing_ids:
+            # from-upload (and Ship It) already spawned a task; a second POST must not race it
             return JSONResponse({"ok": True, "status": "already_running"})
         if project.transcription_status == "done" and project.transcript:
             return JSONResponse({"ok": True, "status": "already_done"})
@@ -1510,7 +1543,8 @@ async def start_transcription(project_id: str):
                 {"error": "No recording attached to this project"}, status_code=422
             )
 
-    spawn(_run_transcription(project_id), name=f"transcribe:{project_id}", on_failure=on_task_failure("transcribe", project_id=project_id, fail_transcription=True))
+    _transcribing_ids.add(project_id)
+    spawn(_run_transcription_once(project_id), name=f"transcribe:{project_id}", on_failure=on_task_failure("transcribe", project_id=project_id, fail_transcription=True))
     return JSONResponse({"ok": True, "status": "started"})
 
 

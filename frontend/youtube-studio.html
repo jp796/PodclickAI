@@ -3,12 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" href="/static/podclick-mark.png" type="image/png">
-  <link rel="stylesheet" href="/podclick-design.css?v=20261001-2">
+  <link rel="stylesheet" href="/podclick-design.css?v=20261002-1">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Click Studio · PodClickAI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -23,14 +22,14 @@
             accent:   '#d95f1e',
             accent2:  '#f07030',
           },
-          fontFamily: { inter: ['Inter', 'sans-serif'] }
+          fontFamily: { inter: ['Barlow', 'sans-serif'] }
         }
       }
     }
   </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Inter', sans-serif; background: #0b0a08; color: #F5F7FA; min-height: 100vh; }
+    body { font-family: var(--font-body); background: #0b0a08; color: #F5F7FA; min-height: 100vh; }
 
     /* Scrollbar */
     ::-webkit-scrollbar { width: 6px; }
@@ -69,7 +68,7 @@
     .btn-secondary:hover { border-color: #d95f1e; color: #f07030; }
 
     /* Input / select / textarea */
-    .field { background: #161410; border: 1px solid #272420; border-radius: 9px; padding: 10px 14px; color: #F5F7FA; font-size: 14px; font-family: 'Inter', sans-serif; outline: none; transition: border-color 0.15s; width: 100%; }
+    .field { background: #161410; border: 1px solid #272420; border-radius: 9px; padding: 10px 14px; color: #F5F7FA; font-size: 14px; font-family: var(--font-body); outline: none; transition: border-color 0.15s; width: 100%; }
     .field:focus { border-color: #d95f1e; }
     .field::placeholder { color: #4a4a6a; }
     select.field option { background: #161410; }
@@ -105,7 +104,7 @@
     .panel-section p, .panel-section .content { font-size: 13px; line-height: 1.7; color: #c0c0d8; white-space: pre-wrap; }
 
     /* Copy button */
-    .copy-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #6a6a8a; cursor: pointer; padding: 4px 8px; border-radius: 5px; border: 1px solid #272420; background: transparent; font-family: 'Inter', sans-serif; transition: all 0.15s; }
+    .copy-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #6a6a8a; cursor: pointer; padding: 4px 8px; border-radius: 5px; border: 1px solid #272420; background: transparent; font-family: var(--font-body); transition: all 0.15s; }
     .copy-btn:hover { color: #f07030; border-color: #d95f1e; }
     .copy-btn.copied { color: #2EE49C; border-color: #2EE49C; }
 
@@ -243,7 +242,7 @@
     .nav-toggle a.active { background:#111009; color:#d95f1e; }
     .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
   </style>
-  <script src="/static/podclick-nav.js?v=20261001-2" defer></script>
+  <script src="/static/podclick-nav.js?v=20261002-1" defer></script>
 </head>
 <body class="font-inter">
 

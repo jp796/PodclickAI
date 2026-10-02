@@ -5,12 +5,11 @@
   <link rel="icon" href="/static/podclick-mark.png" type="image/png">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Project · PodClick</title>
-  <link rel="stylesheet" href="/podclick-design.css?v=20261001-2">
+  <link rel="stylesheet" href="/podclick-design.css?v=20261002-1">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { background: #0b0a08; color: #F5F7FA; min-height: 100vh; font-family: 'Inter', sans-serif; }
+    html, body { background: #0b0a08; color: #F5F7FA; min-height: 100vh; font-family: var(--font-body); }
     a { color: #f07030; text-decoration: none; }
     a:hover { color: #d95f1e; }
 
@@ -76,7 +75,7 @@
     /* ── Form fields ── */
     textarea, input[type="text"], input[type="datetime-local"] {
       width: 100%; background: #0d0c0a; border: 1px solid #352f28; border-radius: 9px;
-      color: #F5F7FA; padding: 12px 14px; font-family: 'Inter', sans-serif; font-size: 14px; line-height: 1.55; resize: vertical;
+      color: #F5F7FA; padding: 12px 14px; font-family: var(--font-body); font-size: 14px; line-height: 1.55; resize: vertical;
     }
     textarea:focus, input:focus { outline: none; border-color: #d95f1e; }
     textarea::placeholder, input::placeholder { color: #4a4540; }
@@ -389,7 +388,7 @@
     }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
   </style>
-  <script src="/static/podclick-nav.js?v=20261001-2" defer></script>
+  <script src="/static/podclick-nav.js?v=20261002-1" defer></script>
 </head>
 <body>
   <div class="shell" id="shell">

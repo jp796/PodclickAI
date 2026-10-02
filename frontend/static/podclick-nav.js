@@ -97,7 +97,7 @@
     ]},
     { section: 'Grow', items: [
       { href: '/youtube-studio', label: 'Scout',        icon: 'scout' },
-      { href: '/agents',         label: 'Agents',       icon: 'agents', soon: true }
+      { href: '/agents',         label: 'Crew',          icon: 'agents', soon: true }
     ]},
     { section: 'Foundation', items: [
       { href: '/foundation',     label: 'Foundation',   icon: 'found' },
