@@ -270,7 +270,16 @@
     .ys-skel-card .ys-skel-body { padding: var(--space-4); }
     .ys-status { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 13px; color: var(--orange-hi); margin-bottom: var(--space-4); }
     .empty-state .ys-empty-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: center; margin-top: var(--space-2); }
-    .empty-state .ys-empty-note { font: 500 11px/1.5 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-sec-hi); }
+    .empty-state .ys-empty-note { display: inline-flex; align-items: center; gap: 6px; font: 500 11px/1.5 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-sec-hi); }
+    @media (max-width: 640px) {
+      .cf-shell { padding: var(--space-5); }
+      .cf-progress-card { padding: var(--space-4); }
+      .cf-progress-head { flex-wrap: wrap; gap: var(--space-3); }
+      .cf-progress-head > :first-child { flex: 1 1 200px; }
+      .cf-timer { font-size: 24px; }
+      .cf-steps { gap: var(--space-1); }
+      .cf-step { font-size: 9px; letter-spacing: 0; }
+    }
     .pc-chip { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
     .pc-chip:focus-visible { outline: none; box-shadow: var(--ring); }
     .panel-head { display:flex; align-items:center; justify-content:space-between; gap:10px 16px; flex-wrap:wrap; }
@@ -1436,9 +1445,11 @@ function switchTab(name) {
   ['plan','create','grow','board'].forEach(t => {
     document.getElementById('pane-' + t).classList.add('hidden');
     document.getElementById('tab-' + t).classList.remove('active');
+    document.getElementById('tab-' + t).setAttribute('aria-pressed', 'false');
   });
   document.getElementById('pane-' + name).classList.remove('hidden');
   document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('tab-' + name).setAttribute('aria-pressed', 'true');
 }
 
 // ── Modals ────────────────────────────────────────────────────────────────────
