@@ -469,9 +469,14 @@
     .capture-record-btn { border-radius: var(--radius-pill); }
     .capture-record-btn.recording { background: var(--red); border-color: var(--red-hi); }
     @media (max-width: 900px) {
-      main { grid-template-columns: 1fr; overflow: visible; }
+      main { grid-template-columns: minmax(0, 1fr); overflow: visible; }
+      .left-pane, .right-pane, .output-body, .section { min-width: 0; }
       .left-pane { border-right: 0; border-bottom: var(--hairline); overflow: visible; }
       .right-pane { overflow: visible; }
+      .row2 > div { min-width: 0; }
+      .voice-row { flex-wrap: wrap; }
+      .output-tabs { padding: 0 var(--space-2); }
+      .output-tab { padding: 14px 12px; }
       .output-body { overflow: visible; padding: var(--space-5) var(--space-4); }
       #brief-content > div[style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
       .pillar-grid { grid-template-columns: 1fr; }
@@ -1592,7 +1597,7 @@
       return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
   </script>
-<script src="/recorder-widget.js"></script>
-<script src="/brick-chat.js" defer></script>
+<script src="/recorder-widget.js?v=20261004-2"></script>
+<script src="/brick-chat.js?v=20261004-2" defer></script>
 </body>
 </html>
