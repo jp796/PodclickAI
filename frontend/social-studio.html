@@ -64,7 +64,7 @@
       color: var(--text-muted); cursor: pointer; transition: all .12s;
     }
     .mode-btn:hover { border-color: var(--accent); color: var(--text); }
-    .mode-btn.active { background: rgba(5,195,249,0.15); border-color: var(--accent); color: var(--accent); }
+    .mode-btn.active { background: color-mix(in srgb, var(--orange) 15%, transparent); border-color: var(--accent); color: var(--accent); }
 
     /* ── Mode sub-panels ───────────────────────────────────────────── */
     .mode-panel { display: none; }
@@ -108,17 +108,17 @@
       color: var(--text-muted); cursor: pointer; transition: all .12s;
     }
     .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
-    .btn-sm.coral { border-color: var(--coral); color: var(--coral); background: rgba(255,85,126,0.08); }
-    .btn-sm.coral:hover { background: rgba(255,85,126,0.18); }
-    .btn-sm.accent { border-color: var(--accent); color: var(--accent); background: rgba(5,195,249,0.08); }
+    .btn-sm.coral { border-color: var(--coral); color: var(--coral); background: color-mix(in srgb, var(--red) 8%, transparent); }
+    .btn-sm.coral:hover { background: color-mix(in srgb, var(--red) 18%, transparent); }
+    .btn-sm.accent { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--orange) 8%, transparent); }
 
     .btn-calendar {
       padding: 10px 20px; border-radius: 10px; font-size: 13px; font-weight: 700;
-      border: 1px solid var(--accent); background: rgba(5,195,249,0.1);
+      border: 1px solid var(--accent); background: color-mix(in srgb, var(--orange) 10%, transparent);
       color: var(--accent); cursor: pointer; transition: all .15s;
       margin-top: 16px;
     }
-    .btn-calendar:hover { background: rgba(5,195,249,0.2); }
+    .btn-calendar:hover { background: color-mix(in srgb, var(--orange) 20%, transparent); }
 
     /* ── Card / Surface ────────────────────────────────────────────── */
     .card {
@@ -155,7 +155,7 @@
       color: var(--text-muted); cursor: pointer; transition: all .12s;
     }
     .tmpl-btn:hover { border-color: var(--accent2); color: var(--text); }
-    .tmpl-btn.active { background: rgba(0,251,240,0.12); border-color: var(--accent2); color: var(--accent2); }
+    .tmpl-btn.active { background: color-mix(in srgb, var(--orange-hi) 12%, transparent); border-color: var(--accent2); color: var(--accent2); }
 
     .tmpl-fields { display: none; }
     .tmpl-fields.active { display: block; }
@@ -195,8 +195,8 @@
     .plat-icon { font-size: 16px; }
     .char-badge {
       font-size: 10px; font-weight: 600; padding: 2px 7px;
-      border-radius: 10px; background: rgba(5,195,249,0.12);
-      color: var(--accent); border: 1px solid rgba(5,195,249,0.3);
+      border-radius: 10px; background: color-mix(in srgb, var(--orange) 12%, transparent);
+      color: var(--accent); border: 1px solid color-mix(in srgb, var(--orange) 30%, transparent);
     }
     .platform-body { padding: 12px 14px; }
     .output-textarea {
@@ -231,7 +231,7 @@
     .chip {
       padding: 4px 10px; border-radius: 14px; font-size: 11px; font-weight: 600;
       border: 1px solid var(--accent2); color: var(--accent2);
-      background: rgba(0,251,240,0.06);
+      background: color-mix(in srgb, var(--orange-hi) 6%, transparent);
     }
     .hash-actions { display: flex; gap: 7px; flex-wrap: wrap; }
 
@@ -246,8 +246,8 @@
     }
     .plat-badge {
       font-size: 11px; font-weight: 700; padding: 3px 9px;
-      border-radius: 8px; background: rgba(5,195,249,0.12);
-      color: var(--accent); border: 1px solid rgba(5,195,249,0.3);
+      border-radius: 8px; background: color-mix(in srgb, var(--orange) 12%, transparent);
+      color: var(--accent); border: 1px solid color-mix(in srgb, var(--orange) 30%, transparent);
     }
     .angle-summary { font-size: 14px; font-weight: 700; color: var(--text); flex: 1; }
     .angle-text {
@@ -281,13 +281,13 @@
     }
     #ss-toast.show { opacity: 1; }
     #ss-toast.info    { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
-    #ss-toast.success { background: rgba(46,228,156,0.15); border: 1px solid var(--green); color: var(--green); }
-    #ss-toast.error   { background: rgba(255,85,126,0.15); border: 1px solid var(--coral); color: var(--coral); }
+    #ss-toast.success { background: color-mix(in srgb, var(--green) 15%, transparent); border: 1px solid var(--green); color: var(--green); }
+    #ss-toast.error   { background: color-mix(in srgb, var(--red) 15%, transparent); border: 1px solid var(--coral); color: var(--coral); }
 
     /* ── Modal overlay ─────────────────────────────────────────────── */
     .modal-overlay {
       display: none; position: fixed; inset: 0; z-index: 500;
-      background: rgba(3,11,44,0.85); align-items: center; justify-content: center;
+      background: color-mix(in srgb, var(--bg) 85%, transparent); align-items: center; justify-content: center;
       padding: 20px;
     }
     .modal-overlay.open { display: flex; }
@@ -327,17 +327,17 @@
       border-radius: 8px; margin-top: 4px;
     }
     .conn-status.connected {
-      background: rgba(46,228,156,0.12); color: var(--green);
-      border: 1px solid rgba(46,228,156,0.3);
+      background: color-mix(in srgb, var(--green) 12%, transparent); color: var(--green);
+      border: 1px solid color-mix(in srgb, var(--green) 30%, transparent);
     }
     .conn-status.disconnected {
-      background: rgba(136,153,204,0.1); color: var(--text-muted);
+      background: color-mix(in srgb, var(--text-sec) 10%, transparent); color: var(--text-muted);
       border: 1px solid var(--border);
     }
     .conn-status::before { content: '●'; font-size: 8px; }
     .conn-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .conn-note-box {
-      background: rgba(255,179,64,0.08); border: 1px solid rgba(255,179,64,0.25);
+      background: color-mix(in srgb, var(--yellow) 8%, transparent); border: 1px solid color-mix(in srgb, var(--yellow) 25%, transparent);
       border-radius: 8px; padding: 10px 12px;
       font-size: 11px; color: var(--yellow); line-height: 1.5;
     }
@@ -349,15 +349,15 @@
     }
     .page-select:focus { border-color: var(--accent); }
     /* Publish button on platform cards */
-    .btn-sm.ghl-btn { border-color: #f97316; color: #f97316; background: rgba(249,115,22,0.08); }
-    .btn-sm.ghl-btn:hover { background: rgba(249,115,22,0.18); }
+    .btn-sm.ghl-btn { border-color: var(--orange); color: var(--orange); background: color-mix(in srgb, var(--orange) 8%, transparent); }
+    .btn-sm.ghl-btn:hover { background: color-mix(in srgb, var(--orange) 18%, transparent); }
     .btn-sm.ghl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn-publish {
       padding: 5px 11px; border-radius: 7px; font-size: 11px; font-weight: 700;
-      border: 1px solid var(--green); background: rgba(46,228,156,0.1);
+      border: 1px solid var(--green); background: color-mix(in srgb, var(--green) 10%, transparent);
       color: var(--green); cursor: pointer; transition: all .12s;
     }
-    .btn-publish:hover { background: rgba(46,228,156,0.22); }
+    .btn-publish:hover { background: color-mix(in srgb, var(--green) 22%, transparent); }
     .btn-publish:disabled { opacity: 0.4; cursor: not-allowed; }
 
     /* ── Utility ───────────────────────────────────────────────────── */
@@ -533,30 +533,30 @@
 
     <!-- Foundation empty-state (hidden until forge detects not_ready) -->
     <div id="forge-empty-state" class="hidden" style="
-      background:rgba(255,85,126,.08); border:1px solid rgba(255,85,126,.25);
+      background:color-mix(in srgb, var(--red) 8%, transparent); border:1px solid color-mix(in srgb, var(--red) 25%, transparent);
       border-radius:10px; padding:20px 24px; margin-top:16px;">
-      <div style="font-size:14px; font-weight:700; color:#FF557E; margin-bottom:6px;">
+      <div style="font-size:14px; font-weight:700; color:var(--red); margin-bottom:6px;">
         Foundation not set. Brick can't write in your voice until he knows your voice.
       </div>
-      <div style="font-size:13px; color:#8AAFC5; line-height:1.6; margin-bottom:14px;">
+      <div style="font-size:13px; color:var(--text-sec); line-height:1.6; margin-bottom:14px;">
         Pour at least 5 voice samples — a quick interview, a past post, or a voice memo — and Brick will
         generate posts that actually sound like you.
       </div>
       <a href="/foundation" style="
         display:inline-block; padding:9px 18px; border-radius:8px;
-        background:linear-gradient(135deg,#05C3F9,#00FBF0);
-        color:#030B2C; font-weight:800; font-size:13px; text-decoration:none;">
+        background:linear-gradient(135deg,var(--orange),var(--orange-hi));
+        color: var(--text-pri); font-weight:800; font-size:13px; text-decoration:none;">
         Pour the foundation →
       </a>
     </div>
 
     <!-- Thin-foundation warning (shown when sample_count is 5–14) -->
     <div id="forge-thin-warning" class="hidden" style="
-      background:rgba(255,179,64,.08); border:1px solid rgba(255,179,64,.25);
+      background:color-mix(in srgb, var(--yellow) 8%, transparent); border:1px solid color-mix(in srgb, var(--yellow) 25%, transparent);
       border-radius:8px; padding:10px 16px; margin-top:12px;
-      font-size:12px; color:#FFB340; font-weight:600;">
+      font-size:12px; color:var(--yellow); font-weight:600;">
       ⚠ Foundation is thin — Brick will write in your voice but results sharpen with more samples.
-      <a href="/foundation" style="color:#FFB340; margin-left:6px;">Add more →</a>
+      <a href="/foundation" style="color:var(--yellow); margin-left:6px;">Add more →</a>
     </div>
 
     <!-- Output area -->
@@ -666,7 +666,7 @@
     <p class="section-heading" style="margin-top:0">Setup Instructions</p>
     <div class="forge-box" style="margin-top:8px;">
       <div class="forge-box-title">Required Environment Variables</div>
-      <p class="text-muted" style="margin-bottom:10px;">Add these to your <code style="background:rgba(255,255,255,0.06);padding:1px 6px;border-radius:4px;">.env</code> file, then restart the server.</p>
+      <p class="text-muted" style="margin-bottom:10px;">Add these to your <code style="background:color-mix(in srgb, var(--text) 6%, transparent);padding:1px 6px;border-radius:4px;">.env</code> file, then restart the server.</p>
       <div style="font-size:12px;line-height:2;color:var(--text-muted);">
         <code style="color:var(--accent2);">META_APP_ID</code> — Facebook App ID (from <a href="https://developers.facebook.com/apps/" target="_blank" style="color:var(--accent);">developers.facebook.com</a>)<br>
         <code style="color:var(--accent2);">META_APP_SECRET</code> — Facebook App Secret<br>
