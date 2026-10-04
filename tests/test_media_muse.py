@@ -366,3 +366,18 @@ async def test_image_auth_error_and_other_capability_unsupported(keyed, net):
         await MuseProvider().generate_image("a house")
     with pytest.raises(Exception):
         await MuseProvider().generate(GenerationRequest("image_to_video", "x", 5), "x")
+
+
+async def test_empty_content_from_spent_reasoning_budget_names_the_real_cause(keyed, net):
+    """finish_reason=length with null content = tokens spent thinking; 'run it again' would be wrong advice."""
+    net.handler = lambda r: httpx.Response(200, json={
+        "choices": [{"finish_reason": "length", "message": {"content": None}}],
+        "usage": {"completion_tokens": 120, "completion_tokens_details": {"reasoning_tokens": 117}}})
+    with pytest.raises(ProviderError) as ei:
+        await MuseProvider().complete("hook line", max_tokens=120)
+    assert "token cap" in ei.value.user_message
+    net.handler = lambda r: httpx.Response(200, json={
+        "choices": [{"finish_reason": "stop", "message": {"content": None}}]})
+    with pytest.raises(ProviderError) as ei2:
+        await MuseProvider().complete("hook line")
+    assert "token cap" not in ei2.value.user_message

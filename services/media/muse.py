@@ -278,6 +278,15 @@ class MuseProvider(MediaProvider):
             content = "".join(str(p.get("text", "")) for p in content if isinstance(p, dict))
         text = str(content or "").strip()
         if not text:
+            try:
+                finish = data["choices"][0].get("finish_reason")
+            except Exception:
+                finish = None
+            if finish == "length":
+                # Reasoning tokens bill as output and share max_tokens: a tight cap can be spent
+                # entirely on thinking, leaving no visible answer. Re-running won't fix that.
+                raise ProviderError("max_tokens spent on reasoning", provider=self.name,
+                                    user_message="Muse used up its page limit thinking before it wrote anything — raise the token cap and run it again.")
             raise ProviderError("empty completion", provider=self.name,
                                 user_message="Muse sent back an empty page — run it again.")
         usage = data.get("usage") if isinstance(data.get("usage"), dict) else {}
