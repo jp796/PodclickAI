@@ -67,8 +67,8 @@
     /* ── Primary CTA ── */
     .ob-btn {
       display: inline-block; padding: 11px 28px;
-      background: linear-gradient(135deg, var(--orange), #e07030);
-      color: #fff; font-weight: 700; font-size: 14px;
+      background: linear-gradient(135deg, var(--orange), var(--orange-hi));
+      color: var(--text-pri); font-weight: 700; font-size: 14px;
       border-radius: 10px; border: none; cursor: pointer;
       transition: opacity 0.15s; text-decoration: none;
     }
@@ -102,9 +102,9 @@
       margin-bottom: 20px; font-size: 13px; color: var(--text-dim);
     }
     .ghl-status-box.connected {
-      border-color: rgba(46,228,156,0.3);
-      background: rgba(46,228,156,0.05);
-      color: #2ee49c;
+      border-color: rgba(82,196,122,0.3);
+      background: rgba(82,196,122,0.05);
+      color: var(--green-hi);
     }
     .ghl-status-box .status-label {
       font-weight: 700; font-size: 12px; text-transform: uppercase;
@@ -124,9 +124,9 @@
       border: 1px solid; flex-shrink: 0;
     }
     .tier-not-ready  { color: var(--text-dim); border-color: var(--border); }
-    .tier-thin       { color: #f0c040; border-color: rgba(240,192,64,0.4); background: rgba(240,192,64,0.08); }
-    .tier-solid      { color: #2ee49c; border-color: rgba(46,228,156,0.4); background: rgba(46,228,156,0.08); }
-    .tier-deep       { color: #82d9f0; border-color: rgba(130,217,240,0.4); background: rgba(130,217,240,0.08); }
+    .tier-thin       { color: var(--yellow); border-color: rgba(196,150,28,0.4); background: rgba(196,150,28,0.08); }
+    .tier-solid      { color: var(--green-hi); border-color: rgba(82,196,122,0.4); background: rgba(82,196,122,0.08); }
+    .tier-deep       { color: var(--orange-hi); border-color: rgba(240,112,48,0.4); background: rgba(240,112,48,0.08); }
 
     .sample-count-num {
       font-size: 22px; font-weight: 800; color: var(--text-pri);
@@ -189,7 +189,7 @@
       flex-shrink: 0; transition: all 0.15s;
     }
     .record-btn.recording {
-      background: #d97070; animation: pulse-rec 1s infinite;
+      background: var(--red); animation: pulse-rec 1s infinite;
     }
     @keyframes pulse-rec {
       0%, 100% { transform: scale(1); }
@@ -272,8 +272,8 @@
     /* ── Gate notice ── */
     .gate-notice {
       padding: 12px 16px; border-radius: 10px;
-      background: rgba(240,192,64,0.07); border: 1px solid rgba(240,192,64,0.25);
-      font-size: 13px; color: #c8a235; margin-bottom: 18px; display: none;
+      background: rgba(196,150,28,0.07); border: 1px solid rgba(196,150,28,0.25);
+      font-size: 13px; color: var(--yellow); margin-bottom: 18px; display: none;
     }
     .gate-notice.visible { display: block; }
 
@@ -482,20 +482,20 @@
 
     <div style="display:flex; flex-direction:column; gap:8px; margin-bottom: 28px;">
       <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--bg-raised); border:1px solid var(--border); border-radius:8px;">
-        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#60a5fa; width:90px; flex-shrink:0;">Draftsman</div>
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--blue); width:90px; flex-shrink:0;">Draftsman</div>
         <div style="font-size:12px; color:var(--text-dim);">Suggest only. Nothing executes without your approval.</div>
-        <div style="margin-left:auto; font-size:10px; font-weight:700; color:#60a5fa; border:1px solid rgba(96,165,250,0.3); padding:2px 8px; border-radius:6px;">You are here</div>
+        <div style="margin-left:auto; font-size:10px; font-weight:700; color:var(--blue); border:1px solid rgba(58,110,168,0.3); padding:2px 8px; border-radius:6px;">You are here</div>
       </div>
       <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--bg-raised); border:1px solid var(--border); border-radius:8px; opacity:0.6;">
-        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#fb923c; width:90px; flex-shrink:0;">Bricklayer</div>
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--orange-hi); width:90px; flex-shrink:0;">Bricklayer</div>
         <div style="font-size:12px; color:var(--text-dim);">Drafts and queues. Punch list before anything ships.</div>
       </div>
       <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--bg-raised); border:1px solid var(--border); border-radius:8px; opacity:0.6;">
-        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#c084fc; width:90px; flex-shrink:0;">Foreman</div>
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--yellow); width:90px; flex-shrink:0;">Foreman</div>
         <div style="font-size:12px; color:var(--text-dim);">Auto-executes with notifications. Approvals for key calls.</div>
       </div>
       <div style="display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--bg-raised); border:1px solid var(--border); border-radius:8px; opacity:0.6;">
-        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:#c4961c; width:90px; flex-shrink:0;">GC</div>
+        <div style="font-size:11px; font-weight:800; text-transform:uppercase; color:var(--yellow); width:90px; flex-shrink:0;">GC</div>
         <div style="font-size:12px; color:var(--text-dim);">Full clearance. Site runs itself. You approve the unusual.</div>
       </div>
     </div>

@@ -12,11 +12,11 @@
     /* Design tokens come from /podclick-design.css (single source of truth). Page-only tier accents: */
     :root {
   /* Tier accent colors */
-  --tier-owner-builder: #847d74;
-  --tier-draftsman:     #60a5fa;
-  --tier-bricklayer:    #f07030;
-  --tier-foreman:       #c084fc;
-  --tier-gc:            #c4961c;
+  --tier-owner-builder: var(--text-sec);
+  --tier-draftsman:     var(--blue);
+  --tier-bricklayer:    var(--orange-hi);
+  --tier-foreman:       var(--yellow);
+  --tier-gc:            var(--yellow);
 }
 
     html, body { height: 100%; }
@@ -106,11 +106,11 @@
     .ceremony-brick-icon {
       width: 40px; height: 40px; object-fit: contain; display: block; margin: 0 auto;
     }
-    .tier-icon-wrap[data-tier="owner_builder"] { background: rgba(107,114,128,.15); border-color: var(--tier-owner-builder); box-shadow: 0 0 24px rgba(107,114,128,.20); }
-    .tier-icon-wrap[data-tier="draftsman"]     { background: rgba(59,130,246,.15);  border-color: var(--tier-draftsman);     box-shadow: 0 0 24px rgba(59,130,246,.25); }
-    .tier-icon-wrap[data-tier="bricklayer"]    { background: rgba(249,115,22,.15);  border-color: var(--tier-bricklayer);    box-shadow: 0 0 24px rgba(249,115,22,.25); }
-    .tier-icon-wrap[data-tier="foreman"]       { background: rgba(168,85,247,.15);  border-color: var(--tier-foreman);       box-shadow: 0 0 24px rgba(168,85,247,.25); }
-    .tier-icon-wrap[data-tier="gc"]            { background: rgba(234,179,8,.15);   border-color: var(--tier-gc);            box-shadow: 0 0 24px rgba(234,179,8,.30); }
+    .tier-icon-wrap[data-tier="owner_builder"] { background: rgba(132,125,116,.15); border-color: var(--tier-owner-builder); box-shadow: 0 0 24px rgba(132,125,116,.20); }
+    .tier-icon-wrap[data-tier="draftsman"]     { background: rgba(58,110,168,.15);  border-color: var(--tier-draftsman);     box-shadow: 0 0 24px rgba(58,110,168,.25); }
+    .tier-icon-wrap[data-tier="bricklayer"]    { background: rgba(240,112,48,.15);  border-color: var(--tier-bricklayer);    box-shadow: 0 0 24px rgba(240,112,48,.25); }
+    .tier-icon-wrap[data-tier="foreman"]       { background: rgba(196,150,28,.15);  border-color: var(--tier-foreman);       box-shadow: 0 0 24px rgba(196,150,28,.25); }
+    .tier-icon-wrap[data-tier="gc"]            { background: rgba(196,150,28,.15);   border-color: var(--tier-gc);            box-shadow: 0 0 24px rgba(196,150,28,.30); }
 
     .tier-name-large {
       font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: -0.5px;
@@ -152,11 +152,11 @@
       border-color: transparent;
       box-shadow: 0 0 0 2px currentColor;
     }
-    .ladder-row[data-tier="owner_builder"].is-current { box-shadow: 0 0 0 2px var(--tier-owner-builder); background: rgba(107,114,128,.06); }
-    .ladder-row[data-tier="draftsman"].is-current     { box-shadow: 0 0 0 2px var(--tier-draftsman);     background: rgba(59,130,246,.06); }
-    .ladder-row[data-tier="bricklayer"].is-current    { box-shadow: 0 0 0 2px var(--tier-bricklayer);    background: rgba(249,115,22,.06); }
-    .ladder-row[data-tier="foreman"].is-current       { box-shadow: 0 0 0 2px var(--tier-foreman);       background: rgba(168,85,247,.06); }
-    .ladder-row[data-tier="gc"].is-current            { box-shadow: 0 0 0 2px var(--tier-gc);            background: rgba(234,179,8,.06); }
+    .ladder-row[data-tier="owner_builder"].is-current { box-shadow: 0 0 0 2px var(--tier-owner-builder); background: rgba(132,125,116,.06); }
+    .ladder-row[data-tier="draftsman"].is-current     { box-shadow: 0 0 0 2px var(--tier-draftsman);     background: rgba(58,110,168,.06); }
+    .ladder-row[data-tier="bricklayer"].is-current    { box-shadow: 0 0 0 2px var(--tier-bricklayer);    background: rgba(240,112,48,.06); }
+    .ladder-row[data-tier="foreman"].is-current       { box-shadow: 0 0 0 2px var(--tier-foreman);       background: rgba(196,150,28,.06); }
+    .ladder-row[data-tier="gc"].is-current            { box-shadow: 0 0 0 2px var(--tier-gc);            background: rgba(196,150,28,.06); }
 
     .ladder-row.is-locked { opacity: 0.55; }
 
@@ -208,9 +208,9 @@
       font-size: 11px;
       line-height: 1.5;
       letter-spacing: 0.02em;
-      color: var(--text-dim, #8a8a8a);
+      color: var(--text-dim);
     }
-    .ladder-row.is-locked .ladder-unmet { color: var(--orange, #ff6b1a); opacity: .85; }
+    .ladder-row.is-locked .ladder-unmet { color: var(--orange); opacity: .85; }
     .btn-promote:disabled { opacity: .45; cursor: not-allowed; }
 
     .btn-promote {
@@ -223,7 +223,7 @@
       border: 2px solid var(--coral);
       color: var(--coral);
     }
-    .btn-demote:not(:disabled):hover { background: rgba(255,85,126,.08); }
+    .btn-demote:not(:disabled):hover { background: rgba(160,56,56,.08); }
 
     /* ── Modal / overlay ────────────────────────────────────────────── */
     .modal-overlay {
@@ -262,8 +262,8 @@
     }
     #pm-toast.show { opacity: 1; transform: translateY(0); }
     #pm-toast.info    { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-    #pm-toast.success { background: rgba(46,228,156,.12); color: var(--green); border: 1px solid rgba(46,228,156,.3); }
-    #pm-toast.error   { background: rgba(255,85,126,.12); color: var(--coral); border: 1px solid rgba(255,85,126,.3); }
+    #pm-toast.success { background: rgba(82,196,122,.12); color: var(--green); border: 1px solid rgba(82,196,122,.3); }
+    #pm-toast.error   { background: rgba(160,56,56,.12); color: var(--coral); border: 1px solid rgba(160,56,56,.3); }
 
     /* ── Loading skeleton ───────────────────────────────────────────── */
     .skeleton {
