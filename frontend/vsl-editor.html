@@ -34,7 +34,7 @@
       border: 2px dashed var(--border); border-radius: 10px; padding: 32px 16px;
       text-align: center; cursor: pointer; transition: all .15s; margin-bottom: 14px;
     }
-    .upload-zone:hover, .upload-zone.dragover { border-color: var(--orange); background: rgba(217,95,30,0.05); }
+    .upload-zone:hover, .upload-zone.dragover { border-color: var(--orange); background: color-mix(in srgb, var(--orange) 5%, transparent); }
     .upload-zone .icon { font-size: 32px; margin-bottom: 8px; }
     .upload-zone .label { font-size: 13px; color: var(--text-sec); }
     .upload-zone .label em { color: var(--orange-hi); font-style: normal; }
@@ -68,8 +68,8 @@
     .tl-badge {
       font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
     }
-    .tl-cta     { background: rgba(217,95,30,0.2); color: var(--orange-hi); border: 1px solid var(--orange-dim); }
-    .tl-signoff { background: rgba(82,196,122,0.12); color: var(--green-hi); border: 1px solid var(--green-dim); }
+    .tl-cta     { background: color-mix(in srgb, var(--orange) 20%, transparent); color: var(--orange-hi); border: 1px solid var(--orange-dim); }
+    .tl-signoff { background: color-mix(in srgb, var(--green-hi) 12%, transparent); color: var(--green-hi); border: 1px solid var(--green-dim); }
 
     /* Progress */
     .progress-card {
@@ -82,8 +82,8 @@
        not a number, so a filling bar would be inventing one. */
     .prog-bar.indeterminate {
       background-image: linear-gradient(90deg,
-        rgba(240,112,48,.15) 0%, rgba(240,112,48,1) 45%,
-        rgba(217,95,30,1) 55%, rgba(240,112,48,.15) 100%);
+        color-mix(in srgb, var(--orange-hi) 15%, transparent) 0%, var(--orange-hi) 45%,
+        var(--orange) 55%, color-mix(in srgb, var(--orange-hi) 15%, transparent) 100%);
       background-size: 45% 100%;
       background-repeat: no-repeat;
       animation: prog-sweep 1.1s ease-in-out infinite;
@@ -122,12 +122,41 @@
     #toast.show { opacity: 1; transform: translateY(0); }
     #toast.error { border-color: var(--red); color: var(--text-pri); }
     #toast.ok    { border-color: var(--green); }
+
+    /* ===== v2 polish (2026-10-04): icons, type, motion, tokens ===== */
+    .pc-i { vertical-align: -0.14em; flex-shrink: 0; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .is-spin .pc-i, .pc-i.is-spin { animation: pcspin .9s linear infinite; }
+    @keyframes pcspin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .is-spin .pc-i, .pc-i.is-spin { animation: none; } }
+    .page-eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--orange-hi); margin-bottom: var(--space-2); }
+    .page-head h1 { display: flex; align-items: center; gap: var(--space-3); font-family: var(--font-display); text-transform: uppercase; letter-spacing: .03em; font-size: clamp(28px, 4vw, 40px); font-weight: 800; line-height: 1; }
+    .page-head h1 .pc-i { color: var(--orange-hi); }
+    .page-head p { max-width: 640px; line-height: 1.6; }
+    .page-head code { font-family: var(--font-mono); font-size: 12px; padding: 1px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-inset); }
+    .panel { box-shadow: var(--shadow-card); border-radius: var(--radius-lg); }
+    .panel h2 { font-family: var(--font-mono); font-size: 12px; letter-spacing: .12em; }
+    .btn-primary, .btn-ghost, .download-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); font-family: var(--font-cond); text-transform: uppercase; letter-spacing: .06em; transition: transform var(--dur-fast) var(--ease-out), background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), color var(--dur) var(--ease-out); }
+    .btn-primary { min-height: 48px; background: var(--grad-primary); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-pri) 18%, transparent), var(--shadow-card); }
+    .btn-primary:hover:not(:disabled) { background: var(--grad-primary-hover); opacity: 1; }
+    .btn-ghost { min-height: 40px; }
+    .btn-primary:active:not(:disabled), .btn-ghost:active, .download-btn:active { transform: scale(.98); }
+    .btn-primary:focus-visible, .btn-ghost:focus-visible, .download-btn:focus-visible, .upload-zone:focus-visible { outline: none; box-shadow: var(--ring); }
+    .upload-zone { border: 1px dashed var(--border-lit); background-image: linear-gradient(var(--blueprint-line) 1px, transparent 1px), linear-gradient(90deg, var(--blueprint-line) 1px, transparent 1px); background-size: 24px 24px; transition: border-color var(--dur) var(--ease-out), background-color var(--dur) var(--ease-out); }
+    .upload-zone .icon { color: var(--orange-hi); }
+    .tl-time { font-family: var(--font-mono); }
+    .prog-err { color: var(--red-hi); }
+    .done-line { display: inline-flex; align-items: center; gap: var(--space-2); }
+    .progress-card { box-shadow: var(--shadow-card); }
+    #toast { box-shadow: var(--shadow-pop); }
+    @media (max-width: 560px) { .shell { padding: 20px 16px 60px; } textarea { min-height: 280px; } }
   </style>
 </head>
 <body>
 <div class="shell">
   <div class="page-head">
-    <h1>🎬 VSL Auto-Editor</h1>
+    <div class="page-eyebrow">Video / VSL</div>
+    <h1><i class="pc-i" data-i="clapperboard"></i> VSL auto-editor</h1>
     <p>Paste your VSL script with <code>[MM:SS — SECTION]</code> markers · upload your raw video · get a fully edited MP4 with graphics, captions, and a CTA card.</p>
   </div>
 
@@ -145,7 +174,7 @@ Format section markers like:
 
 Dollar amounts in the CTA section are auto-detected for the pricing card."></textarea>
       <div style="display:flex;gap:8px;margin-top:10px;">
-        <button class="btn-ghost" onclick="parseScript()" style="flex:1;">🔍 Preview Timeline</button>
+        <button class="btn-ghost" onclick="parseScript()" style="flex:1;"><i class="pc-i" data-i="search"></i> Preview timeline</button>
       </div>
       <div class="parse-preview" id="parse-preview"></div>
     </div>
@@ -156,10 +185,10 @@ Dollar amounts in the CTA section are auto-detected for the pricing card."></tex
 
       <div class="upload-zone" id="upload-zone"
            onclick="document.getElementById('video-input').click()"
-           ondragover="ev.preventDefault();this.classList.add('dragover')"
+           ondragover="event.preventDefault();this.classList.add('dragover')"
            ondragleave="this.classList.remove('dragover')"
            ondrop="handleDrop(event)">
-        <div class="icon">🎥</div>
+        <div class="icon"><i class="pc-i" data-i="cloud-upload" data-size="32"></i></div>
         <div class="label">Drop your raw VSL recording or <em>browse</em></div>
         <div class="label" style="margin-top:4px;font-size:11px;">MP4 · MOV · WebM</div>
         <div class="file-name" id="file-name" style="display:none;"></div>
@@ -176,7 +205,7 @@ Dollar amounts in the CTA section are auto-detected for the pricing card."></tex
       </div>
 
       <button class="btn-primary" id="render-btn" onclick="startRender()" disabled>
-        ⚡ Auto-Edit VSL
+        <i class="pc-i" data-i="wand-sparkles"></i> Auto-edit VSL
       </button>
 
       <p style="font-size:11px;color:var(--text-dim);margin-top:10px;text-align:center;">
@@ -197,8 +226,8 @@ Dollar amounts in the CTA section are auto-detected for the pricing card."></tex
     <div class="prog-msg" id="prog-msg">Starting…</div>
     <div class="prog-bar-wrap"><div class="prog-bar" id="prog-bar"></div></div>
     <div class="prog-done" id="prog-done">
-      ✓ VSL edited successfully!
-      <a id="download-link" class="download-btn" href="#" download="vsl_edited.mp4">⬇ Download Edited VSL</a>
+      <span class="done-line"><i class="pc-i" data-i="circle-check"></i> VSL edited. Your cut is ready.</span>
+      <a id="download-link" class="download-btn" href="#" download="vsl_edited.mp4"><i class="pc-i" data-i="download"></i> Download edited VSL</a>
     </div>
     <div class="prog-err" id="prog-err"></div>
   </div>
@@ -207,6 +236,8 @@ Dollar amounts in the CTA section are auto-detected for the pricing card."></tex
 <div id="toast"></div>
 
 <script>
+  // Icon markup for JS-built labels; pc-icons.js mounts these.
+  function ic(n, spin) { return '<i class="pc-i' + (spin ? ' is-spin' : '') + '" data-i="' + n + '" aria-hidden="true"></i>'; }
   let _videoFile = null;
   let _pollTimer = null;
 
@@ -256,7 +287,7 @@ Dollar amounts in the CTA section are auto-detected for the pricing card."></tex
     // Show parse preview
     const pre = document.getElementById('parse-preview');
     pre.className = 'parse-preview show';
-    pre.innerHTML = `<strong style="color:#F5F7FA">${plan.sections.length} sections detected</strong> · `
+    pre.innerHTML = `<strong style="color:var(--text-pri)">${plan.sections.length} sections detected</strong> · `
       + (plan.cta ? `CTA @ ${fmtSec(plan.cta.start_sec)} ` : '')
       + (plan.signoff ? `· Sign-off @ ${fmtSec(plan.signoff.start_sec)}` : '')
       + ` · ${plan.captions} caption segments`;
@@ -291,7 +322,7 @@ Dollar amounts in the CTA section are auto-detected for the pricing card."></tex
 
     const btn = document.getElementById('render-btn');
     btn.disabled = true;
-    btn.textContent = '⏳ Uploading…';
+    btn.innerHTML = ic('loader-circle', true) + ' Uploading…';
 
     const card = document.getElementById('progress-card');
     card.className = 'progress-card show';
@@ -318,7 +349,7 @@ Dollar amounts in the CTA section are auto-detected for the pricing card."></tex
     }
 
     const { job_id } = await resp.json();
-    btn.textContent = '⚡ Auto-Edit VSL';
+    btn.innerHTML = ic('wand-sparkles') + ' Auto-edit VSL';
 
     // Poll.
     //
@@ -359,7 +390,7 @@ Dollar amounts in the CTA section are auto-detected for the pricing card."></tex
   function showError(msg) {
     const err = document.getElementById('prog-err');
     err.style.display = 'block';
-    err.textContent = '✗ ' + msg;
+    err.textContent = ' ' + msg; err.insertAdjacentHTML('afterbegin', ic('circle-x'));
     document.getElementById('prog-msg').style.display = 'none';
     document.getElementById('prog-bar').style.width = '0%';
     document.getElementById('render-btn').disabled = false;
