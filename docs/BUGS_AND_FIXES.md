@@ -2561,3 +2561,22 @@ all `frontend/*.html` head/nav regions, `main.py` (upload whitelist), `docs/UI_C
 - `POST /api/projects/from-upload` read the whole file into memory (`await file.read()`). It now streams to disk in 1MB chunks, rejects empty files (400), and caps uploads at 2GB (413 with a clear message); partial files are deleted on any failure.
 - Double transcription: from-upload spawned `_run_transcription` while project.html's auto-transcribe also POSTed `/transcribe` during `pending`. Both paths now go through `_run_transcription_once` and an in-flight `_transcribing_ids` set; `/transcribe` returns `already_running` if a task is in flight.
 - Shared Upload flow (`[data-pc-upload]` in `static/podclick-nav.js`) wired to the shell button and the Projects page "Upload" link.
+
+## 2026-10-03 — Too many versions of the app: two pipelines, an orphaned editor, dead copies
+
+**Symptom (JP):** "Too many versions." `/` opened the legacy Episode builder (a second, parallel pipeline on `/api/process`), while the nav's Job Site led to the canonical Projects pipeline (Job Site, Studio, project wizard). The nav listed both a "Podcast" (`/`) entry and Job Site. `/editor/{id}` served a Phase 0 stub that had been superseded by `/project/{id}/edit`.
+
+**Fix:**
+- `main.py`: `/` returns 302 to `/projects`. The legacy builder moved to `/legacy/episode-builder` (same file, same APIs). `/editor/{id}` returns 302 to `/studio`.
+- `frontend/index.html`: a banner at the top ("Legacy Episode builder: sponsors, guests, release queue" plus a Job Site link), a new title, and both hard-coded `ws://` WebSockets now choose `ws:` or `wss:` from `location.protocol`. Before this they would fail on any HTTPS deploy.
+- `podclick-nav.js`: removed the "Podcast" (`/`) entry. Added "Legacy builder" in the Foundation group. Removed `/editor/` from Job Site's active-match. Each destination appears exactly once.
+- Links to `/` repointed: TikTok and Meta OAuth success pages and the YouTube channel-picker "skip" link go to `/projects`, the billing brand link goes to `/projects`, and studio's legacy clip-publish redirect goes to `/legacy/episode-builder`, where legacy clips are listed.
+- Deleted: `frontend/editor.html`, `podclick-editor-core/` (byte-identical to `packages/editor-core`, confirmed with `diff -r`, and referenced by nothing per `rg`), `CLAUDE.md.pdf`, and the root `PODCLICK_DESIGN_DROP.md` (identical to the copy in `docs/`, confirmed with `cmp`).
+- `.gitignore`: added `*cookies*.json`, `*_token.json`, `*client_secret*.json` and `service_account*.json` as a second line of defense. `data/` and `*.log` were already ignored, and no secret file is tracked.
+
+**Not done on purpose:** the nav `?v=` cache-buster was not bumped. Bumping it touches every page, and `tests/test_agents_page.py` pins `?v=20261002-1`. A browser with the old nav cached shows a "Podcast" link to `/`, which now redirects to `/projects`, so nothing breaks. Bump the version on the next coordinated nav edit.
+
+**Verified:** `tests/test_entry_points.py` has 8 tests, which failed before the change and pass after. The full suite passes: 764, which is the base commit's 756 plus 8. uvicorn ran from the worktree on :8771 and returned: `/` 302 to `/projects`, `/legacy/episode-builder` 200 with the banner, `/editor/abc` 302 to `/studio`, `/projects` 200.
+
+**Files:** `main.py`, `frontend/index.html`, `frontend/static/podclick-nav.js`, `frontend/studio.html`, `frontend/billing.html`, `.gitignore`, `tests/test_entry_points.py`, `docs/FRONTEND.md`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`
+

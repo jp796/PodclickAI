@@ -1102,3 +1102,12 @@ Notes:    Stored at data/agent_uploads/{upload_id}. A `files` field in an agent'
 
 ### Environment (shipped 2026-10-02)
 New settings read via `config.settings` first, `os.getenv` fallback: `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`, `ELEVENLABS_MAX_CHARS`, `ELEVENLABS_VOICE_SETTINGS`, `HIGGSFIELD_API_KEY`, `HIGGSFIELD_API_SECRET`, `HIGGSFIELD_BASE_URL`, `HIGGSFIELD_MAX_SECONDS`, `PODCLICK_MEDIA_PREFERENCE`, `PODCLICK_AGENTS_DISABLED`. Provider facts: see `MEDIA_PROVIDERS_VERIFIED.md`. Planned contract fix: `/api/yt/content-calendar` and `/api/yt/pillar-plan` gain `get_brand_context` (see BUGS_AND_FIXES 2026-10-01).
+
+## Page entry points — 2026-10-03
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/` | 302 redirect to `/projects`. The Job Site is the one front door |
+| GET | `/legacy/episode-builder` | Serve `frontend/index.html`, the legacy Episode builder (the `/api/process` family and `/ws/*` paths are unchanged) |
+| GET | `/editor/{vid_id}` | 302 redirect to `/studio`. The Phase 0 editor stub is retired; use `/project/{id}/edit` |
+

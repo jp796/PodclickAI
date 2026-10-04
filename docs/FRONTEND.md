@@ -2,9 +2,9 @@
 
 ## October 1 — one app shell (`podclick-nav.js`)
 
-`frontend/static/podclick-nav.js` renders the **only** site navigation, `<nav id="pc-shell" aria-label="PodClick">`, on every page except `/onboarding`. Billing is script-free, so it has no shell either. Styles live in `podclick-design.css` (`.pc-shell*`, `.pc-link`, `.pc-cta`, `.pc-subtabs`, `.pc-page-title`, `.pc-upload-*`). At ≥1024px it is a fixed 232px left sidebar, and `body.pc-shell-on` gets `padding-left`. Below that it is a fixed 56px top bar (brand, Upload, menu) with a slide-in drawer, and `--pc-sticky-top` offsets page-local sticky bars. The repo-root `static/podclick-nav.js` is a byte-identical mirror; the served copy is `frontend/static/`. Bump `?v=` on every page after editing either file (current `20261001-2`).
+`frontend/static/podclick-nav.js` renders the **only** site navigation, `<nav id="pc-shell" aria-label="PodClick">`, on every page except `/onboarding`. Billing is script-free, so it has no shell either. Styles live in `podclick-design.css` (`.pc-shell*`, `.pc-link`, `.pc-cta`, `.pc-subtabs`, `.pc-page-title`, `.pc-upload-*`). At ≥1024px it is a fixed 232px left sidebar, and `body.pc-shell-on` gets `padding-left`. Below that it is a fixed 56px top bar (brand, Upload, menu) with a slide-in drawer, and `--pc-sticky-top` offsets page-local sticky bars. The served (and only) copy is `frontend/static/podclick-nav.js`; the old repo-root mirror no longer exists. Bump `?v=` on every page after editing either file (current `20261001-2`).
 
-**IA** — Home: Walk-through · Create: Podcast (`/`), Studio, Social, Video / VSL, Brand · Plan & publish: Calendar, Job Site (also active on `/project/*`, `/editor/*`) · Grow: Scout, Agents (`/agents`, SOON badge until the route exists) · Foundation: Foundation, Blueprint, Permit.
+**IA** (updated 2026-10-03) — Home: Walk-through · Create: Studio, Social, Video / VSL, Brand · Plan & publish: Calendar, Job Site (also active on `/project/*`) · Grow: Scout, Crew (`/agents`) · Foundation: Foundation, Blueprint, Permit, Legacy builder (`/legacy/episode-builder`). `/` is no longer a page: it 302s to `/projects`, the one front door. Upload stays one obvious path: the shell's Upload button.
 
 | Shell function | Purpose |
 |---|---|
@@ -600,3 +600,14 @@ Encoding rule reminder: text-output Copy buttons use `btn.dataset.text` + `addEv
 
 Planned review gates (lane B): `rg -n '#[0-9a-fA-F]{3,8}\b' frontend/agents.html` returns nothing outside comments; `rg -ni 'ai-powered|leverage|unlock|synergy|settings|dashboard|workflow' frontend/agents.html` returns nothing user-visible.
 - `window.PodClickUpload.open()` (static/podclick-nav.js): opens file picker + dialog, POSTs `/api/projects/from-upload`, redirects to `/project/{id}`. Any element with `[data-pc-upload]` triggers it. Nav group "Grow" lists Scout and Crew (`/agents`, "soon" badge).
+
+## October 3 — one front door (entry-point dedupe)
+
+| Path | Behavior |
+|---|---|
+| `/` | 302 to `/projects` (Job Site). Brand links, OAuth success pages and the YouTube channel picker now link to `/projects` |
+| `/legacy/episode-builder` | Serves `frontend/index.html` unchanged: the legacy Episode builder (sponsors, guests, release queue) on `/api/process`. A banner at the top links to the Job Site. Its two WebSockets (`/ws/{job}`, `/ws/clip/{job}`) now pick `wss:` on HTTPS pages via `location.protocol` |
+| `/editor/{id}` | 302 to `/studio`. `frontend/editor.html` (Phase 0 stub) is deleted. The real transcript editor is `/project/{id}/edit` |
+
+`studio.html`'s legacy clip publish (`/api/clip`) now redirects to `/legacy/episode-builder`, where legacy clips are listed. Pinned by `tests/test_entry_points.py`, including a guard that no `frontend/*.html` or `main.py` line links to `href="/"`.
+

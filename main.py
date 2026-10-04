@@ -5464,7 +5464,7 @@ async def _create_closing_posts(
 @app.get("/")
 async def serve_frontend():
     """One front door: the Job Site. The legacy Episode builder moved to
-    /legacy/episode-builder (2026-10-04)."""
+    /legacy/episode-builder (2026-10-03)."""
     return RedirectResponse("/projects", status_code=302)
 
 
