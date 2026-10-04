@@ -339,7 +339,7 @@
         <div class="ladder-tier-name">Owner-Builder</div>
         <div class="ladder-desc">Brick watches and reports. No actions without your approval.</div>
       </div>
-      <div class="ladder-status" id="status-owner_builder">🔒</div>
+      <div class="ladder-status" id="status-owner_builder"><i class="pc-i" data-i="lock"></i></div>
     </div>
 
     <div class="ladder-row" data-tier="draftsman" id="row-draftsman">
@@ -348,7 +348,7 @@
         <div class="ladder-tier-name">Draftsman</div>
         <div class="ladder-desc">Brick drafts posts and suggests topics. You approve before anything goes out.</div>
       </div>
-      <div class="ladder-status" id="status-draftsman">🔒</div>
+      <div class="ladder-status" id="status-draftsman"><i class="pc-i" data-i="lock"></i></div>
     </div>
 
     <div class="ladder-row" data-tier="bricklayer" id="row-bricklayer">
@@ -357,7 +357,7 @@
         <div class="ladder-tier-name">Bricklayer</div>
         <div class="ladder-desc">Brick queues approved drafts for scheduling. You still control the calendar.</div>
       </div>
-      <div class="ladder-status" id="status-bricklayer">🔒</div>
+      <div class="ladder-status" id="status-bricklayer"><i class="pc-i" data-i="lock"></i></div>
     </div>
 
     <div class="ladder-row" data-tier="foreman" id="row-foreman">
@@ -366,7 +366,7 @@
         <div class="ladder-tier-name">Foreman</div>
         <div class="ladder-desc">Brick publishes posts, cuts clips, writes show notes, and adjusts the calendar. Walk-throughs replace approval for routine work.</div>
       </div>
-      <div class="ladder-status" id="status-foreman">🔒</div>
+      <div class="ladder-status" id="status-foreman"><i class="pc-i" data-i="lock"></i></div>
     </div>
 
     <div class="ladder-row" data-tier="gc" id="row-gc">
@@ -375,7 +375,7 @@
         <div class="ladder-tier-name">GC (General Contractor)</div>
         <div class="ladder-desc">Full autonomy. Brick sends guest emails, pitches sponsors, and replans when posts underperform. Daily digest replaces walk-throughs.</div>
       </div>
-      <div class="ladder-status" id="status-gc">🔒</div>
+      <div class="ladder-status" id="status-gc"><i class="pc-i" data-i="lock"></i></div>
     </div>
 
   </div>
@@ -431,11 +431,11 @@
   const TIERS = ['owner_builder', 'draftsman', 'bricklayer', 'foreman', 'gc'];
 
   const TIER_META = {
-    owner_builder: { label: 'Owner-Builder', icon: '👀' },
-    draftsman:     { label: 'Draftsman',     icon: '📐' },
-    bricklayer:    { label: 'Bricklayer',    icon: '🧱' },
-    foreman:       { label: 'Foreman',       icon: '📋' },
-    gc:            { label: 'GC',            icon: '🏗️' },
+    owner_builder: { label: 'Owner-Builder', icon: 'eye' },
+    draftsman:     { label: 'Draftsman',     icon: 'ruler' },
+    bricklayer:    { label: 'Bricklayer',    icon: 'brick-wall' },
+    foreman:       { label: 'Foreman',       icon: 'clipboard-list' },
+    gc:            { label: 'GC',            icon: 'construction' },
   };
 
   const CEREMONY = {
@@ -455,7 +455,7 @@
     const iconWrap     = document.getElementById('tier-icon-wrap');
     const iconEl       = document.getElementById('tier-icon');
     const nameEl       = document.getElementById('tier-name-large');
-    const meta         = TIER_META[currentTier] || { label: currentTier, icon: '🔧' };
+    const meta         = TIER_META[currentTier] || { label: currentTier, icon: 'wrench' };
 
     badgeSection.dataset.tier = currentTier;
     iconWrap.dataset.tier     = currentTier;
@@ -487,7 +487,7 @@
 
       if (idx === currentIdx) {
         row.classList.add('is-current');
-        statusEl.textContent = '✅';
+        statusEl.innerHTML = '<i class=pc-i data-i=circle-check></i>';
         // Add "Current" tag after tier name
         const nameSpan = row.querySelector('.ladder-tier-name');
         const tag = document.createElement('span');
@@ -496,11 +496,11 @@
         nameSpan.appendChild(tag);
       } else if (idx < currentIdx) {
         // Below current — unlocked
-        statusEl.textContent = '✅';
+        statusEl.innerHTML = '<i class=pc-i data-i=circle-check></i>';
       } else {
         // Above current — locked
         row.classList.add('is-locked');
-        statusEl.textContent = '🔒';
+        statusEl.innerHTML = '<i class=pc-i data-i=lock></i>';
       }
     });
 
@@ -522,7 +522,7 @@
 
   /* ── API ───────────────────────────────────────────────────────────── */
   /* Eligibility — what each rung still costs.
-     The ladder used to mark every tier above the current one 🔒 purely by
+     The ladder used to mark every tier above the current one locked purely by
      position, with no reason attached, and Promote was always enabled. Since the
      backend started refusing unearned tiers with a 409, that combination meant
      the page invited a click it knew would fail and then reported it as
@@ -567,10 +567,10 @@
       if (rung.held) return;
 
       if (rung.eligible) {
-        statusEl.textContent = '🔓';
+        statusEl.innerHTML = '<i class=pc-i data-i=lock-open></i>';
         statusEl.title = 'Earned — available to promote into';
       } else {
-        statusEl.textContent = '🔒';
+        statusEl.innerHTML = '<i class=pc-i data-i=lock></i>';
         statusEl.title = (rung.unmet || []).join(' · ');
       }
 

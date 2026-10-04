@@ -467,10 +467,10 @@
 
     <!-- 1 · Greeting -->
     <div class="greeting-card">
-      <div class="greeting-icon"><img src="/static/brick-avatar.png" alt="Brick" class="brick-avatar" onerror="this.outerHTML='🔨'"></div>
+      <div class="greeting-icon"><img src="/static/brick-avatar.png" alt="Brick" class="brick-avatar" onerror="this.style.display='none'"></div>
       <div class="greeting-text">
         <div class="greeting-from">Brick — Walk-through Report</div>
-        <div class="greeting-msg" id="greeting-msg">Loading…</div>
+        <div class="greeting-msg" id="greeting-msg" data-ai-output>Loading…</div>
       </div>
     </div>
 
@@ -504,7 +504,7 @@
     <div class="card">
       <div class="card-header">
         <div class="card-title">
-          📋 Today's Punch List
+          <i class="pc-i" data-i="clipboard-list"></i> Today's Punch List
           <span class="count-badge" id="punch-count-badge" style="
             background:rgba(217,95,30,0.15); color:var(--accent);
             border-radius:20px; padding:1px 8px; font-size:10px; font-weight:800;
@@ -514,7 +514,7 @@
       <div id="punch-list-container">
         <!-- items injected here -->
         <div class="empty-state hidden" id="punch-empty">
-          <div class="empty-icon">✅</div>
+          <div class="empty-icon"><i class="pc-i" data-i="circle-check"></i></div>
           Punch list is clear. Good build.
         </div>
       </div>
@@ -523,11 +523,11 @@
     <!-- 4 · Built overnight -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title">🌙 Built Overnight</div>
+        <div class="card-title"><i class="pc-i" data-i="moon"></i> Built Overnight</div>
       </div>
       <div id="recent-list-container">
         <div class="empty-state hidden" id="recent-empty">
-          <div class="empty-icon">💤</div>
+          <div class="empty-icon"><i class="pc-i" data-i="moon"></i></div>
           Nothing built overnight — Brick's been quiet.
         </div>
       </div>
@@ -536,7 +536,7 @@
     <!-- 5 · Stats panel -->
     <div class="stats-panel">
       <div class="card-header" style="margin-bottom:14px">
-        <div class="card-title">📊 Job Site Stats</div>
+        <div class="card-title"><i class="pc-i" data-i="chart-column"></i> Job Site Stats</div>
       </div>
       <div class="stats-panel-grid">
         <div class="stats-panel-item">
@@ -557,7 +557,7 @@
         </div>
         <div class="stats-panel-item" style="grid-column: 1 / -1;">
           <label>Monthly Trend (sparkline)</label>
-          <div class="sparkline-placeholder">📈 Analytics available at GC tier</div>
+          <div class="sparkline-placeholder"><i class="pc-i" data-i="trending-up"></i> Analytics available at GC tier</div>
         </div>
       </div>
     </div>
@@ -684,13 +684,13 @@ const ACTION_CONSEQUENCE = {
   yt_seo_package: 'Generates title/description/tags for review. Nothing is saved or published.',
   yt_video_advisor: 'Generates video strategy advice for review. Nothing is saved or published.',
 
-  publish_post:     '⚠️ This posts publicly to every connected platform for the post. There is no undo beyond deleting the post.',
+  publish_post:     '\u26a0\ufe0f This posts publicly to every connected platform for the post. There is no undo beyond deleting the post.',
   queue_draft:      'Schedules the draft. It still needs a publish step to go out.',
   adjust_calendar:  'Moves a scheduled post. Nothing is published.',
-  cut_clip:         '⚠️ Uploads a rendered clip to TikTok. An unaudited app posts privately.',
+  cut_clip:         '\u26a0\ufe0f Uploads a rendered clip to TikTok. An unaudited app posts privately.',
   write_show_notes: 'Writes show notes onto the project. Existing notes are kept unless overwrite is set.',
-  adjust_vyral_mix: '⚠️ Rewrites the Blueprint bucket weights. Every future auto-plan uses these.',
-  replan_calendar:  '⚠️ Deletes future auto-plan DRAFTS and lays down a fresh rotation. Scheduled, published and hand-written posts are untouched.',
+  adjust_vyral_mix: '\u26a0\ufe0f Rewrites the Blueprint bucket weights. Every future auto-plan uses these.',
+  replan_calendar:  '\u26a0\ufe0f Deletes future auto-plan DRAFTS and lays down a fresh rotation. Scheduled, published and hand-written posts are untouched.',
   pitch_sponsor:    'Drafts a pitch only. PodClick has no sponsor send path — nothing is emailed.',
   send_guest_email: 'Points at the guest-email review screen. Approving here does not send anything.',
   draft_post:       'Creates a draft post. Nothing is scheduled or published.',
@@ -791,7 +791,7 @@ function renderActionPreview(action) {
 
   return (
     '<div class="action-preview">' +
-    (consequence ? '<div class="ap-consequence">' + escHtml(consequence) + '</div>' : '') +
+    (consequence ? '<div class="ap-consequence">' + escHtml(consequence).replace(/\u26a0\ufe0f?\s*/g, '<i class=pc-i data-i=triangle-alert></i> ') + '</div>' : '') +
     (rows ? '<ul class="ap-fields">' + rows + '</ul>' : '') +
     '</div>'
   );
@@ -808,7 +808,7 @@ function renderPunchItem(action) {
 
   // Guest asset package → show the FULL drafted email for review before anything goes out
   let previewHtml = '';
-  let approveLabel = '✓ Approve';
+  let approveLabel = '<i class=pc-i data-i=check></i> Approve';
   if (action.action_type === 'guest_asset_package') {
     const p = action.payload || {};
     const recipient = p.recipient || '(no email on the guest record yet — add it before sending)';
@@ -816,7 +816,7 @@ function renderPunchItem(action) {
       ? ('Drive folder: ' + (p.drive_url || '(building…)'))
       : 'Drive folder not created yet — connect Google Drive at /api/drive/auth to upload these and add the share link';
     const emailText = p.email || '(email not generated)';
-    approveLabel = '✓ Looks good — mark sent';
+    approveLabel = '<i class=pc-i data-i=check></i> Looks good — mark sent';
 
     // Asset manifest — what's bundled (delivered as a Drive folder link, not attachments)
     const assets = p.assets || [];
@@ -824,28 +824,28 @@ function renderPunchItem(action) {
     if (assets.length) {
       const readyCount = assets.filter(function (a) { return a.present; }).length;
       const rows = assets.map(function (a) {
-        const mark = a.present ? '✅' : (a.note ? '⏳' : '❌');
+        const mark = a.present ? '<i class=pc-i data-i=circle-check></i>' : (a.note ? '<i class=pc-i data-i=hourglass></i>' : '<i class=pc-i data-i=circle-x></i>');
         const note = a.note ? ' <span class="asset-note">(' + escHtml(a.note) + ')</span>' : '';
         return '<li>' + mark + ' ' + escHtml(a.label) + note + '</li>';
       }).join('');
       assetsHtml =
-        '<div class="asset-preview-meta">📎 Assets in this package (' + readyCount + '/' + assets.length + ' ready) — delivered as a Drive folder link, not attachments:</div>' +
+        '<div class="asset-preview-meta"><i class=pc-i data-i=paperclip></i> Assets in this package (' + readyCount + '/' + assets.length + ' ready) — delivered as a Drive folder link, not attachments:</div>' +
         '<ul class="asset-list">' + rows + '</ul>';
     }
 
     const gmailLine = _gmailStatus.authorized
-      ? ('✅ Connected to Gmail as <strong>' + escHtml(_gmailStatus.email || 'your account') + '</strong> — Approve &amp; Send will email it for you.')
-      : '⚠️ Gmail not connected yet. Connect it once and PodClick can send for you — until then, hit Copy and send from your own inbox.';
+      ? ('<i class=pc-i data-i=circle-check></i> Connected to Gmail as <strong>' + escHtml(_gmailStatus.email || 'your account') + '</strong> — Approve &amp; Send will email it for you.')
+      : '<i class=pc-i data-i=triangle-alert></i> Gmail not connected yet. Connect it once and PodClick can send for you — until then, hit Copy and send from your own inbox.';
 
     previewHtml = `
       <div class="asset-preview">
-        <div class="asset-preview-note">🔒 <strong>Nothing has been sent yet.</strong> Read it below (you can edit it right here), then hit <strong>Approve &amp; Send</strong>. That's the only thing that emails the guest.</div>
-        <div class="asset-preview-meta">📧 To: <strong>${escHtml(recipient)}</strong></div>
+        <div class="asset-preview-note"><i class=pc-i data-i=lock></i> <strong>Nothing has been sent yet.</strong> Read it below (you can edit it right here), then hit <strong>Approve &amp; Send</strong>. That's the only thing that emails the guest.</div>
+        <div class="asset-preview-meta"><i class=pc-i data-i=mail></i> To: <strong>${escHtml(recipient)}</strong></div>
         ${assetsHtml}
-        <div class="asset-preview-meta">📁 ${escHtml(driveLine)}</div>
+        <div class="asset-preview-meta"><i class=pc-i data-i=folder></i> ${escHtml(driveLine)}</div>
         <div class="asset-preview-meta gmail-line">${gmailLine}</div>
-        <textarea class="asset-email-edit" data-id="${id}" rows="12" spellcheck="true">${escHtml(emailText)}</textarea>
-        <button class="btn-copy-email" data-id="${id}">📋 Copy email</button>
+        <textarea data-ai-output class="asset-email-edit" data-id="${id}" rows="12" spellcheck="true">${escHtml(emailText)}</textarea>
+        <button class="btn-copy-email" data-id="${id}"><i class=pc-i data-i=clipboard-list></i> Copy email</button>
       </div>
     `;
   } else {
@@ -854,24 +854,24 @@ function renderPunchItem(action) {
 
   let actionsHtml;
   if (action.action_type === 'guest_asset_package') {
-    const sendLabel = _gmailStatus.authorized ? '✅ Approve &amp; Send Email' : '🔗 Connect Gmail to Send';
+    const sendLabel = _gmailStatus.authorized ? '<i class=pc-i data-i=circle-check></i> Approve &amp; Send Email' : '<i class=pc-i data-i=link></i> Connect Gmail to Send';
     actionsHtml = `
     <div class="punch-actions">
       <button class="btn-approve-send" data-id="${id}">${sendLabel}</button>
       <button class="btn-mark-manual" data-id="${id}">Mark sent manually</button>
-      <button class="btn-reject" data-id="${id}">✗ Reject</button>
+      <button class="btn-reject" data-id="${id}"><i class=pc-i data-i=x></i> Reject</button>
     </div>`;
   } else {
     actionsHtml = `
     <div class="punch-actions">
       <button class="btn-approve" data-id="${id}">${approveLabel}</button>
-      <button class="btn-reject" data-id="${id}">✗ Reject</button>
+      <button class="btn-reject" data-id="${id}"><i class=pc-i data-i=x></i> Reject</button>
     </div>`;
   }
 
   el.innerHTML = `
     <div class="punch-item-top">
-      <div class="punch-rationale">${rationale}</div>
+      <div class="punch-rationale" data-ai-output>${rationale}</div>
       <span class="punch-action-badge"><img src="/static/brick-icon.png" class="punch-badge-icon" alt="" onerror="this.style.display='none'">${actionType}</span>
     </div>
     ${previewHtml}
@@ -890,8 +890,8 @@ function renderPunchItem(action) {
       const txt = (ta && ta.value) || (action.payload && action.payload.email) || '';
       const btn = this;
       navigator.clipboard.writeText(txt).then(function () {
-        btn.textContent = '✓ Copied';
-        setTimeout(function () { btn.textContent = '📋 Copy email'; }, 1500);
+        btn.innerHTML = '<i class=pc-i data-i=check></i> Copied';
+        setTimeout(function () { btn.innerHTML = '<i class=pc-i data-i=clipboard-list></i> Copy email'; }, 1500);
       }).catch(function () { wtToast("Couldn't copy — select and copy manually.", 'error'); });
     });
   }
@@ -989,7 +989,7 @@ async function doApproveSend(id, el, btn, send, emailBody) {
       return;
     }
     if (!res.ok || !data.ok) throw new Error(data.error || ('Server returned ' + res.status));
-    wtToast(send ? ('✅ Sent to ' + (data.to || 'the guest') + '.') : 'Marked as sent.', 'success');
+    wtToast(send ? ('Sent to ' + (data.to || 'the guest') + '.') : 'Marked as sent.', 'success');
     removePunchItem(el);
   } catch (e) {
     console.error('[Walk-through] approve-send error:', e);
@@ -1038,7 +1038,7 @@ function renderRecentActions(recentActions) {
 
     const isSuccess = a.outcome === 'success';
     const dotClass = isSuccess ? 'success' : 'failure';
-    const outcomeLabel = isSuccess ? '✓ Done' : '✗ Failed';
+    const outcomeLabel = isSuccess ? '<i class=pc-i data-i=check></i> Done' : '<i class=pc-i data-i=x></i> Failed';
     const outcomeClass = isSuccess ? 'success' : 'failure';
 
     pill.innerHTML = `

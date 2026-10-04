@@ -428,7 +428,7 @@
     <!-- Card 1: Talk to Brick (ACTIVE — voice interview) -->
     <div class="card active-card" id="card-interview">
       <div class="card-header">
-        <div class="card-icon icon-brick">🧱</div>
+        <div class="card-icon icon-brick"><i class="pc-i" data-i="brick-wall"></i></div>
         <div class="card-title-wrap">
           <div class="card-title">Talk to Brick</div>
           <div class="card-desc">8 questions out loud. Each answer gets ingested immediately.</div>
@@ -455,14 +455,14 @@
 
       <!-- State: done -->
       <div id="iv-done" style="display:none;" class="interview-done">
-        ✓ Interview complete — 8 samples added to your foundation.
+        <i class="pc-i" data-i="check"></i> Interview complete — 8 samples added to your foundation.
       </div>
     </div>
 
     <!-- Card 2: Upload audio or video (ACTIVE) -->
     <div class="card active-card" id="card-upload">
       <div class="card-header">
-        <div class="card-icon icon-upload">🎙</div>
+        <div class="card-icon icon-upload"><i class="pc-i" data-i="mic"></i></div>
         <div class="card-title-wrap">
           <div class="card-title">Upload audio or video</div>
           <div class="card-desc">Voice memo, clip, or recording. Max ~25 MB. I'll transcribe and ingest it.</div>
@@ -471,14 +471,14 @@
 
       <input type="file" id="audio-file-input" accept="audio/*,video/*" style="display:none;">
       <div class="drop-zone" id="drop-zone">
-        <div class="drop-zone-icon">🎵</div>
+        <div class="drop-zone-icon"><i class="pc-i" data-i="music"></i></div>
         <div class="drop-zone-label">Drop file here or click to browse</div>
         <div class="drop-zone-sub">MP3 · MP4 · M4A · WAV · WebM · OGG</div>
         <div class="file-chosen" id="file-chosen" style="display:none;"></div>
       </div>
 
       <div class="multi-warn" id="multi-warn">
-        ⚠ Multi-speaker audio mixes voices into Foundation. Only use recordings where you're the only speaker.
+        <i class="pc-i" data-i="triangle-alert"></i> Multi-speaker audio mixes voices into Foundation. Only use recordings where you're the only speaker.
       </div>
 
       <div class="upload-progress-wrap" id="upload-progress-wrap">
@@ -497,7 +497,7 @@
     <!-- Card 3: Paste your writing (ACTIVE) -->
     <div class="card active-card" style="grid-column: 1 / -1;">
       <div class="card-header">
-        <div class="card-icon icon-paste">✍️</div>
+        <div class="card-icon icon-paste"><i class="pc-i" data-i="pen-line"></i></div>
         <div class="card-title-wrap">
           <div class="card-title">Paste your writing</div>
           <div class="card-desc">
@@ -522,7 +522,7 @@
     <!-- Card 4: Point me at your channels -->
     <div class="card soon" style="grid-column: 1 / -1;">
       <div class="card-header">
-        <div class="card-icon icon-channel">📡</div>
+        <div class="card-icon icon-channel"><i class="pc-i" data-i="satellite-dish"></i></div>
         <div class="card-title-wrap">
           <div class="card-title">Point me at your channels</div>
           <div class="card-desc">YouTube channel, RSS feed, or LinkedIn profile URL. I'll pull your recent content automatically.</div>
@@ -664,7 +664,7 @@
     const preview = text.trim().slice(0, 120) + (text.trim().length > 120 ? '…' : '');
 
     item.innerHTML =
-      '<div class="feed-check">✓</div>' +
+      '<div class="feed-check"><i class=pc-i data-i=check></i></div>' +
       '<div class="feed-item-body">' +
         '<div class="feed-item-text">' + escHtml(preview) + '</div>' +
         '<div class="feed-item-meta">just now</div>' +
@@ -712,7 +712,7 @@
       addFeedItem(text, source);
       input.value = '';
       document.getElementById('char-count').textContent = '0 chars';
-      fnToast('✓ Brick added that to the mix.', 'success');
+      fnToast('Brick added that to the mix.', 'success');
 
     } catch (e) {
       fnToast('Couldn\'t pour that in — ' + e.message, 'error');
@@ -846,7 +846,7 @@
       }
       const data = await res.json();
       addFeedItem(data.transcript_preview || ('Answer to: ' + questionText), 'podcast');
-      fnToast('✓ Answer poured in — ' + (ivQuestionIdx + 1) + '/' + INTERVIEW_QUESTIONS.length, 'success');
+      fnToast('Answer poured in — ' + (ivQuestionIdx + 1) + '/' + INTERVIEW_QUESTIONS.length, 'success');
 
       ivQuestionIdx++;
       if (ivQuestionIdx >= INTERVIEW_QUESTIONS.length) {
@@ -963,9 +963,9 @@
         try { data = JSON.parse(xhr.responseText); } catch (ex) { /* ignore */ }
         addFeedItem(data.transcript_preview || file.name, 'podcast');
         if (data.multi_speaker_warning) {
-          fnToast('⚠️ Multiple speakers detected — review the sample.', 'info');
+          fnToast('Multiple speakers detected — review the sample.', 'info');
         } else {
-          fnToast('✓ Audio poured into the mix.', 'success');
+          fnToast('Audio poured into the mix.', 'success');
         }
         // Reset uploader
         uploadFile = null;

@@ -695,7 +695,7 @@
     <h1 id="studio-title">Good conversations.<br><span>Ready for the world.</span></h1>
     <p class="studio-intro-copy">Bring your recording. Build the episode, review the details, and give it a release date.</p>
   </div>
-  <a href="/projects" class="studio-project-link"><span class="studio-project-mark" aria-hidden="true">B</span><span><strong>Put Brick to work</strong><small>Manage projects &amp; publishing</small></span><span aria-hidden="true">↗</span></a>
+  <a href="/projects" class="studio-project-link"><span class="studio-project-mark" aria-hidden="true">B</span><span><strong>Put Brick to work</strong><small>Manage projects &amp; publishing</small></span><span aria-hidden="true"><i class="pc-i" data-i="arrow-up-right"></i></span></a>
 </section>
 
 <!-- ══ Studio Mode Toggle ══ -->
@@ -748,10 +748,10 @@
       </div>
       <!-- Empty state drop area -->
       <div class="slot-drop-area" onclick="pickFiles('intro')">
-        🎵 &nbsp;Drop intro audio here or <u>click to browse</u>
+        <i class="pc-i" data-i="music"></i> &nbsp;Drop intro audio here or <u>click to browse</u>
       </div>
       <div style="padding:6px 10px 4px;display:flex;justify-content:flex-end">
-        <button onclick="event.stopPropagation();openLibrary('intro')" class="lib-btn">From library ↗</button>
+        <button onclick="event.stopPropagation();openLibrary('intro')" class="lib-btn">From library <i class="pc-i" data-i="arrow-up-right"></i></button>
       </div>
       <!-- File list (visible once files added) -->
       <div class="slot-files" id="files-intro"></div>
@@ -797,10 +797,10 @@
         <button class="slot-add-btn" aria-label="Add ad break files" onclick="event.stopPropagation();pickFiles('commercial')">+ Add</button>
       </div>
       <div class="slot-drop-area" onclick="pickFiles('commercial')">
-        📢 &nbsp;Drop ad / commercial audio here or <u>click to browse</u>
+        <i class="pc-i" data-i="megaphone"></i> &nbsp;Drop ad / commercial audio here or <u>click to browse</u>
       </div>
       <div style="padding:6px 10px 4px;display:flex;justify-content:flex-end">
-        <button onclick="event.stopPropagation();openLibrary('commercial')" class="lib-btn">From library ↗</button>
+        <button onclick="event.stopPropagation();openLibrary('commercial')" class="lib-btn">From library <i class="pc-i" data-i="arrow-up-right"></i></button>
       </div>
       <div class="slot-files" id="files-commercial"></div>
     </div>
@@ -821,10 +821,10 @@
         <button class="slot-add-btn" aria-label="Add outro files" onclick="event.stopPropagation();pickFiles('outro')">+ Add</button>
       </div>
       <div class="slot-drop-area" onclick="pickFiles('outro')">
-        🎬 &nbsp;Drop outro audio here or <u>click to browse</u>
+        <i class="pc-i" data-i="clapperboard"></i> &nbsp;Drop outro audio here or <u>click to browse</u>
       </div>
       <div style="padding:6px 10px 4px;display:flex;justify-content:flex-end">
-        <button onclick="event.stopPropagation();openLibrary('outro')" class="lib-btn">From library ↗</button>
+        <button onclick="event.stopPropagation();openLibrary('outro')" class="lib-btn">From library <i class="pc-i" data-i="arrow-up-right"></i></button>
       </div>
       <div class="slot-files" id="files-outro"></div>
     </div>
@@ -860,7 +860,7 @@
     <div class="field" style="max-width:130px">
       <label for="model-size">Transcription</label>
       <select id="model-size">
-        <option value="tiny" selected>Tiny ✦ (fastest)</option>
+        <option value="tiny" selected>Tiny (fastest)</option>
         <option value="base">Base</option>
         <option value="small">Small</option>
         <option value="medium">Medium</option>
@@ -874,8 +874,8 @@
   <!-- Progress -->
   <div id="progress-section">
     <div class="progress-meta">
-      <span class="elapsed-timer">⏱ <span id="elapsed">0:00</span></span>
-      <span class="stall-badge" id="stall-badge">⚠ Still working — this step takes a while</span>
+      <span class="elapsed-timer"><i class="pc-i" data-i="timer"></i> <span id="elapsed">0:00</span></span>
+      <span class="stall-badge" id="stall-badge"><i class="pc-i" data-i="triangle-alert"></i> Still working — this step takes a while</span>
     </div>
     <div class="steps">
       <div class="step" id="step-transcribing">
@@ -907,7 +907,7 @@
 
 <aside class="studio-next-step" id="studio-next-step" aria-label="Production guide">
   <section class="panel studio-guide-card">
-    <div class="studio-section-head"><div><p class="studio-eyebrow">03 / Review &amp; release</p><h2>Your next step, clear.</h2></div><span class="studio-guide-mark" aria-hidden="true">↗</span></div>
+    <div class="studio-section-head"><div><p class="studio-eyebrow">03 / Review &amp; release</p><h2>Your next step, clear.</h2></div><span class="studio-guide-mark" aria-hidden="true"><i class="pc-i" data-i="arrow-up-right"></i></span></div>
     <p class="studio-guide-status" id="studio-next-title" role="status">Start with the conversation.</p>
     <p class="studio-panel-copy" id="studio-next-copy">Your episode preview will appear here after processing. Add your recording to get things moving.</p>
     <ol class="studio-checklist">
@@ -918,7 +918,7 @@
     <div class="studio-output-preview"><span class="studio-eyebrow">Your output</span><strong id="studio-output-label">Clean audio · MP3</strong><span>Episode title · Description · Transcript</span></div>
   </section>
   <section class="panel studio-brick-card"><span class="studio-project-mark" aria-hidden="true">B</span><div><p class="studio-eyebrow">A little more hands-off</p><h3>Make a plan with Brick.</h3><p>Use a project to track the episode, prepare its assets, and manage the publishing handoff.</p><a href="/projects">Open your job site <span aria-hidden="true">→</span></a></div></section>
-  <div class="studio-quick-links"><button onclick="switchTab('queue')">View release queue <span aria-hidden="true">↗</span></button><button onclick="switchTab('settings')">Show &amp; connections <span aria-hidden="true">↗</span></button></div>
+  <div class="studio-quick-links"><button onclick="switchTab('queue')">View release queue <span aria-hidden="true"><i class="pc-i" data-i="arrow-up-right"></i></span></button><button onclick="switchTab('settings')">Show &amp; connections <span aria-hidden="true"><i class="pc-i" data-i="arrow-up-right"></i></span></button></div>
 </aside>
 
 <!-- ══ RIGHT: Review & Publish ══ -->
@@ -943,7 +943,7 @@
 
   <!-- Links found -->
   <div class="links-section" id="links-section">
-    <div class="links-title">🔗 Links found in episode</div>
+    <div class="links-title"><i class="pc-i" data-i="link"></i> Links found in episode</div>
     <div id="links-container"></div>
   </div>
 
@@ -962,7 +962,7 @@
         style="font-size:12px;padding:4px 10px;background:var(--bg-card);border:1px solid var(--border-lit);color:var(--text-sec);border-radius:6px;cursor:pointer;transition:all .2s"
         onmouseover="this.style.borderColor='var(--orange)';this.style.color='var(--orange-hi)'"
         onmouseout="this.style.borderColor='var(--border-lit)';this.style.color='var(--text-sec)'">
-        ⏱ Regenerate Timestamps
+        <i class="pc-i" data-i="timer"></i> Regenerate Timestamps
       </button>
     </label>
     <textarea id="ep-desc" style="min-height:180px"></textarea>
@@ -976,7 +976,7 @@
   <!-- Sponsor tag for this episode -->
   <div class="review-field" id="sponsor-tag-row" style="display:none">
     <label style="display:flex;align-items:center;justify-content:space-between;">
-      <span>🏷️ Tag Sponsor</span>
+      <span><i class="pc-i" data-i="tag"></i> Tag Sponsor</span>
       <span style="font-size:10px;color:var(--text-dim);font-weight:400">Auto-injects sponsor block into description</span>
     </label>
     <select id="ep-sponsor-select" onchange="onSponsorTagged()"
@@ -988,7 +988,7 @@
   <!-- Guest tag row -->
   <div class="review-field">
     <label style="display:flex;align-items:center;justify-content:space-between;">
-      <span>🎙️ Tag Guest</span>
+      <span><i class="pc-i" data-i="mic"></i> Tag Guest</span>
       <span style="font-size:10px;color:var(--text-dim);font-weight:400">Auto-links episode URLs + sends Telegram reminder</span>
     </label>
     <select id="ep-guest-select"
@@ -1001,17 +1001,17 @@
     <button class="btn btn-upload" id="upload-btn" disabled style="flex:1;min-width:180px">Upload to Buzzsprout</button>
     <button class="btn" id="schedule-btn" disabled onclick="openScheduler()"
       style="flex:1;min-width:180px;background:var(--surface2);border:1px solid var(--border-lit);color:var(--text)">
-      📅 Schedule Release
+      <i class="pc-i" data-i="calendar"></i> Schedule Release
     </button>
     <button class="btn" id="yt-upload-btn" disabled onclick="openYouTubeUploadModal()"
       style="flex:1;min-width:180px;background:var(--surface2);border:1px solid var(--border-lit);color:var(--text);display:none">
-      🎬 Upload to YouTube
+      <i class="pc-i" data-i="clapperboard"></i> Upload to YouTube
     </button>
   </div>
 
   <!-- Schedule picker (shown when Schedule is clicked) -->
   <div id="schedule-picker" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-top:8px">
-    <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text)">📅 Schedule Release Time</div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text)"><i class="pc-i" data-i="calendar"></i> Schedule Release Time</div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <input type="datetime-local" id="schedule-datetime"
         style="flex:1;background:var(--surface3);border:1px solid var(--border-lit);color:var(--text);border-radius:6px;padding:8px 10px;font-size:13px"
@@ -1033,25 +1033,25 @@
   <!-- Output badges row -->
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
     <div id="mp3-ready-badge" style="display:none;font-size:11px;color:var(--accent);padding:4px 10px;background:color-mix(in srgb, var(--orange) 8%, transparent);border-radius:6px;border:1px solid color-mix(in srgb, var(--orange) 25%, transparent)">
-      🎵 MP3 ready
+      <i class="pc-i" data-i="music"></i> MP3 ready
     </div>
     <div id="mp4-ready-badge" style="display:none;font-size:11px;color:var(--green-hi);padding:4px 10px;background:color-mix(in srgb, var(--green-hi) 8%, transparent);border-radius:6px;border:1px solid color-mix(in srgb, var(--green-hi) 25%, transparent)">
-      🎬 MP4 ready · subtitles burned in
+      <i class="pc-i" data-i="clapperboard"></i> MP4 ready · subtitles burned in
     </div>
     <div id="srt-ready-badge" style="display:none;font-size:11px;color:var(--orange-hi);padding:4px 10px;background:color-mix(in srgb, var(--orange-hi) 8%, transparent);border-radius:6px;border:1px solid color-mix(in srgb, var(--orange-hi) 25%, transparent)">
-      📝 SRT ready
+      <i class="pc-i" data-i="notebook-pen"></i> SRT ready
     </div>
   </div>
 
   <div class="error-box" id="upload-error" style="display:none"></div>
-  <div id="upload-success" style="display:none">🎉 Episode uploaded to Buzzsprout — distributing to Spotify &amp; Apple Podcasts now!</div>
-  <div id="schedule-success" style="display:none;color:var(--accent);font-size:13px;margin-top:8px">📅 Episode scheduled! Check the Queue tab to manage your release calendar.</div>
+  <div id="upload-success" style="display:none"><i class="pc-i" data-i="party-popper"></i> Episode uploaded to Buzzsprout — distributing to Spotify &amp; Apple Podcasts now!</div>
+  <div id="schedule-success" style="display:none;color:var(--accent);font-size:13px;margin-top:8px"><i class="pc-i" data-i="calendar"></i> Episode scheduled! Check the Queue tab to manage your release calendar.</div>
 
   <!-- ── Upload Assistant (shown instead of Playwright) ── -->
   <div id="upload-assistant" style="display:none">
     <div style="background:color-mix(in srgb, var(--accent) 8%, transparent);border:1px solid var(--accent);border-radius:10px;padding:16px;margin-top:12px;">
       <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:12px;">
-        🎙️ Upload Assistant — follow these steps:
+        <i class="pc-i" data-i="mic"></i> Upload Assistant — follow these steps:
       </div>
 
       <!-- Step 1 -->
@@ -1061,7 +1061,7 @@
           <div class="assist-label">Your browser opened Spotify for Podcasters</div>
           <div class="assist-hint">Click <strong>"New Episode"</strong> if it's not already on that page</div>
         </div>
-        <button class="assist-check" onclick="checkStep(1)">✓</button>
+        <button class="assist-check" onclick="checkStep(1)"><i class="pc-i" data-i="check"></i></button>
       </div>
 
       <!-- Step 2 -->
@@ -1071,7 +1071,7 @@
           <div class="assist-label">Upload the MP3 — it opened in Finder</div>
           <div class="assist-hint">Drag the highlighted file into the Spotify upload area</div>
         </div>
-        <button class="assist-check" onclick="checkStep(2)">✓</button>
+        <button class="assist-check" onclick="checkStep(2)"><i class="pc-i" data-i="check"></i></button>
       </div>
 
       <!-- Step 3 -->
@@ -1083,7 +1083,7 @@
             <span id="copy-title">Copy Title</span>
           </button>
         </div>
-        <button class="assist-check" onclick="checkStep(3)">✓</button>
+        <button class="assist-check" onclick="checkStep(3)"><i class="pc-i" data-i="check"></i></button>
       </div>
 
       <!-- Step 4 -->
@@ -1095,7 +1095,7 @@
             <span id="copy-desc">Copy Description</span>
           </button>
         </div>
-        <button class="assist-check" onclick="checkStep(4)">✓</button>
+        <button class="assist-check" onclick="checkStep(4)"><i class="pc-i" data-i="check"></i></button>
       </div>
 
       <!-- Step 5 -->
@@ -1107,7 +1107,7 @@
             <span id="copy-epnum">Copy Number</span>
           </button>
         </div>
-        <button class="assist-check" onclick="checkStep(5)">✓</button>
+        <button class="assist-check" onclick="checkStep(5)"><i class="pc-i" data-i="check"></i></button>
       </div>
 
       <!-- Step 6 -->
@@ -1117,13 +1117,13 @@
           <div class="assist-label">Click <strong>Publish</strong> on Spotify</div>
           <div class="assist-hint">Then click the button below to record it in your history</div>
         </div>
-        <button class="assist-check" onclick="checkStep(6)">✓</button>
+        <button class="assist-check" onclick="checkStep(6)"><i class="pc-i" data-i="check"></i></button>
       </div>
 
       <button class="btn" id="assist-done-btn"
         style="width:100%;margin-top:14px;background:var(--accent);color:var(--bg);display:none"
         onclick="assistantDone()">
-        ✓ Mark as Published
+        <i class="pc-i" data-i="check"></i> Mark as Published
       </button>
     </div>
   </div>
@@ -1150,7 +1150,7 @@
 
       <!-- TikTok connection badge -->
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-        <span id="tiktok-badge" class="tiktok-status-badge disconnected" onclick="connectTikTok()">⚡ Connect TikTok</span>
+        <span id="tiktok-badge" class="tiktok-status-badge disconnected" onclick="connectTikTok()"><i class="pc-i" data-i="zap"></i> Connect TikTok</span>
       </div>
 
       <!-- Drop zone -->
@@ -1158,14 +1158,14 @@
            style="border:1.5px dashed var(--border);border-radius:10px;padding:28px;text-align:center;font-size:13px;color:var(--text-dim);cursor:pointer;transition:border-color 0.2s,background 0.2s"
            ondragover="clipDragOver(event)" ondragleave="clipDragLeave()" ondrop="clipDrop(event)"
            onclick="document.getElementById('clip-file-input').click()">
-        🎬 &nbsp;Drop your podcast video here<br>
+        <i class="pc-i" data-i="clapperboard"></i> &nbsp;Drop your podcast video here<br>
         <span style="font-size:11px;margin-top:6px;display:block">MP4 · MOV · MKV · AVI</span>
       </div>
       <input type="file" id="clip-file-input" accept="video/*" style="display:none" onchange="clipFileChosen(event)">
 
       <!-- File info -->
       <div id="clip-file-info" style="display:none;margin-top:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;display:none;align-items:center;gap:10px">
-        <span style="font-size:18px">🎬</span>
+        <span style="font-size:18px"><i class="pc-i" data-i="clapperboard"></i></span>
         <div>
           <div id="clip-file-name" style="font-weight:600;color:var(--text)"></div>
           <div id="clip-file-size" style="color:var(--text-dim);font-size:11px;margin-top:2px"></div>
@@ -1178,7 +1178,7 @@
         <div class="field">
           <label>Whisper Model</label>
           <select id="clip-model-size">
-            <option value="tiny" selected>Tiny ✦ (fastest)</option>
+            <option value="tiny" selected>Tiny (fastest)</option>
             <option value="base">Base</option>
             <option value="small">Small</option>
           </select>
@@ -1190,13 +1190,13 @@
       </div>
 
       <button class="btn btn-process" id="clip-process-btn" disabled onclick="startClipJob()">
-        ✂️ Extract &amp; Subtitle Clips
+        <i class="pc-i" data-i="scissors"></i> Extract &amp; Subtitle Clips
       </button>
 
       <!-- Progress -->
       <div id="clip-progress" style="display:none;margin-top:16px">
         <div class="progress-meta">
-          <span class="elapsed-timer">⏱ <span id="clip-elapsed">0:00</span></span>
+          <span class="elapsed-timer"><i class="pc-i" data-i="timer"></i> <span id="clip-elapsed">0:00</span></span>
         </div>
         <div class="steps">
           <div class="step" id="clip-step-transcribing">
@@ -1235,12 +1235,12 @@
 <!-- ══════════════════════════════════════════════════════════════ QUEUE TAB -->
 <div id="queue-tab-panel" style="display:none;padding:22px 28px;max-width:1100px;margin:0 auto;width:100%">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-    <div style="font-size:18px;font-weight:700;color:var(--text)">📅 Release Queue</div>
+    <div style="font-size:18px;font-weight:700;color:var(--text)"><i class="pc-i" data-i="calendar"></i> Release Queue</div>
     <button onclick="loadQueue()" style="background:var(--surface2);border:1px solid var(--border-lit);color:var(--text-dim);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">↻ Refresh</button>
   </div>
 
   <div id="queue-empty" style="display:none;text-align:center;padding:60px 20px;color:var(--text-dim)">
-    <div style="font-size:32px;margin-bottom:12px">📭</div>
+    <div style="font-size:32px;margin-bottom:12px"><i class="pc-i" data-i="inbox"></i></div>
     <div style="font-size:15px;font-weight:600;margin-bottom:6px">No scheduled episodes</div>
     <div style="font-size:13px">Process an episode in the Studio tab, then click <strong>Schedule Release</strong>.</div>
   </div>
@@ -1252,7 +1252,7 @@
 <!-- ══════════════════════════════════════════════════════════════ SETTINGS TAB -->
 <div id="settings-tab-panel" style="display:none;padding:22px 28px;max-width:860px;margin:0 auto;width:100%">
 
-  <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:20px">⚙️ Show Settings</div>
+  <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:20px"><i class="pc-i" data-i="settings"></i> Show Settings</div>
 
   <!-- Profile selector row -->
   <div class="panel" style="margin-bottom:16px;padding:16px 20px">
@@ -1271,7 +1271,7 @@
       </button>
     </div>
     <div id="active-profile-indicator" style="font-size:11px;color:var(--accent);margin-top:8px;display:none">
-      ✅ This profile is active — its footer and CTAs are applied to every new episode
+      <i class="pc-i" data-i="circle-check"></i> This profile is active — its footer and CTAs are applied to every new episode
     </div>
   </div>
 
@@ -1305,15 +1305,15 @@
         </div>
         <div class="review-field">
           <label>Merch Link Label</label>
-          <input type="text" id="pf-merch-label" placeholder="🛒 Grab your gear →" />
+          <input type="text" data-keep-emoji id="pf-merch-label" placeholder="🛒 Grab your gear →" />
         </div>
       </div>
       <div class="review-field" style="margin-top:4px">
         <label>Patreon CTA Copy <span style="font-weight:400;text-transform:none;font-size:10px">(leave blank for default)</span></label>
-        <input type="text" id="pf-patreon-cta" placeholder="❤️ Support us on Patreon for bonus episodes and more: [url auto-appended]" />
+        <input type="text" data-keep-emoji id="pf-patreon-cta" placeholder="❤️ Support us on Patreon for bonus episodes and more: [url auto-appended]" />
       </div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5">
-        💡 Patreon, merch, and Apple Podcasts links are only added to descriptions when their URLs are filled in here.
+        <i class="pc-i" data-i="lightbulb"></i> Patreon, merch, and Apple Podcasts links are only added to descriptions when their URLs are filled in here.
       </div>
     </div>
 
@@ -1342,7 +1342,7 @@
         style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:10px 18px;font-size:13px;cursor:pointer">
         Set as Active Show
       </button>
-      <span id="settings-save-status" style="font-size:12px;color:var(--accent);display:none">✓ Saved!</span>
+      <span id="settings-save-status" style="font-size:12px;color:var(--accent);display:none"><i class="pc-i" data-i="check"></i> Saved!</span>
     </div>
 
   </div><!-- /profile-editor -->
@@ -1350,7 +1350,7 @@
   <!-- Google Drive Setup -->
   <div style="margin-top:24px;background:var(--surface);border:1px solid color-mix(in srgb, var(--green-hi) 20%, transparent);border-radius:12px;padding:18px 22px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
-      <div style="font-size:15px;font-weight:700;color:var(--text)">📁 Google Drive Integration</div>
+      <div style="font-size:15px;font-weight:700;color:var(--text)"><i class="pc-i" data-i="folder"></i> Google Drive Integration</div>
       <div id="drive-status-badge" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:color-mix(in srgb, var(--text-sec) 12%, transparent);color:var(--text-sec)">Checking…</div>
     </div>
     <div style="font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:14px">
@@ -1373,7 +1373,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
   <!-- YouTube Integration -->
   <div style="margin-top:16px;background:var(--surface);border:1px solid color-mix(in srgb, var(--brand-youtube) 20%, transparent);border-radius:12px;padding:18px 22px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
-      <div style="font-size:15px;font-weight:700;color:var(--text)">▶️ YouTube Integration</div>
+      <div style="font-size:15px;font-weight:700;color:var(--text)"><i class="pc-i" data-i="play"></i> YouTube Integration</div>
       <div id="yt-settings-badge" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:color-mix(in srgb, var(--text-sec) 12%, transparent);color:var(--text-sec)">Checking…</div>
       <div style="flex:1"></div>
       <button id="yt-connect-btn" onclick="connectYouTube()"
@@ -1394,7 +1394,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
           <div style="font-size:11px;color:var(--text-dim);margin-top:2px">
             <span id="yt-channel-subs"></span> subscribers · <span id="yt-channel-videos"></span> videos
           </div>
-          <a id="yt-channel-link" href="#" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none">View channel ↗</a>
+          <a id="yt-channel-link" href="#" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none">View channel <i class="pc-i" data-i="arrow-up-right"></i></a>
         </div>
       </div>
     </div>
@@ -1412,7 +1412,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
       <li>Click <strong style="color:var(--text)">Connect YouTube</strong> above and authorize your channel</li>
     </ol>
     <div style="font-size:11px;color:var(--text-dim)">
-      💡 Enable the <strong>YouTube Data API v3</strong> in your Google Cloud project before connecting.
+      <i class="pc-i" data-i="lightbulb"></i> Enable the <strong>YouTube Data API v3</strong> in your Google Cloud project before connecting.
     </div>
   </div>
 
@@ -1426,7 +1426,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
   <!-- Header row -->
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
     <div>
-      <div style="font-size:18px;font-weight:800;color:var(--text)">💼 Sponsor Library</div>
+      <div style="font-size:18px;font-weight:800;color:var(--text)"><i class="pc-i" data-i="briefcase"></i> Sponsor Library</div>
       <div style="font-size:12px;color:var(--text-dim);margin-top:3px">Track sponsors, affiliate programs, and outreach — then tag any episode with a live sponsor.</div>
     </div>
     <button class="btn" onclick="openSponsorModal(null)"
@@ -1482,7 +1482,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
 
   <!-- Empty state -->
   <div id="sponsors-empty" style="display:none;text-align:center;padding:60px 20px;color:var(--text-dim)">
-    <div style="font-size:40px;margin-bottom:12px">💼</div>
+    <div style="font-size:40px;margin-bottom:12px"><i class="pc-i" data-i="briefcase"></i></div>
     <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">No sponsors yet</div>
     <div style="font-size:13px;margin-bottom:20px">Add your first sponsor or affiliate program to get started.</div>
     <button class="btn" onclick="openSponsorModal(null)"
@@ -1493,7 +1493,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
 
   <!-- Affiliate Discovery card -->
   <div style="margin-top:28px;background:var(--surface);border:1px solid color-mix(in srgb, var(--orange-hi) 25%, transparent);border-radius:12px;padding:18px 22px">
-    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">🔎 Recommended Affiliate Networks</div>
+    <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px"><i class="pc-i" data-i="search"></i> Recommended Affiliate Networks</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
       <a href="https://podcorn.com/podcasters" target="_blank" style="display:block;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-decoration:none;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--orange)'" onmouseout="this.style.borderColor='var(--border)'">
         <div style="font-size:12px;font-weight:700;color:var(--text)">Podcorn</div>
@@ -1532,11 +1532,11 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
   <!-- Header -->
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
     <div>
-      <div style="font-size:20px;font-weight:800;color:var(--text)">📝 Transcription Studio</div>
+      <div style="font-size:20px;font-weight:800;color:var(--text)"><i class="pc-i" data-i="notebook-pen"></i> Transcription Studio</div>
       <div style="font-size:12px;color:var(--text-dim);margin-top:3px">Transcribe any video or audio — books, courses, meetings, interviews. Builds your searchable knowledge base.</div>
     </div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <input type="text" id="tx-search" placeholder="🔍 Search transcripts…" oninput="searchTranscriptions()"
+      <input type="text" id="tx-search" placeholder="Search transcripts…" oninput="searchTranscriptions()"
         style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 14px;font-size:13px;font-family:var(--font);outline:none;width:220px"
         onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
       <select id="tx-tag-filter" onchange="filterTranscriptionsByTag()"
@@ -1574,14 +1574,14 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
     <!-- RIGHT: Drop + form -->
     <div style="position:sticky;top:20px">
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px">
-        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px">➕ New Transcription</div>
+        <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px"><i class="pc-i" data-i="plus"></i> New Transcription</div>
 
         <!-- Drop zone -->
         <div id="tx-drop-zone"
           style="border:2px dashed var(--border);border-radius:10px;padding:28px 20px;text-align:center;cursor:pointer;margin-bottom:14px;transition:all 0.2s"
           ondragover="txDragOver(event)" ondragleave="txDragLeave()" ondrop="txDrop(event)"
           onclick="document.getElementById('tx-file-input').click()">
-          <div style="font-size:26px;margin-bottom:6px">🎬</div>
+          <div style="font-size:26px;margin-bottom:6px"><i class="pc-i" data-i="clapperboard"></i></div>
           <div style="font-size:13px;color:var(--text);font-weight:600">Drop any video or audio</div>
           <div style="font-size:11px;color:var(--text-dim);margin-top:4px">MP4 · MOV · MP3 · WAV · M4A · WEBM</div>
         </div>
@@ -1590,7 +1590,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
 
         <!-- Selected file indicator -->
         <div id="tx-file-indicator" style="display:none;font-size:11px;background:color-mix(in srgb, var(--orange) 8%, transparent);border:1px solid color-mix(in srgb, var(--orange) 20%, transparent);border-radius:6px;padding:6px 10px;margin-bottom:12px;color:var(--accent)">
-          📎 <span id="tx-file-name"></span>
+          <i class="pc-i" data-i="paperclip"></i> <span id="tx-file-name"></span>
         </div>
 
         <!-- Form fields -->
@@ -1634,7 +1634,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
         <!-- Submit -->
         <button id="tx-submit-btn" onclick="submitTranscription()" disabled
           style="width:100%;margin-top:14px;background:linear-gradient(135deg,var(--accent),var(--orange-hi));color:var(--text-pri);border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;opacity:0.5">
-          📝 Transcribe
+          <i class="pc-i" data-i="notebook-pen"></i> Transcribe
         </button>
         <div id="tx-submit-status" style="display:none;font-size:11px;text-align:center;color:var(--accent);margin-top:8px"></div>
       </div>
@@ -1651,7 +1651,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
   <!-- Header row -->
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
     <div>
-      <div style="font-size:18px;font-weight:800;color:var(--text)">🎙️ Guest CRM</div>
+      <div style="font-size:18px;font-weight:800;color:var(--text)"><i class="pc-i" data-i="mic"></i> Guest CRM</div>
       <div style="font-size:12px;color:var(--text-dim);margin-top:3px">Track guests, manage episode links, and auto-send asset launch emails after episodes air.</div>
     </div>
     <button class="btn" onclick="openGuestModal(null)"
@@ -1670,7 +1670,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
 
   <!-- Empty state -->
   <div id="guests-empty" style="display:none;text-align:center;padding:60px 20px;color:var(--text-dim)">
-    <div style="font-size:40px;margin-bottom:12px">🎙️</div>
+    <div style="font-size:40px;margin-bottom:12px"><i class="pc-i" data-i="mic"></i></div>
     <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">No guests yet</div>
     <div style="font-size:13px;margin-bottom:20px">Add your first guest or booked interview.</div>
     <button class="btn" onclick="openGuestModal(null)"
@@ -1688,7 +1688,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
     <!-- Header -->
     <div class="lib-modal-header">
       <div>
-        <div id="lib-modal-title" style="font-size:15px;font-weight:700;color:var(--text)">📚 Library</div>
+        <div id="lib-modal-title" style="font-size:15px;font-weight:700;color:var(--text)"><i class="pc-i" data-i="library"></i> Library</div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Saved bumper files — click Use to load into the slot</div>
       </div>
       <button class="lib-modal-close" onclick="closeLibrary()">×</button>
@@ -1696,7 +1696,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
 
     <!-- Items list -->
     <div class="lib-items" id="lib-items">
-      <div class="lib-empty"><div class="lib-empty-icon">📭</div>No saved files yet — add one below.</div>
+      <div class="lib-empty"><div class="lib-empty-icon"><i class="pc-i" data-i="inbox"></i></div>No saved files yet — add one below.</div>
     </div>
 
     <!-- Upload footer -->
@@ -1708,11 +1708,11 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
           onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
         <button onclick="libPickFile()"
           style="background:var(--surface3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 12px;font-size:12px;cursor:pointer;font-family:var(--font);white-space:nowrap">
-          📁 File
+          <i class="pc-i" data-i="folder"></i> File
         </button>
         <button onclick="libUpload()"
           style="background:var(--accent);color:var(--bg);border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap">
-          Save ✓
+          Save <i class="pc-i" data-i="check"></i>
         </button>
       </div>
       <div id="lib-upload-status" style="font-size:11px;color:var(--text-dim);margin-top:6px;min-height:16px"></div>
@@ -1735,16 +1735,16 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
       <!-- Extract from URL or Text -->
       <div style="background:color-mix(in srgb, var(--orange-hi) 6%, transparent);border:1px solid color-mix(in srgb, var(--orange-hi) 20%, transparent);border-radius:10px;padding:12px 14px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div style="font-size:11px;font-weight:700;color:var(--orange-hi);text-transform:uppercase;letter-spacing:0.5px">⚡ Auto-fill from Link or Text</div>
+          <div style="font-size:11px;font-weight:700;color:var(--orange-hi);text-transform:uppercase;letter-spacing:0.5px"><i class="pc-i" data-i="zap"></i> Auto-fill from Link or Text</div>
           <!-- Mode toggle -->
           <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px">
             <button id="g-extract-mode-url" onclick="setExtractMode('url')"
               style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:4px;border:none;cursor:pointer;background:var(--grad);color:var(--text-pri);transition:all .15s">
-              🔗 URL
+              <i class="pc-i" data-i="link"></i> URL
             </button>
             <button id="g-extract-mode-text" onclick="setExtractMode('text')"
               style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:4px;border:none;cursor:pointer;background:transparent;color:var(--text-dim);transition:all .15s">
-              📋 Paste Text
+              <i class="pc-i" data-i="clipboard-list"></i> Paste Text
             </button>
           </div>
         </div>
@@ -1874,7 +1874,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
           <input type="url" id="g-apple-url" placeholder="Apple Podcasts episode URL"
             style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;font-size:12px;font-family:var(--font);outline:none"
             onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
-          <input type="url" id="g-drive-url" placeholder="📁 Google Drive assets folder URL (audio, video, poster, clips)"
+          <input type="url" id="g-drive-url" placeholder="Google Drive assets folder URL (audio, video, poster, clips)"
             style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;font-size:12px;font-family:var(--font);outline:none"
             onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
         </div>
@@ -1909,7 +1909,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
     <!-- Header -->
     <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
       <div>
-        <div style="font-size:15px;font-weight:700;color:var(--text)">📦 Asset Launch Email</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text)"><i class="pc-i" data-i="package"></i> Asset Launch Email</div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:2px" id="asset-launch-subtitle">Send your guest everything they need to promote</div>
       </div>
       <button onclick="closeAssetLaunch()" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;line-height:1;padding:0 4px">×</button>
@@ -1917,7 +1917,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
 
     <!-- Drive link input -->
     <div style="padding:14px 22px;background:var(--surface2);border-bottom:1px solid var(--border)">
-      <label style="font-size:11px;font-weight:700;color:var(--text-dim);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">📁 Google Drive Assets Folder URL</label>
+      <label style="font-size:11px;font-weight:700;color:var(--text-dim);display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px"><i class="pc-i" data-i="folder"></i> Google Drive Assets Folder URL</label>
       <div style="display:flex;gap:8px">
         <input type="url" id="asset-drive-url" placeholder="Paste your Google Drive folder link here…"
           style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 11px;font-size:13px;font-family:var(--font);outline:none"
@@ -1933,7 +1933,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
     <!-- Body -->
     <div style="padding:18px 22px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px">
       <div id="asset-launch-loading" style="text-align:center;padding:30px;color:var(--text-dim)">
-        <div style="font-size:28px;margin-bottom:10px">📦</div>
+        <div style="font-size:28px;margin-bottom:10px"><i class="pc-i" data-i="package"></i></div>
         <div>Generating asset launch email with GPT-4o…</div>
       </div>
       <textarea id="asset-launch-text" rows="18" style="display:none;width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:12px;font-size:13px;font-family:var(--font);line-height:1.6;outline:none;resize:vertical"
@@ -1951,15 +1951,15 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
         </button>
         <button onclick="createDriveFolder()" id="drive-create-btn"
           style="background:var(--surface3);border:1px solid color-mix(in srgb, var(--green-hi) 40%, transparent);color:var(--green-hi);border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)">
-          📁 Create Drive Folder
+          <i class="pc-i" data-i="folder"></i> Create Drive Folder
         </button>
         <button onclick="openMailtoAsset()"
           style="background:var(--surface3);border:1px solid var(--border-lit);color:var(--text);border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)">
-          ✉️ Open in Gmail
+          <i class="pc-i" data-i="mail"></i> Open in Gmail
         </button>
         <button onclick="copyAssetEmail()"
           style="background:var(--grad);border:none;color:var(--text-pri);border-radius:8px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)" id="asset-copy-btn">
-          📋 Copy Email
+          <i class="pc-i" data-i="clipboard-list"></i> Copy Email
         </button>
       </div>
     </div>
@@ -1974,7 +1974,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
   <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;width:90%;max-width:560px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column">
     <!-- Header -->
     <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:15px;font-weight:700;color:var(--text)">🎬 Upload to YouTube</div>
+      <div style="font-size:15px;font-weight:700;color:var(--text)"><i class="pc-i" data-i="clapperboard"></i> Upload to YouTube</div>
       <button onclick="closeYouTubeUploadModal()" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;line-height:1;padding:0 4px">×</button>
     </div>
     <!-- Body -->
@@ -2011,9 +2011,9 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
           <label style="font-size:11px;font-weight:700;color:var(--text-dim);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.5px">Privacy</label>
           <select id="yt-privacy"
             style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px 12px;font-size:13px;font-family:var(--font);outline:none;cursor:pointer">
-            <option value="private">🔒 Private (review before publish)</option>
-            <option value="unlisted">🔗 Unlisted (shareable link)</option>
-            <option value="public">🌍 Public (live immediately)</option>
+            <option value="private">Private (review before publish)</option>
+            <option value="unlisted">Unlisted (shareable link)</option>
+            <option value="public">Public (live immediately)</option>
           </select>
         </div>
         <!-- Category -->
@@ -2040,7 +2040,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
             <input type="radio" name="yt-upload-type" value="full" id="yt-type-full" checked onchange="onYtTypeChange()"
               style="accent-color:var(--accent)">
             <div>
-              <div style="font-size:12px;font-weight:600;color:var(--text)">🎙️ Full Episode</div>
+              <div style="font-size:12px;font-weight:600;color:var(--text)"><i class="pc-i" data-i="mic"></i> Full Episode</div>
               <div style="font-size:10px;color:var(--text-dim)">Landscape 16:9 video</div>
             </div>
           </label>
@@ -2049,7 +2049,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
             <input type="radio" name="yt-upload-type" value="short" id="yt-type-short" onchange="onYtTypeChange()"
               style="accent-color:var(--accent)">
             <div>
-              <div style="font-size:12px;font-weight:600;color:var(--text)">⚡ YouTube Short</div>
+              <div style="font-size:12px;font-weight:600;color:var(--text)"><i class="pc-i" data-i="zap"></i> YouTube Short</div>
               <div style="font-size:10px;color:var(--text-dim)">Vertical 9:16 clip (#Shorts)</div>
             </div>
           </label>
@@ -2058,10 +2058,10 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
 
       <!-- Status/progress -->
       <div id="yt-upload-status" style="display:none;font-size:12px;color:var(--accent);padding:10px 14px;background:color-mix(in srgb, var(--orange) 6%, transparent);border-radius:8px;border:1px solid color-mix(in srgb, var(--orange) 20%, transparent)">
-        ⏳ Uploading…
+        <i class="pc-i" data-i="hourglass"></i> Uploading…
       </div>
       <div id="yt-upload-success" style="display:none;font-size:12px;padding:10px 14px;background:color-mix(in srgb, var(--green-hi) 8%, transparent);border-radius:8px;border:1px solid color-mix(in srgb, var(--green-hi) 30%, transparent);color:var(--green-hi)">
-        ✅ Uploaded! <a id="yt-video-link" href="#" target="_blank" style="color:var(--accent);text-decoration:none;margin-left:8px">View on YouTube ↗</a>
+        <i class="pc-i" data-i="circle-check"></i> Uploaded! <a id="yt-video-link" href="#" target="_blank" style="color:var(--accent);text-decoration:none;margin-left:8px">View on YouTube <i class="pc-i" data-i="arrow-up-right"></i></a>
       </div>
       <div id="yt-upload-error" style="display:none;font-size:12px;padding:10px 14px;background:color-mix(in srgb, var(--red) 8%, transparent);border-radius:8px;border:1px solid color-mix(in srgb, var(--red) 30%, transparent);color:var(--red)"></div>
     </div>
@@ -2074,7 +2074,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
       </button>
       <button id="yt-submit-btn" onclick="submitYouTubeUpload()"
         style="background:linear-gradient(135deg,var(--brand-youtube),var(--brand-youtube-dk));color:var(--text-pri);border:none;border-radius:8px;padding:9px 24px;font-size:13px;font-weight:700;cursor:pointer">
-        🎬 Upload to YouTube
+        <i class="pc-i" data-i="clapperboard"></i> Upload to YouTube
       </button>
     </div>
   </div>
@@ -2207,7 +2207,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
     <!-- Header -->
     <div style="padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
       <div>
-        <div style="font-size:15px;font-weight:700;color:var(--text)" id="outreach-modal-title">📧 Outreach Email</div>
+        <div style="font-size:15px;font-weight:700;color:var(--text)" id="outreach-modal-title"><i class="pc-i" data-i="mail"></i> Outreach Email</div>
         <div style="font-size:11px;color:var(--text-dim);margin-top:2px">GPT-4o generated cold pitch — edit before sending</div>
       </div>
       <button onclick="closeOutreachModal()" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;line-height:1;padding:0 4px">×</button>
@@ -2215,7 +2215,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
     <!-- Body -->
     <div style="padding:18px 22px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px">
       <div id="outreach-loading" style="text-align:center;padding:30px;color:var(--text-dim)">
-        <div style="font-size:28px;margin-bottom:10px">✉️</div>
+        <div style="font-size:28px;margin-bottom:10px"><i class="pc-i" data-i="mail"></i></div>
         <div>Generating outreach email with GPT-4o…</div>
       </div>
       <textarea id="outreach-text" rows="18" style="display:none;width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:12px;font-size:13px;font-family:var(--font);line-height:1.6;outline:none;resize:vertical"
@@ -2230,7 +2230,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
       </button>
       <button onclick="copyOutreach()"
         style="background:var(--grad);border:none;color:var(--text-pri);border-radius:8px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)" id="outreach-copy-btn">
-        📋 Copy Email
+        <i class="pc-i" data-i="clipboard-list"></i> Copy Email
       </button>
     </div>
   </div>
@@ -2532,11 +2532,11 @@ function renderSlot(type) {
       if (type !== "main" && dur > BUMPER_WARN_SECS) {
         el.style.color = "var(--red)";
         el.style.fontWeight = "600";
-        el.textContent = `⚠️ ${fmtDur(dur)} — unusually long for ${type}`;
+        el.textContent = `${fmtDur(dur)} — unusually long for ${type}`;
         // Also flash the slot border red
         const slotBorder = document.getElementById(`slot-${type}`);
         slotBorder.style.borderColor = "var(--red)";
-        slotBorder.title = `⚠️ This ${type} file is ${fmtDur(dur)} — is that correct?`;
+        slotBorder.title = `This ${type} file is ${fmtDur(dur)} — is that correct?`;
       }
     });
   });
@@ -2633,7 +2633,7 @@ function updateSteps(step) {
     const done   = i < idx || (i === idx && ["transcribed","audio_done","content_done"].includes(step));
     const active = i === idx && !done;
     icon.className   = `step-num ${done ? "done" : active ? "active" : step === "error" && i === idx ? "error" : "pending"}`;
-    icon.textContent = done ? "✓" : active ? "↻" : String(i + 1);
+    icon.innerHTML = done ? "<i class=pc-i data-i=check></i>" : active ? "↻" : String(i + 1);
     el.className     = `step ${done ? "done" : active ? "active" : ""}`;
   });
 }
@@ -2746,7 +2746,7 @@ function onJobReady(job) {
   STEP_ORDER.forEach(s => {
     const icon = document.getElementById(`icon-${s}`);
     icon.className = "step-num done";
-    icon.textContent = "✓";
+    icon.innerHTML = "<i class=pc-i data-i=check></i>";
     document.getElementById(`step-${s}`).className = "step done";
   });
 
@@ -2852,7 +2852,7 @@ function onJobReady(job) {
 document.getElementById("upload-btn").addEventListener("click", async () => {
   if (!currentJobId) return;
   document.getElementById("upload-btn").disabled = true;
-  document.getElementById("upload-btn").textContent = "⏫ Uploading to Buzzsprout…";
+  document.getElementById("upload-btn").innerHTML = "<i class=pc-i data-i=upload></i> Uploading to Buzzsprout…";
   document.getElementById("upload-error").style.display = "none";
   document.getElementById("upload-assistant").style.display = "none";
   setHeaderStatus("Uploading…", true);
@@ -2879,7 +2879,7 @@ document.getElementById("upload-btn").addEventListener("click", async () => {
 function onUploadSuccess() {
   document.getElementById("upload-success").style.display = "block";
   document.getElementById("upload-btn").disabled = true;
-  document.getElementById("upload-btn").textContent = "Published ✓";
+  document.getElementById("upload-btn").innerHTML = "Published <i class=pc-i data-i=check></i>";
   setHeaderStatus("Published!");
   addLog("Episode published to Spotify!", "ok");
   loadHistory();
@@ -2897,7 +2897,7 @@ async function regenerateTimestamps() {
   if (!currentJobId) return;
   const btn  = document.getElementById("timestamps-btn");
   const desc = document.getElementById("ep-desc");
-  btn.textContent = "⏱ Generating…";
+  btn.innerHTML = "<i class=pc-i data-i=timer></i> Generating…";
   btn.disabled    = true;
 
   try {
@@ -2923,11 +2923,11 @@ async function regenerateTimestamps() {
         desc.value = block + "\n\n" + current;
       }
     }
-    addLog("✓ Chapter timestamps updated in description", "ok");
+    addLog("Chapter timestamps updated in description", "ok");
   } catch (e) {
     addLog(`Timestamps error: ${e.message}`, "warn");
   } finally {
-    btn.textContent = "⏱ Regenerate Timestamps";
+    btn.innerHTML = "<i class=pc-i data-i=timer></i> Regenerate Timestamps";
     btn.disabled    = false;
   }
 }
@@ -2964,13 +2964,13 @@ async function loadHistory() {
         <div class="meta">${ep.fillers_removed ?? 0} fillers · ${(ep.duration_saved ?? 0).toFixed(1)}s saved</div>
       </div>
       <div style="display:flex;gap:6px;align-items:center;margin-left:auto;flex-shrink:0">
-        ${ep.spotify_url ? `<a class="ep-link" href="${ep.spotify_url}" target="_blank">View ↗</a>` : ""}
+        ${ep.spotify_url ? `<a class="ep-link" href="${ep.spotify_url}" target="_blank">View <i class=pc-i data-i=arrow-up-right></i></a>` : ""}
         <button onclick="deleteEpisode('${ep.job_id}', this)"
           title="Delete from history"
           style="background:none;border:none;color:var(--text-dim);font-size:14px;cursor:pointer;
                  padding:2px 5px;border-radius:4px;line-height:1;opacity:0.5;transition:opacity 0.15s"
           onmouseover="this.style.opacity='1';this.style.color='var(--red)'"
-          onmouseout="this.style.opacity='0.5';this.style.color='var(--text-dim)'">🗑</button>
+          onmouseout="this.style.opacity='0.5';this.style.color='var(--text-dim)'"><i class=pc-i data-i=trash-2></i></button>
       </div>
     `;
     list.appendChild(div);
@@ -3035,9 +3035,9 @@ function checkStep(n) {
   const isDone = !stepEl.classList.contains("done");
   stepEl.classList.toggle("done", isDone);
 
-  // Update the ✓ button content for visual clarity
+  // Update the <i class=pc-i data-i=check></i> button content for visual clarity
   const checkBtn = stepEl.querySelector(".assist-check");
-  checkBtn.textContent = isDone ? "✓" : "✓";
+  checkBtn.innerHTML = isDone ? "<i class=pc-i data-i=check></i>" : "<i class=pc-i data-i=check></i>";
 
   // When step 6 is completed, reveal the "Mark as Published" button
   if (n === 6) {
@@ -3052,7 +3052,7 @@ function copyText(fieldId, btnId) {
   const orig = span.textContent;
 
   navigator.clipboard.writeText(text).then(() => {
-    span.textContent = "✓ Copied!";
+    span.innerHTML = "<i class=pc-i data-i=check></i> Copied!";
     span.parentElement.classList.add("copied");
     setTimeout(() => {
       span.textContent = orig;
@@ -3062,7 +3062,7 @@ function copyText(fieldId, btnId) {
     // Fallback: select the field for manual copy
     if (el.select) { el.select(); }
     try { document.execCommand("copy"); } catch(e) {}
-    span.textContent = "✓ Copied!";
+    span.innerHTML = "<i class=pc-i data-i=check></i> Copied!";
     setTimeout(() => { span.textContent = orig; }, 2200);
   });
 }
@@ -3071,7 +3071,7 @@ function copyEpNum() {
   const num  = document.getElementById("ep-num").value;
   const span = document.getElementById("copy-epnum");
   navigator.clipboard.writeText(num).then(() => {
-    span.textContent = "✓ Copied!";
+    span.innerHTML = "<i class=pc-i data-i=check></i> Copied!";
     setTimeout(() => { span.textContent = "Copy Number"; }, 2200);
   });
 }
@@ -3098,7 +3098,7 @@ async function assistantDone() {
 
   document.getElementById("upload-assistant").style.display = "none";
   document.getElementById("upload-success").style.display   = "block";
-  setHeaderStatus("Published! 🎉");
+  setHeaderStatus("Published! ");
   addLog("Episode marked as published and saved to history.", "ok");
   loadHistory();
 }
@@ -3143,7 +3143,7 @@ function showRestoreBanner() {
     align-items: center; justify-content: space-between; gap: 12px;
   `;
   banner.innerHTML = `
-    <span>⚠️ <strong>Previous session files restored.</strong> Make sure these are the correct files before processing.</span>
+    <span><i class=pc-i data-i=triangle-alert></i> <strong>Previous session files restored.</strong> Make sure these are the correct files before processing.</span>
     <div style="display:flex;gap:8px;flex-shrink:0">
       <button onclick="clearAllFiles()" style="background:var(--red);color:var(--text-pri);border:none;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer">Clear All</button>
       <button onclick="document.getElementById('restore-banner').remove()" style="background:transparent;color:var(--red);border:1px solid var(--red);border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer">Keep Files</button>
@@ -3243,7 +3243,7 @@ async function confirmSchedule() {
   const ts  = new Date(dt).getTime() / 1000;
   const btn = document.getElementById("schedule-btn");
   btn.disabled    = true;
-  btn.textContent = "📅 Scheduling…";
+  btn.innerHTML = "<i class=pc-i data-i=calendar></i> Scheduling…";
   document.getElementById("schedule-picker").style.display = "none";
 
   const res  = await fetch("/api/schedule", {
@@ -3261,7 +3261,7 @@ async function confirmSchedule() {
   const data = await res.json();
   if (data.error) {
     btn.disabled    = false;
-    btn.textContent = "📅 Schedule Release";
+    btn.innerHTML = "<i class=pc-i data-i=calendar></i> Schedule Release";
     document.getElementById("upload-error").style.display  = "block";
     document.getElementById("upload-error").textContent    = `Schedule failed: ${data.error}`;
   } else {
@@ -3288,7 +3288,7 @@ function _pollUntilScheduled(jobId) {
         stopTimer();
         const btn = document.getElementById("schedule-btn");
         btn.disabled    = false;
-        btn.textContent = "📅 Schedule Release";
+        btn.innerHTML = "<i class=pc-i data-i=calendar></i> Schedule Release";
         document.getElementById("upload-error").textContent = `Schedule failed: ${j.error}`;
         document.getElementById("upload-error").style.display = "block";
       }
@@ -3298,7 +3298,7 @@ function _pollUntilScheduled(jobId) {
 
 function onScheduleSuccess() {
   document.getElementById("schedule-success").style.display = "block";
-  document.getElementById("schedule-btn").textContent       = "📅 Scheduled ✓";
+  document.getElementById("schedule-btn").innerHTML       = "<i class=pc-i data-i=calendar></i> Scheduled <i class=pc-i data-i=check></i>";
   document.getElementById("upload-btn").disabled            = true;
   document.getElementById("schedule-btn").disabled          = true;
   setHeaderStatus("Scheduled!");
@@ -3345,7 +3345,7 @@ function renderQueueEntry(entry) {
       <button class="sponsor-btn" data-queue-action="reschedule" data-entry-id="${esc(entry.entry_id)}">Reschedule</button>
       <button class="sponsor-btn" data-queue-action="cancel" data-entry-id="${esc(entry.entry_id)}">Remove</button>
     </div>` : ""}</div>
-    <div class="studio-queue-destinations"><p><span>Audio</span> ${esc(audioLabel)}</p><p><span>Video</span> ${videoUrl ? `<a href="${esc(videoUrl)}" target="_blank" rel="noopener noreferrer">View on YouTube ↗</a>` : "No YouTube link"}</p></div>
+    <div class="studio-queue-destinations"><p><span>Audio</span> ${esc(audioLabel)}</p><p><span>Video</span> ${videoUrl ? `<a href="${esc(videoUrl)}" target="_blank" rel="noopener noreferrer">View on YouTube <i class=pc-i data-i=arrow-up-right></i></a>` : "No YouTube link"}</p></div>
     ${retryNote}${failureNote}
     ${status === "failed" ? '<p class="studio-queue-notice is-error">Automatic attempts have stopped. Check the error, then retry or choose a new release time.</p>' : ""}
   </article>`;
@@ -3445,11 +3445,11 @@ async function checkTikTokStatus() {
     const data = await fetch("/api/tiktok/status").then(r => r.json());
     const badge = document.getElementById("tiktok-badge");
     if (data.authorized) {
-      badge.textContent = "✅ TikTok Connected";
+      badge.innerHTML = "<i class=pc-i data-i=circle-check></i> TikTok Connected";
       badge.className   = "tiktok-status-badge connected";
       badge.onclick     = null;
     } else {
-      badge.textContent = "⚡ Connect TikTok";
+      badge.innerHTML = "<i class=pc-i data-i=zap></i> Connect TikTok";
       badge.className   = "tiktok-status-badge disconnected";
       badge.onclick     = connectTikTok;
     }
@@ -3581,7 +3581,7 @@ function updateClipSteps(step) {
     const done   = i < idx || (i === idx && ["transcribed","done"].includes(step));
     const active = i === idx && !done;
     icon.className   = `step-num ${done?"done":active?"active":"pending"}`;
-    icon.textContent = done ? "✓" : active ? "↻" : String(i+1);
+    icon.innerHTML = done ? "<i class=pc-i data-i=check></i>" : active ? "↻" : String(i+1);
     el.className     = `step ${done?"done":active?"active":""}`;
   });
 }
@@ -3620,13 +3620,13 @@ function showClips(clips) {
       <div style="font-size:11px;color:var(--text-dim);line-height:1.5;margin-bottom:10px;max-height:48px;overflow:hidden">${clip.transcript.slice(0,180)}…</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" style="background:var(--surface3);color:var(--text);padding:6px 14px;font-size:12px"
-          onclick="toggleClipPreview(${clip.index})" id="clip-prev-btn-${clip.index}">▶ Preview</button>
+          onclick="toggleClipPreview(${clip.index})" id="clip-prev-btn-${clip.index}"><i class=pc-i data-i=play></i> Preview</button>
         <button class="btn" style="background:var(--accent);color:var(--bg);padding:6px 14px;font-size:12px;flex:1"
-          onclick="postClip(${clip.index - 1})">📤 Post to TikTok</button>
+          onclick="postClip(${clip.index - 1})"><i class=pc-i data-i=send></i> Post to TikTok</button>
         <button class="btn" id="clip-yt-btn-${clip.index}" style="background:linear-gradient(135deg,var(--brand-youtube),var(--brand-youtube-dk));color:var(--text-pri);padding:6px 14px;font-size:12px;display:none"
-          onclick="uploadClipToYouTube(${clip.index - 1})">▶ YouTube Short</button>
+          onclick="uploadClipToYouTube(${clip.index - 1})"><i class=pc-i data-i=play></i> YouTube Short</button>
         <button class="btn" style="background:var(--surface3);color:var(--text);padding:6px 14px;font-size:12px"
-          onclick="scheduleClip(${clip.index - 1})">🗓 Schedule</button>
+          onclick="scheduleClip(${clip.index - 1})"><i class=pc-i data-i=calendar-days></i> Schedule</button>
       </div>
     `;
     list.appendChild(div);
@@ -3640,7 +3640,7 @@ function toggleClipPreview(clipIndex) {
   if (!wrap) return;
   const showing = wrap.style.display !== 'none';
   wrap.style.display = showing ? 'none' : 'block';
-  btn.textContent = showing ? '▶ Preview' : '⏹ Hide';
+  btn.innerHTML = showing ? '<i class=pc-i data-i=play></i> Preview' : '<i class=pc-i data-i=square></i> Hide';
   if (!showing) {
     vid.play().catch(() => {});
   } else {
@@ -3663,7 +3663,7 @@ async function postClip(idx) {
     if (statusEl) { statusEl.textContent = "Not connected"; statusEl.style.color = "var(--red)"; }
     if (confirm("TikTok not connected. Connect now?")) connectTikTok();
   } else {
-    if (statusEl) { statusEl.textContent = "✓ Posted!"; statusEl.style.color = "var(--accent)"; }
+    if (statusEl) { statusEl.textContent = "Posted!"; statusEl.style.color = "var(--accent)"; }
   }
 }
 
@@ -3690,6 +3690,7 @@ let _profiles     = [];
 let _activeId     = null;
 let _editingId    = null;   // which profile is currently in the editor
 
+/* keep emoji: default episode-description footer is user content, not UI chrome */
 const DEFAULT_FOOTER_TEXT = `---
 📚 Book: "The Real Estate Brain" by JP Fluellen
 🐼 Panda Dash CRM (Lifetime Access): https://get.pandadash.io/panda4life
@@ -3850,7 +3851,7 @@ function updateProfilePill() {
   if (!_activeId) { pill.style.display = "none"; return; }
   const profile = _profiles.find(p => p.id === _activeId);
   if (profile) {
-    pill.textContent = `🎙️ ${profile.name}`;
+    pill.textContent = `${profile.name}`;
     pill.style.display = "inline";
   } else {
     pill.style.display = "none";
@@ -3873,9 +3874,9 @@ let _libPickedFile  = null;   // File object staged for upload
 
 function openLibrary(type) {
   _libCurrentType = type;
-  const icons = { intro: "🎵", commercial: "📢", outro: "🎬" };
+  const icons = { intro: "<i class=pc-i data-i=music></i>", commercial: "<i class=pc-i data-i=megaphone></i>", outro: "<i class=pc-i data-i=clapperboard></i>" };
   const labels = { intro: "Intro", commercial: "Commercial / Ad", outro: "Outro" };
-  document.getElementById("lib-modal-title").textContent = `${icons[type] || "📚"} ${labels[type] || type} Library`;
+  document.getElementById("lib-modal-title").innerHTML = `${icons[type] || "<i class=pc-i data-i=library></i>"} ${studioEscapeHtml(labels[type] || type)} Library`;
   document.getElementById("lib-upload-label").value = "";
   document.getElementById("lib-upload-status").textContent = "";
   _libPickedFile = null;
@@ -3908,14 +3909,14 @@ async function _libLoadItems() {
     const items = await fetch(`/api/library?slot_type=${_libCurrentType}`).then(r => r.json());
     _libRenderItems(items);
   } catch(e) {
-    container.innerHTML = `<div class="lib-empty"><div class="lib-empty-icon">⚠️</div>Could not load library.</div>`;
+    container.innerHTML = `<div class="lib-empty"><div class="lib-empty-icon"><i class=pc-i data-i=triangle-alert></i></div>Could not load library.</div>`;
   }
 }
 
 function _libRenderItems(items) {
   const container = document.getElementById("lib-items");
   if (!items || items.length === 0) {
-    container.innerHTML = `<div class="lib-empty"><div class="lib-empty-icon">📭</div>No saved ${_libCurrentType} files yet.<br><span style="font-size:11px">Add one using the form below.</span></div>`;
+    container.innerHTML = `<div class="lib-empty"><div class="lib-empty-icon"><i class=pc-i data-i=inbox></i></div>No saved ${_libCurrentType} files yet.<br><span style="font-size:11px">Add one using the form below.</span></div>`;
     return;
   }
   container.innerHTML = "";
@@ -3925,7 +3926,7 @@ function _libRenderItems(items) {
     div.className = "lib-item";
     div.id = `libitem-${item.id}`;
     div.innerHTML = `
-      <div style="font-size:22px;flex-shrink:0">🎵</div>
+      <div style="font-size:22px;flex-shrink:0"><i class=pc-i data-i=music></i></div>
       <div class="lib-item-info">
         <div class="lib-item-name" title="${item.label}">${item.label}</div>
         <div class="lib-item-meta">${item.filename || item.original_filename || ""} · ${fmtSize(item.size || item.file_size || 0)}</div>
@@ -3934,7 +3935,7 @@ function _libRenderItems(items) {
       </div>
       <div class="lib-item-actions">
         <button class="lib-use-btn" onclick="useLibraryItem('${item.id}', '${item.slot_type}')">Use</button>
-        <button class="lib-del-btn" onclick="deleteLibraryItem('${item.id}')">✕</button>
+        <button class="lib-del-btn" onclick="deleteLibraryItem('${item.id}')"><i class=pc-i data-i=x></i></button>
       </div>
     `;
     container.appendChild(div);
@@ -3986,7 +3987,7 @@ function libFileChosen(evt) {
   if (!file) return;
   _libPickedFile = file;
   const status = document.getElementById("lib-upload-status");
-  status.textContent = `📎 ${file.name} (${fmtSize(file.size)}) — ready to save`;
+  status.textContent = `${file.name} (${fmtSize(file.size)}) — ready to save`;
   status.style.color = "var(--accent)";
   evt.target.value = "";
   // Auto-fill label if empty
@@ -4001,12 +4002,12 @@ async function libUpload() {
   const status = document.getElementById("lib-upload-status");
 
   if (!_libPickedFile) {
-    status.textContent = "⚠️ Pick a file first (📁 File button)";
+    status.innerHTML = "<i class=pc-i data-i=triangle-alert></i> Pick a file first (<i class=pc-i data-i=folder></i> File button)";
     status.style.color = "var(--red)";
     return;
   }
   if (!label) {
-    status.textContent = "⚠️ Enter a label to identify this file";
+    status.innerHTML = "<i class=pc-i data-i=triangle-alert></i> Enter a label to identify this file";
     status.style.color = "var(--red)";
     return;
   }
@@ -4024,14 +4025,14 @@ async function libUpload() {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    status.textContent = "✓ Saved to library!";
+    status.innerHTML = "<i class=pc-i data-i=check></i> Saved to library!";
     status.style.color = "var(--accent)";
     _libPickedFile = null;
     document.getElementById("lib-upload-label").value = "";
     setTimeout(() => { status.textContent = ""; }, 2500);
     _libLoadItems();   // refresh list
   } catch(e) {
-    status.textContent = `✗ ${e.message}`;
+    status.textContent = `${e.message}`;
     status.style.color = "var(--red)";
   }
 }
@@ -4075,7 +4076,7 @@ function renderSponsors() {
   }
   empty.style.display = "none";
 
-  const nicheEmoji = { ai:"🤖", "real-estate":"🏠", finance:"💰", health:"💊", other:"🏷️" };
+  const nicheEmoji = { ai:"<i class=pc-i data-i=bot></i>", "real-estate":"<i class=pc-i data-i=house></i>", finance:"<i class=pc-i data-i=circle-dollar-sign></i>", health:"<i class=pc-i data-i=pill></i>", other:"<i class=pc-i data-i=tag></i>" };
   const statusLabel = { prospect:"Prospect", active:"Active", paused:"Paused", closed:"Closed" };
 
   list.innerHTML = filtered.map(s => {
@@ -4084,7 +4085,7 @@ function renderSponsors() {
     const rateStr = s.rate ? `$${s.rate}${s.rate_type === "cpm" ? " CPM" : s.rate_type === "affiliate" ? "%" : "/ep"}` : "";
     return `
     <div class="sponsor-card" style="margin-bottom:10px">
-      <div class="sponsor-logo-placeholder">${nicheEmoji[s.niche] || "🏷️"}</div>
+      <div class="sponsor-logo-placeholder">${nicheEmoji[s.niche] || "<i class=pc-i data-i=tag></i>"}</div>
       <div class="sponsor-info">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span class="sponsor-name">${s.company}</span>
@@ -4092,19 +4093,19 @@ function renderSponsors() {
           <span class="status-badge status-${s.status || "prospect"}">${statusLabel[s.status] || "Prospect"}</span>
         </div>
         <div class="sponsor-meta">
-          ${s.contact_name ? `<span>👤 ${s.contact_name}</span>` : ""}
-          ${rateStr ? `<span>💵 ${rateStr}</span>` : ""}
-          ${s.commission ? `<span>🔗 ${s.commission}% commission</span>` : ""}
-          <span>📺 ${ep} episode${ep !== 1 ? "s" : ""}</span>
-          <span>💰 ${earned} earned</span>
+          ${s.contact_name ? `<span><i class=pc-i data-i=user></i> ${s.contact_name}</span>` : ""}
+          ${rateStr ? `<span><i class=pc-i data-i=banknote></i> ${rateStr}</span>` : ""}
+          ${s.commission ? `<span><i class=pc-i data-i=link></i> ${s.commission}% commission</span>` : ""}
+          <span><i class=pc-i data-i=tv></i> ${ep} episode${ep !== 1 ? "s" : ""}</span>
+          <span><i class=pc-i data-i=circle-dollar-sign></i> ${earned} earned</span>
         </div>
-        ${s.affiliate_url ? `<div style="margin-top:5px;font-size:11px"><a href="${s.affiliate_url}" target="_blank" style="color:var(--accent);text-decoration:none">🔗 ${s.affiliate_url.replace(/^https?:\/\//,"").slice(0,48)}</a></div>` : ""}
+        ${s.affiliate_url ? `<div style="margin-top:5px;font-size:11px"><a href="${s.affiliate_url}" target="_blank" style="color:var(--accent);text-decoration:none"><i class=pc-i data-i=link></i> ${s.affiliate_url.replace(/^https?:\/\//,"").slice(0,48)}</a></div>` : ""}
         ${s.notes ? `<div style="margin-top:5px;font-size:11px;color:var(--text-dim)">${s.notes.slice(0,100)}${s.notes.length>100?"…":""}</div>` : ""}
       </div>
       <div class="sponsor-actions">
-        <button class="sponsor-btn primary" onclick='generateOutreach("${s.id}")'>📧 Pitch</button>
-        <button class="sponsor-btn" onclick='openSponsorModal("${s.id}")'>✏️ Edit</button>
-        <button class="sponsor-btn" onclick='deleteSponsor("${s.id}")' style="color:var(--red)">🗑</button>
+        <button class="sponsor-btn primary" onclick='generateOutreach("${s.id}")'><i class=pc-i data-i=mail></i> Pitch</button>
+        <button class="sponsor-btn" onclick='openSponsorModal("${s.id}")'><i class=pc-i data-i=pencil></i> Edit</button>
+        <button class="sponsor-btn" onclick='deleteSponsor("${s.id}")' style="color:var(--red)"><i class=pc-i data-i=trash-2></i></button>
       </div>
     </div>`;
   }).join("");
@@ -4243,7 +4244,7 @@ async function saveSponsor() {
     await loadSponsors();
   } catch(e) {
     const err = document.getElementById("sp-save-err");
-    err.textContent = `✗ ${e.message}`;
+    err.textContent = `${e.message}`;
     err.style.display = "block";
   } finally {
     btn.disabled    = false;
@@ -4273,7 +4274,7 @@ async function generateOutreach(id) {
   const badge  = document.getElementById("outreach-gpt-badge");
   if (!modal || !sp) return;
 
-  title.textContent     = `📧 Outreach — ${sp.company}`;
+  title.textContent     = `Outreach — ${sp.company}`;
   loading.style.display = "block";
   textArea.style.display = "none";
   badge.style.display   = "none";
@@ -4286,9 +4287,9 @@ async function generateOutreach(id) {
     textArea.value        = data.outreach || "";
     textArea.style.display = "block";
     badge.style.display   = "block";
-    badge.textContent     = data.gpt ? "✨ Generated by GPT-4o" : "📝 Template (no API key set)";
+    badge.innerHTML     = data.gpt ? "<i class=pc-i data-i=sparkles></i> Generated by GPT-4o" : "<i class=pc-i data-i=notebook-pen></i> Template (no API key set)";
   } catch(e) {
-    loading.textContent = `✗ Error: ${e.message}`;
+    loading.textContent = `Error: ${e.message}`;
   }
 }
 
@@ -4300,8 +4301,8 @@ function copyOutreach() {
   const text = document.getElementById("outreach-text").value;
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById("outreach-copy-btn");
-    btn.textContent = "✅ Copied!";
-    setTimeout(() => { btn.textContent = "📋 Copy Email"; }, 2000);
+    btn.innerHTML = "<i class=pc-i data-i=circle-check></i> Copied!";
+    setTimeout(() => { btn.innerHTML = "<i class=pc-i data-i=clipboard-list></i> Copy Email"; }, 2000);
   });
 }
 
@@ -4384,11 +4385,11 @@ async function checkDriveStatus() {
     const r = await fetch("/api/drive/status");
     const d = await r.json();
     if (d.configured) {
-      badge.textContent = "✅ Connected";
+      badge.innerHTML = "<i class=pc-i data-i=circle-check></i> Connected";
       badge.style.background = "color-mix(in srgb, var(--green-hi) 12%, transparent)";
       badge.style.color = "var(--green-hi)";
     } else {
-      badge.textContent = "⚠️ Not configured";
+      badge.innerHTML = "<i class=pc-i data-i=triangle-alert></i> Not configured";
       badge.style.background = "color-mix(in srgb, var(--yellow) 12%, transparent)";
       badge.style.color = "var(--yellow)";
     }
@@ -4433,7 +4434,7 @@ async function createDriveFolder() {
   }
 
   const btn = document.getElementById("drive-create-btn");
-  btn.textContent = "📁 Creating…";
+  btn.innerHTML = "<i class=pc-i data-i=folder></i> Creating…";
   btn.disabled    = true;
 
   try {
@@ -4457,7 +4458,7 @@ async function createDriveFolder() {
     // Update in the guest list too
     if (guest) guest.assets_drive_url = data.folder_url;
 
-    btn.textContent = "✅ Folder Created!";
+    btn.innerHTML = "<i class=pc-i data-i=circle-check></i> Folder Created!";
     btn.style.color = "var(--green-hi)";
 
     // Open the folder
@@ -4467,7 +4468,7 @@ async function createDriveFolder() {
     await regenerateAssetEmail();
 
   } catch(e) {
-    btn.textContent = "📁 Create Drive Folder";
+    btn.innerHTML = "<i class=pc-i data-i=folder></i> Create Drive Folder";
     btn.disabled    = false;
     alert("Drive error: " + e.message);
   }
@@ -4489,10 +4490,10 @@ async function initSponsors() {
 let _allGuests = [];
 
 const GUEST_STATUS_META = {
-  prospect: { label: "Prospect",  emoji: "💡", color: "var(--text-sec)" },
-  booked:   { label: "Booked",    emoji: "📅", color: "var(--orange)" },
-  recorded: { label: "Recorded",  emoji: "🎙️", color: "var(--orange-hi)" },
-  aired:    { label: "Aired",     emoji: "✅", color: "var(--green-hi)" },
+  prospect: { label: "Prospect",  emoji: "<i class=pc-i data-i=lightbulb></i>", color: "var(--text-sec)" },
+  booked:   { label: "Booked",    emoji: "<i class=pc-i data-i=calendar></i>", color: "var(--orange)" },
+  recorded: { label: "Recorded",  emoji: "<i class=pc-i data-i=mic></i>", color: "var(--orange-hi)" },
+  aired:    { label: "Aired",     emoji: "<i class=pc-i data-i=circle-check></i>", color: "var(--green-hi)" },
 };
 
 async function loadGuests() {
@@ -4562,23 +4563,23 @@ function renderGuests() {
             <span style="font-size:10px;background:color-mix(in srgb, ${m.color} 9%, transparent);color:${m.color};border-radius:10px;padding:2px 8px;font-weight:700;text-transform:uppercase">${m.label}</span>
           </div>
           <div class="sponsor-meta">
-            ${g.email ? `<span>✉️ ${g.email}</span>` : ""}
-            ${g.topic ? `<span>🎙️ ${g.topic.slice(0,50)}${g.topic.length>50?"…":""}</span>` : ""}
+            ${g.email ? `<span><i class=pc-i data-i=mail></i> ${g.email}</span>` : ""}
+            ${g.topic ? `<span><i class=pc-i data-i=mic></i> ${g.topic.slice(0,50)}${g.topic.length>50?"…":""}</span>` : ""}
           </div>
           ${g.episode_title ? `<div style="margin-top:5px;font-size:11px;color:var(--text-dim)">${g.episode_title}</div>` : ""}
           ${hasEpLinks ? `<div style="margin-top:5px;display:flex;gap:8px;flex-wrap:wrap">
-            ${g.episode_url_spotify ? `<a href="${g.episode_url_spotify}" target="_blank" style="font-size:10px;color:var(--accent);text-decoration:none">🎧 Spotify</a>` : ""}
-            ${g.episode_url_youtube ? `<a href="${g.episode_url_youtube}" target="_blank" style="font-size:10px;color:var(--accent);text-decoration:none">▶️ YouTube</a>` : ""}
-            ${g.episode_url_apple ? `<a href="${g.episode_url_apple}" target="_blank" style="font-size:10px;color:var(--accent);text-decoration:none">🎙 Apple</a>` : ""}
+            ${g.episode_url_spotify ? `<a href="${g.episode_url_spotify}" target="_blank" style="font-size:10px;color:var(--accent);text-decoration:none"><i class=pc-i data-i=headphones></i> Spotify</a>` : ""}
+            ${g.episode_url_youtube ? `<a href="${g.episode_url_youtube}" target="_blank" style="font-size:10px;color:var(--accent);text-decoration:none"><i class=pc-i data-i=play></i> YouTube</a>` : ""}
+            ${g.episode_url_apple ? `<a href="${g.episode_url_apple}" target="_blank" style="font-size:10px;color:var(--accent);text-decoration:none"><i class=pc-i data-i=mic></i> Apple</a>` : ""}
           </div>` : ""}
         </div>
         <div class="sponsor-actions">
           <button class="sponsor-btn primary" onclick='openAssetLaunch("${g.id}")'
             style="${assetBtnStyle}padding:5px 11px;font-size:11px;font-weight:700;border-radius:6px;cursor:pointer;font-family:var(--font)">
-            📦 Send Assets
+            <i class=pc-i data-i=package></i> Send Assets
           </button>
-          <button class="sponsor-btn" onclick='openGuestModal("${g.id}")'>✏️ Edit</button>
-          <button class="sponsor-btn" onclick='deleteGuest("${g.id}")' style="color:var(--red)">🗑</button>
+          <button class="sponsor-btn" onclick='openGuestModal("${g.id}")'><i class=pc-i data-i=pencil></i> Edit</button>
+          <button class="sponsor-btn" onclick='deleteGuest("${g.id}")' style="color:var(--red)"><i class=pc-i data-i=trash-2></i></button>
         </div>
       </div>`;
     }).join("");
@@ -4677,7 +4678,7 @@ function _applyExtractedGuest(data) {
   const status = document.getElementById("g-extract-status");
   status.style.display = "";
   status.style.color   = "var(--green-hi)";
-  status.textContent   = `✅ Filled ${filled} field${filled !== 1 ? "s" : ""} — review and save.`;
+  status.textContent   = `Filled ${filled} field${filled !== 1 ? "s" : ""} — review and save.`;
 }
 
 async function extractGuestFromText() {
@@ -4690,7 +4691,7 @@ async function extractGuestFromText() {
   btn.textContent = "Extracting…";
   status.style.display = "";
   status.style.color   = "var(--accent)";
-  status.textContent   = "⏳ Reading text and extracting info…";
+  status.innerHTML   = "<i class=pc-i data-i=hourglass></i> Reading text and extracting info…";
 
   try {
     const res  = await fetch("/api/guests/extract", {
@@ -4699,10 +4700,10 @@ async function extractGuestFromText() {
       body:    JSON.stringify({ text }),
     });
     const data = await res.json();
-    if (data.error) { status.textContent = "❌ " + data.error; }
+    if (data.error) { status.textContent = "" + data.error; }
     else { _applyExtractedGuest(data); }
   } catch(e) {
-    status.textContent = "❌ " + e.message;
+    status.textContent = "" + e.message;
   } finally {
     btn.disabled    = false;
     btn.textContent = "Extract from Text";
@@ -4719,7 +4720,7 @@ async function extractGuestFromUrl() {
   btn.disabled     = true;
   btn.textContent  = "Extracting…";
   status.style.display = "";
-  status.textContent   = "⏳ Fetching page and extracting info…";
+  status.innerHTML   = "<i class=pc-i data-i=hourglass></i> Fetching page and extracting info…";
 
   try {
     const res  = await fetch("/api/guests/extract", {
@@ -4730,7 +4731,7 @@ async function extractGuestFromUrl() {
     const data = await res.json();
 
     if (data.error) {
-      status.textContent = "❌ " + data.error;
+      status.textContent = "" + data.error;
       btn.disabled = false; btn.textContent = "Extract";
       return;
     }
@@ -4764,12 +4765,12 @@ async function extractGuestFromUrl() {
 
     // Count what was filled
     const filled = Object.entries(data).filter(([k,v]) => v && k !== "error" && k !== "raw").length;
-    status.textContent = `✅ Filled ${filled} field${filled !== 1 ? "s" : ""} — review and save.`;
+    status.textContent = `Filled ${filled} field${filled !== 1 ? "s" : ""} — review and save.`;
     status.style.color = "var(--green-hi)";
     btn.disabled = false; btn.textContent = "Extract";
 
   } catch(e) {
-    status.textContent = "❌ " + e.message;
+    status.textContent = "" + e.message;
     btn.disabled = false; btn.textContent = "Extract";
   }
 }
@@ -4819,7 +4820,7 @@ async function saveGuest() {
     await loadGuests();
   } catch(e) {
     const err = document.getElementById("g-save-err");
-    err.textContent = `✗ ${e.message}`;
+    err.textContent = `${e.message}`;
     err.style.display = "block";
   } finally {
     btn.disabled    = false;
@@ -4893,10 +4894,10 @@ async function _fetchAssetEmail() {
     textEl.value          = data.email || "";
     textEl.style.display  = "block";
     badge.style.display   = "block";
-    badge.textContent     = data.gpt ? "✨ Generated by GPT-4o" : "📝 Template (set OPENAI_API_KEY to use GPT)";
+    badge.innerHTML     = data.gpt ? "<i class=pc-i data-i=sparkles></i> Generated by GPT-4o" : "<i class=pc-i data-i=notebook-pen></i> Template (set OPENAI_API_KEY to use GPT)";
     document.getElementById("asset-launch-to").textContent = data.guest_email || "—";
   } catch(e) {
-    loading.textContent = `✗ Error: ${e.message}`;
+    loading.textContent = `Error: ${e.message}`;
   }
 }
 
@@ -4912,8 +4913,8 @@ function copyAssetEmail() {
   const text = document.getElementById("asset-launch-text").value;
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById("asset-copy-btn");
-    btn.textContent = "✅ Copied!";
-    setTimeout(() => { btn.textContent = "📋 Copy Email"; }, 2000);
+    btn.innerHTML = "<i class=pc-i data-i=circle-check></i> Copied!";
+    setTimeout(() => { btn.innerHTML = "<i class=pc-i data-i=clipboard-list></i> Copy Email"; }, 2000);
   });
 }
 
@@ -4970,7 +4971,7 @@ async function submitTranscription() {
   const btn = document.getElementById("tx-submit-btn");
   const status = document.getElementById("tx-submit-status");
   btn.disabled = true;
-  btn.textContent = "⏳ Uploading…";
+  btn.innerHTML = "<i class=pc-i data-i=hourglass></i> Uploading…";
   status.style.display = "";
   status.textContent   = "Uploading file…";
 
@@ -4986,8 +4987,8 @@ async function submitTranscription() {
     const res  = await fetch("/api/transcribe", { method: "POST", body: form });
     const data = await res.json();
     if (data.id) {
-      status.textContent = "⏳ Transcribing… (check back shortly)";
-      btn.textContent    = "✅ Submitted";
+      status.innerHTML = "<i class=pc-i data-i=hourglass></i> Transcribing… (check back shortly)";
+      btn.innerHTML    = "<i class=pc-i data-i=circle-check></i> Submitted";
       // Reset form
       _txFile = null;
       document.getElementById("tx-file-indicator").style.display = "none";
@@ -5000,17 +5001,17 @@ async function submitTranscription() {
       loadTranscriptions();
       setTimeout(() => {
         btn.disabled     = false;
-        btn.textContent  = "📝 Transcribe";
+        btn.innerHTML  = "<i class=pc-i data-i=notebook-pen></i> Transcribe";
         btn.style.opacity = "0.5";
         status.style.display = "none";
       }, 5000);
     } else {
-      status.textContent = "❌ Error: " + (data.error || "Unknown");
-      btn.disabled = false; btn.textContent = "📝 Transcribe";
+      status.textContent = "Error: " + (data.error || "Unknown");
+      btn.disabled = false; btn.innerHTML = "<i class=pc-i data-i=notebook-pen></i> Transcribe";
     }
   } catch(e) {
-    status.textContent = "❌ " + e.message;
-    btn.disabled = false; btn.textContent = "📝 Transcribe";
+    status.textContent = "" + e.message;
+    btn.disabled = false; btn.innerHTML = "<i class=pc-i data-i=notebook-pen></i> Transcribe";
   }
 }
 
@@ -5087,15 +5088,15 @@ function renderTranscriptions(items) {
         <div style="flex:1">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <div style="font-size:13px;font-weight:700;color:var(--text)">${t.title}</div>
-            ${isProcessing ? '<span style="font-size:10px;background:color-mix(in srgb, var(--yellow) 15%, transparent);color:var(--yellow);border-radius:10px;padding:1px 8px;animation:pulse 1.5s infinite">⏳ Processing</span>' : ''}
-            ${isError ? '<span style="font-size:10px;background:color-mix(in srgb, var(--red) 15%, transparent);color:var(--red);border-radius:10px;padding:1px 8px">❌ Error</span>' : ''}
+            ${isProcessing ? '<span style="font-size:10px;background:color-mix(in srgb, var(--yellow) 15%, transparent);color:var(--yellow);border-radius:10px;padding:1px 8px;animation:pulse 1.5s infinite"><i class=pc-i data-i=hourglass></i> Processing</span>' : ''}
+            ${isError ? '<span style="font-size:10px;background:color-mix(in srgb, var(--red) 15%, transparent);color:var(--red);border-radius:10px;padding:1px 8px"><i class=pc-i data-i=circle-x></i> Error</span>' : ''}
           </div>
           <div style="font-size:11px;color:var(--text-dim);margin-top:3px;display:flex;gap:12px;flex-wrap:wrap">
-            ${t.source ? `<span>📂 ${t.source}</span>` : ''}
-            ${t.duration_fmt ? `<span>⏱ ${t.duration_fmt}</span>` : ''}
-            ${t.word_count ? `<span>📝 ${t.word_count.toLocaleString()} words</span>` : ''}
-            ${t.language ? `<span>🌐 ${t.language}</span>` : ''}
-            <span>🗓 ${t.created_at ? new Date(t.created_at).toLocaleDateString() : ''}</span>
+            ${t.source ? `<span><i class=pc-i data-i=folder-open></i> ${t.source}</span>` : ''}
+            ${t.duration_fmt ? `<span><i class=pc-i data-i=timer></i> ${t.duration_fmt}</span>` : ''}
+            ${t.word_count ? `<span><i class=pc-i data-i=notebook-pen></i> ${t.word_count.toLocaleString()} words</span>` : ''}
+            ${t.language ? `<span><i class=pc-i data-i=globe></i> ${t.language}</span>` : ''}
+            <span><i class=pc-i data-i=calendar-days></i> ${t.created_at ? new Date(t.created_at).toLocaleDateString() : ''}</span>
           </div>
           ${tagHtml ? `<div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">${tagHtml}</div>` : ''}
           ${summary}
@@ -5119,7 +5120,7 @@ function renderTranscriptions(items) {
           </button>
           ` : ''}
           <button onclick="deleteTx('${t.id}', this)" title="Delete"
-            style="background:transparent;border:1px solid color-mix(in srgb, var(--red) 30%, transparent);color:var(--red);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">✕</button>
+            style="background:transparent;border:1px solid color-mix(in srgb, var(--red) 30%, transparent);color:var(--red);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer"><i class=pc-i data-i=x></i></button>
         </div>
       </div>
     </div>`;
@@ -5170,17 +5171,17 @@ async function viewTx(id) {
         <button onclick="this.closest('[style*=fixed]').remove()" style="background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer">×</button>
       </div>
       <div style="padding:10px 20px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-dim);display:flex;gap:16px;flex-wrap:wrap">
-        ${full.source ? `<span>📂 ${full.source}</span>` : ''}
-        <span>⏱ ${full.duration_fmt || ''}</span>
-        <span>📝 ${(full.word_count||0).toLocaleString()} words</span>
-        <span>🌐 ${full.language || ''}</span>
+        ${full.source ? `<span><i class=pc-i data-i=folder-open></i> ${full.source}</span>` : ''}
+        <span><i class=pc-i data-i=timer></i> ${full.duration_fmt || ''}</span>
+        <span><i class=pc-i data-i=notebook-pen></i> ${(full.word_count||0).toLocaleString()} words</span>
+        <span><i class=pc-i data-i=globe></i> ${full.language || ''}</span>
       </div>
       ${full.summary ? `<div style="padding:12px 20px;border-bottom:1px solid var(--border);font-size:12px;color:var(--text-dim);font-style:italic;line-height:1.5">${full.summary}</div>` : ''}
       <div style="flex:1;overflow-y:auto;padding:16px 20px">${segsHtml || '<div style="color:var(--text-dim)">No segments yet</div>'}</div>
       <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end">
-        <button onclick="exportTx('${id}','txt')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">⬇ TXT</button>
-        <button onclick="exportTx('${id}','srt')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">⬇ SRT</button>
-        <button onclick="exportTx('${id}','md')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">⬇ MD</button>
+        <button onclick="exportTx('${id}','txt')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer"><i class=pc-i data-i=download></i> TXT</button>
+        <button onclick="exportTx('${id}','srt')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer"><i class=pc-i data-i=download></i> SRT</button>
+        <button onclick="exportTx('${id}','md')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer"><i class=pc-i data-i=download></i> MD</button>
         <button onclick="this.closest('[style*=fixed]').remove()" style="background:var(--accent);color:var(--bg);border:none;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:700;cursor:pointer">Close</button>
       </div>
     </div>`;
@@ -5225,8 +5226,8 @@ async function uploadClipToYouTube(idx) {
     });
     const data = await res.json();
     if (data.ok) {
-      if (btn) { btn.textContent = "✅ Uploaded"; btn.style.background = "var(--green-hi)"; }
-      if (confirm(`✅ YouTube Short uploaded!\n\nView: ${data.url}\n\nOpen in browser?`)) {
+      if (btn) { btn.textContent = "Uploaded"; btn.style.background = "var(--green-hi)"; }
+      if (confirm(`YouTube Short uploaded!\n\nView: ${data.url}\n\nOpen in browser?`)) {
         window.open(data.url, "_blank");
       }
     } else {
@@ -5251,7 +5252,7 @@ async function checkYouTubeStatus() {
 
     if (d.authorized) {
       if (settingsBadge) {
-        settingsBadge.textContent = "✅ Connected";
+        settingsBadge.innerHTML = "<i class=pc-i data-i=circle-check></i> Connected";
         settingsBadge.style.background = "color-mix(in srgb, var(--green-hi) 12%, transparent)";
         settingsBadge.style.color = "var(--green-hi)";
       }
@@ -5282,7 +5283,7 @@ async function checkYouTubeStatus() {
 
     } else {
       if (settingsBadge) {
-        settingsBadge.textContent = d.configured ? "⚠️ Not connected" : "⚠️ Not configured";
+        settingsBadge.innerHTML = d.configured ? "<i class=pc-i data-i=triangle-alert></i> Not connected" : "<i class=pc-i data-i=triangle-alert></i> Not configured";
         settingsBadge.style.background = "color-mix(in srgb, var(--yellow) 12%, transparent)";
         settingsBadge.style.color = "var(--yellow)";
       }
@@ -5325,7 +5326,7 @@ function openYouTubeUploadModal() {
   document.getElementById("yt-upload-success").style.display = "none";
   document.getElementById("yt-upload-error").style.display   = "none";
   document.getElementById("yt-submit-btn").disabled = false;
-  document.getElementById("yt-submit-btn").textContent = "🎬 Upload to YouTube";
+  document.getElementById("yt-submit-btn").innerHTML = "<i class=pc-i data-i=clapperboard></i> Upload to YouTube";
 
   // Pre-fill title from current job's episode title
   const epTitle  = document.getElementById("ep-title")?.value || "";
@@ -5420,7 +5421,7 @@ async function submitYouTubeUpload() {
   const submitBtn = document.getElementById("yt-submit-btn");
 
   statusEl.style.display  = "";
-  statusEl.textContent    = "⏳ Uploading to YouTube… (this may take a few minutes)";
+  statusEl.innerHTML    = "<i class=pc-i data-i=hourglass></i> Uploading to YouTube… (this may take a few minutes)";
   successEl.style.display = "none";
   errorEl.style.display   = "none";
   submitBtn.disabled      = true;
@@ -5448,7 +5449,7 @@ async function submitYouTubeUpload() {
       successEl.style.display = "";
       const link = document.getElementById("yt-video-link");
       if (link) link.href = data.url;
-      submitBtn.textContent = "✅ Uploaded!";
+      submitBtn.innerHTML = "<i class=pc-i data-i=circle-check></i> Uploaded!";
 
       // Show privacy note
       const privacyMap = { private: "Private — review before publishing", unlisted: "Unlisted — shareable link", public: "Public — live now" };
@@ -5457,16 +5458,16 @@ async function submitYouTubeUpload() {
     } else {
       statusEl.style.display  = "none";
       errorEl.style.display   = "";
-      errorEl.textContent     = "❌ " + (data.error || "Upload failed");
+      errorEl.textContent     = "" + (data.error || "Upload failed");
       submitBtn.disabled      = false;
-      submitBtn.textContent   = "🎬 Upload to YouTube";
+      submitBtn.innerHTML   = "<i class=pc-i data-i=clapperboard></i> Upload to YouTube";
     }
   } catch (e) {
     statusEl.style.display = "none";
     errorEl.style.display  = "";
-    errorEl.textContent    = "❌ Network error: " + e.message;
+    errorEl.textContent    = "Network error: " + e.message;
     submitBtn.disabled     = false;
-    submitBtn.textContent  = "🎬 Upload to YouTube";
+    submitBtn.innerHTML  = "<i class=pc-i data-i=clapperboard></i> Upload to YouTube";
   }
 }
 </script>

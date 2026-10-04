@@ -313,7 +313,7 @@
 
     <div class="brick-hero">
       <img src="/static/brick-avatar.png" alt="Brick" onerror="this.style.display='none'; this.parentElement.querySelector('.hero-emoji').style.display='block'">
-      <div class="hero-emoji" style="display:none">🔨</div>
+      <div class="hero-emoji" style="display:none"><i class="pc-i" data-i="hammer"></i></div>
       <div class="brick-hero-copy">
         <strong>Brick here.</strong> I'm your AI general contractor. I'll be running your site.
       </div>
@@ -371,22 +371,22 @@
     <!-- Intake method cards -->
     <div class="intake-cards">
       <div class="intake-card" onclick="openInterview()">
-        <div class="ic-icon">🎙️</div>
+        <div class="ic-icon"><i class="pc-i" data-i="mic"></i></div>
         <div class="ic-label">Talk to Brick</div>
         <div class="ic-sub">8 questions, 30–60 sec each. Best signal.</div>
       </div>
       <div class="intake-card" onclick="openPaste()">
-        <div class="ic-icon">📝</div>
+        <div class="ic-icon"><i class="pc-i" data-i="notebook-pen"></i></div>
         <div class="ic-label">Paste your writing</div>
         <div class="ic-sub">Blog posts, LinkedIn, articles — your words.</div>
       </div>
       <div class="intake-card" onclick="openUpload()">
-        <div class="ic-icon">📂</div>
+        <div class="ic-icon"><i class="pc-i" data-i="folder-open"></i></div>
         <div class="ic-label">Upload audio/video</div>
         <div class="ic-sub">Podcasts, talks, Loom recordings.</div>
       </div>
       <div class="intake-card" onclick="window.open('/foundation','_blank')">
-        <div class="ic-icon">🔗</div>
+        <div class="ic-icon"><i class="pc-i" data-i="link"></i></div>
         <div class="ic-label">More options</div>
         <div class="ic-sub">Channel sync, RSS, full intake panel.</div>
       </div>
@@ -506,7 +506,7 @@
   <!-- ── Step 6: Complete ── -->
   <div class="ob-card" id="step-6">
     <div class="complete-wrap">
-      <div class="checkmark">🔨</div>
+      <div class="checkmark"><i class="pc-i" data-i="hammer"></i></div>
       <div class="ob-heading">Site open. Walk-through loading.</div>
       <div class="ob-sub">Brick's pulling the overnight data. Your first walk-through will be ready shortly.</div>
       <div class="complete-redirect-msg">Redirecting to your walk-through…</div>
@@ -598,7 +598,7 @@ async function initGhlStep() {
     ]);
     if (data.connected) {
       box.className = 'ghl-status-box connected';
-      box.innerHTML = `<div class="status-label">✓ Connected</div>Location ${data.location_id || ''} already wired in. Good to go.`;
+      box.innerHTML = `<div class="status-label"><i class=pc-i data-i=check></i> Connected</div>Location ${data.location_id || ''} already wired in. Good to go.`;
       advanceWrap.style.display = 'block';
       // Auto-advance after 1.2s if already connected
       setTimeout(() => goStep(3), 1200);

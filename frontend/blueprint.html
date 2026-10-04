@@ -322,7 +322,7 @@
 
     <!-- Overwrite warning (shown when blueprint already has data) -->
     <div class="overwrite-warning" id="overwrite-warn">
-      ⚠ This replaced your previous Blueprint. It was saved the moment the analysis
+      <i class="pc-i" data-i="triangle-alert"></i> This replaced your previous Blueprint. It was saved the moment the analysis
       finished — there is no draft step and no revert. Read it over; rebuild if it is wrong.
     </div>
 
@@ -413,14 +413,14 @@
         <div class="confirm-actions">
           <button class="btn-secondary" onclick="discardDraft()">Discard</button>
           <button class="btn-confirm" id="btn-confirm" onclick="confirmBlueprint()">
-            Got It ✓
+            Got It <i class="pc-i" data-i="check"></i>
           </button>
         </div>
       </div>
 
       <!-- Success banner -->
       <div class="success-banner" id="success-banner">
-        ✓ Blueprint locked in. Brick will write in your voice from now on.
+        <i class="pc-i" data-i="check"></i> Blueprint locked in. Brick will write in your voice from now on.
         <a href="/social-studio" style="color:var(--green);font-weight:700;margin-left:8px;">Try Draftsman →</a>
       </div>
 

@@ -223,7 +223,7 @@
       <h2 id="drawer-title"></h2>
       <div class="jb" id="drawer-job"></div>
     </div>
-    <button class="drawer-x" id="drawer-x" type="button" aria-label="Close">✕</button>
+    <button class="drawer-x" id="drawer-x" type="button" aria-label="Close"><i class="pc-i" data-i="x"></i></button>
   </div>
   <div class="drawer-body" id="drawer-body"></div>
   <div class="drawer-foot" id="drawer-foot"></div>
@@ -414,14 +414,14 @@ function checklistHtml(a) {
   var h = '', fs = foundationState(a);
   if (a.foundation && a.foundation !== 'none') {
     var ok = fs.tier && fs.tier !== 'not_ready';
-    h += '<div class="need ' + (ok ? 'ok' : 'bad') + '"><span class="mk">' + (ok ? '✓' : '✗') + '</span><span>Foundation' +
+    h += '<div class="need ' + (ok ? 'ok' : 'bad') + '"><span class="mk">' + (ok ? '<i class=pc-i data-i=check></i>' : '<i class=pc-i data-i=x></i>') + '</span><span>Foundation' +
       (fs.tier ? ' (' + escHtml(fs.tier) + (fs.n != null ? ', ' + escHtml(fs.n) + ' samples' : '') + ')' : '') +
       (a.foundation === 'optional' || a.foundation === 'inherited' ? ' — helps, not required' : '') + '</span><a href="/foundation">Open</a></div>';
   }
   var missing = a.missing || [];
   (a.requires || []).forEach(function (req) {
     var bad = missing.indexOf(req) >= 0;
-    h += '<div class="need ' + (bad ? 'bad' : 'ok') + '"><span class="mk">' + (bad ? '✗' : '✓') + '</span><span>' +
+    h += '<div class="need ' + (bad ? 'bad' : 'ok') + '"><span class="mk">' + (bad ? '<i class=pc-i data-i=x></i>' : '<i class=pc-i data-i=check></i>') + '</span><span>' +
       escHtml(PROVIDER_NAMES[req] || req) + (bad ? ' not connected' : ' connected') + '</span>' +
       (req === 'youtube_api' && bad ? '<a href="/api/youtube/auth">Connect</a>' : '') + '</div>';
     if (bad && ENV_NAMES[req]) {
@@ -431,10 +431,10 @@ function checklistHtml(a) {
   });
   missing.forEach(function (req) {
     if ((a.requires || []).indexOf(req) >= 0) return;
-    h += '<div class="need bad"><span class="mk">✗</span><span>' + escHtml(PROVIDER_NAMES[req] || req) + ' not connected</span></div>';
+    h += '<div class="need bad"><span class="mk"><i class=pc-i data-i=x></i></span><span>' + escHtml(PROVIDER_NAMES[req] || req) + ' not connected</span></div>';
     if (ENV_NAMES[req]) h += '<div style="margin:2px 0 6px 24px"><pre class="code">' + escHtml(ENV_NAMES[req]) + '=</pre><div class="line-note">in <code>.env</code>, then restart the server.</div></div>';
   });
-  h += '<div class="need ok"><span class="mk">✓</span><span>Permit: ' + escHtml(a.run_tier || 'draftsman') + ' can run this</span><a href="/permit">Open</a></div>';
+  h += '<div class="need ok"><span class="mk"><i class=pc-i data-i=check></i></span><span>Permit: ' + escHtml(a.run_tier || 'draftsman') + ' can run this</span><a href="/permit">Open</a></div>';
   return h;
 }
 function openAgentDrawer(agentId, prefill, opener) {
@@ -658,7 +658,7 @@ function pollJob(jobId) {
 }
 function stopPoll() { clearTimeout(pollTimer); pollTimer = null; }
 function renderSteps(steps) {
-  var ic = { pending: '○', running: '●', completed: '✓', failed: '✗', skipped: '–' };
+  var ic = { pending: '○', running: '●', completed: '<i class=pc-i data-i=check></i>', failed: '<i class=pc-i data-i=x></i>', skipped: '–' };
   return '<ul class="steps">' + (steps || []).map(function (s) {
     return '<li class="' + escHtml(s.status) + '"><span class="ic" aria-hidden="true">' + (ic[s.status] || '○') + '</span><span>' + escHtml(s.label || s.key) +
       '<span class="sr-only"> (' + escHtml(s.status) + ')</span>' + (s.error ? ' — ' + escHtml(s.error) : '') + '</span></li>'; }).join('') + '</ul>';

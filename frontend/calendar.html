@@ -344,8 +344,8 @@
           <button id="vt-week" onclick="setViewMode('week')">Week</button>
           <button id="vt-list" onclick="setViewMode('list')">List</button>
         </div>
-        <button class="btn-secondary" onclick="openBriefModal()">🎙️ RE Daily Brief</button>
-        <button class="btn-secondary" onclick="openAutoPlanModal()">⚡ Auto-plan 30 Days</button>
+        <button class="btn-secondary" onclick="openBriefModal()"><i class="pc-i" data-i="mic"></i> RE Daily Brief</button>
+        <button class="btn-secondary" onclick="openAutoPlanModal()"><i class="pc-i" data-i="zap"></i> Auto-plan 30 Days</button>
       </div>
     </div>
 
@@ -388,7 +388,7 @@
     <div id="empty-state" class="empty-state hidden">
       <h3>Board's clear.</h3>
       <p>Auto-plan 30 days from your Blueprint, or add posts one at a time.</p>
-      <button class="btn-primary" onclick="openAutoPlanModal()">⚡ Auto-plan 30 Days</button>
+      <button class="btn-primary" onclick="openAutoPlanModal()"><i class="pc-i" data-i="zap"></i> Auto-plan 30 Days</button>
     </div>
 
   </div>
@@ -397,7 +397,7 @@
   <div id="autoplan-modal" class="modal-overlay hidden">
     <div class="modal-box modal-sm">
       <div class="modal-header">
-        <h3>⚡ Auto-plan 30 Days</h3>
+        <h3><i class="pc-i" data-i="zap"></i> Auto-plan 30 Days</h3>
         <button onclick="closeAutoPlanModal()">×</button>
       </div>
       <p style="font-size:13px;line-height:1.5;color:var(--text);">
@@ -421,7 +421,7 @@
   <div id="brief-modal" class="modal-overlay hidden">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>🎙️ RE Daily Brief — ready-to-film script</h3>
+        <h3><i class="pc-i" data-i="mic"></i> RE Daily Brief — ready-to-film script</h3>
         <button onclick="closeBriefModal()">×</button>
       </div>
       <p style="font-size:13px;line-height:1.5;color:var(--text);">
@@ -449,13 +449,13 @@
       <div id="brief-result" class="hidden" style="margin-top:14px;">
         <div id="brief-meta" class="text-muted" style="font-size:12px;margin-bottom:6px;"></div>
         <div id="brief-title" style="font-weight:600;font-size:15px;margin-bottom:8px;"></div>
-        <textarea id="brief-script" rows="14" spellcheck="false"
+        <textarea data-ai-output id="brief-script" rows="14" spellcheck="false"
                   style="width:100%;box-sizing:border-box;white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.55;color:var(--text);background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:12px;resize:vertical;"></textarea>
       </div>
       <div id="brief-actions" class="modal-actions">
         <button class="btn-primary" id="brief-gen-btn" onclick="runDailyBrief()">Generate Script</button>
-        <button class="btn-primary hidden" id="brief-film-btn" onclick="filmBriefNow()">🎬 Film This Now</button>
-        <button class="btn-secondary hidden" id="brief-copy-btn" onclick="copyBrief()">📋 Copy</button>
+        <button class="btn-primary hidden" id="brief-film-btn" onclick="filmBriefNow()"><i class="pc-i" data-i="clapperboard"></i> Film This Now</button>
+        <button class="btn-secondary hidden" id="brief-copy-btn" onclick="copyBrief()"><i class="pc-i" data-i="clipboard-list"></i> Copy</button>
         <button class="btn-secondary hidden" id="brief-regen-btn" onclick="runDailyBrief()">↻ Regenerate</button>
         <button class="btn-ghost" onclick="closeBriefModal()">Close</button>
       </div>
@@ -493,11 +493,11 @@
             <textarea id="variant-first-comment" rows="2"></textarea>
           </div>
         </div>
-        <button id="btn-generate-variants" class="btn-secondary" style="margin-top:10px;" onclick="generateVariants()">⚡ Generate Platform Variants</button>
+        <button id="btn-generate-variants" class="btn-secondary" style="margin-top:10px;" onclick="generateVariants()"><i class="pc-i" data-i="zap"></i> Generate Platform Variants</button>
       </div>
 
       <div class="modal-actions">
-        <button class="btn-primary" id="btn-ship-it" onclick="shipIt()">🚀 Ship It</button>
+        <button class="btn-primary" id="btn-ship-it" onclick="shipIt()"><i class="pc-i" data-i="rocket"></i> Ship It</button>
         <button class="btn-danger-ghost" id="btn-delete-post" onclick="deletePost()">Delete Draft</button>
       </div>
 
@@ -879,7 +879,7 @@ function filmBriefNow() {
   localStorage.setItem('podclick_teleprompter_script', script);
   localStorage.setItem('podclick_teleprompter_title', title);
   window.open('/studio', '_blank');
-  toast('🎬 Sent to Studio — teleprompter loaded in the new tab.', 'success');
+  toast('Sent to Studio — teleprompter loaded in the new tab.', 'success');
 }
 function copyBrief() {
   const script = document.getElementById('brief-script').value;
