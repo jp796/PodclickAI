@@ -256,8 +256,13 @@
       color: var(--green);
     }
     .panel h3 .pill.live::before {
-      content: "●";
-      margin-right: 4px;
+      content: "";
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      margin-right: 5px;
+      vertical-align: 1px;
     }
 
     /* Teleprompter band — large, scrolling, voice-driven */
@@ -596,12 +601,13 @@
   background: rgba(217,95,30,0.12);
 }
 .pub-tile.selected::after {
-  content: "✓";
+  content: "";
   position: absolute;
-  top: 8px; right: 10px;
-  font-size: 14px;
-  font-weight: 800;
-  color: var(--orange);
+  top: 10px; right: 14px;
+  width: 6px; height: 11px;
+  border: solid var(--orange-hi);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
 }
 .pub-tile.selected .pub-badge-live { display: none; }
 .pub-preset-btn {
@@ -629,12 +635,169 @@
   letter-spacing: 0.02em;
 }
   .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
+
+/* ===== Studio v2 polish (studio.html only; tokens from podclick-design.css) ===== */
+/* Buttons: one consistent shape, icon gap, hover / press / disabled states */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: 36px; font-family: var(--font-cond, var(--font)); letter-spacing: .02em;
+  border-radius: var(--radius-md);
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out), box-shadow var(--dur) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+.btn:hover:not([disabled]) { background: var(--bg-raised); border-color: var(--border-hot); }
+.btn:active:not([disabled]) { transform: scale(.98); }
+.btn[disabled] { opacity: .42; cursor: not-allowed; box-shadow: none; }
+.btn .pc-i { font-size: 1.05em; }
+.btn.primary { background: var(--grad-primary); border: 1px solid var(--orange-deep); color: var(--text-pri); box-shadow: var(--grad-glow); }
+.btn.primary:hover:not([disabled]) { background: var(--grad-primary-hover); border-color: var(--orange); }
+.btn.accent { background: transparent; border-color: var(--orange-dim); color: var(--orange-hi); }
+.btn.accent:hover:not([disabled]) { background: var(--orange-mist); border-color: var(--orange); color: var(--orange-hi); }
+.btn.danger { color: var(--red-hi); border-color: var(--red-dim); }
+.btn.danger:hover:not([disabled]) { background: var(--red-dim); border-color: var(--red-hi); }
+.btn.ghost:hover:not([disabled]) { background: var(--bg-raised); }
+.btn.btn-block { display: flex; width: 100%; }
+.btn.btn-lg { min-height: 46px; font-size: 15px; font-weight: 700; }
+.btn.btn-icon { width: 36px; padding: 0; }
+.rec-glyph { width: 10px; height: 10px; border-radius: 50%; background: var(--red-hi); flex-shrink: 0; box-shadow: 0 0 0 3px var(--red-dim); }
+.btn.primary .rec-glyph { background: var(--text-pri); box-shadow: 0 0 0 3px rgba(255,255,255,.18); }
+.btn-rec { min-width: 112px; }
+
+/* Panels + headings */
+.panel { padding: var(--space-4); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.panel h3 { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; color: var(--text-sec-hi); }
+.panel h3 > .pc-i { color: var(--orange-hi); font-size: 14px; }
+.panel h3 { flex-wrap: wrap; row-gap: var(--space-2); }
+@media (max-width: 1100px) { main { grid-template-columns: minmax(0, 1fr); } }
+main { gap: var(--space-5); padding: var(--space-5); }
+.preview-shell, .right-pane { gap: var(--space-4); }
+
+/* Cinematic stage */
+.preview {
+  flex: none; aspect-ratio: 16 / 9; min-height: 0;
+  background: radial-gradient(ellipse at 50% 45%, var(--bg-panel) 0%, var(--bg-inset) 72%);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card), inset 0 0 0 1px var(--border);
+  transition: box-shadow var(--dur-slow) var(--ease-out);
+}
+.preview:has(.badge:not(.idle)) { box-shadow: var(--shadow-card), inset 0 0 0 2px var(--red-hi), 0 0 32px rgba(236,122,114,.12); }
+.stage-marks { position: absolute; inset: 14px; pointer-events: none; z-index: 2; }
+.stage-marks span { position: absolute; width: 22px; height: 22px; border-color: var(--orange-dim); border-style: solid; opacity: .8; }
+.stage-marks span:nth-child(1) { top: 0; left: 0; border-width: 2px 0 0 2px; }
+.stage-marks span:nth-child(2) { top: 0; right: 0; border-width: 2px 2px 0 0; }
+.stage-marks span:nth-child(3) { bottom: 0; left: 0; border-width: 0 0 2px 2px; }
+.stage-marks span:nth-child(4) { bottom: 0; right: 0; border-width: 0 2px 2px 0; }
+.stage-empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); max-width: 340px; margin: 0 auto; text-align: center; }
+.stage-empty__icon { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; font-size: 24px;
+  color: var(--orange-hi); background: var(--bg-raised); border: 1px solid var(--border); box-shadow: 0 0 0 6px var(--orange-mist); }
+.stage-empty__title { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .05em; font-size: 20px; color: var(--text-pri); }
+.stage-empty p { font-size: 13px; line-height: 1.55; color: var(--text-sec-hi); }
+.preview .placeholder { padding: var(--space-6); }
+.preview .badge {
+  top: 16px; left: 16px; z-index: 3; gap: var(--space-2); padding: 5px 12px 5px 10px;
+  font: 500 11px/1 var(--font-mono); letter-spacing: .16em; text-transform: uppercase;
+  background: rgba(0,0,0,.55); border: 1px solid var(--border-lit); color: var(--text-sec-hi);
+}
+.preview .badge:not(.idle) { background: var(--red); border-color: var(--red-hi); color: var(--text-pri); }
+.preview .badge:not(.idle) .dot { background: var(--text-pri); animation: studio-rec-pulse 1.2s var(--ease-in-out) infinite; }
+@keyframes studio-rec-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,.55); opacity: 1; } 50% { box-shadow: 0 0 0 5px rgba(255,255,255,0); opacity: .55; } }
+.stage-timecode { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); z-index: 3; opacity: 0;
+  font: 500 13px/1 var(--font-mono); letter-spacing: .08em; color: var(--text-pri); padding: 6px 12px; border-radius: var(--radius-pill);
+  background: rgba(0,0,0,.55); border: 1px solid var(--border-lit); transition: opacity var(--dur) var(--ease-out); pointer-events: none; }
+.preview:has(.badge:not(.idle)) .stage-timecode { opacity: 1; }
+.vad-meter { z-index: 3; bottom: 16px; left: 16px; right: 16px; }
+
+/* Transport bar: devices | record core | output */
+.transport { display: grid; grid-template-columns: auto 1fr; gap: var(--space-3) var(--space-4); align-items: center;
+  padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.transport-group { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.transport-group--devices { grid-column: 1 / -1; padding-bottom: var(--space-3); border-bottom: 1px solid var(--border); }
+.transport-group--devices #btn-screen { margin-left: auto; }
+.transport-group--out { justify-content: flex-end; }
+.transport-group--core .btn { min-height: 42px; }
+.duration { font-family: var(--font-mono); font-size: 13px; letter-spacing: .06em; color: var(--text-sec-hi); min-width: 48px; text-align: right; }
+.duration.recording { color: var(--red-hi); }
+
+/* Mode segmented control */
+.mode-seg { flex: 1; display: flex; gap: 4px; padding: 3px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.mode-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 10px;
+  font: 700 12px/1.2 var(--font-cond, var(--font)); letter-spacing: .02em; border-radius: 5px; border: 1px solid transparent;
+  background: transparent; color: var(--text-sec-hi); cursor: pointer; transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast); }
+.mode-btn:hover { background: var(--bg-raised); color: var(--text-pri); }
+.mode-btn.active { background: var(--orange-mist); border-color: var(--orange-dim); color: var(--orange-hi); }
+
+/* Teleprompter controls, grouped + labelled */
+.prompter { border-radius: var(--radius-lg); }
+.prompter-controls { gap: var(--space-3) var(--space-4); margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--border); }
+.tp-group { display: flex; align-items: center; gap: var(--space-2); }
+.tp-label { font: 500 10px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-sec); }
+.prompter-controls label { color: var(--text-sec-hi); font-size: 13px; }
+.tp-seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--bg-inset); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.tp-seg .speed-btn { border-color: transparent; background: transparent; }
+.speed-btn, .smart-pace-btn { min-height: 26px; transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast); }
+.speed-btn:hover, .smart-pace-btn:hover { color: var(--text-pri); }
+.speed-btn.active { background: var(--orange-mist); border-color: var(--orange-dim); color: var(--orange-hi); }
+.smart-pace-btn { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.prompter:has(.prompter-empty) .prompter-overlay { display: none; }
+
+/* Upload tray + drop zone */
+#upload-drop-zone { background-color: var(--bg-inset); }
+#upload-drop-zone:hover { border-color: var(--orange-dim) !important; background-color: var(--orange-mist) !important; }
+.drop-icon { width: 44px; height: 44px; margin: 0 auto 8px; border-radius: 50%; display: grid; place-items: center; font-size: 20px;
+  color: var(--orange-hi); background: var(--bg-raised); border: 1px solid var(--border); }
+
+/* Device check */
+.dc-title { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .04em; font-size: 30px; font-weight: 700; color: var(--text-pri); margin-bottom: 6px; }
+.dc-nocam-icon { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; font-size: 28px; color: var(--text-sec-hi);
+  background: var(--bg-raised); border: 1px solid var(--border); }
+.dc-nocam-icon--warn { color: var(--red-hi); border-color: var(--red-dim); }
+#device-check label .pc-i { color: var(--orange-hi); }
+
+/* Publish modal */
+.pub-tile-icon { color: var(--orange-hi); line-height: 1; }
+.pub-close { display: inline-flex; }
+.pub-preset-btn { display: inline-flex; align-items: center; gap: 6px; }
+.pub-sub-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.pub-exec-btn .pc-i, .pub-tile-name .pc-i { vertical-align: -0.15em; }
+.pub-exec-btn { background: var(--grad-primary); transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast); }
+.pub-exec-btn:hover { background: var(--grad-primary-hover); }
+.pub-exec-btn:active { transform: scale(.99); }
+.yt-conn-warn .pc-i { vertical-align: -0.15em; }
+
+/* Toast with a status icon */
+.toast { display: flex; align-items: flex-start; gap: var(--space-2); box-shadow: var(--shadow-pop); border-radius: var(--radius-md); bottom: 88px; } /* clears the floating Brick chat button */
+.toast__icon { display: inline-flex; color: var(--blue-hi); margin-top: 1px; }
+.toast.error .toast__icon { color: var(--red-hi); }
+.toast.success .toast__icon { color: var(--green-hi); }
+
+/* Episode tools + small empty states */
+.post-ep-tab, .post-ep-copy-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.panel .mini-empty { padding: var(--space-5) var(--space-4); margin-top: var(--space-2); }
+.panel .mini-empty h3 { font: 600 14px/1.3 var(--font-body); text-transform: none; letter-spacing: 0; color: var(--text-pri); justify-content: center; margin: var(--space-2) 0 var(--space-1); }
+.panel .mini-empty p { font-size: 12px; color: var(--text-sec-hi); }
+#topic-loading { padding: var(--space-1) 0; }
+#record-cta { border-radius: var(--radius-lg); }
+
+@media (max-width: 760px) {
+  .transport { grid-template-columns: 1fr; padding: var(--space-3); }
+  .transport-group--devices #btn-screen { margin-left: 0; }
+  .transport-group--core .btn-rec, .transport-group--core #btn-stop { flex: 1; }
+  .transport-group--out { justify-content: flex-start; padding-top: var(--space-3); border-top: 1px solid var(--border); }
+  .transport-group--out .duration { margin-left: auto; }
+  #studio-cam-select { flex: 1; max-width: none !important; }
+  .btn-rec { flex: 1; }
+  #device-check { align-items: flex-start !important; overflow-y: auto; }
+  #device-check > div { gap: var(--space-6) !important; }
+  .dc-title { font-size: 24px; }
+  .stage-marks { inset: 10px; }
+  .preview .stage-empty p { display: none; }
+}
   </style>
   <script src="/static/podclick-nav.js?v=20261004-1" defer></script>
 </head>
 <body>
 <!-- ── Device Check Modal ────────────────────────────────────────── -->
-<div id="device-check" style="position:fixed;inset:0;background:rgba(6,8,22,0.98);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;">
+<div id="device-check" style="position:fixed;inset:0;background:color-mix(in srgb, var(--bg) 97%, transparent);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;">
   <div style="display:flex;gap:48px;align-items:center;max-width:900px;width:100%;flex-wrap:wrap;">
 
     <!-- Left: live camera preview -->
@@ -642,20 +805,21 @@
       <div style="position:relative;background:var(--bg-inset);border-radius:14px;overflow:hidden;aspect-ratio:16/9;">
         <video id="dc-video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;display:none;"></video>
         <div id="dc-no-cam" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);gap:12px;">
-          <div style="font-size:48px;">📷</div>
+          <div class="dc-nocam-icon"><i class="pc-i" data-i="camera"></i></div>
           <div style="font-size:13px;">Camera is off</div>
         </div>
         <div id="dc-res-badge" style="display:none;position:absolute;top:10px;left:12px;background:rgba(0,0,0,0.65);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--text-sec);line-height:1.5;">720p / 30fps<br><span style="color:var(--text-sec);font-size:10px;">This is how you'll be recorded.</span></div>
       </div>
       <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;">
-        <button id="dc-btn-cam" onclick="dcToggleCam()" title="Toggle camera" style="width:48px;height:48px;border-radius:50%;background:var(--bg-raised);border:1px solid var(--border);color:var(--text-pri);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;">📷</button>
-        <button id="dc-btn-mic" onclick="dcToggleMic()" title="Toggle mic"    style="width:48px;height:48px;border-radius:50%;background:var(--bg-raised);border:1px solid var(--border);color:var(--text-pri);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;">🎤</button>
+        <button id="dc-btn-cam" onclick="dcToggleCam()" title="Toggle camera" style="width:48px;height:48px;border-radius:50%;background:var(--bg-raised);border:1px solid var(--border);color:var(--text-pri);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;" aria-label="Toggle camera"><i class="pc-i" data-i="camera"></i></button>
+        <button id="dc-btn-mic" onclick="dcToggleMic()" title="Toggle mic"    style="width:48px;height:48px;border-radius:50%;background:var(--bg-raised);border:1px solid var(--border);color:var(--text-pri);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;" aria-label="Toggle mic"><i class="pc-i" data-i="mic"></i></button>
       </div>
     </div>
 
     <!-- Right: device selectors + join -->
     <div style="flex:1;min-width:260px;">
-      <h2 style="font-size:26px;font-weight:700;color:var(--text-pri);margin-bottom:6px;">Let's check your devices</h2>
+      <div class="pc-eyebrow" style="margin-bottom:10px;">Pre-roll check</div>
+      <h2 class="dc-title">Let's check your devices</h2>
       <p style="color:var(--text-dim);font-size:13px;margin-bottom:28px;">Choose your camera and mic before entering the studio.</p>
 
       <!-- Name row -->
@@ -669,30 +833,30 @@
 
       <!-- Camera select -->
       <div style="margin-bottom:14px;">
-        <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">📷 Camera</label>
+        <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;"><i class="pc-i" data-i="camera"></i> Camera</label>
         <div style="display:flex;gap:8px;align-items:stretch;">
           <select id="dc-cam-select" onchange="dcSwitchDevice()" style="flex:1;min-width:0;background:var(--bg-inset);border:1px solid var(--border);border-radius:10px;color:var(--text-pri);font-size:13px;padding:11px 14px;outline:none;cursor:pointer;"></select>
-          <button onclick="dcRefreshDevices()" title="Re-scan cameras — tap after connecting your iPhone" style="flex-shrink:0;background:var(--bg-raised);border:1px solid var(--border);border-radius:10px;color:var(--text-pri);font-size:15px;padding:0 13px;cursor:pointer;">🔄</button>
+          <button onclick="dcRefreshDevices()" title="Re-scan cameras — tap after connecting your iPhone" style="flex-shrink:0;background:var(--bg-raised);border:1px solid var(--border);border-radius:10px;color:var(--text-pri);font-size:15px;padding:0 13px;cursor:pointer;" aria-label="Re-scan cameras"><i class="pc-i" data-i="refresh-cw"></i></button>
         </div>
         <div id="dc-cam-hint" style="font-size:11px;color:var(--text-sec);margin-top:7px;line-height:1.4;display:none;"></div>
       </div>
 
       <!-- Mic select -->
       <div style="margin-bottom:14px;">
-        <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">🎤 Microphone</label>
+        <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;"><i class="pc-i" data-i="mic"></i> Microphone</label>
         <select id="dc-mic-select" onchange="dcSwitchDevice()" style="width:100%;background:var(--bg-inset);border:1px solid var(--border);border-radius:10px;color:var(--text-pri);font-size:13px;padding:11px 14px;outline:none;cursor:pointer;"></select>
       </div>
 
       <!-- Headphones -->
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;background:var(--bg-inset);border:1px solid var(--border);border-radius:10px;padding:11px 14px;">
-        <span style="font-size:18px;">🎧</span>
+        <span style="font-size:18px;color:var(--text-sec-hi);display:inline-flex;"><i class="pc-i" data-i="headphones"></i></span>
         <span style="font-size:13px;color:var(--text-sec);flex:1;">Using headphones?</span>
         <button id="dc-hp-yes" onclick="dcSetHeadphones(true)"  style="padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg-panel);color:var(--text-sec);font-size:12px;cursor:pointer;font-weight:600;transition:all .15s;">Yes</button>
         <button id="dc-hp-no"  onclick="dcSetHeadphones(false)" style="padding:6px 14px;border-radius:6px;border:none;background:var(--grad);color:var(--text-pri);font-size:12px;cursor:pointer;font-weight:600;">No</button>
       </div>
 
       <!-- Join button -->
-      <button onclick="dcEnterStudio()" style="width:100%;padding:16px;background:var(--grad);border:none;border-radius:12px;color:var(--text-pri);font-size:16px;font-weight:700;cursor:pointer;letter-spacing:0.02em;box-shadow:0 0 28px rgba(217,95,30,0.35);transition:opacity .15s;">Join Studio</button>
+      <button class="pc-btn pc-btn--primary pc-btn--lg pc-btn--block" onclick="dcEnterStudio()"><i class="pc-i" data-i="video"></i> Join Studio</button>
       <div style="text-align:center;margin-top:14px;">
         <button onclick="dcSkip()" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;text-decoration:underline;">Skip — enter without camera</button>
       </div>
@@ -702,28 +866,28 @@
 <!-- ── Publish Options Modal ─────────────────────────────── -->
 <div id="publish-modal" onclick="if(event.target===this)closePublishModal()">
   <div class="pub-card">
-    <button class="pub-close" onclick="closePublishModal()">×</button>
+    <button class="pub-close" onclick="closePublishModal()" aria-label="Close"><i class="pc-i" data-i="x"></i></button>
     <div class="pub-title">Where do you want to publish?</div>
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-      <button class="pub-preset-btn" onclick="selectPreset('podcast-clips-telegram')">🚀 Full Pipeline</button>
-      <button class="pub-preset-btn" onclick="selectPreset('podcast')">🎙️ Podcast Only</button>
-      <button class="pub-preset-btn" onclick="selectPreset('clips-telegram')">✂️ Clips + Telegram</button>
-      <button class="pub-preset-btn" onclick="clearPubSelections()">✕ Clear</button>
+      <button class="pub-preset-btn" onclick="selectPreset('podcast-clips-telegram')"><i class="pc-i" data-i="rocket"></i> Full Pipeline</button>
+      <button class="pub-preset-btn" onclick="selectPreset('podcast')"><i class="pc-i" data-i="mic"></i> Podcast Only</button>
+      <button class="pub-preset-btn" onclick="selectPreset('clips-telegram')"><i class="pc-i" data-i="scissors"></i> Clips + Telegram</button>
+      <button class="pub-preset-btn" onclick="clearPubSelections()"><i class="pc-i" data-i="x"></i> Clear</button>
     </div>
     <div class="pub-grid" id="pub-grid">
 
       <!-- Podcast -->
       <div class="pub-tile" data-key="podcast" onclick="togglePubTile(this, 'podcast')">
         <span class="pub-badge-live">LIVE</span>
-        <div class="pub-tile-icon">🎙️</div>
+        <div class="pub-tile-icon"><i class="pc-i" data-i="mic"></i></div>
         <div class="pub-tile-name">Podcast</div>
-        <div class="pub-tile-desc">Upload to Buzzsprout → distributes to Spotify, Apple, Amazon</div>
+        <div class="pub-tile-desc">Upload to Buzzsprout, then out to Spotify, Apple and Amazon</div>
       </div>
 
       <!-- Telegram -->
       <div class="pub-tile" data-key="telegram" onclick="togglePubTile(this, 'telegram')">
         <span class="pub-badge-live">LIVE</span>
-        <div class="pub-tile-icon">✈️</div>
+        <div class="pub-tile-icon"><i class="pc-i" data-i="send"></i></div>
         <div class="pub-tile-name">Telegram</div>
         <div class="pub-tile-desc">Send video to your Telegram — watch or share from your phone</div>
       </div>
@@ -731,7 +895,7 @@
       <!-- YouTube -->
       <div class="pub-tile" data-key="youtube" id="pub-yt-tile" onclick="expandYouTubeTile()">
         <span class="pub-badge-live">LIVE</span>
-        <div class="pub-tile-icon">▶️</div>
+        <div class="pub-tile-icon"><i class="pc-i" data-i="circle-play"></i></div>
         <div class="pub-tile-name">YouTube</div>
         <div class="pub-tile-desc">Upload to your YouTube channel</div>
         <div class="pub-sub" id="pub-yt-sub" style="display:none" onclick="event.stopPropagation()">
@@ -754,30 +918,30 @@
               <option value="public">Public</option>
             </select>
           </div>
-          <div class="yt-conn-warn" id="yt-conn-warn">⚠️ YouTube not connected — <a href="/api/youtube/auth" target="_blank" style="color:var(--yellow);">connect here</a> first</div>
-          <button class="pub-sub-btn" id="pub-yt-upload-btn" onclick="document.getElementById('pub-yt-tile').classList.add('selected');_pubSelected.add('youtube');_updatePubFooter();">Upload to YouTube →</button>
+          <div class="yt-conn-warn" id="yt-conn-warn"><i class="pc-i" data-i="triangle-alert"></i> YouTube not connected — <a href="/api/youtube/auth" target="_blank" style="color:var(--yellow);">connect here</a> first</div>
+          <button class="pub-sub-btn" id="pub-yt-upload-btn" onclick="document.getElementById('pub-yt-tile').classList.add('selected');_pubSelected.add('youtube');_updatePubFooter();">Upload to YouTube <i class="pc-i" data-i="arrow-right"></i></button>
         </div>
       </div>
 
       <!-- Clips / Shorts -->
       <div class="pub-tile" data-key="clips" onclick="togglePubTile(this, 'clips')">
         <span class="pub-badge-live">LIVE</span>
-        <div class="pub-tile-icon">✂️</div>
+        <div class="pub-tile-icon"><i class="pc-i" data-i="scissors"></i></div>
         <div class="pub-tile-name">Clips / Shorts</div>
-        <div class="pub-tile-desc">AI clips highlights → viral subtitles → TikTok &amp; YouTube Shorts</div>
+        <div class="pub-tile-desc">Highlight clips with captions, cut for TikTok &amp; YouTube Shorts</div>
       </div>
 
       <!-- Social channels: handled by The Crew (Facebook / Instagram / LinkedIn / TikTok) -->
       <a class="pub-tile pub-tile-link" href="/agents">
-        <div class="pub-tile-icon">👷</div>
-        <div class="pub-tile-name">Publish from The Crew →</div>
+        <div class="pub-tile-icon"><i class="pc-i" data-i="hard-hat"></i></div>
+        <div class="pub-tile-name">Publish from The Crew <i class="pc-i" data-i="arrow-right"></i></div>
         <div class="pub-tile-desc">Facebook, Instagram, LinkedIn and TikTok posts go out through The Crew, with a review step before anything posts.</div>
       </a>
 
     </div>
     <div id="pub-footer" style="margin-top:18px;display:none;">
       <button class="pub-exec-btn" id="pub-exec-btn" onclick="executePublish()">
-        Publish to <span id="pub-exec-count">0</span> destination<span id="pub-exec-plural"></span> →
+        Publish to <span id="pub-exec-count">0</span> destination<span id="pub-exec-plural"></span> <i class="pc-i" data-i="arrow-right"></i>
       </button>
     </div>
     <div id="pub-status-panel" style="display:none;">
@@ -788,7 +952,7 @@
 </div>
 <!-- ── File Transfer Bar ──────────────────────────────────── -->
 <div id="file-xfer-bar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:9997;background:var(--surface);border-bottom:1px solid var(--border);padding:8px 20px;align-items:center;gap:14px;">
-  <div style="font-size:16px;" id="file-xfer-icon">📤</div>
+  <div style="font-size:16px;color:var(--orange-hi);display:inline-flex;" id="file-xfer-icon"><i class="pc-i" data-i="upload"></i></div>
   <div style="flex:1;">
     <div style="font-size:12px;font-weight:700;color:var(--text);" id="file-xfer-label">Uploading…</div>
     <div style="font-size:11px;color:var(--text-dim);" id="file-xfer-dest"></div>
@@ -804,7 +968,7 @@
       <p>Solo · voice-driven teleprompter · local capture</p>
     </div>
     <div class="pc-page-actions">
-      <a href="/studio#upload" class="btn ghost">Upload a recording instead ↓</a>
+      <a href="/studio#upload" class="btn ghost"><i class="pc-i" data-i="upload"></i> Upload a recording instead</a>
     </div>
   </div>
 
@@ -813,9 +977,13 @@
     <div class="preview-shell">
       <div class="preview" id="preview-shell">
         <div class="placeholder" id="placeholder">
-          Click <strong>Start Camera</strong> to begin. Recording happens locally
-          in your browser — nothing uploads until you hit <strong>Publish</strong>.
+          <div class="stage-empty">
+            <div class="stage-empty__icon"><i class="pc-i" data-i="video"></i></div>
+            <div class="stage-empty__title">Camera's off</div>
+            <p>Hit <strong>Start Camera</strong> to frame your shot. Takes stay in this browser until you choose <strong>Save &amp; Continue</strong>.</p>
+          </div>
         </div>
+        <div class="stage-marks" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
         <canvas id="composite" style="display:none;"></canvas>
         <video id="cam-preview" autoplay playsinline muted style="display:none;"></video>
         <video id="screen-preview" autoplay playsinline muted style="display:none;"></video>
@@ -825,7 +993,7 @@
           <div id="cam-overlay-track"></div>
           <div id="cam-overlay-line"></div>
           <!-- Click-to-advance zone: pointer-events:all so mouse clicks reach it -->
-          <div id="cam-overlay-advance" title="Click bottom half to advance · Space/↓ = forward · ↑ = back"
+          <div id="cam-overlay-advance" title="Click bottom half to advance · Space or Down = forward · Up = back"
                onclick="prompterAdvanceLine()" style="
             position:absolute; bottom:0; left:0; right:0; height:55%;
             cursor:pointer; pointer-events:all; z-index:12;
@@ -842,41 +1010,48 @@
           </div>
         </div>
         <!-- Exit button sits inside preview box, always reachable -->
-        <button id="cam-overlay-exit" onclick="exitOverlay()">⊡ Exit Overlay</button>
+        <button id="cam-overlay-exit" onclick="exitOverlay()"><i class="pc-i" data-i="minimize-2"></i> Exit Overlay</button>
 
-        <div class="badge idle" id="rec-badge">
-          <span class="dot"></span><span id="rec-label">Idle</span>
+        <div class="badge idle" id="rec-badge" role="status" aria-live="polite">
+          <span class="dot"></span><span id="rec-label">Standby</span>
         </div>
+        <div class="stage-timecode" aria-hidden="true"><span id="stage-tc">00:00</span></div>
         <div class="vad-meter" id="vad-meter" style="display:none;">
           <div class="threshold" id="vad-threshold"></div>
           <div class="fill" id="vad-fill"></div>
         </div>
       </div>
 
-      <div class="transport">
+      <div class="transport" role="toolbar" aria-label="Recording controls">
+        <div class="transport-group transport-group--devices">
         <button class="btn" id="btn-camera">Start Camera</button>
         <select id="studio-cam-select" title="Switch camera (iPhone shows here when connected)"
           style="background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;color:var(--text-pri);font-size:12px;padding:8px 10px;outline:none;cursor:pointer;max-width:190px;">
-          <option value="">📷 Camera…</option>
+          <option value="">Camera…</option>
         </select>
-        <button class="btn ghost" id="btn-cam-rescan" title="Re-scan for cameras — tap after connecting your iPhone">🔄</button>
-        <button class="btn" id="btn-screen" disabled>Share Screen</button>
-        <button class="btn primary" id="btn-record" disabled>● Record</button>
-        <button class="btn danger" id="btn-stop" disabled>■ Stop</button>
+        <button class="btn ghost btn-icon" id="btn-cam-rescan" title="Re-scan for cameras — tap after connecting your iPhone" aria-label="Re-scan cameras"><i class="pc-i" data-i="refresh-cw"></i></button>
+        <button class="btn" id="btn-screen" disabled><i class="pc-i" data-i="monitor"></i> Share Screen</button>
+        </div>
+        <div class="transport-group transport-group--core">
+        <button class="btn primary btn-rec" id="btn-record" disabled><span class="rec-glyph" aria-hidden="true"></span> Record</button>
+        <button class="btn danger" id="btn-stop" disabled><i class="pc-i" data-i="square"></i> Stop</button>
         <button class="btn ghost" id="btn-punch" disabled
           title="Stop, rewind 5 seconds, re-record from there"
           style="background:rgba(196,150,28,0.12);border-color:var(--yellow-dim);color:var(--yellow);display:none;">
-          ⏮ Punch In
+          <i class="pc-i" data-i="skip-back"></i> Punch In
         </button>
-        <button class="btn ghost" id="btn-download" disabled>↓ Download</button>
-        <button class="btn primary" id="btn-publish" disabled>Publish →</button>
+        </div>
+        <div class="transport-group transport-group--out">
+        <button class="btn ghost" id="btn-download" disabled><i class="pc-i" data-i="download"></i> Download</button>
+        <button class="btn" id="btn-publish" disabled>Publish <i class="pc-i" data-i="arrow-right"></i></button>
         <span class="duration" id="duration">00:00</span>
+        </div>
       </div>
 
       <!-- ── Punch-In panel (shown during punch-in editing) ─────────────── -->
       <div class="panel" id="punch-panel" style="display:none;padding:12px 14px;background:rgba(196,150,28,0.07);border-color:var(--yellow-dim);">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <span style="font-size:13px;font-weight:700;color:var(--yellow);">⏮ Punch-In Mode</span>
+          <span style="font-size:13px;font-weight:700;color:var(--yellow);display:inline-flex;align-items:center;gap:6px;"><i class="pc-i" data-i="skip-back"></i> Punch-In Mode</span>
           <span style="font-size:11px;color:var(--text-sec);">Listen to context, then re-record from the punch point.</span>
         </div>
         <video id="punch-preview" controls style="width:100%;border-radius:8px;background:var(--bg-inset);max-height:100px;display:block;margin-bottom:10px;"></video>
@@ -890,27 +1065,27 @@
           </select>
           <button id="btn-punch-record"
             style="flex:1;padding:9px;font-size:13px;font-weight:700;background:var(--grad);color:var(--text-pri);border:none;border-radius:8px;cursor:pointer;"
-            onclick="punchStartRecording()">● Re-record from here</button>
+            onclick="punchStartRecording()"><span class="rec-glyph" aria-hidden="true"></span> Re-record from here</button>
           <button onclick="cancelPunch()"
             style="padding:9px 14px;font-size:12px;font-weight:600;background:var(--bg-raised);border:1px solid var(--border);color:var(--text-sec);border-radius:8px;cursor:pointer;">
-            ✕ Cancel
+            <i class="pc-i" data-i="x"></i> Cancel
           </button>
         </div>
-        <div style="margin-top:8px;font-size:11px;color:#4a4540;" id="punch-segment-count"></div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text-sec);" id="punch-segment-count"></div>
       </div>
 
       <!-- ── Recording Mode Switcher ─────────────────────────────────── -->
       <div class="panel" style="padding:10px 14px;">
         <div style="display:flex;gap:6px;align-items:center;">
-          <span style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);">Mode:</span>
-          <button id="mode-podcast-btn" onclick="setStudioMode('podcast')"
-            style="flex:1;padding:7px 10px;font-size:12px;font-weight:700;border-radius:7px;border:1px solid var(--orange);background:rgba(217,95,30,0.15);color:var(--orange-hi);cursor:pointer;transition:all .12s;">
-            📻 Podcast Episode
+          <span class="pc-eyebrow">Mode</span>
+          <div class="mode-seg" role="group" aria-label="Recording mode">
+          <button id="mode-podcast-btn" class="mode-btn active" aria-pressed="true" onclick="setStudioMode('podcast')">
+            <i class="pc-i" data-i="radio"></i> Podcast Episode
           </button>
-          <button id="mode-direct-btn" onclick="setStudioMode('direct')"
-            style="flex:1;padding:7px 10px;font-size:12px;font-weight:700;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-sec);cursor:pointer;transition:all .12s;">
-            🎬 Direct Video
+          <button id="mode-direct-btn" class="mode-btn" aria-pressed="false" onclick="setStudioMode('direct')">
+            <i class="pc-i" data-i="clapperboard"></i> Direct Video
           </button>
+          </div>
         </div>
         <div id="mode-hint" style="font-size:11px;color:var(--text-dim);margin-top:6px;text-align:center;">
           Podcast — Ship It pipeline, clips, chapters, show notes
@@ -918,7 +1093,7 @@
       </div>
 
       <div class="panel">
-        <h3>Status</h3>
+        <h3><i class="pc-i" data-i="radio-tower"></i> Status</h3>
         <div class="status-line">
           <span>Camera: <span id="s-camera" class="bad">off</span></span>
           <span>Mic: <span id="s-mic" class="bad">off</span></span>
@@ -932,7 +1107,7 @@
 
       <!-- ── Recording Tray ──────────────────────────────────────────── -->
       <div class="panel" id="recording-tray" style="display:none;">
-        <h3>🎬 Take Preview</h3>
+        <h3><i class="pc-i" data-i="clapperboard"></i> Take Preview</h3>
         <div style="display:flex; gap:6px; margin-bottom:8px; font-size:12px; color:var(--text-dim);">
           <span id="tray-filesize">—</span>
           <span>·</span>
@@ -952,22 +1127,22 @@
         </div>
 
         <!-- ── Save & Continue (hero action) ─────────────────────── -->
-        <button id="btn-save-continue"
-          style="width:100%;padding:11px;font-size:15px;font-weight:700;letter-spacing:0.03em;background:var(--orange);color:var(--text-pri);border:none;border-radius:8px;cursor:pointer;margin-bottom:8px;"
+        <button id="btn-save-continue" class="btn primary btn-block btn-lg"
+          style="margin-bottom:8px;"
           onclick="saveAndContinue()">
-          Save &amp; Continue →
+          Save &amp; Continue <i class="pc-i" data-i="arrow-right"></i>
         </button>
         <div id="save-continue-status" style="font-size:12px;color:var(--text-sec);text-align:center;display:none;margin-bottom:8px;"></div>
 
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn ghost" style="font-size:12px; padding:5px 12px;" onclick="trayDownload()">⬇ Download</button>
-          <button class="btn ghost" style="font-size:12px; padding:5px 14px;" onclick="openPublishModal()">🚀 Legacy Publish</button>
+          <button class="btn ghost" style="font-size:12px; padding:5px 12px;" onclick="trayDownload()"><i class="pc-i" data-i="download"></i> Download</button>
+          <button class="btn ghost" style="font-size:12px; padding:5px 14px;" onclick="openPublishModal()"><i class="pc-i" data-i="rocket"></i> Legacy Publish</button>
         </div>
       </div>
 
       <!-- ── Direct Video Tray (ads / VSLs / promos — NOT podcast pipeline) ── -->
       <div class="panel" id="direct-tray" style="display:none;">
-        <h3>🎬 Direct Video</h3>
+        <h3><i class="pc-i" data-i="clapperboard"></i> Direct Video</h3>
         <div style="display:flex; gap:6px; margin-bottom:8px; font-size:12px; color:var(--text-dim);">
           <span id="direct-tray-filesize">—</span>
           <span>·</span>
@@ -982,13 +1157,13 @@
           <label style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:.06em;">Video Type</label>
           <select id="direct-video-type"
             style="width:100%;margin-top:4px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-pri);font-size:14px;box-sizing:border-box;">
-            <option value="ad">📢 Ad</option>
-            <option value="vsl">📽 VSL (Video Sales Letter)</option>
-            <option value="intro">🎬 Intro</option>
-            <option value="promo">🌟 Promo</option>
-            <option value="b-roll">🎥 B-Roll</option>
-            <option value="tutorial">📚 Tutorial</option>
-            <option value="other">🎞 Other</option>
+            <option value="ad">Ad</option>
+            <option value="vsl">VSL (Video Sales Letter)</option>
+            <option value="intro">Intro</option>
+            <option value="promo">Promo</option>
+            <option value="b-roll">B-Roll</option>
+            <option value="tutorial">Tutorial</option>
+            <option value="other">Other</option>
           </select>
         </div>
 
@@ -1001,52 +1176,52 @@
         </div>
 
         <!-- Save to Library -->
-        <button id="btn-direct-save"
-          style="width:100%;padding:11px;font-size:15px;font-weight:700;letter-spacing:.03em;background:var(--orange);color:var(--text-pri);border:none;border-radius:8px;cursor:pointer;margin-bottom:8px;"
+        <button id="btn-direct-save" class="btn primary btn-block btn-lg"
+          style="margin-bottom:8px;"
           onclick="directVideoSave()">
-          💾 Save to Video Library
+          <i class="pc-i" data-i="save"></i> Save to Video Library
         </button>
         <div id="direct-save-status" style="font-size:12px;color:var(--text-sec);text-align:center;display:none;margin-bottom:8px;"></div>
 
         <!-- Download MP4 -->
         <div style="display:flex;gap:8px;">
-          <button class="btn ghost" style="flex:1;font-size:12px;" onclick="directVideoDownload()">⬇ Download MP4</button>
-          <button class="btn ghost" style="flex:1;font-size:12px;" onclick="document.getElementById('direct-tray').style.display='none'">✕ Discard</button>
+          <button class="btn ghost" style="flex:1;font-size:12px;" onclick="directVideoDownload()"><i class="pc-i" data-i="download"></i> Download MP4</button>
+          <button class="btn ghost" style="flex:1;font-size:12px;" onclick="document.getElementById('direct-tray').style.display='none'"><i class="pc-i" data-i="trash-2"></i> Discard</button>
         </div>
       </div>
 
       <!-- ── Video Library (direct videos) ─────────────────────────────── -->
       <div class="panel" id="video-library-panel" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <h3 style="margin:0;">📚 Video Library</h3>
-          <button class="btn ghost" style="font-size:11px;padding:4px 10px;" onclick="loadVideoLibrary()">↺ Refresh</button>
+          <h3 style="margin:0;"><i class="pc-i" data-i="library"></i> Video Library</h3>
+          <button class="btn ghost" style="font-size:11px;padding:4px 10px;" onclick="loadVideoLibrary()"><i class="pc-i" data-i="rotate-ccw"></i> Refresh</button>
         </div>
-        <div id="video-library-list" style="font-size:13px;color:var(--text-sec);">Loading…</div>
+        <div id="video-library-list" style="font-size:13px;color:var(--text-sec);"><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--text" style="width:70%"></div></div>
       </div>
 
       <!-- ── Post-Episode Tools ──────────────────────────────────────── -->
       <div class="panel" id="post-ep-panel" style="display:none;">
-        <h3>Episode Tools</h3>
+        <h3><i class="pc-i" data-i="wrench"></i> Episode Tools</h3>
         <div class="post-ep-tabs">
-          <button class="post-ep-tab active" onclick="switchPostEpTab('shownotes', this)">📝 Show Notes</button>
-          <button class="post-ep-tab" onclick="switchPostEpTab('social', this)">📣 Social Posts</button>
+          <button class="post-ep-tab active" onclick="switchPostEpTab('shownotes', this)"><i class="pc-i" data-i="notebook-pen"></i> Show Notes</button>
+          <button class="post-ep-tab" onclick="switchPostEpTab('social', this)"><i class="pc-i" data-i="megaphone"></i> Social Posts</button>
         </div>
 
         <!-- Show Notes -->
         <div class="post-ep-section active" id="post-ep-shownotes">
           <button class="btn ghost" style="width:100%;margin-bottom:10px;font-size:12px;" id="btn-gen-shownotes" onclick="generateShowNotes()">
-            ✨ Generate Show Notes
+            <i class="pc-i" data-i="sparkles"></i> Generate Show Notes
           </button>
-          <div class="post-ep-output" id="shownotes-output" style="display:none;"></div>
+          <div class="post-ep-output" id="shownotes-output" data-ai-output style="display:none;"></div>
           <div style="display:flex;gap:8px;margin-top:8px;" id="shownotes-actions" style="display:none;">
-            <button class="post-ep-copy-btn" onclick="copyPostEp('shownotes-output', this)">📋 Copy</button>
+            <button class="post-ep-copy-btn" onclick="copyPostEp('shownotes-output', this)"><i class="pc-i" data-i="copy"></i> Copy</button>
           </div>
         </div>
 
         <!-- Social Posts -->
         <div class="post-ep-section" id="post-ep-social">
           <button class="btn ghost" style="width:100%;margin-bottom:10px;font-size:12px;" id="btn-gen-social" onclick="generateSocialPosts()">
-            ✨ Generate Social Posts
+            <i class="pc-i" data-i="sparkles"></i> Generate Social Posts
           </button>
           <div id="social-output-wrap" style="display:none;">
             <div class="social-plat-tabs">
@@ -1055,8 +1230,8 @@
               <button class="social-plat-btn" onclick="switchSocialPlat('instagram', this)">Instagram</button>
               <button class="social-plat-btn" onclick="switchSocialPlat('x', this)">X</button>
             </div>
-            <div class="post-ep-output" id="social-output"></div>
-            <button class="post-ep-copy-btn" style="margin-top:8px;" onclick="copyPostEp('social-output', this)">📋 Copy</button>
+            <div class="post-ep-output" id="social-output" data-ai-output></div>
+            <button class="post-ep-copy-btn" style="margin-top:8px;" onclick="copyPostEp('social-output', this)"><i class="pc-i" data-i="copy"></i> Copy</button>
           </div>
         </div>
       </div>
@@ -1066,7 +1241,7 @@
     <div class="right-pane">
       <!-- ── Upload Pre-Recorded File ─────────────────────────────────── -->
       <div class="panel" id="upload-tray">
-        <h3>📂 Upload a recording (audio or video)</h3>
+        <h3><i class="pc-i" data-i="cloud-upload"></i> Upload a recording</h3>
         <p style="font-size:12px;color:var(--text-sec);margin:0 0 10px;">Already recorded? Drop the file here and we'll start a new build from it.</p>
 
         <!-- Drop zone -->
@@ -1076,7 +1251,7 @@
           ondragover="uploadDragOver(event)"
           ondragleave="uploadDragLeave(event)"
           ondrop="uploadDrop(event)">
-          <div style="font-size:24px;margin-bottom:4px;">🎬</div>
+          <div class="drop-icon"><i class="pc-i" data-i="file-video"></i></div>
           <div style="font-size:13px;color:var(--text-sec);">Drag &amp; drop or <span style="color:var(--orange);font-weight:600;">browse</span></div>
           <div id="upload-accepted-types" style="font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.5;">Video: MP4 · MOV · WebM · MKV<br>Audio: MP3 · M4A · WAV · FLAC · AAC</div>
           <div id="upload-file-name" style="display:none;margin-top:8px;font-size:12px;color:var(--orange);font-weight:600;word-break:break-all;"></div>
@@ -1092,57 +1267,65 @@
         </div>
 
         <!-- Upload button -->
-        <button id="btn-upload-continue"
-          style="width:100%;padding:11px;font-size:15px;font-weight:700;letter-spacing:0.03em;background:var(--border);color:var(--text-sec);border:none;border-radius:8px;cursor:not-allowed;margin-bottom:6px;"
+        <button id="btn-upload-continue" class="btn accent btn-block btn-lg"
+          style="margin-bottom:6px;"
           disabled onclick="uploadAndContinue()">
-          Upload &amp; Continue →
+          Upload &amp; Continue <i class="pc-i" data-i="arrow-right"></i>
         </button>
         <div id="upload-status" style="font-size:12px;color:var(--text-sec);text-align:center;display:none;"></div>
       </div>
 
       <div class="panel">
-        <h3>Teleprompter <span class="pill" id="prompter-status">paused</span>
+        <h3><i class="pc-i" data-i="book-open"></i> Teleprompter <span class="pill" id="prompter-status">paused</span>
           <span style="margin-left:auto;display:flex;gap:6px">
-            <button class="btn ghost" id="btn-overlay" title="Overlay on video (Esc to exit)" style="font-size:11px;padding:3px 9px">⊞ Overlay</button>
-            <button class="btn ghost" id="btn-fullscreen" title="Full screen (Esc to exit)" style="font-size:11px;padding:3px 9px">⤢ Full Screen</button>
+            <button class="btn ghost" id="btn-overlay" title="Overlay on video (Esc to exit)" style="font-size:11px;padding:3px 9px"><i class="pc-i" data-i="layers"></i> Overlay</button>
+            <button class="btn ghost" id="btn-fullscreen" title="Full screen (Esc to exit)" style="font-size:11px;padding:3px 9px"><i class="pc-i" data-i="maximize-2"></i> Full Screen</button>
           </span>
         </h3>
         <div class="prompter" id="prompter">
           <div class="prompter-track" id="prompter-track">
-            <div class="prompter-empty" id="prompter-empty">Paste your script below, then start recording. The script scrolls only while you're talking — pause, and it pauses with you.</div>
+            <div class="prompter-empty" id="prompter-empty"><div class="stage-empty"><div class="stage-empty__icon"><i class="pc-i" data-i="book-open"></i></div><div class="stage-empty__title">No script cued</div><p>Paste or generate a script below. It scrolls only while you talk. Pause, and it waits for you.</p></div></div>
           </div>
           <div class="prompter-overlay"></div>
         </div>
         <div class="prompter-controls">
-          <label>Font
-            <input type="range" id="font-size" min="18" max="42" step="1" value="26" />
-          </label>
-          <span style="font-size:11px;color:var(--text-dim);font-weight:600;">Speed</span>
-          <button class="speed-btn" id="speed-slow" onclick="setSpeedPreset(40,this)">Slow</button>
-          <button class="speed-btn active" id="speed-med" onclick="setSpeedPreset(65,this)">Medium</button>
-          <button class="speed-btn" id="speed-fast" onclick="setSpeedPreset(90,this)">Fast</button>
-          <span style="font-size:10px;color:var(--border);margin:0 2px;">│</span>
-          <label title="How loud sound needs to be to count as speech">Mic
-            <input type="range" id="vad-sens" min="0.005" max="0.08" step="0.002" value="0.02" style="width:70px;" />
-          </label>
-          <span style="font-size:10px;color:var(--border);margin:0 2px;">│</span>
-          <button class="smart-pace-btn" id="btn-smart-pace" onclick="toggleSmartPace()" title="Smart Pace uses voice recognition to match scroll speed to your speaking rate">✦ Smart Pace</button>
+          <div class="tp-group">
+            <span class="tp-label">Text</span>
+            <label title="Prompter text size"><i class="pc-i" data-i="type"></i>
+              <input type="range" id="font-size" min="18" max="42" step="1" value="26" aria-label="Font size" />
+            </label>
+          </div>
+          <div class="tp-group">
+            <span class="tp-label">Pace</span>
+            <div class="tp-seg" role="group" aria-label="Scroll speed">
+              <button class="speed-btn" id="speed-slow" onclick="setSpeedPreset(40,this)">Slow</button>
+              <button class="speed-btn active" id="speed-med" onclick="setSpeedPreset(65,this)">Medium</button>
+              <button class="speed-btn" id="speed-fast" onclick="setSpeedPreset(90,this)">Fast</button>
+            </div>
+            <button class="smart-pace-btn" id="btn-smart-pace" onclick="toggleSmartPace()" title="Smart Pace uses voice recognition to match scroll speed to your speaking rate"><i class="pc-i" data-i="audio-lines"></i> Smart Pace</button>
+          </div>
+          <div class="tp-group">
+            <span class="tp-label">Mic gate</span>
+            <label title="How loud sound needs to be to count as speech"><i class="pc-i" data-i="mic"></i>
+              <input type="range" id="vad-sens" min="0.005" max="0.08" step="0.002" value="0.02" style="width:70px;" aria-label="Mic sensitivity" />
+            </label>
+          </div>
           <!-- hidden legacy badge elements — referenced by updateModeIndicator() -->
           <span id="sr-mode-badge" style="display:none;"></span>
           <span id="vad-mode-badge" style="display:none;"></span>
-          <button class="btn ghost" id="btn-prompter-reset" style="margin-left:auto;">Reset to top</button>
+          <button class="btn ghost" id="btn-prompter-reset" style="margin-left:auto;"><i class="pc-i" data-i="undo-2"></i> Reset to top</button>
         </div>
         <!-- Overlay is now baked into the camera preview box — see #cam-overlay -->
       </div>
 
       <!-- ── Today's Topic ───────────────────────────────────────────── -->
       <div class="panel" id="today-topic-panel">
-        <h3>Today's Topic
-          <button class="btn ghost" id="btn-refresh-topic" title="Reload from schedule" style="font-size:11px;padding:3px 9px;margin-left:auto;">↺ Refresh</button>
+        <h3><i class="pc-i" data-i="calendar-days"></i> Today's Topic
+          <button class="btn ghost" id="btn-refresh-topic" title="Reload from schedule" style="font-size:11px;padding:3px 9px;margin-left:auto;"><i class="pc-i" data-i="rotate-ccw"></i> Refresh</button>
         </h3>
 
         <!-- Loading state -->
-        <div id="topic-loading" style="color:var(--text-sec);font-size:13px;padding:8px 0;">Loading from schedule…</div>
+        <div id="topic-loading" aria-label="Loading from schedule"><div class="pc-skeleton pc-skeleton--text" style="width:40%"></div><div class="pc-skeleton pc-skeleton--block" style="height:38px"></div><div class="pc-skeleton pc-skeleton--text" style="width:75%"></div></div>
 
         <!-- Loaded state (hidden until data arrives) -->
         <div id="topic-loaded" style="display:none">
@@ -1166,24 +1349,24 @@
             <input type="text" id="topic-notes" style="width:100%;margin-top:4px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-pri);font-size:13px;" placeholder="Optional angle or talking points…" />
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
-            <button class="btn primary" id="btn-gen-script" style="flex:1;font-weight:700;letter-spacing:0.03em;">✨ Generate Script</button>
-            <span id="gen-spinner" style="display:none;color:var(--orange);font-size:13px;">generating…</span>
+            <button class="btn accent" id="btn-gen-script" style="flex:1;font-weight:700;letter-spacing:0.03em;"><i class="pc-i" data-i="sparkles"></i> Generate Script</button>
+            <span id="gen-spinner" style="display:none;color:var(--orange-hi);font-size:13px;align-items:center;gap:6px;"><span class="pc-spinner"></span> drafting…</span>
           </div>
           <div id="record-cta">
-            <strong>Script ready.</strong> Hit <strong style="color:var(--orange);">● Record</strong> to start — camera will turn on automatically.
-            <br><button class="btn primary" style="margin-top:8px;width:100%;font-weight:700;" onclick="startCameraAndRecord()">● Start Recording Now</button>
+            <strong>Script ready.</strong> Hit <strong style="color:var(--orange-hi);">Record</strong> to start — the camera turns on automatically.
+            <br><button class="btn accent btn-block" style="margin-top:8px;font-weight:700;" onclick="startCameraAndRecord()"><span class="rec-glyph" aria-hidden="true"></span> Start Recording Now</button>
           </div>
           <div id="topic-message" style="margin-top:8px;font-size:12px;color:var(--text-sec);"></div>
         </div>
 
         <!-- No schedule state -->
         <div id="topic-empty" style="display:none;color:var(--text-sec);font-size:13px;padding:8px 0;">
-          No schedule set. <a href="/youtube-studio#scheduler" style="color:var(--orange);">Set one in Click Studio →</a>
+          No schedule set. <a href="/youtube-studio#scheduler" style="color:var(--orange-hi);">Set one in Click Studio <i class="pc-i" data-i="arrow-right"></i></a>
         </div>
       </div>
 
       <div class="panel">
-        <h3>Script</h3>
+        <h3><i class="pc-i" data-i="file-text"></i> Script</h3>
         <textarea id="script" placeholder="Paste your script or generate one above. Markdown is fine — formatting is stripped at render time."></textarea>
         <div class="help-row" style="margin-top:8px;">
           Tip: write in short paragraphs separated by blank lines. The prompter reads better that way.
@@ -1191,7 +1374,7 @@
       </div>
 
       <div class="panel">
-        <h3>Episode metadata</h3>
+        <h3><i class="pc-i" data-i="tag"></i> Episode metadata</h3>
         <div class="row" style="margin-bottom:8px;">
           <input type="text" id="podcast-name" placeholder="Podcast / show name (optional)" />
         </div>
@@ -1217,6 +1400,17 @@
      ────────────────────────────────────────────────────────────────── */
 
   const $ = (id) => document.getElementById(id);
+
+  /* Icon markup for JS-built UI strings. Uses the shared Lucide bundle when it has
+     loaded; otherwise leaves a placeholder that PodClickIcons.mount() fills later. */
+  function ic(name) {
+    try {
+      if (window.PodClickIcons && PodClickIcons.svg) {
+        return '<i class="pc-i" data-i="' + name + '">' + PodClickIcons.svg(name) + '</i>';
+      }
+    } catch (_) {}
+    return '<i class="pc-i" data-i="' + name + '"></i>';
+  }
 
   const els = {
     placeholder: $("placeholder"),
@@ -1295,7 +1489,10 @@
   /* ── Toast ───────────────────────────────────────────────────────── */
   let toastTimer = null;
   function toast(msg, kind = "info") {
-    els.toast.textContent = msg;
+    const iconName = kind === "error" ? "circle-x" : kind === "success" ? "circle-check" : "info";
+    els.toast.innerHTML = '<span class="toast__icon">' + ic(iconName) + '</span><span class="toast__msg"></span>';
+    els.toast.querySelector('.toast__msg').textContent = String(msg == null ? '' : msg);
+    els.toast.setAttribute('role', kind === 'error' ? 'alert' : 'status');
     els.toast.className = `toast show ${kind === "error" ? "error" : kind === "success" ? "success" : ""}`;
     if (toastTimer) clearTimeout(toastTimer);
     toastTimer = setTimeout(() => els.toast.classList.remove("show"), 4000);
@@ -1350,7 +1547,7 @@
         const phone = _isPhoneCam(d.label);
         const o = document.createElement('option');
         o.value = d.deviceId;
-        o.textContent = (phone ? '📱 ' : '📷 ') + (d.label || ('Camera ' + (i + 1)));
+        o.textContent = (phone ? 'Phone · ' : '') + (d.label || ('Camera ' + (i + 1)));
         if (d.deviceId === curId) o.selected = true;
         sel.appendChild(o);
       });
@@ -1365,8 +1562,8 @@
     try { const s = await navigator.mediaDevices.getUserMedia({ video: true }); s.getTracks().forEach(t => t.stop()); } catch (_) {}
     await populateStudioCams();
     const sel = els.studioCamSelect;
-    const hasPhone = sel && Array.from(sel.options).some(o => /📱/.test(o.textContent));
-    toast(hasPhone ? '📱 iPhone found — pick it in the camera list.'
+    const hasPhone = sel && Array.from(sel.options).some(o => _isPhoneCam(o.textContent));
+    toast(hasPhone ? 'iPhone found — pick it in the camera list.'
                    : 'Re-scanned. No iPhone yet — unlock it, same Wi-Fi/Bluetooth + Apple ID, or plug in via USB.',
           hasPhone ? 'success' : 'info');
   }
@@ -1414,7 +1611,7 @@
     attachAudioAnalyser(newStream);
     ensureCompositeRunning();
     const lbl = newStream.getVideoTracks()[0]?.label || 'camera';
-    toast((_isPhoneCam(lbl) ? '📱 ' : '') + 'Switched to ' + lbl + '.', 'success');
+    toast('Switched to ' + lbl + '.', 'success');
     populateStudioCams();
   }
 
@@ -1899,7 +2096,7 @@
       );
     });
 
-    els.btnOverlay.textContent = '⊡ Overlay On';
+    els.btnOverlay.innerHTML = ic('layers') + ' Overlay On';
 
     // Show click-to-advance hint briefly
     const hint = document.getElementById('cam-advance-hint');
@@ -1952,7 +2149,7 @@
     requestAnimationFrame(() => {
       state.promptMaxScroll = Math.max(0, els.prompterTrack.scrollHeight - 140);
     });
-    els.btnOverlay.textContent = '⊞ Overlay';
+    els.btnOverlay.innerHTML = ic('layers') + ' Overlay';
   }
 
   function toggleOverlay() {
@@ -2217,7 +2414,7 @@
     els.btnPublish.disabled = false;
     els.btnDownload.disabled = false;
     els.recBadge.classList.add("idle");
-    els.recLabel.textContent = "Idle";
+    els.recLabel.textContent = "Standby";
     els.duration.classList.remove("recording");
     stopDurationTimer();
     stopSpeechRecognition();
@@ -2242,7 +2439,7 @@
     const scStatus = document.getElementById('save-continue-status');
     const scBtn = document.getElementById('btn-save-continue');
     if (scStatus) { scStatus.style.display = 'none'; scStatus.textContent = ''; }
-    if (scBtn) { scBtn.disabled = false; scBtn.textContent = 'Save & Continue →'; }
+    if (scBtn) { scBtn.disabled = false; scBtn.innerHTML = 'Save &amp; Continue ' + ic('arrow-right'); }
     // Revoke any previous URL
     if (trayVideo._blobUrl) URL.revokeObjectURL(trayVideo._blobUrl);
     const blobUrl = URL.createObjectURL(blob);
@@ -2278,22 +2475,14 @@
     const hint = document.getElementById('mode-hint');
 
     if (mode === 'podcast') {
-      pb.style.borderColor = 'var(--orange)';
-      pb.style.background  = 'rgba(217,95,30,0.15)';
-      pb.style.color       = 'var(--orange-hi)';
-      db.style.borderColor = 'var(--border)';
-      db.style.background  = 'transparent';
-      db.style.color       = 'var(--text-sec)';
+      pb.classList.add('active'); pb.setAttribute('aria-pressed', 'true');
+      db.classList.remove('active'); db.setAttribute('aria-pressed', 'false');
       hint.textContent     = 'Podcast — Ship It pipeline, clips, chapters, show notes';
       // Show video library if already visible
       document.getElementById('video-library-panel').style.display = 'none';
     } else {
-      db.style.borderColor = 'var(--orange)';
-      db.style.background  = 'rgba(217,95,30,0.15)';
-      db.style.color       = 'var(--orange-hi)';
-      pb.style.borderColor = 'var(--border)';
-      pb.style.background  = 'transparent';
-      pb.style.color       = 'var(--text-sec)';
+      db.classList.add('active'); db.setAttribute('aria-pressed', 'true');
+      pb.classList.remove('active'); pb.setAttribute('aria-pressed', 'false');
       hint.textContent     = 'Direct Video — ads, VSLs, promos. Saves as MP4 to library.';
       loadVideoLibrary();
     }
@@ -2373,7 +2562,7 @@
   async function directVideoDownload() {
     if (!state.recordingBlob) return;
     const btn = document.querySelector('[onclick="directVideoDownload()"]');
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ Converting…'; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="pc-spinner"></span> Converting…'; }
     try {
       const fd = new FormData();
       fd.append('file', state.recordingBlob, 'recording.webm');
@@ -2390,7 +2579,7 @@
     } catch(err) {
       alert('Download failed: ' + err.message);
     } finally {
-      if (btn) { btn.disabled = false; btn.textContent = '⬇ Download MP4'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = ic('download') + ' Download MP4'; }
     }
   }
 
@@ -2402,10 +2591,10 @@
     const title  = document.getElementById('direct-video-title').value.trim();
 
     btn.disabled  = true;
-    btn.textContent = '⏳ Converting & Saving…';
+    btn.innerHTML = '<span class="pc-spinner"></span> Converting &amp; saving…';
     status.style.display = 'block';
     status.style.color   = 'var(--text-sec)';
-    status.textContent   = 'Converting WebM → MP4…';
+    status.textContent   = 'Converting WebM to MP4…';
 
     try {
       const fd = new FormData();
@@ -2419,14 +2608,14 @@
       }
       const data = await resp.json();
       status.style.color = 'var(--green-hi)';
-      status.textContent = `✓ Saved to library — ${data.size_mb} MB`;
-      btn.textContent = '✓ Saved';
+      status.innerHTML = ic('circle-check') + ` Saved to library — ${escHtml(String(data.size_mb))} MB`;
+      btn.innerHTML = ic('check') + ' Saved';
       loadVideoLibrary();
     } catch(err) {
       status.style.color   = 'var(--red)';
-      status.textContent   = '✗ ' + err.message;
+      status.innerHTML     = ic('circle-x') + ' ' + escHtml(err.message);
       btn.disabled         = false;
-      btn.textContent      = '💾 Save to Video Library';
+      btn.innerHTML        = ic('save') + ' Save to Video Library';
     }
   }
 
@@ -2434,15 +2623,15 @@
     const panel = document.getElementById('video-library-panel');
     const list  = document.getElementById('video-library-list');
     panel.style.display = '';
-    list.textContent    = 'Loading…';
+    list.innerHTML     = '<div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--text" style="width:70%"></div><div class="pc-skeleton pc-skeleton--text" style="width:85%"></div>';
     try {
       const data = await fetch('/api/studio/video-library').then(r => r.json());
       if (!data.length) {
-        list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:8px 0;">No videos saved yet.</div>';
+        list.innerHTML = '<div class="pc-empty mini-empty"><div class="empty-state__icon">' + ic('film') + '</div><h3>No videos on the shelf</h3><p>Record in Direct Video mode and save the take. It lands here as an MP4.</p></div>';
         return;
       }
-      const TYPE_LABELS = { ad:'📢 Ad', vsl:'📽 VSL', intro:'🎬 Intro', promo:'🌟 Promo',
-        'b-roll':'🎥 B-Roll', tutorial:'📚 Tutorial', other:'🎞 Other' };
+      const TYPE_LABELS = { ad:'Ad', vsl:'VSL', intro:'Intro', promo:'Promo',
+        'b-roll':'B-Roll', tutorial:'Tutorial', other:'Other' };
       list.innerHTML = data.map(v => {
         const durLabel = (v.duration && v.duration > 0)
           ? (() => { const m = Math.floor(v.duration/60), s = Math.floor(v.duration%60);
@@ -2456,9 +2645,9 @@
           </div>
           <a href="/studio"
              style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;background:rgba(217,95,30,0.12);border:1px solid var(--orange-dim);color:var(--orange-hi);text-decoration:none;white-space:nowrap;"
-             title="Open in the Studio">✂ Edit</a>
-          <a href="${escHtml(v.url)}" download style="font-size:18px;color:var(--text-dim);text-decoration:none;" title="Download">⬇</a>
-          <button onclick="deleteDirectVideo('${escHtml(v.id)}')" style="background:none;border:none;color:var(--text-dim);font-size:15px;cursor:pointer;padding:0;" title="Delete">🗑</button>
+             title="Open in the Studio"><i class="pc-i" data-i="scissors"></i> Edit</a>
+          <a href="${escHtml(v.url)}" download style="font-size:18px;color:var(--text-dim);text-decoration:none;" title="Download" aria-label="Download"><i class="pc-i" data-i="download"></i></a>
+          <button onclick="deleteDirectVideo('${escHtml(v.id)}')" style="background:none;border:none;color:var(--text-dim);font-size:15px;cursor:pointer;padding:0;" title="Delete" aria-label="Delete">${ic('trash-2')}</button>
         </div>`;
       }).join('');
     } catch(err) {
@@ -2500,14 +2689,8 @@
     const btn = document.getElementById('btn-upload-continue');
     if (ready) {
       btn.disabled = false;
-      btn.style.background = 'var(--orange)';
-      btn.style.color = 'var(--text-pri)';
-      btn.style.cursor = 'pointer';
     } else {
       btn.disabled = true;
-      btn.style.background = 'var(--border)';
-      btn.style.color = 'var(--text-sec)';
-      btn.style.cursor = 'not-allowed';
     }
   }
 
@@ -2542,7 +2725,7 @@
     const allowed = ['mp4', 'mov', 'webm', 'mkv', 'mp3', 'm4a', 'wav', 'flac', 'aac'];
     const ext = f.name.split('.').pop().toLowerCase();
     if (!allowed.includes(ext)) {
-      toast('⚠️ Unsupported file type — use MP4, MOV, WebM, MKV, MP3, M4A, WAV, FLAC, or AAC', 'error');
+      toast('Unsupported file type — use MP4, MOV, WebM, MKV, MP3, M4A, WAV, FLAC, or AAC', 'error');
       return;
     }
     _uploadFile = f;
@@ -2622,14 +2805,14 @@
         xhr.send(fd);
       });
 
-      statusEl.textContent = '✅ File poured. Redirecting to Job Site…';
+      statusEl.innerHTML = ic('circle-check') + ' File poured. Heading to the Job Site…';
       setTimeout(() => { window.location.href = '/project/' + projectId; }, 600);
 
     } catch (err) {
       btn.disabled = false;
-      btn.textContent = 'Upload & Continue →';
-      statusEl.textContent = '❌ ' + err.message;
-      toast('❌ ' + err.message, 'error');
+      btn.innerHTML = 'Upload &amp; Continue ' + ic('arrow-right');
+      statusEl.innerHTML = ic('circle-x') + ' ' + escHtml(err.message);
+      toast(err.message, 'error');
     }
   }
 
@@ -2679,7 +2862,7 @@
 
       status.textContent = 'Build saved. Breaking ground…';
       status.style.color = 'var(--green-hi)';
-      btn.textContent = '✓ Saved';
+      btn.innerHTML = ic('check') + ' Saved';
       clearStudioDraft();  // recording captured → don't re-cue this script next time
 
       // Small delay so the user sees the success state before redirect
@@ -2691,7 +2874,7 @@
       status.textContent = 'Save failed: ' + err.message;
       status.style.color = 'var(--red)';
       btn.disabled = false;
-      btn.textContent = 'Save & Continue →';
+      btn.innerHTML = 'Save &amp; Continue ' + ic('arrow-right');
     }
   }
 
@@ -2708,16 +2891,16 @@
     const el = document.getElementById(elId);
     if (!el) return;
     navigator.clipboard.writeText(el.textContent).then(() => {
-      const orig = btn.textContent;
-      btn.textContent = '✓ Copied!';
-      setTimeout(() => btn.textContent = orig, 2000);
+      const orig = btn.innerHTML;
+      btn.innerHTML = ic('check') + ' Copied';
+      setTimeout(() => btn.innerHTML = orig, 2000);
     });
   }
 
   /* ── Show Notes Generator ───────────────────────────────────────── */
   async function generateShowNotes() {
     const btn = document.getElementById('btn-gen-shownotes');
-    btn.disabled = true; btn.textContent = '⏳ Generating…';
+    btn.disabled = true; btn.innerHTML = '<span class="pc-spinner"></span> Generating…';
     const out     = document.getElementById('shownotes-output');
     const actions = document.getElementById('shownotes-actions');
     try {
@@ -2738,11 +2921,11 @@
       out.textContent = data.show_notes;
       out.style.display = 'block';
       if (actions) actions.style.display = 'flex';
-      toast('📝 Show notes ready', 'success');
+      toast('Show notes ready', 'success');
     } catch(e) {
       toast('Show notes failed: ' + e.message, 'error');
     } finally {
-      btn.disabled = false; btn.textContent = '✨ Generate Show Notes';
+      btn.disabled = false; btn.innerHTML = ic('sparkles') + ' Generate Show Notes';
     }
   }
 
@@ -2752,7 +2935,7 @@
 
   async function generateSocialPosts() {
     const btn = document.getElementById('btn-gen-social');
-    btn.disabled = true; btn.textContent = '⏳ Generating…';
+    btn.disabled = true; btn.innerHTML = '<span class="pc-spinner"></span> Generating…';
     try {
       const body = {
         title:       (document.getElementById('topic-title')?.value  || '').trim(),
@@ -2771,11 +2954,11 @@
       _socialData = data;
       document.getElementById('social-output-wrap').style.display = 'block';
       showSocialPlat(_socialPlat);
-      toast('📣 Social posts ready', 'success');
+      toast('Social posts ready', 'success');
     } catch(e) {
       toast('Social posts failed: ' + e.message, 'error');
     } finally {
-      btn.disabled = false; btn.textContent = '✨ Generate Social Posts';
+      btn.disabled = false; btn.innerHTML = ic('sparkles') + ' Generate Social Posts';
     }
   }
 
@@ -2798,7 +2981,7 @@
       state.elapsedSeconds = s;
       const m = Math.floor(s / 60);
       const ss = (s % 60).toString().padStart(2, "0");
-      els.duration.textContent = `${m.toString().padStart(2,"0")}:${ss}`;
+      els.duration.textContent = `${m.toString().padStart(2,"0")}:${ss}`; const _tc = $("stage-tc"); if (_tc) _tc.textContent = els.duration.textContent;
     }, 250);
   }
   function stopDurationTimer() {
@@ -2913,45 +3096,45 @@
     statusRows.innerHTML = '';
 
     // Build status rows
-    const labels = { podcast: '🎤️ Podcast', telegram: '✈️ Telegram', clips: '✂️ Clips / Shorts', youtube: '▶️ YouTube' };
+    const labels = { podcast: ['mic', 'Podcast'], telegram: ['send', 'Telegram'], clips: ['scissors', 'Clips / Shorts'], youtube: ['circle-play', 'YouTube'] };
     for (const key of _pubSelected) {
       const row = document.createElement('div');
       row.id = `pub-row-${key}`;
       row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);';
-      const labelParts = (labels[key] || key).split(' ');
-      const icon = labelParts[0];
-      const name = labelParts.slice(1).join(' ');
-      row.innerHTML = `<span style="font-size:18px">${icon}</span>
+      const labelParts = labels[key] || ['circle-dot', key];
+      const icon = ic(labelParts[0]);
+      const name = escHtml(labelParts[1]);
+      row.innerHTML = `<span style="font-size:18px;color:var(--orange-hi);display:inline-flex">${icon}</span>
         <span style="flex:1;font-size:13px;font-weight:600;color:var(--text)">${name}</span>
-        <span id="pub-status-${key}" style="font-size:12px;color:var(--text-dim)">⏳ Queued</span>`;
+        <span id="pub-status-${key}" style="font-size:12px;color:var(--text-sec);display:inline-flex;align-items:center;gap:6px">${ic('hourglass')} Queued</span>`;
       statusRows.appendChild(row);
     }
 
     // Execute all in parallel
-    const setStatus = (key, text, color) => {
+    const setStatus = (key, text, color, icon) => {
       const el = document.getElementById(`pub-status-${key}`);
-      if (el) { el.textContent = text; el.style.color = color || 'var(--text-dim)'; }
+      if (el) { el.innerHTML = (icon ? ic(icon) + ' ' : '') + escHtml(text); el.style.color = color || 'var(--text-sec)'; }
     };
 
     const run = async (key) => {
-      setStatus(key, '⟳ Sending…', 'var(--yellow)');
+      setStatus(key, 'Sending…', 'var(--yellow)', 'loader-circle');
       try {
         if (key === 'podcast') {
           await _doPodcastPublishRaw();
-          setStatus(key, '✅ Build saved — Ship It from the Job Site', 'var(--green-hi)');
+          setStatus(key, 'Build saved — Ship It from the Job Site', 'var(--green-hi)', 'circle-check');
         } else if (key === 'telegram') {
           await _doTelegramPublishRaw();
-          setStatus(key, '✅ Sent to Telegram', 'var(--green-hi)');
+          setStatus(key, 'Sent to Telegram', 'var(--green-hi)', 'circle-check');
         } else if (key === 'clips') {
           await _doClipsPublishRaw();
-          setStatus(key, '✅ Clip job started', 'var(--green-hi)');
+          setStatus(key, 'Clip job started', 'var(--green-hi)', 'circle-check');
         } else if (key === 'youtube') {
           const ytData = await _doYouTubePublishRaw();
           const ytUrl  = ytData?.url || '';
-          setStatus(key, ytUrl ? '✅ Live on YouTube' : '✅ Uploaded', 'var(--green-hi)');
+          setStatus(key, ytUrl ? 'Live on YouTube' : 'Uploaded', 'var(--green-hi)', 'circle-check');
         }
       } catch(e) {
-        setStatus(key, '❌ ' + (e.message || 'Failed'), 'var(--red)');
+        setStatus(key, e.message || 'Failed', 'var(--red-hi)', 'circle-x');
       }
     };
 
@@ -2965,7 +3148,7 @@
     // Podcast publish runs through the Project pipeline: save the recording
     // as a Project, then Ship It → schedule a Closing handles Buzzsprout.
     if (!state.recordingBlob) throw new Error('No recording');
-    showFileXfer('🎤️', 'Starting your build…', '→ Project pipeline · transcription · Ship It → Closing');
+    showFileXfer('mic', 'Starting your build…', 'Project pipeline · transcription · Ship It, then Closing');
     let blob = state.recordingBlob;
     if (_punchSegments.length > 0) {
       try { blob = await _uploadPunchedSegments(); } catch (e) {}
@@ -2991,12 +3174,12 @@
 
   async function _doTelegramPublishRaw() {
     if (!state.recordingBlob) throw new Error('No recording');
-    showFileXfer('✈️', 'Sending to Telegram…', '→ Your Telegram — watch from your phone');
+    showFileXfer('send', 'Sending to Telegram…', 'Your Telegram — watch from your phone');
     const form = new FormData();
     const ts = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
     const caption = (document.getElementById('topic-title')||{}).value || "PodClick Studio Recording";
     form.append("video", state.recordingBlob, `studio-${ts}.webm`);
-    form.append("caption", `🎤️ ${caption}`);
+    form.append("caption", caption);
     try {
       const res = await fetch("/api/studio/publish/telegram", { method:"POST", body:form });
       const data = await res.json();
@@ -3011,7 +3194,7 @@
 
   async function _doClipsPublishRaw() {
     if (!state.recordingBlob) throw new Error('No recording');
-    showFileXfer('✂️', 'Sending to Clip Pipeline…', '→ AI transcription · highlight extraction · viral subtitles');
+    showFileXfer('scissors', 'Sending to Clip Pipeline…', 'Transcription · highlight extraction · captions');
     const form = new FormData();
     const ts = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
     form.append("video", state.recordingBlob, `studio-${ts}.webm`);
@@ -3032,13 +3215,13 @@
   // ── Legacy single-destination publish wrappers ───────────────────────
   function publishToPodcast() {
     closePublishModal();
-    _doPodcastPublishRaw().then(() => toast('✅ Build saved — Ship It from the Job Site', 'success')).catch(e => toast('Failed: ' + e.message, 'error'));
+    _doPodcastPublishRaw().then(() => toast('Build saved — Ship It from the Job Site', 'success')).catch(e => toast('Failed: ' + e.message, 'error'));
   }
 
   async function publishToTelegram() {
     closePublishModal();
     toast('Sending to Telegram…');
-    _doTelegramPublishRaw().then(() => toast('✅ Sent to Telegram', 'success')).catch(e => toast('Telegram failed: ' + e.message, 'error'));
+    _doTelegramPublishRaw().then(() => toast('Sent to Telegram', 'success')).catch(e => toast('Telegram failed: ' + e.message, 'error'));
   }
 
   async function _doYouTubePublishRaw() {
@@ -3054,13 +3237,13 @@
     fd.append('title',       title);
     fd.append('description', scriptRaw);
     fd.append('privacy',     privacy);
-    showFileXfer('▶️', 'Uploading to YouTube…', title.slice(0,35) + (title.length > 35 ? '…' : ''));
+    showFileXfer('circle-play', 'Uploading to YouTube…', title.slice(0,35) + (title.length > 35 ? '…' : ''));
     try {
       const res  = await fetch('/api/studio/publish/youtube', { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok) { completeFileXfer(false, data.error || 'Upload failed'); throw new Error(data.error || 'YouTube upload failed'); }
       state.lastYouTubeUrl = data.url;
-      completeFileXfer(true, '✅ Live on YouTube');
+      completeFileXfer(true, 'Live on YouTube');
       return data;
     } catch(e) {
       completeFileXfer(false, e.message);
@@ -3073,7 +3256,7 @@
     try {
       const data = await _doYouTubePublishRaw();
       const url  = data.url || '';
-      toast(`▶️ Uploaded! ${url ? '<a href="' + url + '" target="_blank" style="color:var(--accent)">View on YouTube →</a>' : ''}`, 'success');
+      toast(url ? 'Uploaded to YouTube: ' + url : 'Uploaded to YouTube.', 'success');
     } catch(e) {
       toast('YouTube upload failed: ' + e.message, 'error');
     }
@@ -3082,7 +3265,7 @@
   async function publishToClips() {
     closePublishModal();
     toast('Sending to Clips…');
-    _doClipsPublishRaw().then(() => { toast('✂️ Clip job started', 'success'); setTimeout(() => { window.location.href = '/legacy/episode-builder'; }, 2500); }).catch(e => toast('Clips failed: ' + e.message, 'error'));
+    _doClipsPublishRaw().then(() => { toast('Clip job started', 'success'); setTimeout(() => { window.location.href = '/legacy/episode-builder'; }, 2500); }).catch(e => toast('Clips failed: ' + e.message, 'error'));
   }
 
   // ── File Transfer Progress Bar ───────────────────────────────────────
@@ -3091,7 +3274,7 @@
   function showFileXfer(icon, label, dest) {
     const bar = document.getElementById('file-xfer-bar');
     if (!bar) return;
-    document.getElementById('file-xfer-icon').textContent = icon;
+    document.getElementById('file-xfer-icon').innerHTML = ic(icon || 'upload');
     document.getElementById('file-xfer-label').textContent = label;
     document.getElementById('file-xfer-dest').textContent = dest;
     document.getElementById('file-xfer-track').style.width = '5%';
@@ -3113,7 +3296,7 @@
     const pctEl = document.getElementById('file-xfer-pct');
     const labelEl = document.getElementById('file-xfer-label');
     if (track) { track.style.width = '100%'; track.style.background = success ? 'var(--green-hi)' : 'var(--red)'; }
-    if (pctEl) pctEl.textContent = success ? '✓' : '✗';
+    if (pctEl) pctEl.innerHTML = ic(success ? 'check' : 'x');
     if (labelEl && message) labelEl.textContent = message;
     setTimeout(() => {
       const bar = document.getElementById('file-xfer-bar');
@@ -3188,7 +3371,7 @@
       if (data.message && !data.topic) {
         // No schedule / no topics
         $("topic-empty").style.display  = "block";
-        $("topic-empty").innerHTML = data.message + ' <a href="/youtube-studio" style="color:var(--orange);">Set one in Click Studio →</a>';
+        $("topic-empty").innerHTML = escHtml(String(data.message || "").replace(/\s*Set one in Click Studio.*$/i, "").replace(/\s*→\s*/g, " · ")) + ' <a href="/youtube-studio" style="color:var(--orange-hi);">Set one in Click Studio ' + ic('arrow-right') + '</a>';
         return;
       }
 
@@ -3203,10 +3386,10 @@
       const badge = $("topic-shoot-badge");
       if (data.is_shoot_day) {
         badge.style.display = "block";
-        badge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(240,112,48,0.15);border:1px solid rgba(240,112,48,0.35);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--orange-hi);font-weight:600;">🎬 Today is a shoot day — ${data.today}</span>`;
+        badge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(240,112,48,0.15);border:1px solid rgba(240,112,48,0.35);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--orange-hi);font-weight:600;">${ic('clapperboard')} Today is a shoot day — ${escHtml(data.today)}</span>`;
       } else {
         badge.style.display = "block";
-        badge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text-sec);">📅 Shoot days: ${(data.shoot_days||[]).join(", ") || "not set"}</span>`;
+        badge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text-sec);">${ic('calendar')} Shoot days: ${escHtml((data.shoot_days||[]).join(", ") || "not set")}</span>`;
       }
 
       $("topic-message").textContent = data.message || "";
@@ -3228,7 +3411,7 @@
     if (!topic) { toast("Enter a topic first"); return; }
 
     $("btn-gen-script").disabled = true;
-    $("gen-spinner").style.display = "inline";
+    $("gen-spinner").style.display = "inline-flex";
 
     try {
       const res  = await fetch("/api/studio/generate-script", {
@@ -3250,7 +3433,7 @@
       }
       _persistStudio();  // keep generated script cued through a refresh
 
-      toast("✨ Script generated — ready to record!");
+      toast("Script drafted — ready to record.", "success");
 
       // Show Record CTA
       $("record-cta").classList.add("show");
@@ -3312,12 +3495,12 @@
       localStorage.removeItem('podclick_teleprompter_title');
       els.script.value = script;
       if (title && els.podcastName && !els.podcastName.value) els.podcastName.value = title;
-      showFileXfer('📄', 'Loading script…', '→ Teleprompter');
+      showFileXfer('file-text', 'Loading script…', 'Teleprompter');
       renderPrompter();
       completeFileXfer(true, 'Script loaded — voice tracking active');
       _persistStudio();  // becomes the persisted draft so a refresh keeps it cued
       $("record-cta").classList.add("show");
-      toast('📺 Script loaded — ready to record!');
+      toast('Script loaded — ready to record.', 'success');
       document.getElementById('prompter').scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
@@ -3356,7 +3539,7 @@
       document.getElementById('dc-res-badge').style.display = 'block';
       await _dcPopulateDevices();
     } catch(e) {
-      document.getElementById('dc-no-cam').innerHTML = '<div style="font-size:32px;">🚫</div><div style="font-size:12px;color:var(--text-dim);text-align:center;padding:0 20px;">Camera/mic access denied.<br>Check your browser permissions.</div>';
+      document.getElementById('dc-no-cam').innerHTML = '<div class="dc-nocam-icon dc-nocam-icon--warn"><i class="pc-i" data-i="ban"></i></div><div style="font-size:12px;color:var(--text-dim);text-align:center;padding:0 20px;">Camera/mic access denied.<br>Check your browser permissions.</div>';
     }
   }
 
@@ -3371,7 +3554,7 @@
     const isPhone = l => /iphone|continuity/i.test(l || '');
     camSel.innerHTML = cams.map((d, i) => {
       const label  = d.label || ('Camera ' + (i + 1));
-      const pretty = isPhone(label) ? ('📱 ' + label) : label;
+      const pretty = isPhone(label) ? ('Phone · ' + label) : label;
       return `<option value="${d.deviceId}" ${d.deviceId === curCam ? 'selected' : ''}>${pretty}</option>`;
     }).join('');
     micSel.innerHTML = mics.map((d, i) => `<option value="${d.deviceId}" ${d.deviceId === curMic ? 'selected' : ''}>${d.label || 'Microphone ' + (i + 1)}</option>`).join('');
@@ -3381,8 +3564,8 @@
       const phoneCam = cams.find(d => isPhone(d.label));
       hint.style.display = 'block';
       hint.textContent = phoneCam
-        ? '📱 iPhone detected — pick it above for a sharper shot.'
-        : '📱 Using your iPhone? Plug it in with a USB cable — most reliable — then tap 🔄. (Wireless also works in Safari: same Apple ID, Wi‑Fi + Bluetooth on, phone nearby & locked.)';
+        ? 'iPhone detected — pick it above for a sharper shot.'
+        : 'Using your iPhone? Plug it in with a USB cable (most reliable), then tap re-scan. (Wireless also works in Safari: same Apple ID, Wi‑Fi + Bluetooth on, phone nearby & locked.)';
     }
   }
 
@@ -3399,14 +3582,14 @@
       if (hint) {
         hint.style.display = 'block';
         hint.innerHTML = hasPhone
-          ? '📱 iPhone found — select it in the dropdown above.'
-          : '🔍 Found ' + cams.length + ' camera' + (cams.length === 1 ? '' : 's') + ': ' + (names.join(', ') || 'none') +
-            '. No iPhone yet — Continuity Camera is reliable in <b>Safari</b>; in Chrome, fully quit &amp; reopen Chrome with the phone already connected, then tap 🔄.';
+          ? ic('smartphone') + ' iPhone found — select it in the dropdown above.'
+          : ic('search') + ' Found ' + cams.length + ' camera' + (cams.length === 1 ? '' : 's') + ': ' + (names.join(', ') || 'none') +
+            '. No iPhone yet — Continuity Camera is reliable in <b>Safari</b>; in Chrome, fully quit &amp; reopen Chrome with the phone already connected, then tap re-scan.';
       }
-      toast(hasPhone ? '📱 iPhone found!' : ('Re-scanned — ' + cams.length + ' camera(s), no iPhone'), hasPhone ? 'success' : 'info');
+      toast(hasPhone ? 'iPhone found!' : ('Re-scanned — ' + cams.length + ' camera(s), no iPhone'), hasPhone ? 'success' : 'info');
     } catch (e) {
       const name = (e && e.name) ? e.name : 'error';
-      if (hint) { hint.style.display = 'block'; hint.textContent = '⚠️ Re-scan failed: ' + name + '. Allow camera access in the browser, then retry.'; }
+      if (hint) { hint.style.display = 'block'; hint.innerHTML = ic('triangle-alert') + ' Re-scan failed: ' + name + '. Allow camera access in the browser, then retry.'; }
       try { toast("Couldn't re-scan devices", 'error'); } catch (_) {}
       console.error('[studio] dcRefreshDevices failed:', e);
     }
@@ -3428,7 +3611,7 @@
       } catch (e1) {
         // iPhone / Continuity Camera frequently rejects fixed res/fps — retry at native settings
         _dcStream = await _grab({ deviceId: { exact: camId } });
-        if (hint) { hint.style.display = 'block'; hint.textContent = '📱 Connected at the camera’s native settings.'; }
+        if (hint) { hint.style.display = 'block'; hint.innerHTML = ic('smartphone') + ' Connected at the camera’s native resolution.'; }
       }
       const v = document.getElementById('dc-video');
       v.srcObject = _dcStream;
@@ -3437,18 +3620,18 @@
       const camBtn = document.getElementById('dc-btn-cam');
       camBtn.style.background = 'var(--bg-raised)'; camBtn.style.borderColor = 'var(--border)';
       const micBtn = document.getElementById('dc-btn-mic');
-      micBtn.style.background = 'var(--bg-raised)'; micBtn.style.borderColor = 'var(--border)'; micBtn.textContent = '🎤';
+      micBtn.style.background = 'var(--bg-raised)'; micBtn.style.borderColor = 'var(--border)'; micBtn.innerHTML = ic('mic');
     } catch (e) {
       // Surface the REAL reason instead of silently keeping the old stream
       const name = (e && e.name) ? e.name : 'error';
       const msg = ({
-        NotReadableError:     "That camera's busy — close FaceTime / Photo Booth / Zoom / the iPhone's Camera app, then tap 🔄.",
-        NotAllowedError:      'Camera permission is blocked — allow camera access in the browser, then tap 🔄.',
-        OverconstrainedError: "That camera can't match the requested settings — tap 🔄 to retry.",
-        NotFoundError:        'Camera not found — reconnect the iPhone (unlock it, keep it nearby), then tap 🔄.',
-        AbortError:           'Camera failed to start — unlock the iPhone and tap 🔄.',
+        NotReadableError:     "That camera's busy — close FaceTime / Photo Booth / Zoom / the iPhone's Camera app, then tap re-scan.",
+        NotAllowedError:      'Camera permission is blocked — allow camera access in the browser, then tap re-scan.',
+        OverconstrainedError: "That camera can't match the requested resolution — tap re-scan to retry.",
+        NotFoundError:        'Camera not found — reconnect the iPhone (unlock it, keep it nearby), then tap re-scan.',
+        AbortError:           'Camera failed to start — unlock the iPhone and tap re-scan.',
       })[name] || ('Could not start that camera (' + name + ').');
-      if (hint) { hint.style.display = 'block'; hint.textContent = '⚠️ ' + msg; }
+      if (hint) { hint.style.display = 'block'; hint.innerHTML = ic('triangle-alert') + ' ' + escHtml(msg); }
       try { toast(msg, 'error'); } catch (_) {}
       console.error('[studio] dcSwitchDevice failed:', e);
     }
@@ -3474,7 +3657,7 @@
     if (_dcStream) _dcStream.getAudioTracks().forEach(t => t.enabled = _dcMicOn);
     btn.style.background  = _dcMicOn ? 'var(--bg-raised)' : 'rgba(160,56,56,0.18)';
     btn.style.borderColor = _dcMicOn ? 'var(--border)' : 'rgba(160,56,56,0.5)';
-    btn.textContent = _dcMicOn ? '🎤' : '🔇';
+    btn.innerHTML = ic(_dcMicOn ? 'mic' : 'volume-x');
   }
 
   function dcSetHeadphones(val) {
