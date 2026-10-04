@@ -7,7 +7,7 @@
   <title>Social Studio · PodClickAI</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="/podclick-design.css?v=20261002-1">
+  <link rel="stylesheet" href="/podclick-design.css?v=20261003-1">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -405,7 +405,7 @@
     .crew-link:hover { border-color: var(--orange); background: var(--orange-glow); }
     .crew-link:focus-visible { outline: 2px solid var(--orange-hi); outline-offset: 2px; }
   </style>
-  <script src="/static/podclick-nav.js?v=20261002-1" defer></script>
+  <script src="/static/podclick-nav.js?v=20261003-1" defer></script>
 </head>
 <body>
 
@@ -1069,14 +1069,14 @@ async function submitCalendarModal() {
 
 async function addToCalendar(day, platform, title, content) {
   try {
-    const res = await fetch('/api/social/calendar', {
+    const res = await fetch('/api/calendar/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ day, platform, title, content }),
+      body: JSON.stringify({ platform: String(platform || '').toLowerCase(), title, content }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     await res.json();
-    ssToast(`📅 "${title}" added to ${DAY_NAMES[day]}`, 'success');
+    ssToast(`"${title || 'Draft'}" is on the Calendar as a draft.`, 'success');
   } catch (err) {
     ssToast('Failed to add entry: ' + err.message, 'error');
     console.error('[SocialStudio] addToCalendar:', err);

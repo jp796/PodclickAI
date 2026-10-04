@@ -12524,6 +12524,66 @@ async def calendar_auto_plan(request: Request):
     })
 
 
+# ── Route: POST /api/calendar/posts ─────────────────────────────────────────────
+@app.post("/api/calendar/posts")
+async def calendar_create_post(request: Request):
+    """Create one draft post on the Content Board (used by Social Studio's Add to Calendar).
+
+    Body: {content (required), platform?, title?, date? (ISO date or datetime)}.
+    Draft only; publishing stays a separate approval through /publish.
+    """
+    import uuid as _uuidmod
+    from datetime import date, datetime, timedelta, timezone
+    from config import get_current_location_id as _gcl
+    from db.engine import async_session as _async_session
+    from db.models import Post as _Post, PostVariant as _PostVariant
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Body must be JSON."}, status_code=400)
+    content = str((body or {}).get("content") or "").strip()
+    if not content:
+        return JSONResponse({"error": "content is required."}, status_code=400)
+    if len(content) > 10000:
+        return JSONResponse({"error": "content is too long (10,000 characters max)."}, status_code=400)
+
+    platform = str((body or {}).get("platform") or "").strip().lower()
+    allowed = {"linkedin", "instagram", "facebook", "tiktok", "youtube", "x", "gmb", "threads"}
+    if platform and platform not in allowed:
+        platform = ""  # unknown label (e.g. "all"): keep the base caption only
+
+    raw_date = str((body or {}).get("date") or "").strip()
+    if raw_date:
+        try:
+            if len(raw_date) <= 10:
+                d = date.fromisoformat(raw_date)
+                scheduled_at = datetime(d.year, d.month, d.day, 15, 0, 0, tzinfo=timezone.utc)
+            else:
+                scheduled_at = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
+                if scheduled_at.tzinfo is None:
+                    return JSONResponse({"error": "date must include a timezone offset."}, status_code=400)
+        except ValueError:
+            return JSONResponse({"error": "date must be ISO-8601."}, status_code=400)
+    else:
+        t = datetime.now(timezone.utc).date() + timedelta(days=1)
+        scheduled_at = datetime(t.year, t.month, t.day, 15, 0, 0, tzinfo=timezone.utc)
+
+    loc = _gcl()
+    if not loc:
+        return JSONResponse({"error": "Location not configured."}, status_code=500)
+    async with _async_session() as session:
+        post_obj = _Post(location_id=_uuidmod.UUID(str(loc)), base_caption=content,
+                         scheduled_at=scheduled_at, status="draft", source="post_forge")
+        session.add(post_obj)
+        await session.flush()
+        if platform:
+            session.add(_PostVariant(post_id=post_obj.id, platform=platform, caption=content, platform_specific={}))
+        await session.commit()
+        pid = str(post_obj.id)
+    return JSONResponse({"ok": True, "id": pid, "scheduled_at": scheduled_at.isoformat(), "status": "draft"}, status_code=201)
+
+
 # ── Route: GET /api/calendar/posts/{post_id} ────────────────────────────────────
 @app.get("/api/calendar/posts/{post_id}")
 async def calendar_get_post(post_id: str):

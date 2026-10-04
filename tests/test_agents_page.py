@@ -13,7 +13,7 @@ async def test_agents_route_serves_crew_page(harness, client):
     r = await client.get("/agents")
     assert r.status_code == 200
     assert "text/html" in r.headers["content-type"]
-    for marker in ("The Crew", "/static/podclick-nav.js?v=20261002-1", "/podclick-design.css",
+    for marker in ("The Crew", "/static/podclick-nav.js?v=20261003-1", "/podclick-design.css",
                    "/api/agents", "Punch list", "Work orders", "Put to work", "loadCrew", "escHtml"):
         assert marker in r.text, marker
 
