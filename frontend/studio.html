@@ -19,9 +19,7 @@
       --grad-glow: 0 0 22px rgba(217,95,30,0.30), 0 0 8px rgba(240,112,48,0.20);
       --pink:      var(--orange-hi);
       --text-dim:  var(--text-muted);
-      --seaglass:  #BFDDDB;
       --cobalt:    var(--bg-raised);
-      --slate:     #615B56;
       --font:      var(--font-body);
     }
 
@@ -87,7 +85,14 @@
       padding: 20px;
       min-height: 0;
     }
-    @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+    @media (max-width: 1100px) {
+      /* Size to content in one column; flex:1 + min-height:0 squeezed the rows and made panels overlap. */
+      main { grid-template-columns: 1fr; flex: 0 0 auto; }
+      /* Single column: lift the upload tray above the camera so it is visible without scrolling.
+         (main > selector outranks the later .right-pane { display:flex } rule.) */
+      main > .right-pane { display: contents; }
+      #upload-tray { order: -1; }
+    }
 
     /* ── Left column: preview + transport ── */
     .preview-shell {
@@ -98,7 +103,7 @@
     }
     .preview {
       position: relative;
-      background: #000;
+      background: var(--bg-inset);
       border-radius: var(--radius);
       border: 1px solid var(--border);
       overflow: hidden;
@@ -202,7 +207,7 @@
       box-shadow: var(--grad-glow);
     }
     .btn.danger { border-color: var(--red); color: var(--red); }
-    .btn.danger:hover { background: rgba(255,77,109,0.1); }
+    .btn.danger:hover { background: rgba(160,56,56,0.1); }
     .btn.ghost { background: transparent; }
 
     .duration {
@@ -247,7 +252,7 @@
       font-weight: 600;
     }
     .panel h3 .pill.live {
-      background: rgba(46,228,156,0.15);
+      background: rgba(82,196,122,0.15);
       color: var(--green);
     }
     .panel h3 .pill.live::before {
@@ -261,7 +266,7 @@
       height: 280px;
       overflow: hidden;
       border-radius: 10px;
-      background: #000;
+      background: var(--bg-inset);
       border: 1px solid var(--border);
       mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
       -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%);
@@ -308,7 +313,7 @@
       padding: 0 8% 100%;   /* top set dynamically in enterOverlay() to = overlayHeight/2 */
       font-size: 34px;
       font-weight: 500;
-      color: #fff;
+      color: var(--text-pri);
       line-height: 1.5;
       text-shadow: 0 2px 14px rgba(0,0,0,0.95), 0 0 40px rgba(0,0,0,0.6);
       will-change: transform;
@@ -333,7 +338,7 @@
       background: rgba(0,0,0,0.65);
       border: 1px solid rgba(255,255,255,0.18);
       border-radius: 8px;
-      color: #ccc;
+      color: var(--text-pri);
       font-size: 11px;
       padding: 5px 11px;
       cursor: pointer;
@@ -341,14 +346,14 @@
       backdrop-filter: blur(8px);
       display: none;
     }
-    #cam-overlay-exit:hover { background: rgba(0,0,0,0.85); color: #fff; }
+    #cam-overlay-exit:hover { background: rgba(0,0,0,0.85); color: var(--text-pri); }
 
     /* Record-ready CTA (shown after script generates) */
     #record-cta {
       display: none;
       margin-top: 10px;
       padding: 12px 16px;
-      background: linear-gradient(135deg, rgba(217,95,30,0.15), rgba(46,228,156,0.08));
+      background: linear-gradient(135deg, rgba(217,95,30,0.15), rgba(82,196,122,0.08));
       border: 1px solid rgba(217,95,30,0.35);
       border-radius: 10px;
       font-size: 13px;
@@ -361,7 +366,7 @@
     /* Fullscreen styles (applied via :fullscreen) */
     .prompter:fullscreen,
     .prompter:-webkit-full-screen {
-      background: #000;
+      background: var(--bg-inset);
       border-radius: 0;
       mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%);
       -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%);
@@ -418,7 +423,7 @@
       color: var(--text-dim); font-size: 11px; font-weight: 600;
       cursor: pointer; transition: all .12s;
     }
-    .smart-pace-btn.active { background: rgba(46,228,156,0.1); border-color: rgba(46,228,156,0.4); color: #2EE49C; }
+    .smart-pace-btn.active { background: rgba(82,196,122,0.1); border-color: rgba(82,196,122,0.4); color: var(--green-hi); }
 
     textarea {
       width: 100%;
@@ -514,10 +519,10 @@
       cursor: pointer; border: 1px solid var(--border); background: var(--surface2);
       color: var(--text-dim); transition: all .12s;
     }
-    .social-plat-btn.active { background: var(--accent); color: #0b0a08; border-color: var(--accent); }
+    .social-plat-btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
     .yt-conn-warn {
-      font-size: 11px; color: var(--yellow); background: rgba(255,179,64,0.1);
-      border: 1px solid rgba(255,179,64,0.3); border-radius: 6px;
+      font-size: 11px; color: var(--yellow); background: rgba(196,150,28,0.1);
+      border: 1px solid rgba(196,150,28,0.3); border-radius: 6px;
       padding: 6px 10px; margin-top: 8px; display: none;
     }
 
@@ -557,22 +562,15 @@
   display: flex; flex-direction: column; gap: 5px; position: relative;
 }
 .pub-tile:hover:not(.disabled) { border-color: var(--accent2); background: rgba(217,95,30,0.08); }
-.pub-tile.disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+.pub-tile-link { text-decoration: none; color: inherit; }
 .pub-tile.expanded { grid-column: 1 / -1; }
 .pub-tile-icon { font-size: 22px; }
 .pub-tile-name { font-size: 13px; font-weight: 700; color: var(--text); }
 .pub-tile-desc { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
 .pub-badge-live {
   position: absolute; top: 10px; right: 10px;
-  background: rgba(46,228,156,0.15); color: #2EE49C;
-  border: 1px solid rgba(46,228,156,0.3);
-  font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
-  padding: 2px 7px; border-radius: 20px;
-}
-.pub-badge-soon {
-  position: absolute; top: 10px; right: 10px;
-  background: rgba(255,179,64,0.12); color: #FFB340;
-  border: 1px solid rgba(255,179,64,0.3);
+  background: rgba(82,196,122,0.15); color: var(--green-hi);
+  border: 1px solid rgba(82,196,122,0.3);
   font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
   padding: 2px 7px; border-radius: 20px;
 }
@@ -589,8 +587,8 @@
   padding: 9px 12px; outline: none; margin-top: 4px;
 }
 .pub-sub-btn {
-  padding: 11px 18px; background: linear-gradient(135deg,#d95f1e,#f07030);
-  border: none; border-radius: 8px; color: #fff;
+  padding: 11px 18px; background: var(--grad);
+  border: none; border-radius: 8px; color: var(--text-pri);
   font-size: 13px; font-weight: 700; cursor: pointer; align-self: flex-start;
 }
 .pub-tile.selected {
@@ -603,7 +601,7 @@
   top: 8px; right: 10px;
   font-size: 14px;
   font-weight: 800;
-  color: #d95f1e;
+  color: var(--orange);
 }
 .pub-tile.selected .pub-badge-live { display: none; }
 .pub-preset-btn {
@@ -621,10 +619,10 @@
 .pub-exec-btn {
   width: 100%;
   padding: 14px;
-  background: linear-gradient(135deg, #d95f1e, #f07030);
+  background: var(--grad);
   border: none;
   border-radius: 10px;
-  color: #fff;
+  color: var(--text-pri);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
@@ -641,62 +639,62 @@
 
     <!-- Left: live camera preview -->
     <div style="flex:1.2;min-width:280px;">
-      <div style="position:relative;background:#080810;border-radius:14px;overflow:hidden;aspect-ratio:16/9;">
+      <div style="position:relative;background:var(--bg-inset);border-radius:14px;overflow:hidden;aspect-ratio:16/9;">
         <video id="dc-video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;display:none;"></video>
-        <div id="dc-no-cam" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#444;gap:12px;">
+        <div id="dc-no-cam" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--text-dim);gap:12px;">
           <div style="font-size:48px;">📷</div>
           <div style="font-size:13px;">Camera is off</div>
         </div>
-        <div id="dc-res-badge" style="display:none;position:absolute;top:10px;left:12px;background:rgba(0,0,0,0.65);border-radius:6px;padding:4px 10px;font-size:11px;color:#aaa;line-height:1.5;">720p / 30fps<br><span style="color:#666;font-size:10px;">This is how you'll be recorded.</span></div>
+        <div id="dc-res-badge" style="display:none;position:absolute;top:10px;left:12px;background:rgba(0,0,0,0.65);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--text-sec);line-height:1.5;">720p / 30fps<br><span style="color:var(--text-sec);font-size:10px;">This is how you'll be recorded.</span></div>
       </div>
       <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;">
-        <button id="dc-btn-cam" onclick="dcToggleCam()" title="Toggle camera" style="width:48px;height:48px;border-radius:50%;background:#141422;border:1px solid #2a2a3e;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;">📷</button>
-        <button id="dc-btn-mic" onclick="dcToggleMic()" title="Toggle mic"    style="width:48px;height:48px;border-radius:50%;background:#141422;border:1px solid #2a2a3e;color:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;">🎤</button>
+        <button id="dc-btn-cam" onclick="dcToggleCam()" title="Toggle camera" style="width:48px;height:48px;border-radius:50%;background:var(--bg-raised);border:1px solid var(--border);color:var(--text-pri);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;">📷</button>
+        <button id="dc-btn-mic" onclick="dcToggleMic()" title="Toggle mic"    style="width:48px;height:48px;border-radius:50%;background:var(--bg-raised);border:1px solid var(--border);color:var(--text-pri);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;">🎤</button>
       </div>
     </div>
 
     <!-- Right: device selectors + join -->
     <div style="flex:1;min-width:260px;">
-      <h2 style="font-size:26px;font-weight:700;color:#fff;margin-bottom:6px;">Let's check your devices</h2>
-      <p style="color:#555;font-size:13px;margin-bottom:28px;">Choose your camera and mic before entering the studio.</p>
+      <h2 style="font-size:26px;font-weight:700;color:var(--text-pri);margin-bottom:6px;">Let's check your devices</h2>
+      <p style="color:var(--text-dim);font-size:13px;margin-bottom:28px;">Choose your camera and mic before entering the studio.</p>
 
       <!-- Name row -->
       <div style="margin-bottom:16px;">
-        <label style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Your Name</label>
-        <div style="display:flex;align-items:center;background:#0f0f1e;border:1px solid #1e1e2e;border-radius:10px;overflow:hidden;">
-          <input id="dc-name" type="text" value="JP" style="flex:1;background:transparent;border:none;color:#fff;font-size:15px;padding:12px 14px;outline:none;" />
-          <span style="padding:0 14px;font-size:12px;color:#444;border-left:1px solid #1e1e2e;">Host</span>
+        <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">Your Name</label>
+        <div style="display:flex;align-items:center;background:var(--bg-inset);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+          <input id="dc-name" type="text" value="JP" style="flex:1;background:transparent;border:none;color:var(--text-pri);font-size:15px;padding:12px 14px;outline:none;" />
+          <span style="padding:0 14px;font-size:12px;color:var(--text-dim);border-left:1px solid var(--border);">Host</span>
         </div>
       </div>
 
       <!-- Camera select -->
       <div style="margin-bottom:14px;">
-        <label style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">📷 Camera</label>
+        <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">📷 Camera</label>
         <div style="display:flex;gap:8px;align-items:stretch;">
-          <select id="dc-cam-select" onchange="dcSwitchDevice()" style="flex:1;min-width:0;background:#0f0f1e;border:1px solid #1e1e2e;border-radius:10px;color:#d0d0e0;font-size:13px;padding:11px 14px;outline:none;cursor:pointer;"></select>
-          <button onclick="dcRefreshDevices()" title="Re-scan cameras — tap after connecting your iPhone" style="flex-shrink:0;background:#141422;border:1px solid #2a2a3e;border-radius:10px;color:#d0d0e0;font-size:15px;padding:0 13px;cursor:pointer;">🔄</button>
+          <select id="dc-cam-select" onchange="dcSwitchDevice()" style="flex:1;min-width:0;background:var(--bg-inset);border:1px solid var(--border);border-radius:10px;color:var(--text-pri);font-size:13px;padding:11px 14px;outline:none;cursor:pointer;"></select>
+          <button onclick="dcRefreshDevices()" title="Re-scan cameras — tap after connecting your iPhone" style="flex-shrink:0;background:var(--bg-raised);border:1px solid var(--border);border-radius:10px;color:var(--text-pri);font-size:15px;padding:0 13px;cursor:pointer;">🔄</button>
         </div>
-        <div id="dc-cam-hint" style="font-size:11px;color:#6a6a80;margin-top:7px;line-height:1.4;display:none;"></div>
+        <div id="dc-cam-hint" style="font-size:11px;color:var(--text-sec);margin-top:7px;line-height:1.4;display:none;"></div>
       </div>
 
       <!-- Mic select -->
       <div style="margin-bottom:14px;">
-        <label style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">🎤 Microphone</label>
-        <select id="dc-mic-select" onchange="dcSwitchDevice()" style="width:100%;background:#0f0f1e;border:1px solid #1e1e2e;border-radius:10px;color:#d0d0e0;font-size:13px;padding:11px 14px;outline:none;cursor:pointer;"></select>
+        <label style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:6px;">🎤 Microphone</label>
+        <select id="dc-mic-select" onchange="dcSwitchDevice()" style="width:100%;background:var(--bg-inset);border:1px solid var(--border);border-radius:10px;color:var(--text-pri);font-size:13px;padding:11px 14px;outline:none;cursor:pointer;"></select>
       </div>
 
       <!-- Headphones -->
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;background:#0a0a18;border:1px solid #1a1a28;border-radius:10px;padding:11px 14px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;background:var(--bg-inset);border:1px solid var(--border);border-radius:10px;padding:11px 14px;">
         <span style="font-size:18px;">🎧</span>
-        <span style="font-size:13px;color:#888;flex:1;">Using headphones?</span>
-        <button id="dc-hp-yes" onclick="dcSetHeadphones(true)"  style="padding:6px 14px;border-radius:6px;border:1px solid #2a2a3e;background:#111009;color:#666;font-size:12px;cursor:pointer;font-weight:600;transition:all .15s;">Yes</button>
-        <button id="dc-hp-no"  onclick="dcSetHeadphones(false)" style="padding:6px 14px;border-radius:6px;border:none;background:linear-gradient(135deg,#d95f1e,#f07030);color:#fff;font-size:12px;cursor:pointer;font-weight:600;">No</button>
+        <span style="font-size:13px;color:var(--text-sec);flex:1;">Using headphones?</span>
+        <button id="dc-hp-yes" onclick="dcSetHeadphones(true)"  style="padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg-panel);color:var(--text-sec);font-size:12px;cursor:pointer;font-weight:600;transition:all .15s;">Yes</button>
+        <button id="dc-hp-no"  onclick="dcSetHeadphones(false)" style="padding:6px 14px;border-radius:6px;border:none;background:var(--grad);color:var(--text-pri);font-size:12px;cursor:pointer;font-weight:600;">No</button>
       </div>
 
       <!-- Join button -->
-      <button onclick="dcEnterStudio()" style="width:100%;padding:16px;background:linear-gradient(135deg,#d95f1e,#f07030);border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:0.02em;box-shadow:0 0 28px rgba(217,95,30,0.35);transition:opacity .15s;">Join Studio</button>
+      <button onclick="dcEnterStudio()" style="width:100%;padding:16px;background:var(--grad);border:none;border-radius:12px;color:var(--text-pri);font-size:16px;font-weight:700;cursor:pointer;letter-spacing:0.02em;box-shadow:0 0 28px rgba(217,95,30,0.35);transition:opacity .15s;">Join Studio</button>
       <div style="text-align:center;margin-top:14px;">
-        <button onclick="dcSkip()" style="background:none;border:none;color:#333;font-size:12px;cursor:pointer;text-decoration:underline;">Skip — enter without camera</button>
+        <button onclick="dcSkip()" style="background:none;border:none;color:var(--text-dim);font-size:12px;cursor:pointer;text-decoration:underline;">Skip — enter without camera</button>
       </div>
     </div>
   </div>
@@ -769,37 +767,12 @@
         <div class="pub-tile-desc">AI clips highlights → viral subtitles → TikTok &amp; YouTube Shorts</div>
       </div>
 
-      <!-- Facebook -->
-      <div class="pub-tile disabled">
-        <span class="pub-badge-soon">COMING SOON</span>
-        <div class="pub-tile-icon">📘</div>
-        <div class="pub-tile-name">Facebook</div>
-        <div class="pub-tile-desc">Post video to Facebook page or profile</div>
-      </div>
-
-      <!-- Instagram -->
-      <div class="pub-tile disabled">
-        <span class="pub-badge-soon">COMING SOON</span>
-        <div class="pub-tile-icon">📸</div>
-        <div class="pub-tile-name">Instagram</div>
-        <div class="pub-tile-desc">Post as Reel or feed video</div>
-      </div>
-
-      <!-- LinkedIn -->
-      <div class="pub-tile disabled">
-        <span class="pub-badge-soon">COMING SOON</span>
-        <div class="pub-tile-icon">💼</div>
-        <div class="pub-tile-name">LinkedIn</div>
-        <div class="pub-tile-desc">Share as native LinkedIn video post</div>
-      </div>
-
-      <!-- Mobile App -->
-      <div class="pub-tile disabled">
-        <span class="pub-badge-soon">COMING SOON</span>
-        <div class="pub-tile-icon">📱</div>
-        <div class="pub-tile-name">Mobile App</div>
-        <div class="pub-tile-desc">Record from phone, auto-publish to all channels</div>
-      </div>
+      <!-- Social channels: handled by The Crew (Facebook / Instagram / LinkedIn / TikTok) -->
+      <a class="pub-tile pub-tile-link" href="/agents">
+        <div class="pub-tile-icon">👷</div>
+        <div class="pub-tile-name">Publish from The Crew →</div>
+        <div class="pub-tile-desc">Facebook, Instagram, LinkedIn and TikTok posts go out through The Crew, with a review step before anything posts.</div>
+      </a>
 
     </div>
     <div id="pub-footer" style="margin-top:18px;display:none;">
@@ -821,7 +794,7 @@
     <div style="font-size:11px;color:var(--text-dim);" id="file-xfer-dest"></div>
   </div>
   <div style="width:120px;height:4px;background:var(--border);border-radius:4px;overflow:hidden;">
-    <div id="file-xfer-track" style="height:100%;width:0%;background:linear-gradient(90deg,#d95f1e,#f07030);border-radius:4px;transition:width 0.3s ease;"></div>
+    <div id="file-xfer-track" style="height:100%;width:0%;background:linear-gradient(90deg,var(--orange),var(--orange-hi));border-radius:4px;transition:width 0.3s ease;"></div>
   </div>
   <div style="font-size:11px;color:var(--text-dim);min-width:40px;text-align:right;" id="file-xfer-pct">0%</div>
 </div>
@@ -883,7 +856,7 @@
       <div class="transport">
         <button class="btn" id="btn-camera">Start Camera</button>
         <select id="studio-cam-select" title="Switch camera (iPhone shows here when connected)"
-          style="background:#0f0f1e;border:1px solid #1e1e2e;border-radius:8px;color:#d0d0e0;font-size:12px;padding:8px 10px;outline:none;cursor:pointer;max-width:190px;">
+          style="background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;color:var(--text-pri);font-size:12px;padding:8px 10px;outline:none;cursor:pointer;max-width:190px;">
           <option value="">📷 Camera…</option>
         </select>
         <button class="btn ghost" id="btn-cam-rescan" title="Re-scan for cameras — tap after connecting your iPhone">🔄</button>
@@ -892,7 +865,7 @@
         <button class="btn danger" id="btn-stop" disabled>■ Stop</button>
         <button class="btn ghost" id="btn-punch" disabled
           title="Stop, rewind 5 seconds, re-record from there"
-          style="background:rgba(196,150,28,0.12);border-color:#5a4008;color:#c4961c;display:none;">
+          style="background:rgba(196,150,28,0.12);border-color:var(--yellow-dim);color:var(--yellow);display:none;">
           ⏮ Punch In
         </button>
         <button class="btn ghost" id="btn-download" disabled>↓ Download</button>
@@ -901,25 +874,25 @@
       </div>
 
       <!-- ── Punch-In panel (shown during punch-in editing) ─────────────── -->
-      <div class="panel" id="punch-panel" style="display:none;padding:12px 14px;background:rgba(196,150,28,0.07);border-color:#5a4008;">
+      <div class="panel" id="punch-panel" style="display:none;padding:12px 14px;background:rgba(196,150,28,0.07);border-color:var(--yellow-dim);">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <span style="font-size:13px;font-weight:700;color:#c4961c;">⏮ Punch-In Mode</span>
-          <span style="font-size:11px;color:#847d74;">Listen to context, then re-record from the punch point.</span>
+          <span style="font-size:13px;font-weight:700;color:var(--yellow);">⏮ Punch-In Mode</span>
+          <span style="font-size:11px;color:var(--text-sec);">Listen to context, then re-record from the punch point.</span>
         </div>
-        <video id="punch-preview" controls style="width:100%;border-radius:8px;background:#000;max-height:100px;display:block;margin-bottom:10px;"></video>
+        <video id="punch-preview" controls style="width:100%;border-radius:8px;background:var(--bg-inset);max-height:100px;display:block;margin-bottom:10px;"></video>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <span style="font-size:12px;color:#847d74;">Rewind:</span>
-          <select id="punch-rewind-sec" style="background:#13131a;border:1px solid #2a2a3a;border-radius:6px;padding:4px 8px;color:#fff;font-size:12px;">
+          <span style="font-size:12px;color:var(--text-sec);">Rewind:</span>
+          <select id="punch-rewind-sec" style="background:var(--bg-inset);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text-pri);font-size:12px;">
             <option value="3">3 seconds</option>
             <option value="5" selected>5 seconds</option>
             <option value="10">10 seconds</option>
             <option value="15">15 seconds</option>
           </select>
           <button id="btn-punch-record"
-            style="flex:1;padding:9px;font-size:13px;font-weight:700;background:linear-gradient(135deg,#d95f1e,#f07030);color:#fff;border:none;border-radius:8px;cursor:pointer;"
+            style="flex:1;padding:9px;font-size:13px;font-weight:700;background:var(--grad);color:var(--text-pri);border:none;border-radius:8px;cursor:pointer;"
             onclick="punchStartRecording()">● Re-record from here</button>
           <button onclick="cancelPunch()"
-            style="padding:9px 14px;font-size:12px;font-weight:600;background:#1e1b16;border:1px solid #272420;color:#888;border-radius:8px;cursor:pointer;">
+            style="padding:9px 14px;font-size:12px;font-weight:600;background:var(--bg-raised);border:1px solid var(--border);color:var(--text-sec);border-radius:8px;cursor:pointer;">
             ✕ Cancel
           </button>
         </div>
@@ -931,15 +904,15 @@
         <div style="display:flex;gap:6px;align-items:center;">
           <span style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim);">Mode:</span>
           <button id="mode-podcast-btn" onclick="setStudioMode('podcast')"
-            style="flex:1;padding:7px 10px;font-size:12px;font-weight:700;border-radius:7px;border:1px solid #d95f1e;background:rgba(217,95,30,0.15);color:#f07030;cursor:pointer;transition:all .12s;">
+            style="flex:1;padding:7px 10px;font-size:12px;font-weight:700;border-radius:7px;border:1px solid var(--orange);background:rgba(217,95,30,0.15);color:var(--orange-hi);cursor:pointer;transition:all .12s;">
             📻 Podcast Episode
           </button>
           <button id="mode-direct-btn" onclick="setStudioMode('direct')"
-            style="flex:1;padding:7px 10px;font-size:12px;font-weight:700;border-radius:7px;border:1px solid #2a2a3a;background:transparent;color:#888;cursor:pointer;transition:all .12s;">
+            style="flex:1;padding:7px 10px;font-size:12px;font-weight:700;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--text-sec);cursor:pointer;transition:all .12s;">
             🎬 Direct Video
           </button>
         </div>
-        <div id="mode-hint" style="font-size:11px;color:#555;margin-top:6px;text-align:center;">
+        <div id="mode-hint" style="font-size:11px;color:var(--text-dim);margin-top:6px;text-align:center;">
           Podcast — Ship It pipeline, clips, chapters, show notes
         </div>
       </div>
@@ -966,25 +939,25 @@
           <span id="tray-duration">—</span>
         </div>
         <video id="tray-video" controls playsinline
-          style="width:100%; border-radius:8px; background:#000; max-height:180px; display:block; margin-bottom:10px;">
+          style="width:100%; border-radius:8px; background:var(--bg-inset); max-height:180px; display:block; margin-bottom:10px;">
         </video>
 
         <!-- ── What's this build? ──────────────────────────────────── -->
         <div style="margin-bottom:10px;">
-          <label for="build-title" style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.06em;">What's this build?</label>
+          <label for="build-title" style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;">What's this build?</label>
           <input type="text" id="build-title"
-            style="width:100%;margin-top:4px;background:#13131a;border:1px solid #2a2a3a;border-radius:8px;padding:8px 12px;color:#fff;font-size:14px;box-sizing:border-box;"
+            style="width:100%;margin-top:4px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-pri);font-size:14px;box-sizing:border-box;"
             placeholder="Leave blank to auto-name…" />
-          <p style="margin:4px 0 0;font-size:11px;color:#555;">Optional — you can rename it anytime on the build page.</p>
+          <p style="margin:4px 0 0;font-size:11px;color:var(--text-dim);">Optional — you can rename it anytime on the build page.</p>
         </div>
 
         <!-- ── Save & Continue (hero action) ─────────────────────── -->
         <button id="btn-save-continue"
-          style="width:100%;padding:11px;font-size:15px;font-weight:700;letter-spacing:0.03em;background:#d95f1e;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-bottom:8px;"
+          style="width:100%;padding:11px;font-size:15px;font-weight:700;letter-spacing:0.03em;background:var(--orange);color:var(--text-pri);border:none;border-radius:8px;cursor:pointer;margin-bottom:8px;"
           onclick="saveAndContinue()">
           Save &amp; Continue →
         </button>
-        <div id="save-continue-status" style="font-size:12px;color:#888;text-align:center;display:none;margin-bottom:8px;"></div>
+        <div id="save-continue-status" style="font-size:12px;color:var(--text-sec);text-align:center;display:none;margin-bottom:8px;"></div>
 
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button class="btn ghost" style="font-size:12px; padding:5px 12px;" onclick="trayDownload()">⬇ Download</button>
@@ -1001,14 +974,14 @@
           <span id="direct-tray-duration">—</span>
         </div>
         <video id="direct-tray-video" controls playsinline
-          style="width:100%; border-radius:8px; background:#000; max-height:180px; display:block; margin-bottom:10px;">
+          style="width:100%; border-radius:8px; background:var(--bg-inset); max-height:180px; display:block; margin-bottom:10px;">
         </video>
 
         <!-- Video type -->
         <div style="margin-bottom:10px;">
-          <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.06em;">Video Type</label>
+          <label style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:.06em;">Video Type</label>
           <select id="direct-video-type"
-            style="width:100%;margin-top:4px;background:#13131a;border:1px solid #2a2a3a;border-radius:8px;padding:8px 12px;color:#fff;font-size:14px;box-sizing:border-box;">
+            style="width:100%;margin-top:4px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-pri);font-size:14px;box-sizing:border-box;">
             <option value="ad">📢 Ad</option>
             <option value="vsl">📽 VSL (Video Sales Letter)</option>
             <option value="intro">🎬 Intro</option>
@@ -1021,19 +994,19 @@
 
         <!-- Title -->
         <div style="margin-bottom:10px;">
-          <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.06em;">Title / Label</label>
+          <label style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:.06em;">Title / Label</label>
           <input type="text" id="direct-video-title"
-            style="width:100%;margin-top:4px;background:#13131a;border:1px solid #2a2a3a;border-radius:8px;padding:8px 12px;color:#fff;font-size:14px;box-sizing:border-box;"
+            style="width:100%;margin-top:4px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-pri);font-size:14px;box-sizing:border-box;"
             placeholder="e.g. HNL Springfield Ad — June 2026" />
         </div>
 
         <!-- Save to Library -->
         <button id="btn-direct-save"
-          style="width:100%;padding:11px;font-size:15px;font-weight:700;letter-spacing:.03em;background:#d95f1e;color:#fff;border:none;border-radius:8px;cursor:pointer;margin-bottom:8px;"
+          style="width:100%;padding:11px;font-size:15px;font-weight:700;letter-spacing:.03em;background:var(--orange);color:var(--text-pri);border:none;border-radius:8px;cursor:pointer;margin-bottom:8px;"
           onclick="directVideoSave()">
           💾 Save to Video Library
         </button>
-        <div id="direct-save-status" style="font-size:12px;color:#888;text-align:center;display:none;margin-bottom:8px;"></div>
+        <div id="direct-save-status" style="font-size:12px;color:var(--text-sec);text-align:center;display:none;margin-bottom:8px;"></div>
 
         <!-- Download MP4 -->
         <div style="display:flex;gap:8px;">
@@ -1048,43 +1021,7 @@
           <h3 style="margin:0;">📚 Video Library</h3>
           <button class="btn ghost" style="font-size:11px;padding:4px 10px;" onclick="loadVideoLibrary()">↺ Refresh</button>
         </div>
-        <div id="video-library-list" style="font-size:13px;color:#888;">Loading…</div>
-      </div>
-
-      <!-- ── Upload Pre-Recorded File ─────────────────────────────────── -->
-      <div class="panel" id="upload-tray">
-        <h3>📂 Upload a Pre-Recorded File</h3>
-        <p style="font-size:12px;color:#888;margin:0 0 10px;">Have a recording already? Drop it here and we'll pour it straight into the pipeline.</p>
-
-        <!-- Drop zone -->
-        <div id="upload-drop-zone"
-          style="border:2px dashed #2a2a3a;border-radius:10px;padding:28px 16px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;margin-bottom:10px;"
-          onclick="document.getElementById('upload-file-input').click()"
-          ondragover="uploadDragOver(event)"
-          ondragleave="uploadDragLeave(event)"
-          ondrop="uploadDrop(event)">
-          <div style="font-size:28px;margin-bottom:6px;">🎬</div>
-          <div style="font-size:13px;color:#aaa;">Drag &amp; drop or <span style="color:#d95f1e;font-weight:600;">browse</span></div>
-          <div style="font-size:11px;color:#555;margin-top:4px;">MP4 · MOV · WebM · MP3 · M4A</div>
-          <div id="upload-file-name" style="display:none;margin-top:8px;font-size:12px;color:#d95f1e;font-weight:600;word-break:break-all;"></div>
-        </div>
-        <input type="file" id="upload-file-input" accept=".mp4,.mov,.webm,.mp3,.m4a" style="display:none;" onchange="uploadFileSelected(this)">
-
-        <!-- Title -->
-        <div style="margin-bottom:10px;">
-          <label for="upload-title" style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.06em;">What's this build?</label>
-          <input type="text" id="upload-title"
-            style="width:100%;margin-top:4px;background:#13131a;border:1px solid #2a2a3a;border-radius:8px;padding:8px 12px;color:#fff;font-size:14px;box-sizing:border-box;"
-            placeholder="Leave blank to auto-name…" />
-        </div>
-
-        <!-- Upload button -->
-        <button id="btn-upload-continue"
-          style="width:100%;padding:11px;font-size:15px;font-weight:700;letter-spacing:0.03em;background:#2a2a3a;color:#777;border:none;border-radius:8px;cursor:not-allowed;margin-bottom:6px;"
-          disabled onclick="uploadAndContinue()">
-          Upload &amp; Continue →
-        </button>
-        <div id="upload-status" style="font-size:12px;color:#888;text-align:center;display:none;"></div>
+        <div id="video-library-list" style="font-size:13px;color:var(--text-sec);">Loading…</div>
       </div>
 
       <!-- ── Post-Episode Tools ──────────────────────────────────────── -->
@@ -1127,6 +1064,42 @@
 
     <!-- ── Right: teleprompter + script ──────────────────────────── -->
     <div class="right-pane">
+      <!-- ── Upload Pre-Recorded File ─────────────────────────────────── -->
+      <div class="panel" id="upload-tray">
+        <h3>📂 Upload a recording (audio or video)</h3>
+        <p style="font-size:12px;color:var(--text-sec);margin:0 0 10px;">Already recorded? Drop the file here and we'll start a new build from it.</p>
+
+        <!-- Drop zone -->
+        <div id="upload-drop-zone"
+          style="border:2px dashed var(--border);border-radius:10px;padding:18px 16px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;margin-bottom:10px;"
+          onclick="document.getElementById('upload-file-input').click()"
+          ondragover="uploadDragOver(event)"
+          ondragleave="uploadDragLeave(event)"
+          ondrop="uploadDrop(event)">
+          <div style="font-size:24px;margin-bottom:4px;">🎬</div>
+          <div style="font-size:13px;color:var(--text-sec);">Drag &amp; drop or <span style="color:var(--orange);font-weight:600;">browse</span></div>
+          <div id="upload-accepted-types" style="font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.5;">Video: MP4 · MOV · WebM · MKV<br>Audio: MP3 · M4A · WAV · FLAC · AAC</div>
+          <div id="upload-file-name" style="display:none;margin-top:8px;font-size:12px;color:var(--orange);font-weight:600;word-break:break-all;"></div>
+        </div>
+        <input type="file" id="upload-file-input" accept=".mp4,.mov,.webm,.mkv,.mp3,.m4a,.wav,.flac,.aac" style="display:none;" onchange="uploadFileSelected(this)">
+
+        <!-- Title -->
+        <div style="margin-bottom:10px;">
+          <label for="upload-title" style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;">What's this build?</label>
+          <input type="text" id="upload-title"
+            style="width:100%;margin-top:4px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-pri);font-size:14px;box-sizing:border-box;"
+            placeholder="Leave blank to auto-name…" />
+        </div>
+
+        <!-- Upload button -->
+        <button id="btn-upload-continue"
+          style="width:100%;padding:11px;font-size:15px;font-weight:700;letter-spacing:0.03em;background:var(--border);color:var(--text-sec);border:none;border-radius:8px;cursor:not-allowed;margin-bottom:6px;"
+          disabled onclick="uploadAndContinue()">
+          Upload &amp; Continue →
+        </button>
+        <div id="upload-status" style="font-size:12px;color:var(--text-sec);text-align:center;display:none;"></div>
+      </div>
+
       <div class="panel">
         <h3>Teleprompter <span class="pill" id="prompter-status">paused</span>
           <span style="margin-left:auto;display:flex;gap:6px">
@@ -1169,43 +1142,43 @@
         </h3>
 
         <!-- Loading state -->
-        <div id="topic-loading" style="color:#888;font-size:13px;padding:8px 0;">Loading from schedule…</div>
+        <div id="topic-loading" style="color:var(--text-sec);font-size:13px;padding:8px 0;">Loading from schedule…</div>
 
         <!-- Loaded state (hidden until data arrives) -->
         <div id="topic-loaded" style="display:none">
           <div id="topic-shoot-badge" style="display:none;margin-bottom:10px;"></div>
           <div style="margin-bottom:10px;">
-            <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.06em;">Topic</label>
-            <input type="text" id="topic-title" style="width:100%;margin-top:4px;background:#13131a;border:1px solid #2a2a3a;border-radius:8px;padding:8px 12px;color:#fff;font-size:15px;font-weight:600;" placeholder="Enter topic…" />
+            <label style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;">Topic</label>
+            <input type="text" id="topic-title" style="width:100%;margin-top:4px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-pri);font-size:15px;font-weight:600;" placeholder="Enter topic…" />
           </div>
           <div style="display:flex;gap:10px;margin-bottom:10px;">
             <div style="flex:1">
-              <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.06em;">Pillar</label>
-              <input type="text" id="topic-pillar" style="width:100%;margin-top:4px;background:#13131a;border:1px solid #2a2a3a;border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;" placeholder="e.g. Relocation" />
+              <label style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;">Pillar</label>
+              <input type="text" id="topic-pillar" style="width:100%;margin-top:4px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-pri);font-size:13px;" placeholder="e.g. Relocation" />
             </div>
             <div style="flex:1">
-              <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.06em;">Market</label>
-              <input type="text" id="topic-market" style="width:100%;margin-top:4px;background:#13131a;border:1px solid #2a2a3a;border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;" placeholder="e.g. Springfield MO" />
+              <label style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;">Market</label>
+              <input type="text" id="topic-market" style="width:100%;margin-top:4px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-pri);font-size:13px;" placeholder="e.g. Springfield MO" />
             </div>
           </div>
           <div style="margin-bottom:12px;">
-            <label style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.06em;">Notes / angle</label>
-            <input type="text" id="topic-notes" style="width:100%;margin-top:4px;background:#13131a;border:1px solid #2a2a3a;border-radius:8px;padding:8px 12px;color:#fff;font-size:13px;" placeholder="Optional angle or talking points…" />
+            <label style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;">Notes / angle</label>
+            <input type="text" id="topic-notes" style="width:100%;margin-top:4px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-pri);font-size:13px;" placeholder="Optional angle or talking points…" />
           </div>
           <div style="display:flex;gap:8px;align-items:center;">
             <button class="btn primary" id="btn-gen-script" style="flex:1;font-weight:700;letter-spacing:0.03em;">✨ Generate Script</button>
-            <span id="gen-spinner" style="display:none;color:#d95f1e;font-size:13px;">generating…</span>
+            <span id="gen-spinner" style="display:none;color:var(--orange);font-size:13px;">generating…</span>
           </div>
           <div id="record-cta">
-            <strong>Script ready.</strong> Hit <strong style="color:#d95f1e;">● Record</strong> to start — camera will turn on automatically.
+            <strong>Script ready.</strong> Hit <strong style="color:var(--orange);">● Record</strong> to start — camera will turn on automatically.
             <br><button class="btn primary" style="margin-top:8px;width:100%;font-weight:700;" onclick="startCameraAndRecord()">● Start Recording Now</button>
           </div>
-          <div id="topic-message" style="margin-top:8px;font-size:12px;color:#888;"></div>
+          <div id="topic-message" style="margin-top:8px;font-size:12px;color:var(--text-sec);"></div>
         </div>
 
         <!-- No schedule state -->
-        <div id="topic-empty" style="display:none;color:#888;font-size:13px;padding:8px 0;">
-          No schedule set. <a href="/youtube-studio#scheduler" style="color:#d95f1e;">Set one in Click Studio →</a>
+        <div id="topic-empty" style="display:none;color:var(--text-sec);font-size:13px;padding:8px 0;">
+          No schedule set. <a href="/youtube-studio#scheduler" style="color:var(--orange);">Set one in Click Studio →</a>
         </div>
       </div>
 
@@ -2305,22 +2278,22 @@
     const hint = document.getElementById('mode-hint');
 
     if (mode === 'podcast') {
-      pb.style.borderColor = '#d95f1e';
+      pb.style.borderColor = 'var(--orange)';
       pb.style.background  = 'rgba(217,95,30,0.15)';
-      pb.style.color       = '#f07030';
-      db.style.borderColor = '#2a2a3a';
+      pb.style.color       = 'var(--orange-hi)';
+      db.style.borderColor = 'var(--border)';
       db.style.background  = 'transparent';
-      db.style.color       = '#888';
+      db.style.color       = 'var(--text-sec)';
       hint.textContent     = 'Podcast — Ship It pipeline, clips, chapters, show notes';
       // Show video library if already visible
       document.getElementById('video-library-panel').style.display = 'none';
     } else {
-      db.style.borderColor = '#d95f1e';
+      db.style.borderColor = 'var(--orange)';
       db.style.background  = 'rgba(217,95,30,0.15)';
-      db.style.color       = '#f07030';
-      pb.style.borderColor = '#2a2a3a';
+      db.style.color       = 'var(--orange-hi)';
+      pb.style.borderColor = 'var(--border)';
       pb.style.background  = 'transparent';
-      pb.style.color       = '#888';
+      pb.style.color       = 'var(--text-sec)';
       hint.textContent     = 'Direct Video — ads, VSLs, promos. Saves as MP4 to library.';
       loadVideoLibrary();
     }
@@ -2431,7 +2404,7 @@
     btn.disabled  = true;
     btn.textContent = '⏳ Converting & Saving…';
     status.style.display = 'block';
-    status.style.color   = '#888';
+    status.style.color   = 'var(--text-sec)';
     status.textContent   = 'Converting WebM → MP4…';
 
     try {
@@ -2445,12 +2418,12 @@
         throw new Error(err.detail || 'Save failed');
       }
       const data = await resp.json();
-      status.style.color = '#52c47a';
+      status.style.color = 'var(--green-hi)';
       status.textContent = `✓ Saved to library — ${data.size_mb} MB`;
       btn.textContent = '✓ Saved';
       loadVideoLibrary();
     } catch(err) {
-      status.style.color   = '#d97070';
+      status.style.color   = 'var(--red)';
       status.textContent   = '✗ ' + err.message;
       btn.disabled         = false;
       btn.textContent      = '💾 Save to Video Library';
@@ -2465,7 +2438,7 @@
     try {
       const data = await fetch('/api/studio/video-library').then(r => r.json());
       if (!data.length) {
-        list.innerHTML = '<div style="color:#555;font-size:12px;padding:8px 0;">No videos saved yet.</div>';
+        list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;padding:8px 0;">No videos saved yet.</div>';
         return;
       }
       const TYPE_LABELS = { ad:'📢 Ad', vsl:'📽 VSL', intro:'🎬 Intro', promo:'🌟 Promo',
@@ -2476,16 +2449,16 @@
                      return `${m}:${String(s).padStart(2,'0')} · `; })()
           : '';
         return `
-        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #1a1a2a;">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">
           <div style="flex:1;min-width:0;">
-            <div style="font-size:13px;font-weight:600;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(v.title)}</div>
-            <div style="font-size:11px;color:#555;margin-top:2px;">${TYPE_LABELS[v.video_type]||v.video_type} · ${durLabel}${v.size_mb} MB · ${new Date(v.created_at).toLocaleDateString()}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--text-pri);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(v.title)}</div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${TYPE_LABELS[v.video_type]||v.video_type} · ${durLabel}${v.size_mb} MB · ${new Date(v.created_at).toLocaleDateString()}</div>
           </div>
-          <a href="/editor/${escHtml(v.id)}"
-             style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;background:rgba(217,95,30,0.12);border:1px solid #6b2e0e;color:#f07030;text-decoration:none;white-space:nowrap;"
-             title="Open in transcript editor">✂ Edit</a>
-          <a href="${escHtml(v.url)}" download style="font-size:18px;color:#555;text-decoration:none;" title="Download">⬇</a>
-          <button onclick="deleteDirectVideo('${escHtml(v.id)}')" style="background:none;border:none;color:#444;font-size:15px;cursor:pointer;padding:0;" title="Delete">🗑</button>
+          <a href="/studio"
+             style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;background:rgba(217,95,30,0.12);border:1px solid var(--orange-dim);color:var(--orange-hi);text-decoration:none;white-space:nowrap;"
+             title="Open in the Studio">✂ Edit</a>
+          <a href="${escHtml(v.url)}" download style="font-size:18px;color:var(--text-dim);text-decoration:none;" title="Download">⬇</a>
+          <button onclick="deleteDirectVideo('${escHtml(v.id)}')" style="background:none;border:none;color:var(--text-dim);font-size:15px;cursor:pointer;padding:0;" title="Delete">🗑</button>
         </div>`;
       }).join('');
     } catch(err) {
@@ -2527,13 +2500,13 @@
     const btn = document.getElementById('btn-upload-continue');
     if (ready) {
       btn.disabled = false;
-      btn.style.background = '#d95f1e';
-      btn.style.color = '#fff';
+      btn.style.background = 'var(--orange)';
+      btn.style.color = 'var(--text-pri)';
       btn.style.cursor = 'pointer';
     } else {
       btn.disabled = true;
-      btn.style.background = '#2a2a3a';
-      btn.style.color = '#777';
+      btn.style.background = 'var(--border)';
+      btn.style.color = 'var(--text-sec)';
       btn.style.cursor = 'not-allowed';
     }
   }
@@ -2551,13 +2524,13 @@
   function uploadDragOver(e) {
     e.preventDefault();
     const zone = document.getElementById('upload-drop-zone');
-    zone.style.borderColor = '#d95f1e';
+    zone.style.borderColor = 'var(--orange)';
     zone.style.background = 'rgba(217,95,30,0.06)';
   }
 
   function uploadDragLeave(e) {
     const zone = document.getElementById('upload-drop-zone');
-    zone.style.borderColor = '#2a2a3a';
+    zone.style.borderColor = 'var(--border)';
     zone.style.background = '';
   }
 
@@ -2566,10 +2539,10 @@
     uploadDragLeave(e);
     const f = e.dataTransfer.files && e.dataTransfer.files[0];
     if (!f) return;
-    const allowed = ['mp4', 'mov', 'webm', 'mp3', 'm4a'];
+    const allowed = ['mp4', 'mov', 'webm', 'mkv', 'mp3', 'm4a', 'wav', 'flac', 'aac'];
     const ext = f.name.split('.').pop().toLowerCase();
     if (!allowed.includes(ext)) {
-      toast('⚠️ Unsupported file type — use MP4, MOV, WebM, MP3, or M4A', 'error');
+      toast('⚠️ Unsupported file type — use MP4, MOV, WebM, MKV, MP3, M4A, WAV, FLAC, or AAC', 'error');
       return;
     }
     _uploadFile = f;
@@ -2674,7 +2647,7 @@
     btn.textContent = 'Saving…';
     status.textContent = 'Uploading your recording…';
     status.style.display = 'block';
-    status.style.color = '#888';
+    status.style.color = 'var(--text-sec)';
 
     try {
       const title = (document.getElementById('build-title') || {}).value || '';
@@ -2705,7 +2678,7 @@
       }
 
       status.textContent = 'Build saved. Breaking ground…';
-      status.style.color = '#4caf50';
+      status.style.color = 'var(--green-hi)';
       btn.textContent = '✓ Saved';
       clearStudioDraft();  // recording captured → don't re-cue this script next time
 
@@ -2716,7 +2689,7 @@
 
     } catch (err) {
       status.textContent = 'Save failed: ' + err.message;
-      status.style.color = '#e05a5a';
+      status.style.color = 'var(--red)';
       btn.disabled = false;
       btn.textContent = 'Save & Continue →';
     }
@@ -2961,24 +2934,24 @@
     };
 
     const run = async (key) => {
-      setStatus(key, '⟳ Sending…', '#FFB340');
+      setStatus(key, '⟳ Sending…', 'var(--yellow)');
       try {
         if (key === 'podcast') {
           await _doPodcastPublishRaw();
-          setStatus(key, '✅ Build saved — Ship It from the Job Site', '#2EE49C');
+          setStatus(key, '✅ Build saved — Ship It from the Job Site', 'var(--green-hi)');
         } else if (key === 'telegram') {
           await _doTelegramPublishRaw();
-          setStatus(key, '✅ Sent to Telegram', '#2EE49C');
+          setStatus(key, '✅ Sent to Telegram', 'var(--green-hi)');
         } else if (key === 'clips') {
           await _doClipsPublishRaw();
-          setStatus(key, '✅ Clip job started', '#2EE49C');
+          setStatus(key, '✅ Clip job started', 'var(--green-hi)');
         } else if (key === 'youtube') {
           const ytData = await _doYouTubePublishRaw();
           const ytUrl  = ytData?.url || '';
-          setStatus(key, ytUrl ? '✅ Live on YouTube' : '✅ Uploaded', '#2EE49C');
+          setStatus(key, ytUrl ? '✅ Live on YouTube' : '✅ Uploaded', 'var(--green-hi)');
         }
       } catch(e) {
-        setStatus(key, '❌ ' + (e.message || 'Failed'), '#FF4D6D');
+        setStatus(key, '❌ ' + (e.message || 'Failed'), 'var(--red)');
       }
     };
 
@@ -3139,13 +3112,13 @@
     const track = document.getElementById('file-xfer-track');
     const pctEl = document.getElementById('file-xfer-pct');
     const labelEl = document.getElementById('file-xfer-label');
-    if (track) { track.style.width = '100%'; track.style.background = success ? '#2EE49C' : '#FF4D6D'; }
+    if (track) { track.style.width = '100%'; track.style.background = success ? 'var(--green-hi)' : 'var(--red)'; }
     if (pctEl) pctEl.textContent = success ? '✓' : '✗';
     if (labelEl && message) labelEl.textContent = message;
     setTimeout(() => {
       const bar = document.getElementById('file-xfer-bar');
       if (bar) bar.style.display = 'none';
-      if (track) track.style.background = 'linear-gradient(90deg,#d95f1e,#f07030)';
+      if (track) track.style.background = 'linear-gradient(90deg,var(--orange),var(--orange-hi))';
     }, 2500);
   }
 
@@ -3215,7 +3188,7 @@
       if (data.message && !data.topic) {
         // No schedule / no topics
         $("topic-empty").style.display  = "block";
-        $("topic-empty").innerHTML = data.message + ' <a href="/youtube-studio" style="color:#d95f1e;">Set one in Click Studio →</a>';
+        $("topic-empty").innerHTML = data.message + ' <a href="/youtube-studio" style="color:var(--orange);">Set one in Click Studio →</a>';
         return;
       }
 
@@ -3230,10 +3203,10 @@
       const badge = $("topic-shoot-badge");
       if (data.is_shoot_day) {
         badge.style.display = "block";
-        badge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(240,112,48,0.15);border:1px solid rgba(240,112,48,0.35);border-radius:20px;padding:4px 12px;font-size:12px;color:#f07030;font-weight:600;">🎬 Today is a shoot day — ${data.today}</span>`;
+        badge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(240,112,48,0.15);border:1px solid rgba(240,112,48,0.35);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--orange-hi);font-weight:600;">🎬 Today is a shoot day — ${data.today}</span>`;
       } else {
         badge.style.display = "block";
-        badge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid #2a2a3a;border-radius:20px;padding:4px 12px;font-size:12px;color:#888;">📅 Shoot days: ${(data.shoot_days||[]).join(", ") || "not set"}</span>`;
+        badge.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;color:var(--text-sec);">📅 Shoot days: ${(data.shoot_days||[]).join(", ") || "not set"}</span>`;
       }
 
       $("topic-message").textContent = data.message || "";
@@ -3383,7 +3356,7 @@
       document.getElementById('dc-res-badge').style.display = 'block';
       await _dcPopulateDevices();
     } catch(e) {
-      document.getElementById('dc-no-cam').innerHTML = '<div style="font-size:32px;">🚫</div><div style="font-size:12px;color:#555;text-align:center;padding:0 20px;">Camera/mic access denied.<br>Check your browser permissions.</div>';
+      document.getElementById('dc-no-cam').innerHTML = '<div style="font-size:32px;">🚫</div><div style="font-size:12px;color:var(--text-dim);text-align:center;padding:0 20px;">Camera/mic access denied.<br>Check your browser permissions.</div>';
     }
   }
 
@@ -3462,9 +3435,9 @@
       if (_dcCamOn) { v.style.display = 'block'; document.getElementById('dc-no-cam').style.display = 'none'; document.getElementById('dc-res-badge').style.display = 'block'; }
       _dcCamOn = true; _dcMicOn = true; // reset toggle state on device switch
       const camBtn = document.getElementById('dc-btn-cam');
-      camBtn.style.background = '#141422'; camBtn.style.borderColor = '#2a2a3e';
+      camBtn.style.background = 'var(--bg-raised)'; camBtn.style.borderColor = 'var(--border)';
       const micBtn = document.getElementById('dc-btn-mic');
-      micBtn.style.background = '#141422'; micBtn.style.borderColor = '#2a2a3e'; micBtn.textContent = '🎤';
+      micBtn.style.background = 'var(--bg-raised)'; micBtn.style.borderColor = 'var(--border)'; micBtn.textContent = '🎤';
     } catch (e) {
       // Surface the REAL reason instead of silently keeping the old stream
       const name = (e && e.name) ? e.name : 'error';
@@ -3491,28 +3464,28 @@
     v.style.display  = _dcCamOn ? 'block' : 'none';
     nc.style.display = _dcCamOn ? 'none'  : 'flex';
     rb.style.display = _dcCamOn ? 'block' : 'none';
-    btn.style.background   = _dcCamOn ? '#141422' : 'rgba(255,77,109,0.18)';
-    btn.style.borderColor  = _dcCamOn ? '#2a2a3e' : 'rgba(255,77,109,0.5)';
+    btn.style.background   = _dcCamOn ? 'var(--bg-raised)' : 'rgba(160,56,56,0.18)';
+    btn.style.borderColor  = _dcCamOn ? 'var(--border)' : 'rgba(160,56,56,0.5)';
   }
 
   function dcToggleMic() {
     _dcMicOn = !_dcMicOn;
     const btn = document.getElementById('dc-btn-mic');
     if (_dcStream) _dcStream.getAudioTracks().forEach(t => t.enabled = _dcMicOn);
-    btn.style.background  = _dcMicOn ? '#141422' : 'rgba(255,77,109,0.18)';
-    btn.style.borderColor = _dcMicOn ? '#2a2a3e' : 'rgba(255,77,109,0.5)';
+    btn.style.background  = _dcMicOn ? 'var(--bg-raised)' : 'rgba(160,56,56,0.18)';
+    btn.style.borderColor = _dcMicOn ? 'var(--border)' : 'rgba(160,56,56,0.5)';
     btn.textContent = _dcMicOn ? '🎤' : '🔇';
   }
 
   function dcSetHeadphones(val) {
     const yes = document.getElementById('dc-hp-yes');
     const no  = document.getElementById('dc-hp-no');
-    yes.style.background  = val  ? 'linear-gradient(135deg,#d95f1e,#f07030)' : '#111009';
-    yes.style.color       = val  ? '#fff' : '#666';
-    yes.style.border      = val  ? 'none' : '1px solid #2a2a3e';
-    no.style.background   = !val ? 'linear-gradient(135deg,#d95f1e,#f07030)' : '#111009';
-    no.style.color        = !val ? '#fff' : '#666';
-    no.style.border       = !val ? 'none' : '1px solid #2a2a3e';
+    yes.style.background  = val  ? 'var(--grad)' : 'var(--bg-panel)';
+    yes.style.color       = val  ? 'var(--text-pri)' : 'var(--text-sec)';
+    yes.style.border      = val  ? 'none' : '1px solid var(--border)';
+    no.style.background   = !val ? 'var(--grad)' : 'var(--bg-panel)';
+    no.style.color        = !val ? 'var(--text-pri)' : 'var(--text-sec)';
+    no.style.border       = !val ? 'none' : '1px solid var(--border)';
   }
 
   async function dcEnterStudio() {
@@ -3568,7 +3541,6 @@
     }
   });
   </script>
-<script src="/recorder-widget.js"></script>
 <script src="/brick-chat.js" defer></script>
 </body>
 </html>
