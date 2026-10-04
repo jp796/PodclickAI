@@ -19,7 +19,7 @@ Counted with `scratchpad/hex.ts`-style scan: 6-digit hexes in each page that are
 |---|---|---|---|---|
 | youtube-studio.html | 339 | 54 | `#5a5a7a`×71 `#7a7a9a`×66 `#c0c0d8`×38 `#2ee49c`×36 `#3a3a5a`×15 `#ffb340`×12 `#a0a0c0`×7 `#ff4d6d`×7 | `#5a5a7a` `#2ee49c` `#3a3a5a` `#a0a0c0` `#6a6a8a` `#1e1e2e` `#4a4a6a` `#2e2e42` `#6366f1` `#22c55e` |
 | project.html | 134 | 79 | `#f5f7fa`×18 `#ff8080`×6 `#7fb8e8`×4 `#302a22`×4 `#ffd700`×4 `#f2aa62`×3 | `#7fb8e8` `#2ee49c` `#a0a0c0` |
-| index.html | 132 | 18 | `#2ea7ff`×42 `#8b5cff`×33 `#22c55e`×14 `#ffb340`×10 `#c66cff`×5 `#a7b0c0`×5 | `#2ea7ff` `#8b5cff` `#22c55e` `#c66cff` `#a7b0c0` (+27 cyan/purple `rgba()` uses) |
+| index.html | 2 | 2 | `#ff0000` `#cc0000` (YouTube brand, page-only `--brand-youtube*` vars) | none in body; 2 cyan/violet `rgba()` remain in the protected `body::before` header (lines 29-30), overridden at the end of the style block (2026-10-04) |
 | studio.html | 77 | 20 | `#2a2a3a`×17 `#2a2a3e`×10 `#13131a`×9 `#2ee49c`×7 `#141422`×7 `#1e1e2e`×5 | navy-grey device-check + upload-tray inline styles |
 | projects.html | 50 | 34 | `#f5f7fa`×8 `#a79d91`×7 `#393127`×2 | `#a0a0c0` `#7fb8e8` |
 | brand-studio.html | 32 | 12 | `#8899cc`×16 `#ff557e`×4 `#030b2c`×3 | `#8899cc` `#ff557e` `#030b2c` (+11 cyan `rgba(5,195,249,…)`; body still renders navy) |
