@@ -41,44 +41,48 @@
     .grad-text { background: linear-gradient(135deg, var(--orange), var(--orange-hi)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .grad-border { border: 1px solid transparent; background-clip: padding-box; }
 
-    /* Sidebar nav */
-    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-sec); transition: all 0.15s; }
-    .nav-item:hover { background: var(--bg-card); color: var(--text-pri); }
-    .nav-item.active { background: linear-gradient(135deg, color-mix(in srgb, var(--orange) 15%, transparent), color-mix(in srgb, var(--orange-hi) 10%, transparent)); color: var(--orange-hi); border: 1px solid color-mix(in srgb, var(--orange) 25%, transparent); }
-    .nav-item svg { flex-shrink: 0; }
 
     /* Tab buttons */
-    .tab-btn { padding: 8px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; letter-spacing: 0.05em; }
-    .tab-btn.active { background: linear-gradient(135deg, var(--orange), var(--orange-hi)); color: var(--text-pri); }
-    .tab-btn:not(.active) { color: var(--text-sec); background: var(--bg-card); border-color: var(--border); }
-    .tab-btn:not(.active):hover { color: var(--text-sec); border-color: var(--border-lit); }
+    .tab-btn { display: inline-flex; align-items: center; gap: var(--space-2); padding: 8px 18px; border-radius: var(--radius-md); font: 600 13px/1.2 var(--font-cond); letter-spacing: .06em; cursor: pointer; transition: color var(--dur-fast) ease, background var(--dur-fast) ease, border-color var(--dur-fast) ease; border: 1px solid transparent; }
+    .tab-btn.active { background: var(--orange-glow); color: var(--orange-hi); border-color: var(--orange-dim); }
+    .tab-btn:not(.active) { color: var(--text-sec-hi); background: var(--bg-card); border-color: var(--border); }
+    .tab-btn:not(.active):hover { color: var(--text-pri); border-color: var(--border-lit); }
+    .tab-btn:focus-visible { outline: none; box-shadow: var(--ring); }
 
     /* Tool cards */
-    .tool-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 14px; padding: 24px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
-    .tool-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, color-mix(in srgb, var(--orange) 6%, transparent), color-mix(in srgb, var(--orange-hi) 4%, transparent)); opacity: 0; transition: opacity 0.2s; }
-    .tool-card:hover { border-color: color-mix(in srgb, var(--orange) 40%, transparent); transform: translateY(-2px); box-shadow: 0 8px 32px color-mix(in srgb, var(--orange) 12%, transparent); }
+    .tool-card { background: var(--bg-panel); border: var(--hairline); border-radius: var(--radius-lg); padding: var(--space-6); cursor: pointer; position: relative; overflow: hidden; box-shadow: var(--shadow-card); transition: transform var(--dur) var(--ease-out), border-color var(--dur) ease, box-shadow var(--dur) ease; }
+    .tool-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, var(--orange-glow), transparent 60%); opacity: 0; transition: opacity var(--dur) ease; pointer-events: none; }
+    .tool-card:hover { border-color: var(--orange-dim); transform: translateY(-2px); box-shadow: var(--shadow-pop); }
+    .tool-card:active { transform: translateY(0) scale(.995); }
+    .tool-card:focus-visible { outline: none; box-shadow: var(--ring); }
+    .tool-card h3 { font-family: var(--font-display); font-weight: 700; font-size: 21px; letter-spacing: .04em; text-transform: uppercase; line-height: 1.1; }
+    .tool-card > .flex > svg { transition: transform var(--dur) var(--ease-out), stroke var(--dur) ease; }
+    .tool-card:hover > .flex > svg { transform: translateX(3px); stroke: var(--orange-hi); }
     .tool-card:hover::before { opacity: 1; }
-    .tool-card-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+    .tool-card-icon { width: 44px; height: 44px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; margin-bottom: var(--space-4); border: var(--hairline); }
 
     /* Button styles */
-    .btn-primary { background: linear-gradient(135deg, var(--orange), var(--orange-hi)); color:var(--text-pri); border: none; padding: 11px 22px; border-radius: 9px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
-    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 6px 20px color-mix(in srgb, var(--orange) 30%, transparent); }
-    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-    .btn-secondary { background: var(--bg-raised); color: var(--text-sec); border: 1px solid var(--border); padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s; }
-    .btn-secondary:hover { border-color: var(--orange); color: var(--orange-hi); }
+    .btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); background: var(--grad-primary); color: var(--text-pri); border: 1px solid var(--orange-deep); padding: 11px 22px; border-radius: var(--radius-md); font: 600 14px/1.2 var(--font-cond); letter-spacing: .04em; cursor: pointer; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-pri) 18%, transparent); transition: background var(--dur-fast) ease, box-shadow var(--dur) ease, transform var(--dur-fast) ease, border-color var(--dur-fast) ease; }
+    .btn-primary:hover:not(:disabled) { background: var(--grad-primary-hover); border-color: var(--orange); transform: translateY(-1px); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-pri) 18%, transparent), 0 6px 20px color-mix(in srgb, var(--orange) 28%, transparent); }
+    .btn-primary:active:not(:disabled), .btn-secondary:active:not(:disabled) { transform: scale(.98); }
+    .btn-primary:focus-visible, .btn-secondary:focus-visible, .copy-btn:focus-visible, .sort-btn:focus-visible, .result-tab-btn:focus-visible { outline: none; box-shadow: var(--ring); }
+    .btn-primary:disabled, .btn-secondary:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-secondary { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); background: var(--bg-raised); color: var(--text-sec-hi); border: var(--hairline); padding: 9px 16px; border-radius: var(--radius-md); font: 600 13px/1.2 var(--font-cond); letter-spacing: .04em; cursor: pointer; transition: border-color var(--dur-fast) ease, color var(--dur-fast) ease, background var(--dur-fast) ease, transform var(--dur-fast) ease; }
+    .btn-secondary:hover:not(:disabled) { border-color: var(--orange-dim); color: var(--text-pri); background: var(--bg-card); }
 
     /* Input / select / textarea */
-    .field { background: var(--bg-card); border: 1px solid var(--border); border-radius: 9px; padding: 10px 14px; color: var(--text-pri); font-size: 14px; font-family: var(--font-body); outline: none; transition: border-color 0.15s; width: 100%; }
-    .field:focus { border-color: var(--orange); }
-    .field::placeholder { color: var(--text-dim); }
+    .field { background: var(--bg-inset); border: var(--hairline); border-radius: var(--radius-md); padding: 10px 14px; color: var(--text-pri); font-size: 14px; font-family: var(--font-body); outline: none; transition: border-color var(--dur-fast) ease, box-shadow var(--dur-fast) ease; width: 100%; }
+    .field:focus { border-color: var(--orange); box-shadow: 0 0 0 3px var(--orange-glow); }
+    .field::placeholder { color: var(--text-sec); opacity: .7; }
     select.field option { background: var(--bg-card); }
 
     /* Progress steps */
-    .step-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; color: var(--text-sec); transition: color 0.3s; }
+    .step-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; font-size: 13px; color: var(--text-sec); border-bottom: var(--hairline); transition: color var(--dur-slow) ease; }
+    .step-trail { margin-left: auto; display: inline-flex; align-items: center; font: 500 11px/1 var(--font-mono); letter-spacing: .06em; }
     .step-row.done { color: var(--green-hi); }
     .step-row.active { color: var(--orange-hi); }
-    .step-row.failed { color: var(--red); }
-    .step-dot { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; }
+    .step-row.failed { color: var(--red-hi); }
+    .step-dot { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 11px; border: 1px solid transparent; }
     .step-dot.done { background: color-mix(in srgb, var(--green-hi) 15%, transparent); color: var(--green-hi); }
     .step-dot.active { background: color-mix(in srgb, var(--orange) 20%, transparent); }
     .step-dot.pending { background: var(--bg-raised); }
@@ -104,8 +108,8 @@
     .panel-section p, .panel-section .content { font-size: 13px; line-height: 1.7; color: var(--text-pri); white-space: pre-wrap; }
 
     /* Copy button */
-    .copy-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-sec); cursor: pointer; padding: 4px 8px; border-radius: 5px; border: 1px solid var(--border); background: transparent; font-family: var(--font-body); transition: all 0.15s; }
-    .copy-btn:hover { color: var(--orange-hi); border-color: var(--orange); }
+    .copy-btn { display: inline-flex; align-items: center; gap: 5px; font: 600 11px/1.2 var(--font-cond); letter-spacing: .05em; color: var(--text-sec-hi); cursor: pointer; padding: 5px 9px; border-radius: var(--radius-sm); border: var(--hairline); background: transparent; transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background var(--dur-fast) ease; }
+    .copy-btn:hover { color: var(--orange-hi); border-color: var(--orange-dim); background: var(--orange-mist); }
     .copy-btn.copied { color: var(--green-hi); border-color: var(--green-hi); }
 
     /* Title option card */
@@ -114,7 +118,7 @@
     .recommended-badge { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; padding: 2px 8px; border-radius: 20px; background: linear-gradient(135deg, var(--orange), var(--orange-hi)); color:var(--text-pri); }
 
     /* Tag chip */
-    .tag-chip { display: inline-flex; align-items: center; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 12px; color: var(--text-sec); }
+    .tag-chip { display: inline-flex; align-items: center; background: var(--bg-inset); border: var(--hairline); border-radius: var(--radius-pill); padding: 3px 10px; font: 500 10px/1.4 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-sec-hi); }
 
     /* Thumbnail concept card */
     .thumb-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
@@ -165,27 +169,39 @@
     @keyframes cfPop { from { transform:scale(.92); opacity:0; } to { transform:scale(1); opacity:1; } }
 
     /* Modal overlay */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); padding: 16px; }
-    .modal-box { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 100%; max-width: 480px; }
+    .modal-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 1000; padding: var(--space-4); }
+    .modal-box { position: relative; background: var(--bg-card); border: 1px solid var(--border-lit); border-radius: var(--radius-lg); padding: var(--space-7); width: 100%; max-width: 480px; max-height: calc(100dvh - 32px); overflow-y: auto; box-shadow: var(--shadow-pop); animation: pc-pop-in var(--dur-slow) var(--ease-out) both; }
+    .modal-box::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: repeating-linear-gradient(-45deg, var(--orange) 0 10px, var(--bg) 10px 20px); opacity: .85; }
+    .modal-box h2 { font-family: var(--font-display); font-size: 24px; letter-spacing: .04em; text-transform: uppercase; }
+    @media (max-width: 640px) { .modal-box { padding: var(--space-5); } }
+    .ys-close { display: inline-grid; place-items: center; width: 34px; height: 34px; flex-shrink: 0; border-radius: var(--radius-md); border: 1px solid transparent; background: transparent; color: var(--text-sec-hi); cursor: pointer; font-size: 18px; transition: background var(--dur-fast) ease, color var(--dur-fast) ease, border-color var(--dur-fast) ease; }
+    .ys-close:hover { background: var(--bg-raised); border-color: var(--border); color: var(--text-pri); }
+    .ys-close:focus-visible { outline: none; box-shadow: var(--ring); }
+    .ys-modal-title { display: flex; align-items: center; gap: var(--space-2); margin: 0; font: 700 22px/1.1 var(--font-display); letter-spacing: .04em; text-transform: uppercase; color: var(--text-pri); }
+    .ys-modal-title .pc-i, .ys-modal-title svg { color: var(--orange-hi); }
 
     /* Coming soon badge */
     .coming-soon { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; padding: 2px 8px; border-radius: 20px; background: var(--bg-raised); color: var(--text-sec); border: 1px solid var(--border); }
 
     /* Result tabs */
-    .result-tab-btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-sec); }
-    .result-tab-btn.active { background: linear-gradient(135deg, var(--orange), var(--orange-hi)); color: var(--text-pri); border-color: transparent; }
-    .viral-badge { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 20px; background: linear-gradient(135deg, var(--orange), var(--yellow)); color: var(--bg); }
-    .sort-btn { font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text-sec); cursor: pointer; transition: all 0.15s; font-family: inherit; }
-    .sort-btn:hover { border-color: var(--orange); color: var(--text-pri); }
-    .sort-btn.active { background: color-mix(in srgb, var(--orange) 15%, transparent); border-color: color-mix(in srgb, var(--orange) 50%, transparent); color: var(--orange); }
-    .video-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s; }
-    .video-card:hover { border-color: var(--border-lit); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+    .result-tab-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius-pill); font: 600 13px/1.2 var(--font-cond); letter-spacing: .05em; cursor: pointer; transition: color var(--dur-fast) ease, background var(--dur-fast) ease, border-color var(--dur-fast) ease; border: var(--hairline); background: var(--bg-card); color: var(--text-sec-hi); }
+    .result-tab-btn:hover { color: var(--text-pri); border-color: var(--border-lit); }
+    .result-tab-btn.active { background: var(--orange-glow); color: var(--orange-hi); border-color: var(--orange-dim); }
+    .viral-badge { font: 700 10px/1.2 var(--font-mono); letter-spacing: .1em; padding: 3px 8px; border-radius: var(--radius-pill); background: var(--orange-hi); color: var(--bg); }
+    .sort-btn { display: inline-flex; align-items: center; gap: 6px; font: 600 12px/1.2 var(--font-cond); letter-spacing: .05em; padding: 5px 12px; border-radius: var(--radius-pill); border: var(--hairline); background: transparent; color: var(--text-sec-hi); cursor: pointer; transition: color var(--dur-fast) ease, background var(--dur-fast) ease, border-color var(--dur-fast) ease; }
+    .sort-btn:hover { border-color: var(--border-lit); color: var(--text-pri); }
+    .sort-btn.active { background: var(--orange-glow); border-color: var(--orange-dim); color: var(--orange-hi); }
+    .video-card { background: var(--bg-panel); border: var(--hairline); border-radius: var(--radius-lg); overflow: hidden; display: flex; flex-direction: column; box-shadow: var(--shadow-card); transition: border-color var(--dur) ease, transform var(--dur) var(--ease-out), box-shadow var(--dur) ease; }
+    .video-card:hover { border-color: var(--border-hot); transform: translateY(-2px); box-shadow: var(--shadow-pop); }
+    .vthumb-ph { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); color: var(--text-sec); font: 500 10px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase;
+      background: linear-gradient(var(--blueprint-line) 1px, transparent 1px) 0 0 / 20px 20px, linear-gradient(90deg, var(--blueprint-line) 1px, transparent 1px) 0 0 / 20px 20px, var(--bg-inset); }
+    .vthumb-ph svg, .vthumb-ph .pc-i { color: var(--orange-hi); opacity: .8; }
     .video-thumb-wrap { position: relative; padding-top: 56.25%; background: var(--bg-card); overflow: hidden; flex-shrink: 0; }
     .video-thumb-wrap img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; transition: transform 0.3s; }
     .video-card:hover .video-thumb-wrap img { transform: scale(1.03); }
     .thumb-overlay { position:absolute; inset:0; background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 55%); pointer-events:none; }
     .thumb-duration { position:absolute; bottom:10px; right:10px; font-size:11px; font-weight:700; color:var(--text-pri); background:rgba(0,0,0,0.75); padding:2px 6px; border-radius:4px; letter-spacing:0.02em; }
-    .thumb-views { position:absolute; bottom:10px; left:10px; font-size:12px; font-weight:700; color:var(--text-pri); text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
+    .thumb-views { position:absolute; bottom:10px; left:10px; display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:700; color:var(--text-pri); text-shadow: 0 1px 4px rgba(0,0,0,0.9); }
     .thumb-viral { position:absolute; top:10px; left:10px; }
     .thumb-watch { position:absolute; top:10px; right:10px; width:34px; height:34px; border-radius:50%; background:rgba(0,0,0,0.65); display:flex; align-items:center; justify-content:center; color:var(--text-pri); text-decoration:none; font-size:13px; transition: background 0.15s; backdrop-filter: blur(4px); }
     .thumb-watch:hover { background: color-mix(in srgb, var(--red) 80%, transparent); }
@@ -208,14 +224,9 @@
     /* Pillar badge */
     .pillar-badge { font-size: 10px; font-weight: 600; padding: 2px 9px; border-radius: 20px; }
 
-    /* Responsive sidebar */
-    @media (max-width: 768px) {
-      #sidebar { display: none; }
-      #sidebar.open { display: flex; position: fixed; inset: 0; z-index: 50; width: 240px; }
-    }
 
     /* Toast notification */
-    #ys-toast {
+    #ys-toast { display: flex; align-items: flex-start; gap: var(--space-2);
       position: fixed;
       bottom: 24px;
       right: 24px;
@@ -234,18 +245,43 @@
       pointer-events: none;
     }
     #ys-toast.show { opacity: 1; transform: translateY(0); }
-    #ys-toast.error { border-left-color: var(--red); }
+    #ys-toast svg, #ys-toast .pc-i { flex-shrink: 0; margin-top: 1px; color: var(--orange-hi); }
+    #ys-toast.success svg, #ys-toast.success .pc-i { color: var(--green-hi); }
+    #ys-toast.error svg, #ys-toast.error .pc-i { color: var(--red-hi); }
+    @media (max-width: 640px) { #ys-toast { left: 16px; right: 16px; bottom: 16px; max-width: none; } }
+    #ys-toast.error { border-left-color: var(--red-hi); }
     #ys-toast.success { border-left-color: var(--green-hi); }
-    .nav-toggle { display:flex; background:var(--bg-card); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
-    .nav-toggle a { padding:6px 14px; font-size:12px; font-weight:600; color:var(--text-sec); text-decoration:none; letter-spacing:0.03em; white-space:nowrap; transition:background 0.15s,color 0.15s; }
-    .nav-toggle a:hover { background:var(--bg-raised); color:var(--text-pri); }
-    .nav-toggle a.active { background:var(--bg-panel); color:var(--orange); }
-    .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
 
     /* Hand-off to the agent hub (/agents) */
-    .crew-link { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:999px; border:1px solid var(--orange-dim); background:var(--orange-mist); color:var(--orange-hi); font:600 11px/1.2 var(--font-cond); letter-spacing:.06em; text-transform:uppercase; text-decoration:none; white-space:nowrap; transition:background .15s, border-color .15s; }
+    .crew-link { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: var(--radius-pill); border: 1px solid var(--orange-dim); background: var(--orange-mist); color: var(--orange-hi); font: 600 11px/1.2 var(--font-cond); letter-spacing: .08em; text-transform: uppercase; text-decoration: none; white-space: nowrap; transition: background var(--dur-fast) ease, border-color var(--dur-fast) ease, transform var(--dur-fast) ease; }
+    .crew-link .pc-i:last-child { opacity: .7; transition: transform var(--dur-fast) var(--ease-out), opacity var(--dur-fast) ease; }
+    .crew-link:hover .pc-i:last-child { opacity: 1; transform: translate(1px, -1px); }
     .crew-link:hover { background:var(--orange-glow); border-color:var(--orange); }
-    .crew-link:focus-visible { outline:2px solid var(--orange-hi); outline-offset:2px; }
+    .crew-link:focus-visible { outline: none; box-shadow: var(--ring); }
+    .crew-link.mt-2 { margin-top: var(--space-2); }
+    /* ── Scout v2 page components (tokens only) ── */
+    .ys-panel { background: var(--bg-panel); border: var(--hairline); border-radius: var(--radius-lg); padding: var(--space-7); box-shadow: var(--shadow-card); }
+    .ys-panel h3.font-bold { font-family: var(--font-display); font-weight: 700; font-size: 24px; letter-spacing: .04em; text-transform: uppercase; line-height: 1.1; }
+    @media (max-width: 640px) { .ys-panel { padding: var(--space-5); } .ys-panel h3.font-bold { font-size: 21px; } }
+    .ys-meta { display: inline-flex; align-items: center; gap: 5px; }
+    .ys-skel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-4); }
+    .ys-skel-card { border: var(--hairline); border-radius: var(--radius-lg); overflow: hidden; background: var(--bg-panel); }
+    .ys-skel-card .pc-skeleton--thumb { aspect-ratio: 16 / 9; border-radius: 0; }
+    .ys-skel-card .ys-skel-body { padding: var(--space-4); }
+    .ys-status { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 13px; color: var(--orange-hi); margin-bottom: var(--space-4); }
+    .empty-state .ys-empty-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: center; margin-top: var(--space-2); }
+    .empty-state .ys-empty-note { display: inline-flex; align-items: center; gap: 6px; font: 500 11px/1.5 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text-sec-hi); }
+    @media (max-width: 640px) {
+      .cf-shell { padding: var(--space-5); }
+      .cf-progress-card { padding: var(--space-4); }
+      .cf-progress-head { flex-wrap: wrap; gap: var(--space-3); }
+      .cf-progress-head > :first-child { flex: 1 1 200px; }
+      .cf-timer { font-size: 24px; }
+      .cf-steps { gap: var(--space-1); }
+      .cf-step { font-size: 9px; letter-spacing: 0; }
+    }
+    .pc-chip { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+    .pc-chip:focus-visible { outline: none; box-shadow: var(--ring); }
     .panel-head { display:flex; align-items:center; justify-content:space-between; gap:10px 16px; flex-wrap:wrap; }
   </style>
   <script src="/static/podclick-nav.js?v=20261004-1" defer></script>
@@ -360,10 +396,10 @@
           </div>
 
           <!-- Content Scheduler panel -->
-          <div id="scheduler-panel" class="hidden mb-6" style="background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:28px;">
+          <div id="scheduler-panel" class="hidden mb-6 ys-panel">
             <div class="panel-head mb-5">
               <h3 class="font-bold text-white">Content Shoot Schedule</h3>
-              <a class="crew-link" href="/agents">Now on The Crew &rarr;</a>
+              <a class="crew-link" href="/agents" title="This tool also runs as an agent on The Crew"><i class="pc-i" data-i="users"></i> On The Crew <i class="pc-i" data-i="arrow-up-right"></i></a>
             </div>
             <div class="mb-5">
               <label class="block text-xs font-semibold mb-3" style="color:var(--text-sec);">SELECT YOUR SHOOT DAYS</label>
@@ -390,18 +426,18 @@
             </div>
             <div class="flex items-center gap-3">
               <button class="btn-primary" onclick="saveSchedule()">Save Schedule</button>
-              <span id="scheduler-saved-msg" class="hidden text-sm" style="color:var(--green-hi);">&#10003; Saved!</span>
+              <span id="scheduler-saved-msg" class="hidden text-sm" style="color:var(--green-hi);"><i class="pc-i" data-i="circle-check"></i> Saved</span>
             </div>
             <div class="mt-4 p-3 rounded-lg text-xs" style="background:var(--bg-card); color:var(--text-sec);">
-              &#128161; <strong style="color:var(--orange);">Saved here, used in Studio.</strong> Your shoot days and topic queue are stored on this page, and the Studio pulls today's topic from the queue. No calendar sync or reminders are sent.
+              <i class="pc-i pc-i--orange" data-i="lightbulb"></i> <strong style="color:var(--orange);">Saved here, used in Studio.</strong> Your shoot days and topic queue are stored on this page, and the Studio pulls today's topic from the queue. No calendar sync or reminders are sent.
             </div>
           </div>
 
           <!-- Pillar Planner panel -->
-          <div id="pillar-planner-panel" class="hidden mb-6" style="background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:28px;">
+          <div id="pillar-planner-panel" class="hidden mb-6 ys-panel">
             <div class="panel-head mb-5">
               <h3 class="font-bold text-white">Pillar Planner</h3>
-              <a class="crew-link" href="/agents">Now on The Crew &rarr;</a>
+              <a class="crew-link" href="/agents" title="This tool also runs as an agent on The Crew"><i class="pc-i" data-i="users"></i> On The Crew <i class="pc-i" data-i="arrow-up-right"></i></a>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
               <div>
@@ -422,8 +458,8 @@
                 </select>
               </div>
             </div>
-            <button class="btn-primary" onclick="runPillarPlanner()">Generate 90-Day Content Plan →</button>
-            <div id="pp-results" class="hidden mt-6 space-y-4"></div>
+            <button class="btn-primary" onclick="runPillarPlanner()">Generate 90-Day Content Plan <i class="pc-i" data-i="arrow-right"></i></button>
+            <div id="pp-results" data-ai-output class="hidden mt-6 space-y-4"></div>
           </div>
 
           <!-- Results area -->
@@ -431,23 +467,28 @@
 
             <!-- Progress panel -->
             <div id="progress-panel" class="hidden">
-              <div style="background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:28px;" class="mb-6">
+              <div class="ys-panel mb-6">
                 <div class="flex items-center justify-between mb-6">
                   <div>
                     <h3 class="font-bold text-white mb-1">Analyzing Market</h3>
                     <p class="text-sm" style="color:var(--text-sec);" id="progress-city-label">Scanning YouTube for your market...</p>
                   </div>
                   <div class="text-right">
-                    <div class="text-2xl font-bold grad-text" id="progress-pct">0%</div>
+                    <div class="text-2xl font-bold grad-text pc-num" id="progress-pct">0%</div>
                     <div class="text-xs" style="color:var(--text-sec);">complete</div>
                   </div>
                 </div>
-                <div class="progress-bar mb-6">
-                  <div class="progress-fill" id="progress-bar-fill" style="width:0%"></div>
+                <div class="pc-progress pc-progress--striped mb-6" role="progressbar" aria-label="Market Scout progress">
+                  <span id="progress-bar-fill" style="width:0%"></span>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8" id="steps-list">
                   <!-- Injected by JS -->
                 </div>
+              </div>
+              <div class="ys-skel-grid" aria-hidden="true">
+                <div class="ys-skel-card"><span class="pc-skeleton pc-skeleton--thumb"></span><div class="ys-skel-body"><span class="pc-skeleton pc-skeleton--title" style="width:80%"></span><span class="pc-skeleton pc-skeleton--text"></span><span class="pc-skeleton pc-skeleton--text" style="width:55%"></span></div></div>
+                <div class="ys-skel-card"><span class="pc-skeleton pc-skeleton--thumb"></span><div class="ys-skel-body"><span class="pc-skeleton pc-skeleton--title" style="width:70%"></span><span class="pc-skeleton pc-skeleton--text"></span><span class="pc-skeleton pc-skeleton--text" style="width:45%"></span></div></div>
+                <div class="ys-skel-card"><span class="pc-skeleton pc-skeleton--thumb"></span><div class="ys-skel-body"><span class="pc-skeleton pc-skeleton--title" style="width:75%"></span><span class="pc-skeleton pc-skeleton--text"></span><span class="pc-skeleton pc-skeleton--text" style="width:60%"></span></div></div>
               </div>
             </div>
 
@@ -461,7 +502,7 @@
                 <button class="result-tab-btn" onclick="switchResultTab('searches')">Search Pulse <span id="searches-count" class="ml-1 text-xs opacity-70"></span></button>
                 <button class="result-tab-btn" onclick="switchResultTab('channels')">Channels <span id="channels-count" class="ml-1 text-xs opacity-70"></span></button>
                 <div style="flex:1"></div>
-                <span class="text-xs px-3 py-1 rounded-full" style="background:color-mix(in srgb, var(--green-hi) 10%, transparent); color:var(--green-hi); border:1px solid color-mix(in srgb, var(--green-hi) 20%, transparent);">Analysis Complete</span>
+                <span class="pc-badge pc-badge--green"><i class="pc-i" data-i="circle-check"></i> Analysis complete</span>
               </div>
 
               <!-- Viral Videos tab -->
@@ -487,7 +528,7 @@
                   <h3 class="font-bold text-white">Format Playbook</h3>
                   <p class="text-xs mt-0.5" style="color:var(--text-sec);">Proven content formats that work in your niche</p>
                 </div>
-                <div class="space-y-4" id="standards-list"></div>
+                <div class="space-y-4" id="standards-list" data-ai-output></div>
               </div>
 
               <!-- Hot Searches tab -->
@@ -496,7 +537,7 @@
                   <h3 class="font-bold text-white">Search Pulse</h3>
                   <p class="text-xs mt-0.5" style="color:var(--text-sec);">What your audience is searching for right now</p>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="searches-grid"></div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="searches-grid" data-ai-output></div>
               </div>
 
               <!-- Channels tab -->
@@ -517,32 +558,32 @@
 
             <!-- Script panel -->
             <div id="script-panel" class="hidden mt-6">
-              <div style="background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:28px;">
+              <div class="ys-panel">
                 <div class="flex items-center justify-between mb-5">
                   <h3 class="font-bold text-white">Video Script</h3>
                   <div id="script-loading" class="hidden flex items-center gap-2 text-sm" style="color:var(--orange);">
                     <div class="spinner"></div> Generating script...
                   </div>
                 </div>
-                <div id="script-content">
+                <div id="script-content" data-ai-output>
                   <!-- Filled by JS -->
                 </div>
                 <div class="mt-5">
-                  <button class="btn-primary" onclick="generateSEO()" id="seo-btn">Generate SEO Package →</button>
+                  <button class="btn-primary" onclick="generateSEO()" id="seo-btn">Generate SEO Package <i class="pc-i" data-i="arrow-right"></i></button>
                 </div>
               </div>
             </div>
 
             <!-- SEO Package panel -->
             <div id="seo-panel" class="hidden mt-6">
-              <div style="background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:28px;">
+              <div class="ys-panel">
                 <div class="flex items-center justify-between mb-5">
                   <h3 class="font-bold text-white">SEO Package</h3>
                   <div id="seo-loading" class="hidden flex items-center gap-2 text-sm" style="color:var(--orange);">
                     <div class="spinner"></div> Generating SEO...
                   </div>
                 </div>
-                <div id="seo-content">
+                <div id="seo-content" data-ai-output>
                   <!-- Filled by JS -->
                 </div>
               </div>
@@ -594,7 +635,7 @@
 
           <!-- Inline Script Builder -->
           <div id="create-script-panel" class="hidden mt-6">
-            <div style="background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:28px;">
+            <div class="ys-panel">
               <h3 class="font-bold text-white mb-5">Framer</h3>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
@@ -643,10 +684,10 @@
               <!-- Mode toggle -->
               <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
                 <span style="font-size:11px;color:var(--text-sec);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Output:</span>
-                <button id="cs-mode-bullets" class="sort-btn active" onclick="setScriptMode('bullets')">📋 Bullet Outline</button>
-                <button id="cs-mode-full"    class="sort-btn"        onclick="setScriptMode('full')">📝 Full Teleprompter Script</button>
+                <button id="cs-mode-bullets" class="sort-btn active" onclick="setScriptMode('bullets')"><i class="pc-i" data-i="list"></i> Bullet Outline</button>
+                <button id="cs-mode-full"    class="sort-btn"        onclick="setScriptMode('full')"><i class="pc-i" data-i="file-text"></i> Full Teleprompter Script</button>
               </div>
-              <button class="btn-primary" onclick="runScriptBuilder()">Generate →</button>
+              <button class="btn-primary" onclick="runScriptBuilder()"><i class="pc-i" data-i="wand-sparkles"></i> Generate Script</button>
 
               <div id="cs-results" class="hidden mt-6">
                 <!-- Section 1: Hook -->
@@ -661,7 +702,7 @@
                       Copy Hook Script
                     </button>
                   </div>
-                  <div id="cs-hook-text" class="text-sm" style="color:var(--text-pri); line-height:1.75; white-space:pre-wrap;"></div>
+                  <div id="cs-hook-text" data-ai-output class="text-sm" style="color:var(--text-pri); line-height:1.75; white-space:pre-wrap;"></div>
                 </div>
 
                 <!-- Section 2: Early CTA -->
@@ -676,7 +717,7 @@
                       Copy
                     </button>
                   </div>
-                  <div id="cs-cta-text" class="text-sm" style="color:var(--text-pri); line-height:1.75; white-space:pre-wrap;"></div>
+                  <div id="cs-cta-text" data-ai-output class="text-sm" style="color:var(--text-pri); line-height:1.75; white-space:pre-wrap;"></div>
                 </div>
 
                 <!-- Section 3: Body Outline -->
@@ -687,7 +728,7 @@
                       <span style="font-size:10px; font-weight:700; padding:2px 9px; border-radius:20px; background:color-mix(in srgb, var(--orange-hi) 12%, transparent); color:var(--orange-hi); border:1px solid color-mix(in srgb, var(--orange-hi) 30%, transparent);">90% of video</span>
                     </div>
                   </div>
-                  <div id="cs-body-outline" class="space-y-2"></div>
+                  <div id="cs-body-outline" data-ai-output class="space-y-2"></div>
                 </div>
 
                 <!-- Section 4: End Screen -->
@@ -702,10 +743,10 @@
                       Copy
                     </button>
                   </div>
-                  <div id="cs-end-text" class="text-sm mb-3" style="color:var(--text-pri); line-height:1.75; white-space:pre-wrap;"></div>
+                  <div id="cs-end-text" data-ai-output class="text-sm mb-3" style="color:var(--text-pri); line-height:1.75; white-space:pre-wrap;"></div>
                   <div id="cs-next-videos" class="hidden mt-3">
                     <div class="text-xs font-bold mb-2" style="color:var(--text-sec); letter-spacing:0.08em;">SUGGESTED NEXT VIDEO LINKS</div>
-                    <div id="cs-next-videos-list" class="space-y-1"></div>
+                    <div id="cs-next-videos-list" data-ai-output class="space-y-1"></div>
                   </div>
                 </div>
 
@@ -718,12 +759,12 @@
                       Copy All
                     </button>
                   </div>
-                  <div id="cs-full-script-text" class="text-sm" style="color:var(--text-pri); line-height:1.85; white-space:pre-wrap; max-height:500px; overflow-y:auto; font-size:13px;"></div>
+                  <div id="cs-full-script-text" data-ai-output class="text-sm" style="color:var(--text-pri); line-height:1.85; white-space:pre-wrap; max-height:500px; overflow-y:auto; font-size:13px;"></div>
                 </div>
 
                 <!-- Action bar -->
                 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
-                  <button class="btn-primary" style="flex:1;" onclick="sendToTeleprompter()">📺 Send to Teleprompter</button>
+                  <button class="btn-secondary" style="flex:1;" onclick="sendToTeleprompter()"><i class="pc-i" data-i="tv"></i> Send to Teleprompter</button>
                   <button class="btn-secondary" onclick="copyFullScript(this)">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                     Copy Full Script
@@ -735,10 +776,10 @@
                     <div style="font-size:12px;font-weight:700;color:var(--orange);letter-spacing:0.07em;margin-bottom:3px;">SCRIPT READY</div>
                     <div style="font-size:12px;color:var(--text-sec);">Send to Studio and record — camera starts automatically.</div>
                   </div>
-                  <button class="btn-primary" style="white-space:nowrap;font-weight:700;padding:10px 18px;" onclick="sendToTeleprompter()">● Record Script →</button>
+                  <button class="btn-primary" style="white-space:nowrap;font-weight:700;padding:10px 18px;" onclick="sendToTeleprompter()"><i class="pc-i" data-i="circle-dot"></i> Record Script <i class="pc-i" data-i="arrow-right"></i></button>
                 </div>
-                <button class="btn-primary" onclick="generateSEOFromFormula()">Generate SEO Package →</button>
-                <div id="cs-seo-content" class="mt-6"></div>
+                <button class="btn-secondary" onclick="generateSEOFromFormula()"><i class="pc-i" data-i="tag"></i> Generate SEO Package</button>
+                <div id="cs-seo-content" data-ai-output class="mt-6"></div>
               </div>
             </div>
           </div>
@@ -832,12 +873,12 @@
               </div>
             </div>
 
-            <button id="cf-run-btn" class="btn-primary" style="width:100%;font-size:15px;padding:14px 22px;" onclick="runCoverForge()">✦ Generate Thumbnails</button>
+            <button id="cf-run-btn" class="btn-primary" style="width:100%;font-size:15px;padding:14px 22px;" onclick="runCoverForge()"><i class="pc-i" data-i="sparkles"></i> Generate Thumbnails</button>
 
             <div id="cf-progress" class="hidden mt-6 cf-progress-card">
               <div class="cf-progress-head">
                 <div class="flex items-center gap-4">
-                  <div class="cf-stage-icon" id="cf-stage-icon">◉</div>
+                  <div class="cf-stage-icon" id="cf-stage-icon"><i class="pc-i" data-i="camera"></i></div>
                   <div>
                     <div id="cf-stage-title" class="text-base font-bold text-white">Preparing your images...</div>
                     <div id="cf-stage-copy" class="text-xs mt-1" style="color:var(--text-sec);">AI is creating your thumbnails</div>
@@ -868,11 +909,11 @@
 
               <div class="mt-5">
                 <h4 class="text-sm font-bold text-white mb-3">Optimized Title Options</h4>
-                <div class="space-y-2" id="cf-titles-list"></div>
+                <div class="space-y-2" id="cf-titles-list" data-ai-output></div>
               </div>
 
               <div class="mt-5 p-3 rounded-lg text-xs" style="background:var(--bg-card); color:var(--text-sec); border:1px solid var(--border);">
-                💡 <strong style="color:var(--orange);">Pro tip:</strong> Upload all 3 thumbnail concepts to YouTube Studio and let YouTube A/B test them. The winner gets pushed to more viewers automatically.
+                <i class="pc-i pc-i--orange" data-i="lightbulb"></i> <strong style="color:var(--orange);">Pro tip:</strong> Upload all 3 thumbnail concepts to YouTube Studio and let YouTube A/B test them. The winner gets pushed to more viewers automatically.
               </div>
             </div>
           </div>
@@ -925,7 +966,7 @@
             </div>
           </div>
           <!-- Video Advisor panel -->
-          <div id="advisor-panel" class="hidden mt-4" style="background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:28px;">
+          <div id="advisor-panel" class="hidden mt-4 ys-panel">
             <h3 class="font-bold text-white mb-5">Inspector</h3>
             <div class="flex gap-2 mb-5">
               <button id="advisor-btn-video" class="tab-btn active" onclick="setAdvisorMode('video')">Analyze Video</button>
@@ -933,18 +974,18 @@
             </div>
             <label id="advisor-url-label" class="block text-xs font-semibold mb-2" style="color:var(--text-sec);">YOUTUBE VIDEO URL</label>
             <input id="advisor-url-input" class="field mb-4" placeholder="https://youtube.com/watch?v=..." />
-            <button id="advisor-run-btn" class="btn-primary" onclick="runVideoAdvisor()">&#10022; Analyze</button>
+            <button id="advisor-run-btn" class="btn-primary" onclick="runVideoAdvisor()"><i class="pc-i" data-i="sparkles"></i> Analyze</button>
             <div id="advisor-results" class="hidden mt-6">
               <div id="advisor-verdict-wrap" class="hidden mb-4 p-3 rounded-lg text-sm" style="background:var(--bg-card); color:var(--text-pri); border:1px solid var(--border);">
                 <span class="text-xs font-bold" style="color:var(--orange); letter-spacing:0.08em;">VERDICT &middot; </span>
-                <span id="advisor-verdict"></span>
+                <span id="advisor-verdict" data-ai-output></span>
               </div>
-              <div id="advisor-scores"></div>
+              <div id="advisor-scores" data-ai-output></div>
             </div>
           </div>
 
           <!-- Repurpose Engine panel -->
-          <div id="repurpose-panel" class="hidden mt-4" style="background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:28px;">
+          <div id="repurpose-panel" class="hidden mt-4 ys-panel">
             <div class="mb-5">
               <h3 class="font-bold text-white mb-1">Dispatcher</h3>
               <p class="text-sm" style="color:var(--text-sec);">Turn one long video into 5+ pieces of content</p>
@@ -968,15 +1009,15 @@
               <div>
                 <label class="block text-xs font-semibold mb-2" style="color:var(--text-sec);">REPURPOSE INTO</label>
                 <div class="flex flex-wrap gap-2" id="re-output-toggles">
-                  <button id="re-toggle-shorts"    class="btn-primary text-xs px-4 py-2"   onclick="toggleRepurposeOutput('shorts')">[&#10003;] YouTube Short (60s)</button>
-                  <button id="re-toggle-instagram" class="btn-primary text-xs px-4 py-2"   onclick="toggleRepurposeOutput('instagram')">[&#10003;] Instagram Caption</button>
-                  <button id="re-toggle-tiktok"    class="btn-primary text-xs px-4 py-2"   onclick="toggleRepurposeOutput('tiktok')">[&#10003;] TikTok Hook</button>
-                  <button id="re-toggle-blog"      class="btn-primary text-xs px-4 py-2"   onclick="toggleRepurposeOutput('blog')">[&#10003;] Blog Post Outline</button>
+                  <button id="re-toggle-shorts" type="button" class="pc-chip active" aria-pressed="true" onclick="toggleRepurposeOutput('shorts')"><i class="pc-i" data-i="square-check"></i> YouTube Short (60s)</button>
+                  <button id="re-toggle-instagram" type="button" class="pc-chip active" aria-pressed="true" onclick="toggleRepurposeOutput('instagram')"><i class="pc-i" data-i="square-check"></i> Instagram Caption</button>
+                  <button id="re-toggle-tiktok" type="button" class="pc-chip active" aria-pressed="true" onclick="toggleRepurposeOutput('tiktok')"><i class="pc-i" data-i="square-check"></i> TikTok Hook</button>
+                  <button id="re-toggle-blog" type="button" class="pc-chip active" aria-pressed="true" onclick="toggleRepurposeOutput('blog')"><i class="pc-i" data-i="square-check"></i> Blog Post Outline</button>
                 </div>
               </div>
             </div>
 
-            <button class="btn-primary" onclick="runRepurposeEngine()">&#10022; Repurpose Content &rarr;</button>
+            <button class="btn-primary" onclick="runRepurposeEngine()"><i class="pc-i" data-i="sparkles"></i> Repurpose Content <i class="pc-i" data-i="arrow-right"></i></button>
 
             <!-- Output sections -->
             <div id="re-results" class="hidden mt-6 space-y-5">
@@ -984,32 +1025,32 @@
               <!-- YouTube Shorts -->
               <div id="re-out-shorts" class="hidden">
                 <div class="text-xs font-bold mb-3" style="color:var(--yellow); letter-spacing:0.1em;">YOUTUBE SHORTS (60s)</div>
-                <div id="re-shorts-list" class="space-y-4"></div>
+                <div id="re-shorts-list" data-ai-output class="space-y-4"></div>
               </div>
 
               <!-- Instagram Caption -->
               <div id="re-out-instagram" class="hidden">
                 <div class="text-xs font-bold mb-3" style="color:var(--orange); letter-spacing:0.1em;">INSTAGRAM CAPTION</div>
-                <div id="re-instagram-content"></div>
+                <div id="re-instagram-content" data-ai-output></div>
               </div>
 
               <!-- TikTok Hooks -->
               <div id="re-out-tiktok" class="hidden">
                 <div class="text-xs font-bold mb-3" style="color:var(--orange-hi); letter-spacing:0.1em;">TIKTOK HOOKS</div>
-                <div id="re-tiktok-list" class="space-y-2"></div>
+                <div id="re-tiktok-list" data-ai-output class="space-y-2"></div>
               </div>
 
               <!-- Blog Post Outline -->
               <div id="re-out-blog" class="hidden">
                 <div class="text-xs font-bold mb-3" style="color:var(--green-hi); letter-spacing:0.1em;">BLOG POST OUTLINE</div>
-                <div id="re-blog-content"></div>
+                <div id="re-blog-content" data-ai-output></div>
               </div>
 
             </div>
           </div>
 
           <!-- Lead Page Generator panel -->
-          <div id="lead-page-panel" class="hidden mt-4" style="background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:28px;">
+          <div id="lead-page-panel" class="hidden mt-4 ys-panel">
             <div class="mb-5">
               <h3 class="font-bold text-white mb-1">Lead Page Generator</h3>
               <p class="text-sm" style="color:var(--text-sec);">Capture names, emails, and phone numbers from every video</p>
@@ -1057,11 +1098,11 @@
               <div class="md:col-span-2">
                 <label class="block text-xs font-semibold mb-2" style="color:var(--text-sec);">YOUR GHL WEBHOOK URL</label>
                 <input id="lp-webhook" class="field" placeholder="https://services.leadconnectorhq.com/hooks/..." />
-                <p class="text-xs mt-2" style="color:var(--text-dim);">Get this from GHL &rarr; Automations &rarr; Webhook trigger URL</p>
+                <p class="text-xs mt-2" style="color:var(--text-dim);">Get this from GHL Automations, under the Webhook trigger URL</p>
               </div>
             </div>
 
-            <button class="btn-primary" onclick="runLeadPageGenerator()">&#10022; Generate Lead Page &rarr;</button>
+            <button class="btn-primary" onclick="runLeadPageGenerator()"><i class="pc-i" data-i="sparkles"></i> Generate Lead Page <i class="pc-i" data-i="arrow-right"></i></button>
 
             <!-- Output -->
             <div id="lp-results" class="hidden mt-6 space-y-5">
@@ -1083,7 +1124,7 @@
                         Copy
                       </button>
                     </div>
-                    <div id="lp-headline" class="text-sm font-semibold" style="color:var(--orange-hi); line-height:1.6; background:var(--bg-panel); border-radius:8px; padding:10px;"></div>
+                    <div id="lp-headline" data-ai-output class="text-sm font-semibold" style="color:var(--orange-hi); line-height:1.6; background:var(--bg-panel); border-radius:8px; padding:10px;"></div>
                   </div>
                   <div>
                     <div class="flex items-center justify-between mb-1">
@@ -1093,7 +1134,7 @@
                         Copy
                       </button>
                     </div>
-                    <div id="lp-subheadline" class="text-sm" style="color:var(--text-pri); line-height:1.6; background:var(--bg-panel); border-radius:8px; padding:10px;"></div>
+                    <div id="lp-subheadline" data-ai-output class="text-sm" style="color:var(--text-pri); line-height:1.6; background:var(--bg-panel); border-radius:8px; padding:10px;"></div>
                   </div>
                   <div>
                     <div class="flex items-center justify-between mb-1">
@@ -1103,21 +1144,21 @@
                         Copy
                       </button>
                     </div>
-                    <div id="lp-benefits" class="space-y-1 text-sm" style="background:var(--bg-panel); border-radius:8px; padding:10px;"></div>
+                    <div id="lp-benefits" data-ai-output class="space-y-1 text-sm" style="background:var(--bg-panel); border-radius:8px; padding:10px;"></div>
                     <div id="lp-benefits-text" class="hidden"></div>
                   </div>
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <div class="text-xs font-bold mb-1" style="color:var(--green-hi); letter-spacing:0.08em;">FORM LABEL</div>
                       <div class="flex items-center gap-2">
-                        <div id="lp-form-label" class="text-sm flex-1" style="color:var(--text-pri); background:var(--bg-panel); border-radius:8px; padding:8px;"></div>
+                        <div id="lp-form-label" data-ai-output class="text-sm flex-1" style="color:var(--text-pri); background:var(--bg-panel); border-radius:8px; padding:8px;"></div>
                         <button class="copy-btn flex-shrink-0" onclick="copyText(this, document.getElementById('lp-form-label').textContent)">Copy</button>
                       </div>
                     </div>
                     <div>
                       <div class="text-xs font-bold mb-1" style="color:var(--green-hi); letter-spacing:0.08em;">BUTTON TEXT</div>
                       <div class="flex items-center gap-2">
-                        <div id="lp-button-text" class="text-sm flex-1" style="color:var(--text-pri); background:var(--bg-panel); border-radius:8px; padding:8px;"></div>
+                        <div id="lp-button-text" data-ai-output class="text-sm flex-1" style="color:var(--text-pri); background:var(--bg-panel); border-radius:8px; padding:8px;"></div>
                         <button class="copy-btn flex-shrink-0" onclick="copyText(this, document.getElementById('lp-button-text').textContent)">Copy</button>
                       </div>
                     </div>
@@ -1130,7 +1171,7 @@
                         Copy
                       </button>
                     </div>
-                    <div id="lp-thankyou" class="text-sm" style="color:var(--text-pri); line-height:1.6; background:var(--bg-panel); border-radius:8px; padding:10px;"></div>
+                    <div id="lp-thankyou" data-ai-output class="text-sm" style="color:var(--text-pri); line-height:1.6; background:var(--bg-panel); border-radius:8px; padding:10px;"></div>
                   </div>
                 </div>
               </div>
@@ -1147,7 +1188,7 @@
                     Copy Full CTA
                   </button>
                 </div>
-                <div id="lp-description-cta" class="text-sm" style="color:var(--text-pri); line-height:1.8; white-space:pre-wrap; background:var(--bg-panel); border-radius:8px; padding:14px; border:1px solid var(--border);"></div>
+                <div id="lp-description-cta" data-ai-output class="text-sm" style="color:var(--text-pri); line-height:1.8; white-space:pre-wrap; background:var(--bg-panel); border-radius:8px; padding:14px; border:1px solid var(--border);"></div>
               </div>
 
               <!-- 3. Email Sequence -->
@@ -1161,7 +1202,7 @@
                     Export .txt
                   </button>
                 </div>
-                <div id="lp-email-sequence" class="space-y-3"></div>
+                <div id="lp-email-sequence" data-ai-output class="space-y-3"></div>
               </div>
 
               <!-- 4. CRM Handoff -->
@@ -1173,14 +1214,14 @@
                   </div>
                   <button class="copy-btn" onclick="copyText(this, document.getElementById('lp-crm-handoff-text').textContent)">Copy Plan</button>
                 </div>
-                <div id="lp-crm-handoff" class="text-sm" style="color:var(--text-pri); line-height:1.7;"></div>
+                <div id="lp-crm-handoff" data-ai-output class="text-sm" style="color:var(--text-pri); line-height:1.7;"></div>
                 <div id="lp-crm-handoff-text" class="hidden"></div>
               </div>
 
               <!-- 5. GHL Setup Instructions -->
               <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:20px;">
                 <h4 class="font-bold text-white mb-4" style="font-size:14px;">GHL Setup Instructions</h4>
-                <ol id="lp-ghl-steps" class="space-y-3" style="list-style:none; padding:0; margin:0;"></ol>
+                <ol id="lp-ghl-steps" data-ai-output class="space-y-3" style="list-style:none; padding:0; margin:0;"></ol>
               </div>
 
               <!-- 6. Follow Up Boss Integration Note -->
@@ -1197,7 +1238,7 @@
                   </div>
                   <p>Tag YouTube leads as source: <code style="color:var(--green-hi); background:var(--bg-panel); padding:1px 5px; border-radius:3px; font-size:11px;">YouTube - [video topic]</code></p>
                   <p>This lets you track which video generated each lead directly inside FUB pipelines.</p>
-                  <p style="color:var(--text-sec);">Use the GHL native FUB integration or Zapier: GHL Contact Created → FUB New Person.</p>
+                  <p style="color:var(--text-sec);">Use the GHL native FUB integration or Zapier: a GHL "Contact Created" trigger that creates a FUB "New Person".</p>
                 </div>
               </div>
 
@@ -1208,11 +1249,11 @@
 
         <!-- ── BOARD TAB ── -->
         <div id="pane-board" class="hidden">
-          <div style="background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:32px; text-align:center;">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="1.75" class="mx-auto mb-4" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <h3 class="font-semibold mb-2" style="color:var(--text-pri);">Your scheduled content lives on the Calendar</h3>
-            <p class="text-sm mb-5" style="color:var(--text-sec); max-width:420px; margin-left:auto; margin-right:auto;">Posts you schedule, including the social posts created when an episode closes, show on the 30-day Calendar. One board to check.</p>
-            <a href="/calendar" class="btn-primary" style="display:inline-block; text-decoration:none;">Open the Calendar &rarr;</a>
+          <div class="empty-state">
+            <div class="empty-state__icon"><i class="pc-i" data-i="calendar-days"></i></div>
+            <h3>Your schedule lives on the Calendar</h3>
+            <p>Posts you schedule, including the social posts created when an episode closes, show on the 30-day Calendar. One board to check.</p>
+            <div class="ys-empty-actions"><a href="/calendar" class="btn-primary" style="text-decoration:none;"><i class="pc-i" data-i="calendar-days"></i> Open the Calendar</a></div>
           </div>
         </div>
 
@@ -1230,9 +1271,9 @@
       <div>
         <h2 class="font-bold text-white text-lg">Market Scout</h2>
         <p class="text-sm mt-0.5" style="color:var(--text-sec);">Market intelligence from real YouTube data</p>
-        <a class="crew-link mt-2" href="/agents">Now on The Crew &rarr;</a>
+        <a class="crew-link mt-2" href="/agents" title="This tool also runs as an agent on The Crew"><i class="pc-i" data-i="users"></i> On The Crew <i class="pc-i" data-i="arrow-up-right"></i></a>
       </div>
-      <button onclick="closeModalById('modal-competitor-spy')" style="color:var(--text-sec); background:none; border:none; cursor:pointer; font-size:20px; line-height:1;">×</button>
+      <button type="button" class="ys-close" aria-label="Close" onclick="closeModalById('modal-competitor-spy')"><i class="pc-i" data-i="x"></i></button>
     </div>
 
     <div class="space-y-4">
@@ -1269,9 +1310,9 @@
       <div>
         <h2 class="font-bold text-white text-lg">Trend Radar</h2>
         <p class="text-sm mt-0.5" style="color:var(--text-sec);">Discover viral content opportunities</p>
-        <a class="crew-link mt-2" href="/agents">Now on The Crew &rarr;</a>
+        <a class="crew-link mt-2" href="/agents" title="This tool also runs as an agent on The Crew"><i class="pc-i" data-i="users"></i> On The Crew <i class="pc-i" data-i="arrow-up-right"></i></a>
       </div>
-      <button onclick="closeModalById('modal-topic-finder')" style="color:var(--text-sec); background:none; border:none; cursor:pointer; font-size:20px; line-height:1;">×</button>
+      <button type="button" class="ys-close" aria-label="Close" onclick="closeModalById('modal-topic-finder')"><i class="pc-i" data-i="x"></i></button>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
@@ -1292,7 +1333,7 @@
       </div>
     </div>
     <button id="tf-run-btn" class="btn-primary w-full mt-6" onclick="runTopicFinder()">Find Topics</button>
-    <div id="tf-results" class="hidden mt-6"></div>
+    <div id="tf-results" data-ai-output class="hidden mt-6"></div>
   </div>
 </div>
 
@@ -1304,7 +1345,7 @@
         <h2 class="font-bold text-white text-lg">AI Persona Library</h2>
         <p class="text-sm mt-0.5" style="color:var(--text-sec);">Upload headshots, expression shots, and body shots for thumbnail generation</p>
       </div>
-      <button onclick="closeModalById('modal-ai-persona')" style="color:var(--text-sec); background:none; border:none; cursor:pointer; font-size:20px; line-height:1;">×</button>
+      <button type="button" class="ys-close" aria-label="Close" onclick="closeModalById('modal-ai-persona')"><i class="pc-i" data-i="x"></i></button>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
@@ -1347,27 +1388,41 @@
         <input id="adapt-angle-input" class="field" placeholder="e.g. Empathy-first, local neighborhood expert" />
       </div>
     </div>
-    <button id="adapt-run-btn" class="btn-primary w-full mt-5" onclick="runAdaptConcept()">&#10022; Generate Adapted Script &rarr;</button>
+    <button id="adapt-run-btn" class="btn-primary w-full mt-5" onclick="runAdaptConcept()"><i class="pc-i" data-i="sparkles"></i> Generate Adapted Script <i class="pc-i" data-i="arrow-right"></i></button>
     <div id="adapt-result" class="hidden mt-5">
       <div class="panel-section mb-3">
         <h4>ADAPTED TITLE</h4>
-        <p id="adapt-result-title" class="content font-semibold" style="color:var(--orange-hi);"></p>
+        <p id="adapt-result-title" data-ai-output class="content font-semibold" style="color:var(--orange-hi);"></p>
       </div>
       <div class="panel-section mb-3">
         <h4>HOOK</h4>
-        <p id="adapt-result-hook" class="content"></p>
+        <p id="adapt-result-hook" data-ai-output class="content"></p>
       </div>
       <div class="panel-section mb-4">
         <h4>OUTLINE</h4>
-        <div id="adapt-result-outline" class="content text-sm" style="color:var(--text-pri);"></div>
+        <div id="adapt-result-outline" data-ai-output class="content text-sm" style="color:var(--text-pri);"></div>
       </div>
-      <button class="btn-primary w-full" onclick="adaptedScriptIt()">Write This &rarr;</button>
+      <button class="btn-primary w-full" onclick="adaptedScriptIt()">Write This <i class="pc-i" data-i="arrow-right"></i></button>
     </div>
   </div>
 </div>
 
 <!-- ── JAVASCRIPT ── -->
 <script>
+// ── Icons ────────────────────────────────────────────────────────────────────
+// ic(name, opts) -> inline Lucide SVG markup for JS-built HTML. Falls back to a
+// <i class="pc-i"> placeholder that pc-icons.js mounts once it has loaded.
+function ic(name, opts) {
+  try {
+    if (window.PodClickIcons && typeof window.PodClickIcons.svg === 'function') {
+      const markup = window.PodClickIcons.svg(name, opts || {});
+      if (markup) return markup;
+    }
+  } catch (e) { /* fall through to the placeholder */ }
+  const size = opts && opts.size ? ` data-size="${opts.size}"` : '';
+  return `<i class="pc-i" data-i="${name}"${size}></i>`;
+}
+
 // ── State ────────────────────────────────────────────────────────────────────
 let activeJobId   = null;
 let pollTimer     = null;
@@ -1390,9 +1445,11 @@ function switchTab(name) {
   ['plan','create','grow','board'].forEach(t => {
     document.getElementById('pane-' + t).classList.add('hidden');
     document.getElementById('tab-' + t).classList.remove('active');
+    document.getElementById('tab-' + t).setAttribute('aria-pressed', 'false');
   });
   document.getElementById('pane-' + name).classList.remove('hidden');
   document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('tab-' + name).setAttribute('aria-pressed', 'true');
 }
 
 // ── Modals ────────────────────────────────────────────────────────────────────
@@ -1484,9 +1541,9 @@ function buildStepsUI(stepStatuses) {
     }
 
     let trailHtml = '';
-    if (status === 'completed') trailHtml = '<span style="margin-left:auto;font-size:11px;color:var(--green-hi);">✓</span>';
-    if (status === 'failed')    trailHtml = '<span style="margin-left:auto;font-size:11px;color:var(--red);" title="' + (info.error || 'failed') + '">✕</span>';
-    if (status === 'running')   trailHtml = '<span style="margin-left:auto;font-size:11px;color:var(--orange);">running…</span>';
+    if (status === 'completed') trailHtml = '<span class="step-trail" style="color:var(--green-hi);">' + ic('check', {size: 13}) + '</span>';
+    if (status === 'failed')    trailHtml = '<span class="step-trail" style="color:var(--red-hi);" title="' + escHtml(info.error || 'failed') + '">' + ic('x', {size: 13}) + '</span>';
+    if (status === 'running')   trailHtml = '<span class="step-trail" style="color:var(--orange-hi);">working…</span>';
 
     row.innerHTML = `${dotHtml}<span>${step.label}</span>${trailHtml}`;
     list.appendChild(row);
@@ -1634,8 +1691,8 @@ function showReport(result) {
             <span class="pillar-badge" style="background:${pc.bg}; color:${pc.color};">${(idea.pillar||'').replace('_',' ')}</span>
           </div>
           <div class="flex items-center gap-4 text-xs" style="color:var(--text-sec);">
-            <span>📊 ${escHtml(idea.view_range)} views est.</span>
-            <span>🕐 ${escHtml(idea.upload_timing)}</span>
+            <span class="ys-meta">${ic('chart-column', {size: 12})} ${escHtml(idea.view_range)} views est.</span>
+            <span class="ys-meta">${ic('clock', {size: 12})} ${escHtml(idea.upload_timing)}</span>
           </div>
         </div>
       </div>
@@ -1649,7 +1706,7 @@ function showReport(result) {
           <p class="text-xs" style="color:var(--text-sec); line-height:1.6;">${escHtml(idea.your_angle)}</p>
         </div>
       </div>
-      <button class="btn-primary text-xs px-4 py-2" onclick="scriptIt(${idea.rank - 1})">Write This →</button>
+      <button class="btn-primary text-xs px-4 py-2" onclick="scriptIt(${idea.rank - 1})">Write This ${ic('arrow-right')}</button>
     </div>`;
   }).join('');
 
@@ -1820,7 +1877,7 @@ async function runTopicFinder() {
   btn.disabled = true;
   btn.textContent = 'Scanning Trends...';
   resultsEl.classList.remove('hidden');
-  resultsEl.innerHTML = `<div class="flex items-center gap-2 text-sm" style="color:var(--orange);"><div class="spinner"></div> Finding trend-ready topics for ${escHtml(city)}...</div>`;
+  resultsEl.innerHTML = ysLoading(`Finding trend-ready topics for ${escHtml(city)}...`, 4);
 
   try {
     const resp = await fetch('/api/yt/content-calendar', {
@@ -1866,7 +1923,7 @@ async function runTopicFinder() {
                 </div>
                 <div class="flex gap-2 flex-shrink-0" style="white-space:nowrap;">
                   <button class="btn-secondary text-xs" onclick='addTopicToSchedule({ title: ${safeAttr(title)}, market: ${safeAttr(city)}, pillar: ${safeAttr(pillar)}, notes: ${safeAttr(why)} })'>Schedule</button>
-                  <button class="btn-secondary text-xs" onclick='closeModalById("modal-topic-finder"); useTopicInCreate({ title: ${safeAttr(title)}, city: ${safeAttr(city)}, pillar: ${safeAttr(pillar)}, angle: ${safeAttr(hook || why)} })'>Write →</button>
+                  <button class="btn-secondary text-xs" onclick='closeModalById("modal-topic-finder"); useTopicInCreate({ title: ${safeAttr(title)}, city: ${safeAttr(city)}, pillar: ${safeAttr(pillar)}, angle: ${safeAttr(hook || why)} })'>Write ${ic('arrow-right')}</button>
                 </div>
               </div>
             </div>`;
@@ -1975,7 +2032,7 @@ function flashCopied(btn) {
   if (!btn) return;
   btn.classList.add('copied');
   const orig = btn.innerHTML;
-  btn.innerHTML = '✓ Copied!';
+  btn.innerHTML = ic('check', {size: 12}) + ' Copied';
   setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
 }
 
@@ -2128,7 +2185,7 @@ async function runPillarPlanner() {
 
   const resultsEl = document.getElementById('pp-results');
   resultsEl.classList.remove('hidden');
-  resultsEl.innerHTML = `<div class="flex items-center gap-2 text-sm" style="color:var(--orange);"><div class="spinner"></div> Building your 90-day content plan...</div>`;
+  resultsEl.innerHTML = ysLoading('Building your 90-day content plan...', 5);
 
   try {
     const resp = await fetch('/api/yt/pillar-plan', {
@@ -2149,7 +2206,7 @@ async function runPillarPlanner() {
             <button class="btn-secondary text-xs"
               onclick="addTopicToSchedule({ title: ${JSON.stringify(idea).replace(/"/g, "&quot;")}, market: ${JSON.stringify(market).replace(/"/g, "&quot;")}, pillar: ${JSON.stringify(pillar.name).replace(/"/g, "&quot;")} })">Add to Schedule</button>
             <button class="btn-secondary text-xs"
-              onclick="writeThisPillarIdea(${JSON.stringify(idea).replace(/"/g, "&quot;")}, ${JSON.stringify(market).replace(/"/g, "&quot;")}, ${JSON.stringify(pillar.name).replace(/"/g, "&quot;")})">Write This →</button>
+              onclick="writeThisPillarIdea(${JSON.stringify(idea).replace(/"/g, "&quot;")}, ${JSON.stringify(market).replace(/"/g, "&quot;")}, ${JSON.stringify(pillar.name).replace(/"/g, "&quot;")})">Write This ${ic('arrow-right')}</button>
           </div>
         </div>`).join('');
 
@@ -2170,7 +2227,7 @@ async function runPillarPlanner() {
   } catch(e) {
     resultsEl.innerHTML = `<p style="color:var(--red);">${e.message}</p>`;
   } finally {
-    btn.disabled = false; btn.textContent = 'Generate 90-Day Content Plan →';
+    btn.disabled = false; btn.innerHTML = 'Generate 90-Day Content Plan ' + ic('arrow-right');
   }
 }
 
@@ -2199,7 +2256,7 @@ function addTrendTopicsToSchedule(itemsJson, city) {
     });
     if (scheduledTopics.length > before) added++;
   });
-  if (added) ysToast(`📅 ${added} Trend Radar topic${added === 1 ? '' : 's'} added`, 'success');
+  if (added) ysToast(`${added} Trend Radar topic${added === 1 ? '' : 's'} added`, 'success');
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -2327,8 +2384,8 @@ function renderResultTabs(result) {
         <span class="${escHtml(compClass)}">${escHtml(compLabel)}</span>
       </div>
       <div class="flex items-center gap-4 mb-4 text-xs" style="color:var(--text-sec);">
-        ${s.view_range ? `<span>&#128065; ${escHtml(s.view_range)}</span>` : ''}
-        ${s.posting_schedule ? `<span>&#128197; ${escHtml(s.posting_schedule)}</span>` : ''}
+        ${s.view_range ? `<span class="ys-meta">${ic('eye', {size: 12})} ${escHtml(s.view_range)}</span>` : ''}
+        ${s.posting_schedule ? `<span class="ys-meta">${ic('calendar', {size: 12})} ${escHtml(s.posting_schedule)}</span>` : ''}
       </div>
       ${(s.why_it_works || s.your_angle) ? `<div class="grid grid-cols-2 gap-4 mb-4">
         ${s.why_it_works ? `<div>
@@ -2340,7 +2397,7 @@ function renderResultTabs(result) {
           <div class="text-sm" style="color:var(--text-pri); line-height:1.6;">${escHtml(s.your_angle)}</div>
         </div>` : ''}
       </div>` : ''}
-      <button class="btn-primary text-xs py-2 px-4" onclick='scriptItFromStandard(${safeAttr(s.format_name || s.name || '')}, ${safeAttr(city)})'>&#10022; Write This &rarr;</button>
+      <button class="btn-primary text-xs py-2 px-4" onclick='scriptItFromStandard(${safeAttr(s.format_name || s.name || '')}, ${safeAttr(city)})'>${ic('sparkles')} Write This</button>
     </div>`;
   }).join('') : '<p style="color:var(--text-sec); font-size:14px;">No market standards data available.</p>';
 
@@ -2373,9 +2430,9 @@ function renderResultTabs(result) {
       </div>
       ${s.video_idea ? `<div class="mb-3"><div class="text-xs font-bold mb-1" style="color:var(--orange); letter-spacing:0.08em;">VIDEO IDEA</div><div class="text-sm" style="color:var(--text-pri); line-height:1.6;">${escHtml(s.video_idea)}</div></div>` : ''}
       <div class="flex items-center gap-2 mt-3">
-        ${kw ? `<button class="btn-secondary text-xs" onclick='window.open("https://www.youtube.com/results?search_query=" + encodeURIComponent(${safeAttr(kw)}), "_blank")'>Search &#8599;</button>` : ''}
+        ${kw ? `<button class="btn-secondary text-xs" onclick='window.open("https://www.youtube.com/results?search_query=" + encodeURIComponent(${safeAttr(kw)}), "_blank")'>Search ${ic('external-link', {size: 12})}</button>` : ''}
         <button class="btn-secondary text-xs" onclick='useTopicInCreate({ title: ${safeAttr(kw)}, city: ${safeAttr(city)}, pillar: ${safeAttr(s.audience || '')}, angle: ${safeAttr(s.video_idea || '')} })'>Use in Create</button>
-        <button class="btn-primary text-xs py-2 px-3 flex-1" onclick='openAdaptModal(${safeAttr(kw)}, ${safeAttr(city)})'>&#10022; Remix for My Market</button>
+        <button class="btn-primary text-xs py-2 px-3 flex-1" onclick='openAdaptModal(${safeAttr(kw)}, ${safeAttr(city)})'>${ic('sparkles')} Remix for My Market</button>
       </div>
     </div>`;
   }).join('') : '<p style="color:var(--text-sec); font-size:14px;">No hot searches data available.</p>';
@@ -2438,12 +2495,12 @@ function renderResultTabs(result) {
         <div style="flex-shrink:0;position:relative;width:100px;">
           <img src="${escHtml(topVid.thumbnail)}" alt="" style="width:100px;height:56px;border-radius:8px;object-fit:cover;"
             onerror="this.src='https://i.ytimg.com/vi/${escHtml(topVid.video_id)}/hqdefault.jpg';this.onerror=null;">
-          ${topVid.views ? `<div style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.75);color:var(--text-pri);font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;">👁 ${escHtml(fmtNum(topVid.views))}</div>` : ''}
+          ${topVid.views ? `<div style="position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.75);color:var(--text-pri);font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;display:inline-flex;align-items:center;gap:3px;">${ic('eye', {size: 10})} ${escHtml(fmtNum(topVid.views))}</div>` : ''}
         </div>
         <div style="min-width:0;flex:1;">
           <div style="font-size:11px;font-weight:700;color:var(--orange);letter-spacing:0.07em;margin-bottom:3px;">TOP VIDEO</div>
           <div class="text-xs font-semibold" style="color:var(--text-pri);line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${escHtml(topVid.title)}</div>
-          ${topVid.url ? `<a href="${escHtml(topVid.url)}" target="_blank" rel="noopener" style="font-size:10px;color:var(--orange-hi);margin-top:4px;display:inline-block;">Watch ↗</a>` : ''}
+          ${topVid.url ? `<a href="${escHtml(topVid.url)}" target="_blank" rel="noopener" style="font-size:10px;color:var(--orange-hi);margin-top:4px;display:inline-flex;align-items:center;gap:3px;">Watch ${ic('external-link', {size: 11})}</a>` : ''}
         </div>
       </div>` : ''}
     </div>`;
@@ -2491,9 +2548,14 @@ function renderVideoGrid() {
   const grid = document.getElementById('viral-grid');
   if (!grid) return;
   if (!vids.length) {
-    grid.innerHTML = '<p style="color:var(--text-sec);font-size:14px;">No videos found. Try a broader city name.</p>';
+    grid.style.display = 'block';
+    grid.innerHTML = ysEmpty('binoculars', 'No videos came back',
+      'Scout pulls real YouTube data. When the daily YouTube quota is spent, every search returns empty until it resets at midnight Pacific. If it is a fresh day, try a broader market name.',
+      '<button class="btn-secondary" onclick="openPanel(\'competitor-spy\')">' + ic('refresh-cw') + ' Run Scout again</button>',
+      'Quota resets midnight Pacific');
     return;
   }
+  grid.style.display = 'grid';
 
   grid.innerHTML = vids.map((v, i) => {
     const score     = v.score != null ? parseFloat(v.score) : null;
@@ -2517,13 +2579,12 @@ function renderVideoGrid() {
     const safeScore    = JSON.stringify(score);
     const safePopular  = JSON.stringify(popular);
 
-    // Thumbnail: use API thumb → yt CDN fallback → placeholder (for AI-generated w/ no video_id)
+    // Thumbnail: use API thumb, then yt CDN fallback, then a designed placeholder (AI-generated rows have no video_id)
     const thumbSrc = v.thumbnail || (v.video_id ? `https://i.ytimg.com/vi/${escHtml(v.video_id)}/hqdefault.jpg` : '');
     const thumbImg = thumbSrc
       ? `<img src="${escHtml(thumbSrc)}" alt="" loading="lazy"
-             onerror="this.style.display='none';this.nextSibling.style.display='flex';this.onerror=null;" />
-         <div style="display:none;width:100%;height:100%;background:linear-gradient(135deg,var(--bg-raised),var(--bg-card));align-items:center;justify-content:center;font-size:28px;">📹</div>`
-      : `<div style="width:100%;height:100%;background:linear-gradient(135deg,var(--bg-raised),var(--bg-card));display:flex;align-items:center;justify-content:center;font-size:28px;">📹</div>`;
+             onerror="this.style.display='none';this.nextElementSibling.style.display='flex';this.onerror=null;" /><div class="vthumb-ph" style="display:none;">${ic('clapperboard', {size: 28})}<span>No thumbnail</span></div>`
+      : `<div class="vthumb-ph">${ic('clapperboard', {size: 28})}<span>No thumbnail</span></div>`;
 
     // Wrap thumbnail in a link when URL is available
     const thumbHtml = v.url
@@ -2541,22 +2602,22 @@ function renderVideoGrid() {
         <!-- Score badge — orange, top-left, deterministic math from YouTube API -->
         ${scoreFmt ? `<div style="position:absolute;top:${isTop?'36':'10'}px;left:10px;z-index:4;">
           <span style="background:var(--orange);color:var(--text-pri);font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.02em;">${escHtml(scoreFmt)}</span>
-          ${popular ? `<span style="background:var(--red);color:var(--text-pri);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:4px;letter-spacing:.02em;">🔥 POPULAR</span>` : ''}
+          ${popular ? `<span style="background:var(--red);color:var(--text-pri);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:4px;letter-spacing:.02em;display:inline-flex;align-items:center;gap:3px;vertical-align:top;">${ic('flame', {size: 11})} POPULAR</span>` : ''}
         </div>` : ''}
 
         ${v.duration ? `<div class="thumb-duration">${escHtml(v.duration)}</div>` : ''}
-        ${viewsFmt ? `<div class="thumb-views">👁 ${escHtml(viewsFmt)}</div>` : ''}
+        ${viewsFmt ? `<div class="thumb-views">${ic('eye', {size: 13})} ${escHtml(viewsFmt)}</div>` : ''}
       </div>
 
       <!-- Meta -->
       <div class="video-meta">
-        <!-- Clickable title → YouTube video -->
+        <!-- Clickable title: opens the YouTube video -->
         ${v.url
           ? `<a href="${escHtml(v.url)}" target="_blank" rel="noopener" class="video-title" title="${escHtml(v.title)}" style="text-decoration:none;color:inherit;">${escHtml(v.title)}</a>`
           : `<div class="video-title" title="${escHtml(v.title)}">${escHtml(v.title)}</div>`
         }
 
-        <!-- Channel row — clickable → channel page -->
+        <!-- Channel row: opens the channel page -->
         <div class="video-channel">
           ${v.channel_url
             ? `<a href="${escHtml(v.channel_url)}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;text-decoration:none;">
@@ -2577,17 +2638,17 @@ function renderVideoGrid() {
 
         <!-- Stats row -->
         <div class="video-stats-row">
-          ${viewsFmt    ? `<div class="stat-pill">👁 <strong>${escHtml(viewsFmt)}</strong></div>` : ''}
-          ${likesFmt    ? `<div class="stat-pill">❤ <strong>${escHtml(likesFmt)}</strong></div>` : ''}
-          ${commentsFmt ? `<div class="stat-pill">💬 <strong>${escHtml(commentsFmt)}</strong></div>` : ''}
+          ${viewsFmt    ? `<div class="stat-pill">${ic('eye', {size: 12})} <strong>${escHtml(viewsFmt)}</strong></div>` : ''}
+          ${likesFmt    ? `<div class="stat-pill">${ic('heart', {size: 12})} <strong>${escHtml(likesFmt)}</strong></div>` : ''}
+          ${commentsFmt ? `<div class="stat-pill">${ic('message-square', {size: 12})} <strong>${escHtml(commentsFmt)}</strong></div>` : ''}
           ${scoreFmt    ? `<div class="stat-pill" style="color:var(--orange);"><strong style="color:var(--orange);">${escHtml(scoreFmt)}</strong> score</div>` : ''}
         </div>
 
         <!-- Actions -->
         <div class="video-actions">
-          <button class="btn-primary text-xs" style="flex:1;padding:9px 0;" onclick='openScoutRemix(${safeTitle}, ${safeChannel}, ${safeViews}, ${safeScore}, ${safePopular}, ${safeCity})'>🎙 Remix in my voice</button>
-          <button class="btn-secondary text-xs" style="padding:9px 10px;" title="Remix concept angle" onclick='openAdaptModal(${safeTitle}, ${safeCity})'>✦</button>
-          <button class="btn-secondary text-xs" style="padding:9px 10px;" title="Remix thumbnail" onclick='openThumbRemix(${safeTitle}, ${safeThumb}, ${safeUrl}, ${safeCity})'>🖼</button>
+          <button class="btn-primary text-xs" style="flex:1;padding:9px 0;" onclick='openScoutRemix(${safeTitle}, ${safeChannel}, ${safeViews}, ${safeScore}, ${safePopular}, ${safeCity})'>${ic('mic')} Remix in my voice</button>
+          <button class="btn-secondary text-xs" style="padding:9px 10px;" title="Remix concept angle" aria-label="Remix concept angle" onclick='openAdaptModal(${safeTitle}, ${safeCity})'>${ic('sparkles')}</button>
+          <button class="btn-secondary text-xs" style="padding:9px 10px;" title="Remix thumbnail" aria-label="Remix thumbnail" onclick='openThumbRemix(${safeTitle}, ${safeThumb}, ${safeUrl}, ${safeCity})'>${ic('image')}</button>
         </div>
       </div>
     </div>`;
@@ -2629,7 +2690,7 @@ async function runAdaptConcept() {
   } catch(e) {
     alert('Adapt failed: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = '✦ Generate Adapted Script →';
+    btn.disabled = false; btn.innerHTML = ic('sparkles') + ' Generate Adapted Script ' + ic('arrow-right');
   }
 }
 
@@ -2655,8 +2716,8 @@ function openScoutRemix(title, channel, views, score, popular, market) {
     modal.innerHTML = `
       <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:20px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:28px;">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="font-bold text-white" style="font-size:18px;">🎙 Remix in My Voice</h3>
-          <button onclick="closeModalById('modal-scout-remix')" style="color:var(--text-sec);font-size:22px;background:none;border:none;cursor:pointer;line-height:1;">✕</button>
+          <h3 class="ys-modal-title">${ic('mic')} Remix in My Voice</h3>
+          <button type="button" class="ys-close" aria-label="Close" onclick="closeModalById('modal-scout-remix')">${ic('x')}</button>
         </div>
         <!-- Context strip -->
         <div id="sr-context" style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:13px;color:var(--text-pri);line-height:1.6;"></div>
@@ -2692,7 +2753,7 @@ function openScoutRemix(title, channel, views, score, popular, market) {
 
   // Populate context strip
   const scoreLine = score != null ? ` · ${parseFloat(score).toFixed(1)}x score` : '';
-  const popLine   = popular ? ' · 🔥 POPULAR' : '';
+  const popLine   = popular ? ' · ' + ic('flame', {size: 12}) + ' POPULAR' : '';
   document.getElementById('sr-context').innerHTML =
     `<strong style="color:var(--text-pri);">${escHtml(title)}</strong><br>` +
     `<span style="color:var(--text-sec);">${escHtml(channel || 'Competitor')}${scoreLine}${popLine}</span>`;
@@ -2727,7 +2788,7 @@ async function runScoutRemix() {
     const data = await res.json();
 
     if (data.foundation_not_ready) {
-      document.getElementById('sr-error').textContent = '⚠️ Foundation not ready — pour at least 5 voice samples first.';
+      document.getElementById('sr-error').innerHTML = ic('triangle-alert', {size: 14}) + ' Foundation not ready. Pour at least 5 voice samples first.';
       document.getElementById('sr-error').classList.remove('hidden');
       btn.disabled = false;
       btn.textContent = 'Generate My Version';
@@ -2743,7 +2804,7 @@ async function runScoutRemix() {
     btn.textContent = 'Regenerate';
     btn.disabled = false;
   } catch (err) {
-    document.getElementById('sr-error').textContent = '❌ ' + (err.message || 'Something went wrong');
+    document.getElementById('sr-error').innerHTML = ic('circle-x', {size: 14}) + ' ' + escHtml(err.message || 'Something went wrong');
     document.getElementById('sr-error').classList.remove('hidden');
     btn.disabled = false;
     btn.textContent = 'Generate My Version';
@@ -2779,8 +2840,8 @@ function openThumbRemix(title, thumbnail, videoUrl, city) {
     modal.innerHTML = `
       <div style="background:var(--bg-panel);border:1px solid var(--border);border-radius:20px;width:520px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:28px;">
         <div class="flex items-center justify-between mb-5">
-          <h3 class="font-bold text-white" style="font-size:18px;">🖼 Remix This Thumbnail</h3>
-          <button onclick="closeModalById('modal-thumb-remix')" style="color:var(--text-sec);font-size:22px;background:none;border:none;cursor:pointer;line-height:1;">✕</button>
+          <h3 class="ys-modal-title">${ic('image')} Remix This Thumbnail</h3>
+          <button type="button" class="ys-close" aria-label="Close" onclick="closeModalById('modal-thumb-remix')">${ic('x')}</button>
         </div>
         <!-- Competitor thumbnail preview -->
         <div id="remix-thumb-preview" style="border-radius:12px;overflow:hidden;margin-bottom:16px;background:var(--bg-card);aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;"></div>
@@ -2790,8 +2851,8 @@ function openThumbRemix(title, thumbnail, videoUrl, city) {
           <ul id="remix-analysis" style="color:var(--text-pri);font-size:13px;line-height:1.8;padding-left:18px;"></ul>
         </div>
         <div style="display:flex;gap:10px;">
-          <button class="btn-primary" style="flex:1;" onclick="goToCoverForge()">✦ Build My Version in Painter →</button>
-          ${videoUrl ? `<a href="${escHtml(videoUrl)}" target="_blank" rel="noopener" class="btn-secondary text-sm" style="display:flex;align-items:center;padding:10px 16px;">▶ Watch</a>` : ''}
+          <button class="btn-primary" style="flex:1;" onclick="goToCoverForge()">${ic('sparkles')} Build My Version in Painter</button>
+          ${videoUrl ? `<a href="${escHtml(videoUrl)}" target="_blank" rel="noopener" class="btn-secondary text-sm" style="display:flex;align-items:center;padding:10px 16px;gap:6px;">${ic('play')} Watch</a>` : ''}
         </div>
       </div>`;
     document.body.appendChild(modal);
@@ -2872,7 +2933,7 @@ function useTopicInCreate(topic) {
     const panel = document.getElementById('create-script-panel');
     if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, 150);
-  ysToast('✍️ Topic loaded into Script Builder', 'success');
+  ysToast('Topic loaded into Framer', 'success');
 }
 
 // ── Video Advisor ─────────────────────────────────────────────────────────────
@@ -2928,7 +2989,7 @@ async function runVideoAdvisor() {
   } catch(e) {
     alert('Analysis failed: ' + e.message);
   } finally {
-    btn.disabled = false; btn.textContent = '✦ Analyze';
+    btn.disabled = false; btn.innerHTML = ic('sparkles') + ' Analyze';
   }
 }
 
@@ -3043,7 +3104,7 @@ function addTopicToSchedule(topic) {
   const panel = document.getElementById('scheduler-panel');
   if (panel) panel.classList.remove('hidden');
   saveSchedule();
-  ysToast(`📅 "${item.title.length > 40 ? item.title.slice(0, 40) + '…' : item.title}" added to schedule`, 'success');
+  ysToast(`"${item.title.length > 40 ? item.title.slice(0, 40) + '…' : item.title}" added to schedule`, 'success');
 }
 
 function addPillarIdeasToSchedule(ideas, market, pillarName) {
@@ -3061,7 +3122,7 @@ function addPillarIdeasToSchedule(ideas, market, pillarName) {
     const panel = document.getElementById('scheduler-panel');
     if (panel) panel.classList.remove('hidden');
     saveSchedule();
-    ysToast(`📅 ${added} ${pillarName} topic${added === 1 ? '' : 's'} added to schedule`, 'success');
+    ysToast(`${added} ${pillarName} topic${added === 1 ? '' : 's'} added to schedule`, 'success');
   } else {
     ysToast('All topics already in schedule', 'info');
   }
@@ -3083,14 +3144,13 @@ function toggleRepurposeOutput(key) {
   repurposeOutputs[key] = !repurposeOutputs[key];
   const btn = document.getElementById('re-toggle-' + key);
   if (!btn) return;
-  if (repurposeOutputs[key]) {
-    btn.classList.remove('btn-secondary');
-    btn.classList.add('btn-primary');
-    btn.innerHTML = btn.innerHTML.replace('[ ]', '[&#10003;]');
-  } else {
-    btn.classList.remove('btn-primary');
-    btn.classList.add('btn-secondary');
-    btn.innerHTML = btn.innerHTML.replace('[&#10003;]', '[ ]');
+  const on = !!repurposeOutputs[key];
+  btn.classList.toggle('active', on);
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  const icon = btn.querySelector('.pc-i');
+  if (icon) {
+    icon.setAttribute('data-i', on ? 'square-check' : 'square');
+    if (window.PodClickIcons) window.PodClickIcons.mount(icon);
   }
 }
 
@@ -3215,7 +3275,7 @@ async function runRepurposeEngine() {
               </div>`).join('')}
             </div>
           </div>
-          ${blog.internal_links && blog.internal_links.length ? `<div><div class="text-xs font-bold mb-2" style="color:var(--text-sec); letter-spacing:0.06em;">INTERNAL LINK SUGGESTIONS</div><ul class="space-y-1">${(blog.internal_links||[]).map(l => `<li class="text-xs" style="color:var(--text-sec);">&#8594; ${escHtml(l)}</li>`).join('')}</ul></div>` : ''}
+          ${blog.internal_links && blog.internal_links.length ? `<div><div class="text-xs font-bold mb-2" style="color:var(--text-sec); letter-spacing:0.06em;">INTERNAL LINK SUGGESTIONS</div><ul class="space-y-1">${(blog.internal_links||[]).map(l => `<li class="text-xs ys-meta" style="color:var(--text-sec);">${ic('link', {size: 12})} ${escHtml(l)}</li>`).join('')}</ul></div>` : ''}
         </div>
       </div>`;
     } else { blogWrap.classList.add('hidden'); }
@@ -3224,7 +3284,7 @@ async function runRepurposeEngine() {
   } catch(e) {
     alert('Repurpose failed: ' + e.message);
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '&#10022; Repurpose Content &rarr;'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = ic('sparkles') + ' Repurpose Content ' + ic('arrow-right'); }
   }
 }
 
@@ -3259,11 +3319,11 @@ loadAiPersona();
 
 // ── Cover Forge ───────────────────────────────────────────────────────────────
 const COVER_FORGE_STEPS = [
-  { key:'photo',   label:'Analyzing your photo',      icon:'◎', title:'Analyzing your photo...',      copy:'Matching persona emotion to the video angle.' },
-  { key:'layout',  label:'Composing layout',          icon:'▧', title:'Composing layout...',          copy:'Balancing face, city, text, and mobile readability.' },
-  { key:'design',  label:'Crafting premium design',   icon:'◌', title:'Crafting premium design...',   copy:'Building contrast, curiosity, and click-worthy framing.' },
-  { key:'generate',label:'AI generating thumbnails',  icon:'✦', title:'AI generating thumbnails...',  copy:'Producing distinct options for YouTube testing.' },
-  { key:'quality', label:'Quality checks',            icon:'✓', title:'Running quality checks...',    copy:'Checking text length, mobile legibility, and thumbnail-title gap.' },
+  { key:'photo',   label:'Analyzing your photo',      icon:'camera', title:'Analyzing your photo...',      copy:'Matching persona emotion to the video angle.' },
+  { key:'layout',  label:'Composing layout',          icon:'layout-grid', title:'Composing layout...',          copy:'Balancing face, city, text, and mobile readability.' },
+  { key:'design',  label:'Crafting premium design',   icon:'palette', title:'Crafting premium design...',   copy:'Building contrast, curiosity, and click-worthy framing.' },
+  { key:'generate',label:'AI generating thumbnails',  icon:'sparkles', title:'AI generating thumbnails...',  copy:'Producing distinct options for YouTube testing.' },
+  { key:'quality', label:'Quality checks',            icon:'shield-check', title:'Running quality checks...',    copy:'Checking text length, mobile legibility, and thumbnail-title gap.' },
 ];
 let cfProgressTimer = null;
 let cfProgressStartedAt = 0;
@@ -3410,7 +3470,7 @@ function renderCoverForgeSteps(activeIndex) {
   stepsEl.innerHTML = COVER_FORGE_STEPS.map((step, idx) => {
     const state = idx < activeIndex ? 'done' : idx === activeIndex ? 'active' : '';
     return `<div class="cf-step ${state}">
-      <div class="cf-step-dot">${idx < activeIndex ? '✓' : step.icon}</div>
+      <div class="cf-step-dot">${ic(idx < activeIndex ? 'check' : step.icon, {size: 14})}</div>
       <div>${escHtml(step.label)}</div>
     </div>`;
   }).join('');
@@ -3426,7 +3486,7 @@ function updateCoverForgeProgress(forcePercent) {
   document.getElementById('cf-progress-fill').style.width = `${Math.min(100, cfProgressPercent)}%`;
   document.getElementById('cf-progress-percent').textContent = `${Math.round(Math.min(100, cfProgressPercent))}% complete`;
   document.getElementById('cf-countdown').textContent = formatCoverForgeTime(100 - elapsed);
-  document.getElementById('cf-stage-icon').textContent = activeStep.icon;
+  document.getElementById('cf-stage-icon').innerHTML = ic(activeStep.icon, {size: 20});
   document.getElementById('cf-stage-title').textContent = activeStep.title;
   document.getElementById('cf-stage-copy').textContent = activeStep.copy;
   document.getElementById('cf-progress-note').textContent = cfProgressPercent > 76
@@ -3558,7 +3618,7 @@ async function runCoverForge() {
     alert('Painter failed: ' + e.message);
   } finally {
     stopCoverForgeProgress();
-    btn.disabled = false; btn.textContent = '✦ Generate Thumbnails';
+    btn.disabled = false; btn.innerHTML = ic('sparkles') + ' Generate Thumbnails';
   }
 }
 
@@ -3624,9 +3684,9 @@ async function runLeadPageGenerator() {
     const benefitsTxtEl = document.getElementById('lp-benefits-text');
     const benefits      = lp.benefits || [];
     benefitsEl.innerHTML = benefits.map(b =>
-      `<div class="flex items-start gap-2"><span style="color:var(--green-hi); flex-shrink:0;">&#10003;</span><span style="color:var(--text-pri);">${escHtml(b)}</span></div>`
+      `<div class="flex items-start gap-2"><span style="color:var(--green-hi); flex-shrink:0;">${ic('check', {size: 14})}</span><span style="color:var(--text-pri);">${escHtml(b)}</span></div>`
     ).join('');
-    benefitsTxtEl.textContent = benefits.map(b => '✓ ' + b).join('\n');
+    benefitsTxtEl.textContent = benefits.map(b => '• ' + b).join('\n');
 
     document.getElementById('lp-form-label').textContent  = lp.form_label || '';
     document.getElementById('lp-button-text').textContent = lp.button_text || '';
@@ -3666,10 +3726,34 @@ async function runLeadPageGenerator() {
     alert('Lead Page Generator failed: ' + e.message);
   } finally {
     btn.disabled = false;
-    btn.textContent = '✦ Generate Lead Page →';
-    btn.innerHTML = '&#10022; Generate Lead Page &rarr;';
+    btn.innerHTML = ic('sparkles') + ' Generate Lead Page ' + ic('arrow-right');
   }
 }
+
+// ── Loading + empty states ───────────────────────────────────────────────────
+function ysLoading(label, cards) {
+  const card = '<div class="ys-skel-card"><div class="ys-skel-body"><span class="pc-skeleton pc-skeleton--title"></span><span class="pc-skeleton pc-skeleton--text"></span><span class="pc-skeleton pc-skeleton--text" style="width:70%"></span></div></div>';
+  return '<div class="ys-status" role="status"><span class="pc-spinner"></span><span>' + label + '</span></div>'
+    + '<div class="ys-skel-grid" aria-hidden="true">' + card.repeat(cards || 3) + '</div>';
+}
+function ysEmpty(icon, title, body, actionsHtml, note) {
+  return '<div class="empty-state">'
+    + '<div class="empty-state__icon">' + ic(icon, {size: 24}) + '</div>'
+    + '<h3>' + escHtml(title) + '</h3>'
+    + '<p>' + escHtml(body) + '</p>'
+    + (note ? '<div class="ys-empty-note">' + ic('clock', {size: 12}) + ' ' + escHtml(note) + '</div>' : '')
+    + (actionsHtml ? '<div class="ys-empty-actions">' + actionsHtml + '</div>' : '')
+    + '</div>';
+}
+// Tool cards are clickable divs; make them reachable and operable from the keyboard.
+document.querySelectorAll('.tool-card').forEach(card => {
+  card.tabIndex = 0;
+  card.setAttribute('role', 'button');
+  card.addEventListener('keydown', e => {
+    if (e.target !== card) return;
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); card.click(); }
+  });
+});
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 let _ysToastTimer = null;
@@ -3680,7 +3764,10 @@ function ysToast(msg, kind = 'info') {
     el.id = 'ys-toast';
     document.body.appendChild(el);
   }
-  el.textContent = msg;
+  const toastIcon = kind === 'error' ? 'circle-alert' : kind === 'success' ? 'circle-check' : 'info';
+  el.innerHTML = ic(toastIcon, {size: 16}) + '<span></span>';
+  el.lastChild.textContent = msg;
+  el.setAttribute('role', kind === 'error' ? 'alert' : 'status');
   el.className = `show${kind === 'error' ? ' error' : kind === 'success' ? ' success' : ''}`;
   if (_ysToastTimer) clearTimeout(_ysToastTimer);
   _ysToastTimer = setTimeout(() => el.classList.remove('show'), 4000);
