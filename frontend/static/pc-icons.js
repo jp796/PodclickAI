@@ -1,7 +1,7 @@
 /*!
  * pc-icons.js — PodClick icon system (inline SVG, zero network requests).
  * GENERATED FILE: rebuild with the script in docs/DESIGN_SYSTEM.md ("Rebuilding the icon set").
- * 175 icons from Lucide v1.52.0 (https://lucide.dev), used under the ISC licence:
+ * 178 icons from Lucide v1.52.0 (https://lucide.dev), used under the ISC licence:
  *
  * ISC License
  *
@@ -26,9 +26,12 @@
   /* name -> inner SVG markup (24x24 grid, stroke only). */
   var ICONS = {"alarm-clock":"<circle cx=\"12\" cy=\"13\" r=\"8\"/><path d=\"M12 9v4l2 2\"/><path d=\"M5 3 2 6\"/><path d=\"m22 6-3-3\"/><path d=\"M6.38 18.7 4 21\"/><path d=\"M17.64 18.67 20 21\"/>",
     "arrow-down":"<path d=\"M12 5v14\"/><path d=\"m19 12-7 7-7-7\"/>",
+    "arrow-down-left":"<path d=\"M17 7 7 17\"/><path d=\"M17 17H7V7\"/>",
+    "arrow-down-right":"<path d=\"m7 7 10 10\"/><path d=\"M17 7v10H7\"/>",
     "arrow-left":"<path d=\"m12 19-7-7 7-7\"/><path d=\"M19 12H5\"/>",
     "arrow-right":"<path d=\"M5 12h14\"/><path d=\"m12 5 7 7-7 7\"/>",
     "arrow-up":"<path d=\"m5 12 7-7 7 7\"/><path d=\"M12 19V5\"/>",
+    "arrow-up-left":"<path d=\"M7 17V7h10\"/><path d=\"M17 17 7 7\"/>",
     "arrow-up-right":"<path d=\"M7 7h10v10\"/><path d=\"M7 17 17 7\"/>",
     "audio-lines":"<path d=\"M2 10v3\"/><path d=\"M6 6v11\"/><path d=\"M10 3v18\"/><path d=\"M14 8v7\"/><path d=\"M18 5v13\"/><path d=\"M22 10v3\"/>",
     "ban":"<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M4.929 4.929 19.07 19.071\"/>",
@@ -309,6 +312,9 @@
     "↑":"arrow-up",
     "↓":"arrow-down",
     "↗":"arrow-up-right",
+    "↙":"arrow-down-left",
+    "↘":"arrow-down-right",
+    "↖":"arrow-up-left",
     "🎯":"target",
     "🔥":"flame",
     "💡":"lightbulb",
@@ -369,16 +375,22 @@
     "➖":"minus",
     "💎":"gem"};
 
-  /* Emoji are only ever swapped inside UI chrome: controls, labels, headings, nav. */
+  /* Emoji are only ever swapped inside UI chrome: controls, labels, headings, tabs, badges.
+   * Tag-based chrome: */
   var CHROME_SELECTOR = [
-    'button', 'a', 'summary', 'label', 'legend', 'th', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'nav',
-    '[role="tab"]', '[role="button"]', '[role="menuitem"]', '[data-pc-icons]',
-    '[class^="btn"]', '[class*=" btn"]', '[class*="-btn"]',
-    '[class^="tab"]', '[class*=" tab"]', '[class*="-tab"]',
-    '[class^="badge"]', '[class*=" badge"]', '[class*="-badge"]',
-    '[class^="chip"]', '[class*=" chip"]', '[class*="-chip"]',
-    '[class*="pill"]', '[class^="pc-"]', '[class*=" pc-"]'
+    'button', 'a', 'summary', 'label', 'legend', 'th', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    '[role="tab"]', '[role="button"]', '[role="menuitem"]', '[data-pc-icons]'
   ].join(', ');
+  /* Class-based chrome, matched per class TOKEN (not substring): btn*, *-btn, tab(s)*, *-tab,
+   * badge*, chip*, pill*, and the shell's pc-btn/pc-chip/pc-badge/pc-tab/pc-cta/pc-link.
+   * Container-ish tokens (tab-panel, pill-row, badge-list ...) never count, and a match whose
+   * text is longer than CHROME_MAX_TEXT is treated as a container, not a control. */
+  var CHROME_CLASS_START = /^(?:btn|tabs?|badge|chip|pill|pc-(?:btn|chip|badge|tabs?|subtabs|cta|bar-cta|link))(?:$|[-_])/;
+  var CHROME_CLASS_END = /[-_](?:btn|button|tabs?|badge|chip|pill|lbl|label|logo|status|eyebrow)$/;
+  /* UI header titles only; content titles (video/post titles) are third-party or AI text. */
+  var CHROME_TITLE = /^(?:modal|panel|section|card|page|drawer|dialog|pr|tool|step)-title$/;
+  var CONTAINER_CLASS = /(?:panel|pane|content|body|list|row|wrap|wrapper|group|container|grid|section|area|output)$/;
+  var CHROME_MAX_TEXT = 160;
 
   /* NEVER swap inside these. User input and AI-written copy (social posts legitimately contain
    * emoji) must display and copy verbatim. Pages mark extra AI containers with [data-ai-output]
@@ -460,10 +472,29 @@
 
   function humanize(name) { return name.replace(/-\d+$/, '').replace(/-/g, ' '); }
 
+  function isChrome(el) {
+    if (el.matches(CHROME_SELECTOR)) return true;
+    var cl = el.classList;
+    for (var i = 0; cl && i < cl.length; i++) {
+      var t = cl[i].toLowerCase();
+      if (CHROME_TITLE.test(t)) return true;
+      if ((CHROME_CLASS_START.test(t) || CHROME_CLASS_END.test(t)) && !CONTAINER_CLASS.test(t)) return true;
+    }
+    return false;
+  }
+
+  /* Nearest chrome ancestor within a few levels; never body/html. */
+  function chromeAncestor(p) {
+    for (var el = p, d = 0; el && el !== document.body && el !== document.documentElement && d < 6; el = el.parentElement, d++) {
+      if (isChrome(el)) return (el.textContent || '').length <= CHROME_MAX_TEXT ? el : null;
+    }
+    return null;
+  }
+
   function eligible(textNode) {
     var p = textNode.parentElement;
     if (!p || p.closest(SKIP_SELECTOR) || p.closest('.pc-i')) return null;
-    return p.closest(CHROME_SELECTOR);
+    return chromeAncestor(p);
   }
 
   function swapTextNode(tn) {

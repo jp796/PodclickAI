@@ -16,7 +16,7 @@ PodClick looks like a job site, not a SaaS template. Charcoal surfaces, one safe
 
 ## 2. Icons
 
-`frontend/static/pc-icons.js` is a generated, self-contained bundle: 175 Lucide icons (ISC licence, notice in the file header), 24×24 grid, `stroke="currentColor"`, stroke width 1.75, round caps and joins, no fills except Lucide's own tiny `currentColor` dots. It makes no network requests.
+`frontend/static/pc-icons.js` is a generated, self-contained bundle: 178 Lucide icons (ISC licence, notice in the file header), 24×24 grid, `stroke="currentColor"`, stroke width 1.75, round caps and joins, no fills except Lucide's own tiny `currentColor` dots. It makes no network requests.
 
 ```html
 <i class="pc-i" data-i="mic"></i>                  <!-- 1.1em, inherits text colour -->
@@ -156,6 +156,9 @@ Known limits: emoji in `title`, `placeholder`, `<option>` text, CSS `content:` a
 | ↑ | `arrow-up` |
 | ↓ | `arrow-down` |
 | ↗ | `arrow-up-right` |
+| ↙ | `arrow-down-left` |
+| ↘ | `arrow-down-right` |
+| ↖ | `arrow-up-left` |
 | 🎯 | `target` |
 | 🔥 | `flame` |
 | 💡 | `lightbulb` |
@@ -328,7 +331,7 @@ export const EMOJI_MAP: Record<string, string> = {
   "▶": "play", "⏯": "play", "⏸": "pause", "⏹": "square", "⏺": "circle-dot", "🔴": "circle-dot",
   "⏮": "skip-back", "⏭": "skip-forward",
   "⬇": "download", "⬆": "upload", "→": "arrow-right", "➡": "arrow-right", "👉": "arrow-right", "←": "arrow-left", "⬅": "arrow-left",
-  "↑": "arrow-up", "↓": "arrow-down", "↗": "arrow-up-right",
+  "↑": "arrow-up", "↓": "arrow-down", "↗": "arrow-up-right", "↙": "arrow-down-left", "↘": "arrow-down-right", "↖": "arrow-up-left",
   "🎯": "target", "🔥": "flame", "💡": "lightbulb",
   "📊": "chart-column", "📈": "trending-up", "📉": "trending-down",
   "🏠": "house", "🏡": "house", "🏗": "construction", "🧱": "brick-wall", "👷": "hard-hat",

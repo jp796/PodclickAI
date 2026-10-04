@@ -86,6 +86,18 @@ def test_skip_list_protects_inputs_and_ai_output():
         assert sel in skip.group(1), "skip list lost %s" % sel
 
 
+def test_chrome_detection_is_token_based_not_substring():
+    """Regression: `[class^="pc-"]` matched body.pc-shell-on, so EVERY paragraph on every page
+    counted as chrome and plain copy lost its emoji. Chrome must be matched per class token and
+    must stop before <body>."""
+    src = _src()
+    chrome = re.search(r"var CHROME_SELECTOR = \[(.*?)\]\.join", src, re.S).group(1)
+    assert "[class" not in chrome, "substring class selectors in CHROME_SELECTOR match page containers"
+    assert "'nav'" not in chrome, "<nav> is a container, not a control"
+    assert "el !== document.body" in src, "chrome lookup must stop at <body>"
+    assert "CONTAINER_CLASS" in src and "CHROME_MAX_TEXT" in src
+
+
 def test_no_network_access_in_icon_bundle():
     code = _strip_comments(_src())
     assert not re.search(r"https?://", code), "pc-icons.js must not reference any URL"
