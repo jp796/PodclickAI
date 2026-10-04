@@ -43,7 +43,7 @@
     header {
       padding: 10px 24px; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; gap: 14px;
-      background: rgba(6,8,22,0.95);
+      background: color-mix(in srgb, var(--bg) 95%, transparent);
       backdrop-filter: blur(12px);
       position: sticky; top: 0; z-index: 100;
     }
@@ -52,10 +52,10 @@
 
     .header-brand { display: flex; flex-direction: column; gap: 0; }
     .header-wordmark { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; line-height: 1; }
-    .header-wordmark .word-pod  { color: #F5F7FA; }
-    .header-wordmark .word-click { color: #F5F7FA; }
+    .header-wordmark .word-pod  { color: var(--text-pri); }
+    .header-wordmark .word-click { color: var(--text-pri); }
     .header-wordmark .word-ai   {
-      background: linear-gradient(135deg, #8B5CFF, #2EA7FF);
+      background: var(--grad);
       -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
     }
     .header-tagline {
@@ -71,8 +71,8 @@
       transition: color 0.2s, border-color 0.2s, box-shadow 0.2s;
     }
     #header-status.active {
-      color: var(--accent); border-color: rgba(46,167,255,0.5);
-      box-shadow: 0 0 12px rgba(46,167,255,0.2);
+      color: var(--accent); border-color: color-mix(in srgb, var(--orange) 50%, transparent);
+      box-shadow: 0 0 12px color-mix(in srgb, var(--orange) 20%, transparent);
     }
 
     /* ── Tab nav ── */
@@ -85,10 +85,10 @@
     }
     .tab-btn:hover { color: var(--text); background: var(--surface2); }
     .tab-btn.active {
-      color: #fff;
-      background: linear-gradient(135deg, rgba(139,92,255,0.18), rgba(46,167,255,0.18));
-      border-color: rgba(46,167,255,0.35);
-      text-shadow: 0 0 12px rgba(46,167,255,0.4);
+      color: var(--text-pri);
+      background: linear-gradient(135deg, color-mix(in srgb, var(--orange-hi) 18%, transparent), color-mix(in srgb, var(--orange) 18%, transparent));
+      border-color: color-mix(in srgb, var(--orange) 35%, transparent);
+      text-shadow: 0 0 12px color-mix(in srgb, var(--orange) 40%, transparent);
     }
 
     #clip-tab-panel { display: none; }
@@ -97,8 +97,8 @@
       font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 600;
       margin-left: auto;
     }
-    .tiktok-status-badge.connected { background: rgba(46,167,255,0.12); color: var(--accent); border: 1px solid rgba(46,167,255,0.3); }
-    .tiktok-status-badge.disconnected { background: rgba(224,85,85,0.12); color: var(--red); border: 1px solid rgba(224,85,85,0.3); cursor: pointer; }
+    .tiktok-status-badge.connected { background: color-mix(in srgb, var(--orange) 12%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--orange) 30%, transparent); }
+    .tiktok-status-badge.disconnected { background: color-mix(in srgb, var(--red) 12%, transparent); color: var(--red); border: 1px solid color-mix(in srgb, var(--red) 30%, transparent); cursor: pointer; }
 
     /* ── Layout ── */
     main { flex: 1; display: grid; grid-template-columns: 420px 1fr; gap: 20px; padding: 22px 28px; max-width: 1440px; width: 100%; margin: 0 auto; }
@@ -129,15 +129,15 @@
     }
     .clip-slot.has-files { border-style: solid; border-color: var(--slot-color, var(--accent)); }
 
-    .slot-intro      { --slot-color: #2EA7FF; }
-    .slot-main       { --slot-color: #8B5CFF; }
-    .slot-commercial { --slot-color: #FFB340; }
-    .slot-outro      { --slot-color: #C66CFF; }
+    .slot-intro      { --slot-color: var(--orange); }
+    .slot-main       { --slot-color: var(--orange-hi); }
+    .slot-commercial { --slot-color: var(--yellow); }
+    .slot-outro      { --slot-color: var(--text-sec); }
 
-    .slot-intro.has-files      { box-shadow: 0 0 0 1px #2EA7FF, 0 0 16px rgba(46,167,255,0.15); }
-    .slot-main.has-files       { box-shadow: 0 0 0 1px #8B5CFF, 0 0 16px rgba(139,92,255,0.15); }
-    .slot-commercial.has-files { box-shadow: 0 0 0 1px #FFB340, 0 0 16px rgba(255,179,64,0.15); }
-    .slot-outro.has-files      { box-shadow: 0 0 0 1px #C66CFF, 0 0 16px rgba(198,108,255,0.15); }
+    .slot-intro.has-files      { box-shadow: 0 0 0 1px var(--orange), 0 0 16px color-mix(in srgb, var(--orange) 15%, transparent); }
+    .slot-main.has-files       { box-shadow: 0 0 0 1px var(--orange-hi), 0 0 16px color-mix(in srgb, var(--orange-hi) 15%, transparent); }
+    .slot-commercial.has-files { box-shadow: 0 0 0 1px var(--yellow), 0 0 16px color-mix(in srgb, var(--yellow) 15%, transparent); }
+    .slot-outro.has-files      { box-shadow: 0 0 0 1px var(--text-sec), 0 0 16px color-mix(in srgb, var(--text-sec) 15%, transparent); }
 
     /* ── Slot header (always visible) ── */
     .slot-header {
@@ -152,16 +152,16 @@
     .slot-header:hover { background: rgba(255,255,255,0.02); }
 
     .slot-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
-    .slot-intro      .slot-icon { background: rgba(46,167,255,0.15);  }
-    .slot-main       .slot-icon { background: rgba(139,92,255,0.15);  }
-    .slot-commercial .slot-icon { background: rgba(255,179,64,0.15);  }
-    .slot-outro      .slot-icon { background: rgba(198,108,255,0.15); }
+    .slot-intro      .slot-icon { background: color-mix(in srgb, var(--orange) 15%, transparent);  }
+    .slot-main       .slot-icon { background: color-mix(in srgb, var(--orange-hi) 15%, transparent);  }
+    .slot-commercial .slot-icon { background: color-mix(in srgb, var(--yellow) 15%, transparent);  }
+    .slot-outro      .slot-icon { background: color-mix(in srgb, var(--text-sec) 15%, transparent); }
 
     .slot-info { flex: 1; min-width: 0; }
     .slot-label-row { display: flex; align-items: center; gap: 7px; }
     .slot-name  { font-size: 13px; font-weight: 600; }
     .slot-badge { font-size: 9px; padding: 2px 6px; border-radius: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; }
-    .badge-req  { background: rgba(29,185,84,0.15); color: var(--accent); }
+    .badge-req  { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
     .badge-opt  { background: rgba(255,255,255,0.07); color: var(--text-dim); }
     .slot-hint  { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
 
@@ -169,7 +169,7 @@
     .slot-count {
       font-size: 11px; font-weight: 700;
       background: var(--slot-color, var(--accent));
-      color: #000; border-radius: 12px; padding: 2px 9px;
+      color: var(--bg); border-radius: 12px; padding: 2px 9px;
       flex-shrink: 0; visibility: hidden;
       transition: transform 0.2s;
     }
@@ -255,7 +255,7 @@
     .file-order {
       width: 22px; height: 22px; border-radius: 50%;
       background: var(--slot-color, var(--accent));
-      color: #000;
+      color: var(--bg);
       display: flex; align-items: center; justify-content: center;
       font-size: 10px; font-weight: 800;
       flex-shrink: 0;
@@ -284,17 +284,17 @@
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0; transition: background 0.15s, color 0.15s;
     }
-    .file-remove:hover { background: var(--red); color: #fff; }
+    .file-remove:hover { background: var(--red); color: var(--text-pri); }
 
     /* ── Timeline ── */
     .timeline-wrap { margin: 14px 0 6px; }
     .timeline { display: flex; align-items: center; height: 40px; border-radius: 8px; overflow: hidden; }
     .tl-block { height: 100%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: rgba(0,0,0,0.6); transition: flex 0.35s ease, opacity 0.25s; opacity: 0.25; white-space: nowrap; overflow: hidden; padding: 0 4px; letter-spacing: 0.5px; }
     .tl-block.on { opacity: 1; }
-    .tl-intro      { background: #2EA7FF; flex: 0.7; }
-    .tl-main       { background: linear-gradient(90deg,#8B5CFF,#2EA7FF); flex: 4; }
-    .tl-commercial { background: #FFB340; flex: 0.7; }
-    .tl-outro      { background: #C66CFF; flex: 0.7; }
+    .tl-intro      { background: var(--orange); flex: 0.7; }
+    .tl-main       { background: linear-gradient(90deg,var(--orange-hi),var(--orange)); flex: 4; }
+    .tl-commercial { background: var(--yellow); flex: 0.7; }
+    .tl-outro      { background: var(--text-sec); flex: 0.7; }
     .tl-sep { width: 2px; background: var(--bg); flex-shrink: 0; }
     .timeline-hint { font-size: 10px; color: var(--text-dim); text-align: center; margin-top: 5px; }
 
@@ -303,7 +303,7 @@
     .field { display: flex; flex-direction: column; gap: 5px; flex: 1; }
     .field label { font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
     .field input, .field select { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 8px 11px; font-size: 13px; font-family: var(--font); outline: none; transition: border-color 0.2s; }
-    .field input:focus, .field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(46,167,255,0.12); }
+    .field input:focus, .field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--orange) 12%, transparent); }
 
     /* ── Buttons ── */
     .btn { padding: 9px 18px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity 0.15s, transform 0.1s, box-shadow 0.2s; font-family: var(--font); }
@@ -311,22 +311,22 @@
     .btn:active:not(:disabled) { transform: scale(0.97); }
     .btn:disabled { opacity: 0.3; cursor: not-allowed; }
     .btn-process {
-      background: linear-gradient(135deg, #8B5CFF, #2EA7FF);
-      color: #fff; width: 100%; margin-top: 14px; padding: 13px;
+      background: var(--grad);
+      color: var(--text-pri); width: 100%; margin-top: 14px; padding: 13px;
       font-size: 15px; letter-spacing: 0.2px;
-      box-shadow: 0 4px 20px rgba(43,167,255,0.2);
+      box-shadow: 0 4px 20px color-mix(in srgb, var(--orange) 20%, transparent);
     }
     .btn-process:hover:not(:disabled) {
-      box-shadow: 0 4px 28px rgba(43,167,255,0.4), 0 0 0 1px rgba(46,167,255,0.3);
+      box-shadow: 0 4px 28px color-mix(in srgb, var(--orange) 40%, transparent), 0 0 0 1px color-mix(in srgb, var(--orange) 30%, transparent);
       opacity: 1;
     }
     .btn-upload {
-      background: linear-gradient(135deg, #8B5CFF, #2EA7FF);
-      color: #fff; width: 100%; padding: 12px; margin-top: 12px;
-      box-shadow: 0 4px 20px rgba(43,167,255,0.2);
+      background: var(--grad);
+      color: var(--text-pri); width: 100%; padding: 12px; margin-top: 12px;
+      box-shadow: 0 4px 20px color-mix(in srgb, var(--orange) 20%, transparent);
     }
     .btn-upload:hover:not(:disabled) {
-      box-shadow: 0 4px 28px rgba(43,167,255,0.4);
+      box-shadow: 0 4px 28px color-mix(in srgb, var(--orange) 40%, transparent);
       opacity: 1;
     }
 
@@ -334,16 +334,16 @@
     #progress-section { margin-top: 16px; display: none; }
     .steps { display: flex; flex-direction: column; gap: 7px; margin-bottom: 12px; }
     .step { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; background: var(--surface2); font-size: 13px; transition: background 0.2s; }
-    .step.active { background: rgba(139,92,255,0.1); border-left: 2px solid #8B5CFF; }
+    .step.active { background: color-mix(in srgb, var(--orange-hi) 10%, transparent); border-left: 2px solid var(--orange-hi); }
     .step.done   { opacity: 0.5; }
     .step-num { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
     .step-num.pending { background: var(--border); color: var(--text-dim); }
-    .step-num.active  { background: linear-gradient(135deg,#8B5CFF,#2EA7FF); color: #fff; animation: spin 1s linear infinite; }
-    .step-num.done    { background: linear-gradient(135deg,#8B5CFF,#2EA7FF); color: #fff; }
-    .step-num.error   { background: var(--red); color: #fff; }
+    .step-num.active  { background: var(--grad); color: var(--text-pri); animation: spin 1s linear infinite; }
+    .step-num.done    { background: var(--grad); color: var(--text-pri); }
+    .step-num.error   { background: var(--red); color: var(--text-pri); }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .log-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; height: 100px; overflow-y: auto; font-size: 11px; font-family: "SF Mono","Fira Code",monospace; color: var(--text-dim); line-height: 1.6; }
+    .log-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; height: 100px; overflow-y: auto; font-size: 11px; font-family: var(--font-mono); color: var(--text-dim); line-height: 1.6; }
     .log-line.ok  { color: var(--accent); }
     .log-line.err { color: var(--red); }
 
@@ -352,10 +352,10 @@
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 8px; font-size: 11px; color: var(--text-dim);
     }
-    .elapsed-timer { font-family: "SF Mono","Fira Code",monospace; }
+    .elapsed-timer { font-family: var(--font-mono); }
     .stall-badge {
       display: none;
-      background: rgba(224,184,85,0.15);
+      background: color-mix(in srgb, var(--yellow) 15%, transparent);
       border: 1px solid var(--yellow);
       color: var(--yellow);
       border-radius: 12px;
@@ -379,16 +379,16 @@
 
     .assembly-bar { display: flex; height: 32px; border-radius: 8px; overflow: hidden; margin-bottom: 14px; }
     .ab { display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; color: rgba(0,0,0,0.65); }
-    .ab-intro      { background: #2EA7FF; flex: 0.7; }
-    .ab-main1      { background: linear-gradient(90deg,#8B5CFF,#6B4FD0); flex: 2.5; }
-    .ab-commercial { background: #FFB340; flex: 0.7; }
-    .ab-main2      { background: linear-gradient(90deg,#6B4FD0,#2EA7FF); flex: 2.5; }
-    .ab-outro      { background: #C66CFF; flex: 0.7; }
+    .ab-intro      { background: var(--orange); flex: 0.7; }
+    .ab-main1      { background: linear-gradient(90deg,var(--orange-hi),var(--orange)); flex: 2.5; }
+    .ab-commercial { background: var(--yellow); flex: 0.7; }
+    .ab-main2      { background: linear-gradient(90deg,var(--orange),var(--orange)); flex: 2.5; }
+    .ab-outro      { background: var(--text-sec); flex: 0.7; }
 
     .review-field { margin-bottom: 13px; }
     .review-field label { display: block; font-size: 10px; color: var(--text-dim); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
     .review-field input, .review-field textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 9px 12px; font-size: 13px; font-family: var(--font); outline: none; transition: border-color 0.2s; resize: vertical; }
-    .review-field input:focus, .review-field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(46,167,255,0.1); }
+    .review-field input:focus, .review-field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--orange) 10%, transparent); }
     .review-field textarea { min-height: 110px; line-height: 1.6; }
 
     .links-section { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 13px; display: none; }
@@ -400,14 +400,14 @@
     .transcript-wrap { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; max-height: 140px; overflow-y: auto; font-size: 12px; line-height: 1.7; color: var(--text-dim); margin-bottom: 12px; }
     summary { font-size: 11px; color: var(--text-dim); cursor: pointer; user-select: none; padding: 3px 0; }
 
-    .error-box { background: rgba(224,85,85,0.1); border: 1px solid var(--red); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--red); margin-top: 10px; }
+    .error-box { background: color-mix(in srgb, var(--red) 10%, transparent); border: 1px solid var(--red); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--red); margin-top: 10px; }
     #upload-success { margin-top: 12px; font-size: 14px; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-align: center; font-weight: 700; }
 
     /* ── History ── */
     #history-panel { grid-column: 1 / -1; display: none; }
     .ep-list { display: flex; flex-direction: column; gap: 9px; }
     .ep-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; gap: 14px; }
-    .ep-num { width: 34px; height: 34px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #000; flex-shrink: 0; }
+    .ep-num { width: 34px; height: 34px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--bg); flex-shrink: 0; }
     .ep-num-input::-webkit-outer-spin-button,
     .ep-num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     .ep-info { flex: 1; }
@@ -436,7 +436,7 @@
       flex-shrink: 0; transition: background 0.2s, color 0.2s, border-color 0.2s;
     }
     .assist-step.done .assist-num {
-      background: var(--accent); border-color: var(--accent); color: #000;
+      background: var(--accent); border-color: var(--accent); color: var(--bg);
       font-size: 13px;
     }
 
@@ -452,8 +452,8 @@
       flex-shrink: 0; transition: background 0.2s, color 0.2s, border-color 0.2s;
       font-family: var(--font);
     }
-    .assist-check:hover { background: rgba(29,185,84,0.2); border-color: var(--accent); color: var(--accent); }
-    .assist-step.done .assist-check { background: var(--accent); border-color: var(--accent); color: #000; }
+    .assist-check:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); border-color: var(--accent); color: var(--accent); }
+    .assist-step.done .assist-check { background: var(--accent); border-color: var(--accent); color: var(--bg); }
 
     .copy-btn {
       background: var(--surface3); border: 1px solid var(--border);
@@ -462,8 +462,8 @@
       transition: background 0.15s, color 0.15s, border-color 0.15s;
       font-family: var(--font); margin-top: 4px; display: inline-block;
     }
-    .copy-btn:hover { background: linear-gradient(135deg,#8B5CFF,#2EA7FF); border-color: #2EA7FF; color: #fff; }
-    .copy-btn.copied { background: linear-gradient(135deg,#8B5CFF,#2EA7FF); border-color: #2EA7FF; color: #fff; }
+    .copy-btn:hover { background: var(--grad); border-color: var(--orange); color: var(--text-pri); }
+    .copy-btn.copied { background: var(--grad); border-color: var(--orange); color: var(--text-pri); }
 
     /* ── Sponsor Marketplace ── */
     .sponsor-card {
@@ -472,7 +472,7 @@
       display: flex; align-items: flex-start; gap: 14px;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .sponsor-card:hover { border-color: rgba(46,167,255,0.3); box-shadow: 0 0 16px rgba(46,167,255,0.08); }
+    .sponsor-card:hover { border-color: color-mix(in srgb, var(--orange) 30%, transparent); box-shadow: 0 0 16px color-mix(in srgb, var(--orange) 8%, transparent); }
     .sponsor-logo-placeholder {
       width: 44px; height: 44px; border-radius: 10px;
       background: var(--surface3); display: flex; align-items: center;
@@ -485,19 +485,19 @@
       font-size: 10px; font-weight: 700; padding: 2px 8px;
       border-radius: 10px; letter-spacing: 0.4px; text-transform: uppercase;
     }
-    .niche-ai        { background: rgba(46,167,255,0.15);  color: #2EA7FF; }
-    .niche-real-estate { background: rgba(34,197,94,0.15); color: #22c55e; }
-    .niche-finance   { background: rgba(255,179,64,0.15);  color: #FFB340; }
-    .niche-health    { background: rgba(255,107,157,0.15); color: #ff6b9d; }
-    .niche-other     { background: rgba(167,176,192,0.12); color: #A7B0C0; }
+    .niche-ai        { background: color-mix(in srgb, var(--orange) 15%, transparent);  color: var(--orange); }
+    .niche-real-estate { background: color-mix(in srgb, var(--green-hi) 15%, transparent); color: var(--green-hi); }
+    .niche-finance   { background: color-mix(in srgb, var(--yellow) 15%, transparent);  color: var(--yellow); }
+    .niche-health    { background: color-mix(in srgb, var(--orange-hi) 15%, transparent); color: var(--orange-hi); }
+    .niche-other     { background: color-mix(in srgb, var(--text-sec) 12%, transparent); color: var(--text-sec); }
     .status-badge {
       font-size: 10px; font-weight: 700; padding: 2px 8px;
       border-radius: 10px; letter-spacing: 0.3px; text-transform: uppercase;
     }
-    .status-prospect { background: rgba(167,176,192,0.12); color: #A7B0C0; }
-    .status-active   { background: rgba(46,167,255,0.15);  color: #2EA7FF; }
-    .status-paused   { background: rgba(255,179,64,0.15);  color: #FFB340; }
-    .status-closed   { background: rgba(255,77,109,0.15);  color: #FF4D6D; }
+    .status-prospect { background: color-mix(in srgb, var(--text-sec) 12%, transparent); color: var(--text-sec); }
+    .status-active   { background: color-mix(in srgb, var(--orange) 15%, transparent);  color: var(--orange); }
+    .status-paused   { background: color-mix(in srgb, var(--yellow) 15%, transparent);  color: var(--yellow); }
+    .status-closed   { background: color-mix(in srgb, var(--red) 15%, transparent);  color: var(--red); }
     .sponsor-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; align-items: flex-start; }
     .sponsor-btn {
       font-size: 11px; font-weight: 600; padding: 5px 11px;
@@ -505,8 +505,8 @@
       border: 1px solid var(--border); background: var(--surface2);
       color: var(--text); transition: background 0.15s, border-color 0.15s;
     }
-    .sponsor-btn:hover { background: var(--surface3); border-color: #444; }
-    .sponsor-btn.primary { background: linear-gradient(135deg,#8B5CFF,#2EA7FF); border-color: transparent; color: #fff; }
+    .sponsor-btn:hover { background: var(--surface3); border-color: var(--border-lit); }
+    .sponsor-btn.primary { background: var(--grad); border-color: transparent; color: var(--text-pri); }
     .sponsor-btn.primary:hover { opacity: 0.9; }
 
     /* Outreach modal */
@@ -547,7 +547,7 @@
     }
     .lib-btn:hover {
       background: var(--surface2); color: var(--text);
-      border-color: rgba(29,185,84,0.4);
+      border-color: color-mix(in srgb, var(--accent) 40%, transparent);
     }
 
     /* ── Library modal ── */
@@ -573,7 +573,7 @@
       font-size: 17px; line-height: 1; display: flex; align-items: center;
       justify-content: center; transition: background 0.15s, color 0.15s;
     }
-    .lib-modal-close:hover { background: var(--red); color: #fff; }
+    .lib-modal-close:hover { background: var(--red); color: var(--text-pri); }
     .lib-items {
       overflow-y: auto; flex: 1; padding: 12px 16px;
       display: flex; flex-direction: column; gap: 8px;
@@ -588,19 +588,19 @@
     .lib-item-meta { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
     .lib-item-actions { display: flex; gap: 6px; flex-shrink: 0; }
     .lib-use-btn {
-      background: linear-gradient(135deg,#8B5CFF,#2EA7FF); color: #fff; border: none;
+      background: var(--grad); color: var(--text-pri); border: none;
       border-radius: 6px; padding: 5px 12px; font-size: 11px;
       font-weight: 700; cursor: pointer; font-family: var(--font);
       transition: opacity 0.15s;
     }
     .lib-use-btn:hover { opacity: 0.85; }
     .lib-del-btn {
-      background: transparent; border: 1px solid rgba(224,85,85,0.4);
+      background: transparent; border: 1px solid color-mix(in srgb, var(--red) 40%, transparent);
       color: var(--red); border-radius: 6px; padding: 5px 9px;
       font-size: 11px; cursor: pointer; font-family: var(--font);
       transition: background 0.15s;
     }
-    .lib-del-btn:hover { background: rgba(224,85,85,0.15); }
+    .lib-del-btn:hover { background: color-mix(in srgb, var(--red) 15%, transparent); }
     .lib-modal-footer {
       padding: 14px 16px; border-top: 1px solid var(--border);
       background: var(--surface2); flex-shrink: 0;
@@ -614,6 +614,25 @@
       width: 100%; margin-top: 6px; accent-color: var(--accent);
       display: none;
     }
+
+    /* ── Token overrides (colors-only pass, 2026-10-04) ── */
+    /* Third-party brand mark (YouTube red): the only literal colors kept in this page's body. */
+    :root { --brand-youtube: #ff0000; --brand-youtube-dk: #cc0000; }
+    /* Use the shared PodClick type tokens instead of the scoped Helvetica stack in
+       podclick-design.css (html prefix outranks body.podclick-studio). */
+    html body.podclick-studio {
+      --font-body: 'Barlow', sans-serif;
+      --font-display: 'Big Shoulders Display', sans-serif;
+      --font-cond: 'Barlow Condensed', sans-serif;
+      --font-mono: 'Azeret Mono', monospace;
+      --font: var(--font-body);
+    }
+    /* Background glow on the orange accent (replaces the cyan/violet glow declared above). */
+    html body::before {
+      background:
+        radial-gradient(ellipse 60% 40% at 20% 0%, var(--orange-mist) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 35% at 80% 100%, var(--orange-mist) 0%, transparent 70%);
+    }
   </style>
   <link rel="stylesheet" href="/podclick-design.css?v=20261002-1" />
 </head>
@@ -626,9 +645,9 @@
     <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#C66CFF"/>
-          <stop offset="50%" stop-color="#8B5CFF"/>
-          <stop offset="100%" stop-color="#2EA7FF"/>
+          <stop offset="0%" style="stop-color:var(--text-sec)"/>
+          <stop offset="50%" style="stop-color:var(--orange-hi)"/>
+          <stop offset="100%" style="stop-color:var(--orange)"/>
         </linearGradient>
       </defs>
       <!-- Waveform bars -->
@@ -656,7 +675,7 @@
   <div class="tab-nav pc-subtabs" role="group" aria-label="Podcast workspace sections">
     <button class="tab-btn active" data-tab="podcast" aria-pressed="true" onclick="switchTab('podcast')">Episode builder</button>
     <button class="tab-btn" data-tab="clips" aria-pressed="false" onclick="switchTab('clips')">Clips</button>
-    <button class="tab-btn" data-tab="queue" aria-pressed="false" onclick="switchTab('queue')" id="queue-tab-btn">Release queue <span id="queue-badge" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">0</span></button>
+    <button class="tab-btn" data-tab="queue" aria-pressed="false" onclick="switchTab('queue')" id="queue-tab-btn">Release queue <span id="queue-badge" style="display:none;background:var(--accent);color:var(--bg);border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px">0</span></button>
     <button class="tab-btn" data-tab="sponsors" aria-pressed="false" onclick="switchTab('sponsors')">Sponsors</button>
     <button class="tab-btn" data-tab="guests" aria-pressed="false" onclick="switchTab('guests')">Guests</button>
     <button class="tab-btn" data-tab="transcribe" aria-pressed="false" onclick="switchTab('transcribe')">Transcripts</button>
@@ -684,7 +703,7 @@
   <div class="studio-mode-options" role="group" aria-label="Episode output format">
     <button id="mode-audio-btn" onclick="setStudioMode('audio')"
       style="padding:5px 16px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);
-             background:linear-gradient(135deg,#8B5CFF,#2EA7FF);border:none;color:#fff;transition:all .15s">
+             background:var(--grad);border:none;color:var(--text-pri);transition:all .15s">
       Audio
     </button>
     <button id="mode-video-btn" onclick="setStudioMode('video')"
@@ -939,9 +958,9 @@
     <label style="display:flex;align-items:center;justify-content:space-between;">
       Description
       <button id="timestamps-btn" onclick="regenerateTimestamps()"
-        style="font-size:12px;padding:4px 10px;background:#1a1a2e;border:1px solid #444;color:#aaa;border-radius:6px;cursor:pointer;transition:all .2s"
-        onmouseover="this.style.borderColor='#7c3aed';this.style.color='#c4b5fd'"
-        onmouseout="this.style.borderColor='#444';this.style.color='#aaa'">
+        style="font-size:12px;padding:4px 10px;background:var(--bg-card);border:1px solid var(--border-lit);color:var(--text-sec);border-radius:6px;cursor:pointer;transition:all .2s"
+        onmouseover="this.style.borderColor='var(--orange)';this.style.color='var(--orange-hi)'"
+        onmouseout="this.style.borderColor='var(--border-lit)';this.style.color='var(--text-sec)'">
         ⏱ Regenerate Timestamps
       </button>
     </label>
@@ -980,28 +999,28 @@
   <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap">
     <button class="btn btn-upload" id="upload-btn" disabled style="flex:1;min-width:180px">Upload to Buzzsprout</button>
     <button class="btn" id="schedule-btn" disabled onclick="openScheduler()"
-      style="flex:1;min-width:180px;background:var(--surface2);border:1px solid #444;color:var(--text)">
+      style="flex:1;min-width:180px;background:var(--surface2);border:1px solid var(--border-lit);color:var(--text)">
       📅 Schedule Release
     </button>
     <button class="btn" id="yt-upload-btn" disabled onclick="openYouTubeUploadModal()"
-      style="flex:1;min-width:180px;background:var(--surface2);border:1px solid #444;color:var(--text);display:none">
+      style="flex:1;min-width:180px;background:var(--surface2);border:1px solid var(--border-lit);color:var(--text);display:none">
       🎬 Upload to YouTube
     </button>
   </div>
 
   <!-- Schedule picker (shown when Schedule is clicked) -->
-  <div id="schedule-picker" style="display:none;background:var(--surface2);border:1px solid #333;border-radius:10px;padding:16px;margin-top:8px">
+  <div id="schedule-picker" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-top:8px">
     <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:var(--text)">📅 Schedule Release Time</div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <input type="datetime-local" id="schedule-datetime"
-        style="flex:1;background:var(--surface3);border:1px solid #444;color:var(--text);border-radius:6px;padding:8px 10px;font-size:13px"
+        style="flex:1;background:var(--surface3);border:1px solid var(--border-lit);color:var(--text);border-radius:6px;padding:8px 10px;font-size:13px"
       />
       <button onclick="confirmSchedule()"
-        style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">
+        style="background:var(--accent);color:var(--bg);border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">
         Confirm
       </button>
       <button onclick="document.getElementById('schedule-picker').style.display='none'"
-        style="background:transparent;border:1px solid #444;color:#aaa;border-radius:6px;padding:8px 12px;font-size:13px;cursor:pointer">
+        style="background:transparent;border:1px solid var(--border-lit);color:var(--text-sec);border-radius:6px;padding:8px 12px;font-size:13px;cursor:pointer">
         Cancel
       </button>
     </div>
@@ -1012,13 +1031,13 @@
 
   <!-- Output badges row -->
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-    <div id="mp3-ready-badge" style="display:none;font-size:11px;color:var(--accent);padding:4px 10px;background:rgba(46,167,255,0.08);border-radius:6px;border:1px solid rgba(46,167,255,0.25)">
+    <div id="mp3-ready-badge" style="display:none;font-size:11px;color:var(--accent);padding:4px 10px;background:color-mix(in srgb, var(--orange) 8%, transparent);border-radius:6px;border:1px solid color-mix(in srgb, var(--orange) 25%, transparent)">
       🎵 MP3 ready
     </div>
-    <div id="mp4-ready-badge" style="display:none;font-size:11px;color:#22c55e;padding:4px 10px;background:rgba(34,197,94,0.08);border-radius:6px;border:1px solid rgba(34,197,94,0.25)">
+    <div id="mp4-ready-badge" style="display:none;font-size:11px;color:var(--green-hi);padding:4px 10px;background:color-mix(in srgb, var(--green-hi) 8%, transparent);border-radius:6px;border:1px solid color-mix(in srgb, var(--green-hi) 25%, transparent)">
       🎬 MP4 ready · subtitles burned in
     </div>
-    <div id="srt-ready-badge" style="display:none;font-size:11px;color:#a78bfa;padding:4px 10px;background:rgba(167,139,250,0.08);border-radius:6px;border:1px solid rgba(167,139,250,0.25)">
+    <div id="srt-ready-badge" style="display:none;font-size:11px;color:var(--orange-hi);padding:4px 10px;background:color-mix(in srgb, var(--orange-hi) 8%, transparent);border-radius:6px;border:1px solid color-mix(in srgb, var(--orange-hi) 25%, transparent)">
       📝 SRT ready
     </div>
   </div>
@@ -1029,7 +1048,7 @@
 
   <!-- ── Upload Assistant (shown instead of Playwright) ── -->
   <div id="upload-assistant" style="display:none">
-    <div style="background:rgba(29,185,84,0.08);border:1px solid var(--accent);border-radius:10px;padding:16px;margin-top:12px;">
+    <div style="background:color-mix(in srgb, var(--accent) 8%, transparent);border:1px solid var(--accent);border-radius:10px;padding:16px;margin-top:12px;">
       <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:12px;">
         🎙️ Upload Assistant — follow these steps:
       </div>
@@ -1101,7 +1120,7 @@
       </div>
 
       <button class="btn" id="assist-done-btn"
-        style="width:100%;margin-top:14px;background:var(--accent);color:#000;display:none"
+        style="width:100%;margin-top:14px;background:var(--accent);color:var(--bg);display:none"
         onclick="assistantDone()">
         ✓ Mark as Published
       </button>
@@ -1202,7 +1221,7 @@
         <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
           <span>Clips Ready to Post</span>
           <button class="btn" id="post-all-btn"
-            style="background:var(--accent);color:#000;padding:6px 14px;font-size:12px"
+            style="background:var(--accent);color:var(--bg);padding:6px 14px;font-size:12px"
             onclick="postAllClips()">Post All to TikTok</button>
         </div>
         <div id="clips-list" style="display:flex;flex-direction:column;gap:12px"></div>
@@ -1216,7 +1235,7 @@
 <div id="queue-tab-panel" style="display:none;padding:22px 28px;max-width:1100px;margin:0 auto;width:100%">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
     <div style="font-size:18px;font-weight:700;color:var(--text)">📅 Release Queue</div>
-    <button onclick="loadQueue()" style="background:var(--surface2);border:1px solid #444;color:var(--text-dim);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">↻ Refresh</button>
+    <button onclick="loadQueue()" style="background:var(--surface2);border:1px solid var(--border-lit);color:var(--text-dim);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">↻ Refresh</button>
   </div>
 
   <div id="queue-empty" style="display:none;text-align:center;padding:60px 20px;color:var(--text-dim)">
@@ -1243,7 +1262,7 @@
         <option value="">— No profiles yet —</option>
       </select>
       <button onclick="newProfile()"
-        style="background:var(--accent);color:#000;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
+        style="background:var(--accent);color:var(--bg);border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
         + New Profile
       </button>
       <button id="delete-profile-btn" onclick="deleteProfile()" style="display:none;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;padding:8px 12px;font-size:13px;cursor:pointer">
@@ -1302,7 +1321,7 @@
       <div class="panel-title">Description Footer Template</div>
       <div class="review-field">
         <label>Footer text appended to every episode description <span style="font-weight:400;text-transform:none;font-size:10px">(Patreon/merch CTAs append after this)</span></label>
-        <textarea id="pf-footer" style="min-height:140px;font-size:12px;font-family:'SF Mono','Fira Code',monospace;line-height:1.6"
+        <textarea id="pf-footer" style="min-height:140px;font-size:12px;font-family:var(--font-mono);line-height:1.6"
           placeholder="---&#10;📚 Book: &quot;Your Book Title&quot; by Your Name&#10;🌐 Website: https://yoursite.com&#10;Want to be a guest? Visit https://booking.link"></textarea>
       </div>
       <div style="display:flex;gap:8px;margin-top:4px">
@@ -1315,7 +1334,7 @@
     <!-- Save row -->
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <button onclick="saveProfile()"
-        style="background:var(--accent);color:#000;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer">
+        style="background:var(--accent);color:var(--bg);border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer">
         Save Profile
       </button>
       <button id="activate-profile-btn" onclick="activateProfile()"
@@ -1328,10 +1347,10 @@
   </div><!-- /profile-editor -->
 
   <!-- Google Drive Setup -->
-  <div style="margin-top:24px;background:var(--surface);border:1px solid rgba(34,197,94,0.2);border-radius:12px;padding:18px 22px">
+  <div style="margin-top:24px;background:var(--surface);border:1px solid color-mix(in srgb, var(--green-hi) 20%, transparent);border-radius:12px;padding:18px 22px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
       <div style="font-size:15px;font-weight:700;color:var(--text)">📁 Google Drive Integration</div>
-      <div id="drive-status-badge" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(167,176,192,0.12);color:#A7B0C0">Checking…</div>
+      <div id="drive-status-badge" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:color-mix(in srgb, var(--text-sec) 12%, transparent);color:var(--text-sec)">Checking…</div>
     </div>
     <div style="font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:14px">
       Auto-creates episode asset folders in Google Drive and uploads your MP3 + transcript. Guests get a shareable link.
@@ -1343,7 +1362,7 @@
       <li>Download the JSON key file for the service account</li>
       <li>Add to your <code style="background:var(--surface2);padding:1px 5px;border-radius:4px">.env</code> file:</li>
     </ol>
-    <pre style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:11px;color:#22c55e;overflow-x:auto;margin-bottom:12px">GOOGLE_SERVICE_ACCOUNT_JSON=/path/to/service_account.json
+    <pre style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:11px;color:var(--green-hi);overflow-x:auto;margin-bottom:12px">GOOGLE_SERVICE_ACCOUNT_JSON=/path/to/service_account.json
 GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
     <div style="font-size:11px;color:var(--text-dim)">
       5. Share your Google Drive folder with the service account email (give Editor access). Then restart the server.
@@ -1351,13 +1370,13 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
   </div>
 
   <!-- YouTube Integration -->
-  <div style="margin-top:16px;background:var(--surface);border:1px solid rgba(255,0,0,0.2);border-radius:12px;padding:18px 22px">
+  <div style="margin-top:16px;background:var(--surface);border:1px solid color-mix(in srgb, var(--brand-youtube) 20%, transparent);border-radius:12px;padding:18px 22px">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
       <div style="font-size:15px;font-weight:700;color:var(--text)">▶️ YouTube Integration</div>
-      <div id="yt-settings-badge" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(167,176,192,0.12);color:#A7B0C0">Checking…</div>
+      <div id="yt-settings-badge" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;background:color-mix(in srgb, var(--text-sec) 12%, transparent);color:var(--text-sec)">Checking…</div>
       <div style="flex:1"></div>
       <button id="yt-connect-btn" onclick="connectYouTube()"
-        style="background:linear-gradient(135deg,#FF0000,#CC0000);color:#fff;border:none;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer">
+        style="background:linear-gradient(135deg,var(--brand-youtube),var(--brand-youtube-dk));color:var(--text-pri);border:none;border-radius:8px;padding:7px 16px;font-size:12px;font-weight:700;cursor:pointer">
         Connect YouTube
       </button>
       <button id="yt-disconnect-btn" onclick="disconnectYouTube()" style="display:none;background:transparent;border:1px solid var(--red);color:var(--red);border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer">
@@ -1410,7 +1429,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
       <div style="font-size:12px;color:var(--text-dim);margin-top:3px">Track sponsors, affiliate programs, and outreach — then tag any episode with a live sponsor.</div>
     </div>
     <button class="btn" onclick="openSponsorModal(null)"
-      style="background:linear-gradient(135deg,#8B5CFF,#2EA7FF);border:none;color:#fff;padding:9px 20px;font-size:13px;font-weight:700">
+      style="background:var(--grad);border:none;color:var(--text-pri);padding:9px 20px;font-size:13px;font-weight:700">
       + Add Sponsor
     </button>
   </div>
@@ -1422,15 +1441,15 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
       <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Total Sponsors</div>
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center">
-      <div style="font-size:22px;font-weight:800;color:#2EA7FF" id="sp-stat-active">0</div>
+      <div style="font-size:22px;font-weight:800;color:var(--orange)" id="sp-stat-active">0</div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Active</div>
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center">
-      <div style="font-size:22px;font-weight:800;color:#22c55e" id="sp-stat-episodes">0</div>
+      <div style="font-size:22px;font-weight:800;color:var(--green-hi)" id="sp-stat-episodes">0</div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Episodes Tagged</div>
     </div>
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center">
-      <div style="font-size:22px;font-weight:800;color:#FFB340" id="sp-stat-earned">$0</div>
+      <div style="font-size:22px;font-weight:800;color:var(--yellow)" id="sp-stat-earned">$0</div>
       <div style="font-size:11px;color:var(--text-dim);margin-top:2px">Total Earned</div>
     </div>
   </div>
@@ -1466,36 +1485,36 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
     <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">No sponsors yet</div>
     <div style="font-size:13px;margin-bottom:20px">Add your first sponsor or affiliate program to get started.</div>
     <button class="btn" onclick="openSponsorModal(null)"
-      style="background:linear-gradient(135deg,#8B5CFF,#2EA7FF);border:none;color:#fff;padding:9px 20px;font-size:13px;font-weight:700">
+      style="background:var(--grad);border:none;color:var(--text-pri);padding:9px 20px;font-size:13px;font-weight:700">
       + Add Sponsor
     </button>
   </div>
 
   <!-- Affiliate Discovery card -->
-  <div style="margin-top:28px;background:var(--surface);border:1px solid rgba(139,92,255,0.25);border-radius:12px;padding:18px 22px">
+  <div style="margin-top:28px;background:var(--surface);border:1px solid color-mix(in srgb, var(--orange-hi) 25%, transparent);border-radius:12px;padding:18px 22px">
     <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">🔎 Recommended Affiliate Networks</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">
-      <a href="https://podcorn.com/podcasters" target="_blank" style="display:block;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-decoration:none;transition:border-color 0.2s" onmouseover="this.style.borderColor='#2EA7FF'" onmouseout="this.style.borderColor='var(--border)'">
+      <a href="https://podcorn.com/podcasters" target="_blank" style="display:block;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-decoration:none;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--orange)'" onmouseout="this.style.borderColor='var(--border)'">
         <div style="font-size:12px;font-weight:700;color:var(--text)">Podcorn</div>
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px">Self-serve podcast marketplace</div>
       </a>
-      <a href="https://www.advertisecast.com/podcasters" target="_blank" style="display:block;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-decoration:none;transition:border-color 0.2s" onmouseover="this.style.borderColor='#2EA7FF'" onmouseout="this.style.borderColor='var(--border)'">
+      <a href="https://www.advertisecast.com/podcasters" target="_blank" style="display:block;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-decoration:none;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--orange)'" onmouseout="this.style.borderColor='var(--border)'">
         <div style="font-size:12px;font-weight:700;color:var(--text)">AdvertiseCast</div>
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px">Real estate &amp; finance heavy</div>
       </a>
-      <a href="https://impact.com/partners" target="_blank" style="display:block;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-decoration:none;transition:border-color 0.2s" onmouseover="this.style.borderColor='#2EA7FF'" onmouseout="this.style.borderColor='var(--border)'">
+      <a href="https://impact.com/partners" target="_blank" style="display:block;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-decoration:none;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--orange)'" onmouseout="this.style.borderColor='var(--border)'">
         <div style="font-size:12px;font-weight:700;color:var(--text)">Impact</div>
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px">Premium SaaS affiliates</div>
       </a>
-      <a href="https://partnerstack.com" target="_blank" style="display:block;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-decoration:none;transition:border-color 0.2s" onmouseover="this.style.borderColor='#2EA7FF'" onmouseout="this.style.borderColor='var(--border)'">
+      <a href="https://partnerstack.com" target="_blank" style="display:block;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-decoration:none;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--orange)'" onmouseout="this.style.borderColor='var(--border)'">
         <div style="font-size:12px;font-weight:700;color:var(--text)">PartnerStack</div>
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px">B2B SaaS recurring commissions</div>
       </a>
-      <a href="https://acast.com/sponsorship-stories" target="_blank" style="display:block;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-decoration:none;transition:border-color 0.2s" onmouseover="this.style.borderColor='#2EA7FF'" onmouseout="this.style.borderColor='var(--border)'">
+      <a href="https://acast.com/sponsorship-stories" target="_blank" style="display:block;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-decoration:none;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--orange)'" onmouseout="this.style.borderColor='var(--border)'">
         <div style="font-size:12px;font-weight:700;color:var(--text)">Acast</div>
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px">140K+ shows, best fill rate</div>
       </a>
-      <a href="https://www.awin.com/us" target="_blank" style="display:block;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-decoration:none;transition:border-color 0.2s" onmouseover="this.style.borderColor='#2EA7FF'" onmouseout="this.style.borderColor='var(--border)'">
+      <a href="https://www.awin.com/us" target="_blank" style="display:block;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-decoration:none;transition:border-color 0.2s" onmouseover="this.style.borderColor='var(--orange)'" onmouseout="this.style.borderColor='var(--border)'">
         <div style="font-size:12px;font-weight:700;color:var(--text)">Awin / ShareASale</div>
         <div style="font-size:10px;color:var(--text-dim);margin-top:2px">Real estate adjacent retail</div>
       </a>
@@ -1569,7 +1588,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
           onchange="txFileChosen(event)">
 
         <!-- Selected file indicator -->
-        <div id="tx-file-indicator" style="display:none;font-size:11px;background:rgba(46,167,255,0.08);border:1px solid rgba(46,167,255,0.2);border-radius:6px;padding:6px 10px;margin-bottom:12px;color:var(--accent)">
+        <div id="tx-file-indicator" style="display:none;font-size:11px;background:color-mix(in srgb, var(--orange) 8%, transparent);border:1px solid color-mix(in srgb, var(--orange) 20%, transparent);border-radius:6px;padding:6px 10px;margin-bottom:12px;color:var(--accent)">
           📎 <span id="tx-file-name"></span>
         </div>
 
@@ -1613,7 +1632,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
 
         <!-- Submit -->
         <button id="tx-submit-btn" onclick="submitTranscription()" disabled
-          style="width:100%;margin-top:14px;background:linear-gradient(135deg,var(--accent),#8B5CFF);color:#fff;border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;opacity:0.5">
+          style="width:100%;margin-top:14px;background:linear-gradient(135deg,var(--accent),var(--orange-hi));color:var(--text-pri);border:none;border-radius:8px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;opacity:0.5">
           📝 Transcribe
         </button>
         <div id="tx-submit-status" style="display:none;font-size:11px;text-align:center;color:var(--accent);margin-top:8px"></div>
@@ -1635,7 +1654,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
       <div style="font-size:12px;color:var(--text-dim);margin-top:3px">Track guests, manage episode links, and auto-send asset launch emails after episodes air.</div>
     </div>
     <button class="btn" onclick="openGuestModal(null)"
-      style="background:linear-gradient(135deg,#8B5CFF,#2EA7FF);border:none;color:#fff;padding:9px 20px;font-size:13px;font-weight:700">
+      style="background:var(--grad);border:none;color:var(--text-pri);padding:9px 20px;font-size:13px;font-weight:700">
       + Add Guest
     </button>
   </div>
@@ -1654,7 +1673,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
     <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:6px">No guests yet</div>
     <div style="font-size:13px;margin-bottom:20px">Add your first guest or booked interview.</div>
     <button class="btn" onclick="openGuestModal(null)"
-      style="background:linear-gradient(135deg,#8B5CFF,#2EA7FF);border:none;color:#fff;padding:9px 20px;font-size:13px;font-weight:700">
+      style="background:var(--grad);border:none;color:var(--text-pri);padding:9px 20px;font-size:13px;font-weight:700">
       + Add Guest
     </button>
   </div>
@@ -1691,7 +1710,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
           📁 File
         </button>
         <button onclick="libUpload()"
-          style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap">
+          style="background:var(--accent);color:var(--bg);border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap">
           Save ✓
         </button>
       </div>
@@ -1713,13 +1732,13 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
       <input type="hidden" id="g-edit-id">
 
       <!-- Extract from URL or Text -->
-      <div style="background:rgba(139,92,255,0.06);border:1px solid rgba(139,92,255,0.2);border-radius:10px;padding:12px 14px">
+      <div style="background:color-mix(in srgb, var(--orange-hi) 6%, transparent);border:1px solid color-mix(in srgb, var(--orange-hi) 20%, transparent);border-radius:10px;padding:12px 14px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <div style="font-size:11px;font-weight:700;color:#8B5CFF;text-transform:uppercase;letter-spacing:0.5px">⚡ Auto-fill from Link or Text</div>
+          <div style="font-size:11px;font-weight:700;color:var(--orange-hi);text-transform:uppercase;letter-spacing:0.5px">⚡ Auto-fill from Link or Text</div>
           <!-- Mode toggle -->
           <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px">
             <button id="g-extract-mode-url" onclick="setExtractMode('url')"
-              style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:4px;border:none;cursor:pointer;background:linear-gradient(135deg,#8B5CFF,#2EA7FF);color:#fff;transition:all .15s">
+              style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:4px;border:none;cursor:pointer;background:var(--grad);color:var(--text-pri);transition:all .15s">
               🔗 URL
             </button>
             <button id="g-extract-mode-text" onclick="setExtractMode('text')"
@@ -1736,7 +1755,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
             onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"
             onkeydown="if(event.key==='Enter'){extractGuestFromUrl();event.preventDefault()}">
           <button id="g-extract-btn" onclick="extractGuestFromUrl()"
-            style="background:linear-gradient(135deg,#8B5CFF,#2EA7FF);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+            style="background:var(--grad);color:var(--text-pri);border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
             Extract
           </button>
         </div>
@@ -1748,7 +1767,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
             style="width:100%;box-sizing:border-box;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 11px;font-size:12px;font-family:var(--font);outline:none;resize:vertical;line-height:1.5"
             onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
           <button id="g-extract-text-btn" onclick="extractGuestFromText()"
-            style="background:linear-gradient(135deg,#8B5CFF,#2EA7FF);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;align-self:flex-end">
+            style="background:var(--grad);color:var(--text-pri);border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;align-self:flex-end">
             Extract from Text
           </button>
         </div>
@@ -1876,7 +1895,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
         Cancel
       </button>
       <button onclick="saveGuest()"
-        style="background:linear-gradient(135deg,#8B5CFF,#2EA7FF);border:none;color:#fff;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)" id="g-save-btn">
+        style="background:var(--grad);border:none;color:var(--text-pri);border-radius:8px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)" id="g-save-btn">
         Save Guest
       </button>
     </div>
@@ -1930,15 +1949,15 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
           Close
         </button>
         <button onclick="createDriveFolder()" id="drive-create-btn"
-          style="background:var(--surface3);border:1px solid rgba(34,197,94,0.4);color:#22c55e;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)">
+          style="background:var(--surface3);border:1px solid color-mix(in srgb, var(--green-hi) 40%, transparent);color:var(--green-hi);border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)">
           📁 Create Drive Folder
         </button>
         <button onclick="openMailtoAsset()"
-          style="background:var(--surface3);border:1px solid #444;color:var(--text);border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)">
+          style="background:var(--surface3);border:1px solid var(--border-lit);color:var(--text);border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)">
           ✉️ Open in Gmail
         </button>
         <button onclick="copyAssetEmail()"
-          style="background:linear-gradient(135deg,#8B5CFF,#2EA7FF);border:none;color:#fff;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)" id="asset-copy-btn">
+          style="background:var(--grad);border:none;color:var(--text-pri);border-radius:8px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)" id="asset-copy-btn">
           📋 Copy Email
         </button>
       </div>
@@ -2037,13 +2056,13 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
       </div>
 
       <!-- Status/progress -->
-      <div id="yt-upload-status" style="display:none;font-size:12px;color:var(--accent);padding:10px 14px;background:rgba(46,167,255,0.06);border-radius:8px;border:1px solid rgba(46,167,255,0.2)">
+      <div id="yt-upload-status" style="display:none;font-size:12px;color:var(--accent);padding:10px 14px;background:color-mix(in srgb, var(--orange) 6%, transparent);border-radius:8px;border:1px solid color-mix(in srgb, var(--orange) 20%, transparent)">
         ⏳ Uploading…
       </div>
-      <div id="yt-upload-success" style="display:none;font-size:12px;padding:10px 14px;background:rgba(34,197,94,0.08);border-radius:8px;border:1px solid rgba(34,197,94,0.3);color:#22c55e">
+      <div id="yt-upload-success" style="display:none;font-size:12px;padding:10px 14px;background:color-mix(in srgb, var(--green-hi) 8%, transparent);border-radius:8px;border:1px solid color-mix(in srgb, var(--green-hi) 30%, transparent);color:var(--green-hi)">
         ✅ Uploaded! <a id="yt-video-link" href="#" target="_blank" style="color:var(--accent);text-decoration:none;margin-left:8px">View on YouTube ↗</a>
       </div>
-      <div id="yt-upload-error" style="display:none;font-size:12px;padding:10px 14px;background:rgba(224,85,85,0.08);border-radius:8px;border:1px solid rgba(224,85,85,0.3);color:var(--red)"></div>
+      <div id="yt-upload-error" style="display:none;font-size:12px;padding:10px 14px;background:color-mix(in srgb, var(--red) 8%, transparent);border-radius:8px;border:1px solid color-mix(in srgb, var(--red) 30%, transparent);color:var(--red)"></div>
     </div>
 
     <!-- Footer -->
@@ -2053,7 +2072,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
         Close
       </button>
       <button id="yt-submit-btn" onclick="submitYouTubeUpload()"
-        style="background:linear-gradient(135deg,#FF0000,#CC0000);color:#fff;border:none;border-radius:8px;padding:9px 24px;font-size:13px;font-weight:700;cursor:pointer">
+        style="background:linear-gradient(135deg,var(--brand-youtube),var(--brand-youtube-dk));color:var(--text-pri);border:none;border-radius:8px;padding:9px 24px;font-size:13px;font-weight:700;cursor:pointer">
         🎬 Upload to YouTube
       </button>
     </div>
@@ -2174,7 +2193,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
         Cancel
       </button>
       <button onclick="saveSponsor()"
-        style="background:linear-gradient(135deg,#8B5CFF,#2EA7FF);border:none;color:#fff;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)" id="sp-save-btn">
+        style="background:var(--grad);border:none;color:var(--text-pri);border-radius:8px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)" id="sp-save-btn">
         Save Sponsor
       </button>
     </div>
@@ -2209,7 +2228,7 @@ GOOGLE_DRIVE_PARENT_ID=your_drive_folder_id  # optional</pre>
         Close
       </button>
       <button onclick="copyOutreach()"
-        style="background:linear-gradient(135deg,#8B5CFF,#2EA7FF);border:none;color:#fff;border-radius:8px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)" id="outreach-copy-btn">
+        style="background:var(--grad);border:none;color:var(--text-pri);border-radius:8px;padding:9px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:var(--font)" id="outreach-copy-btn">
         📋 Copy Email
       </button>
     </div>
@@ -2510,12 +2529,12 @@ function renderSlot(type) {
 
       // Warn if a bumper slot has a suspiciously long file
       if (type !== "main" && dur > BUMPER_WARN_SECS) {
-        el.style.color = "#ef4444";
+        el.style.color = "var(--red)";
         el.style.fontWeight = "600";
         el.textContent = `⚠️ ${fmtDur(dur)} — unusually long for ${type}`;
         // Also flash the slot border red
         const slotBorder = document.getElementById(`slot-${type}`);
-        slotBorder.style.borderColor = "#ef4444";
+        slotBorder.style.borderColor = "var(--red)";
         slotBorder.title = `⚠️ This ${type} file is ${fmtDur(dur)} — is that correct?`;
       }
     });
@@ -3117,16 +3136,16 @@ function showRestoreBanner() {
   const banner = document.createElement("div");
   banner.id = "restore-banner";
   banner.style.cssText = `
-    background: rgba(239,68,68,0.12); border: 1px solid #ef4444;
+    background: color-mix(in srgb, var(--red) 12%, transparent); border: 1px solid var(--red);
     border-radius: 8px; padding: 10px 14px; font-size: 12px;
-    color: #f87171; margin-bottom: 12px; display: flex;
+    color: var(--red); margin-bottom: 12px; display: flex;
     align-items: center; justify-content: space-between; gap: 12px;
   `;
   banner.innerHTML = `
     <span>⚠️ <strong>Previous session files restored.</strong> Make sure these are the correct files before processing.</span>
     <div style="display:flex;gap:8px;flex-shrink:0">
-      <button onclick="clearAllFiles()" style="background:#ef4444;color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer">Clear All</button>
-      <button onclick="document.getElementById('restore-banner').remove()" style="background:transparent;color:#f87171;border:1px solid #ef4444;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer">Keep Files</button>
+      <button onclick="clearAllFiles()" style="background:var(--red);color:var(--text-pri);border:none;border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer">Clear All</button>
+      <button onclick="document.getElementById('restore-banner').remove()" style="background:transparent;color:var(--red);border:1px solid var(--red);border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer">Keep Files</button>
     </div>
   `;
   const slots_el = document.querySelector(".clip-slots");
@@ -3451,7 +3470,7 @@ let clipStartTime = null;
 function clipDragOver(e) {
   e.preventDefault();
   document.getElementById("clip-drop-zone").style.borderColor = "var(--accent)";
-  document.getElementById("clip-drop-zone").style.background  = "rgba(29,185,84,0.04)";
+  document.getElementById("clip-drop-zone").style.background  = "color-mix(in srgb, var(--accent) 4%, transparent)";
 }
 function clipDragLeave() {
   document.getElementById("clip-drop-zone").style.borderColor = "var(--border)";
@@ -3581,7 +3600,7 @@ function showClips(clips) {
     div.id = `clip-card-${clip.index}`;
     div.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-        <div style="width:30px;height:30px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#000">${clip.index}</div>
+        <div style="width:30px;height:30px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--bg)">${clip.index}</div>
         <div style="flex:1">
           <div style="font-size:13px;font-weight:600">${mins(clip.start)} – ${mins(clip.end)} &nbsp;<span style="color:var(--text-dim);font-size:11px">${clip.duration.toFixed(0)}s</span></div>
           <div style="font-size:11px;color:var(--text-dim);margin-top:1px">Virality score: <strong style="color:var(--accent)">${score}%</strong></div>
@@ -3593,7 +3612,7 @@ function showClips(clips) {
       <div id="clip-preview-wrap-${clip.index}" style="display:none;margin-bottom:10px">
         <video id="clip-video-${clip.index}" controls playsinline
           src="/api/clip/${encodeURIComponent(clipJobId)}/video/${clip.index}"
-          style="width:100%;border-radius:8px;background:#000;max-height:260px;object-fit:contain;border:1px solid var(--border)">
+          style="width:100%;border-radius:8px;background:var(--bg);max-height:260px;object-fit:contain;border:1px solid var(--border)">
         </video>
       </div>
 
@@ -3601,9 +3620,9 @@ function showClips(clips) {
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn" style="background:var(--surface3);color:var(--text);padding:6px 14px;font-size:12px"
           onclick="toggleClipPreview(${clip.index})" id="clip-prev-btn-${clip.index}">▶ Preview</button>
-        <button class="btn" style="background:var(--accent);color:#000;padding:6px 14px;font-size:12px;flex:1"
+        <button class="btn" style="background:var(--accent);color:var(--bg);padding:6px 14px;font-size:12px;flex:1"
           onclick="postClip(${clip.index - 1})">📤 Post to TikTok</button>
-        <button class="btn" id="clip-yt-btn-${clip.index}" style="background:linear-gradient(135deg,#FF0000,#CC0000);color:#fff;padding:6px 14px;font-size:12px;display:none"
+        <button class="btn" id="clip-yt-btn-${clip.index}" style="background:linear-gradient(135deg,var(--brand-youtube),var(--brand-youtube-dk));color:var(--text-pri);padding:6px 14px;font-size:12px;display:none"
           onclick="uploadClipToYouTube(${clip.index - 1})">▶ YouTube Short</button>
         <button class="btn" style="background:var(--surface3);color:var(--text);padding:6px 14px;font-size:12px"
           onclick="scheduleClip(${clip.index - 1})">🗓 Schedule</button>
@@ -4298,7 +4317,7 @@ function setStudioMode(mode) {
   const bothBtn    = document.getElementById("mode-both-btn");
   const badge      = document.getElementById("mode-badge");
   const videoInfo  = document.getElementById("video-mode-info");
-  const activeCSS  = "background:var(--orange);border:none;color:#fff;";
+  const activeCSS  = "background:var(--orange);border:none;color:var(--text-pri);";
   const inactiveCSS= "background:transparent;border:none;color:var(--text-dim);";
 
   // Reset all three
@@ -4365,12 +4384,12 @@ async function checkDriveStatus() {
     const d = await r.json();
     if (d.configured) {
       badge.textContent = "✅ Connected";
-      badge.style.background = "rgba(34,197,94,0.12)";
-      badge.style.color = "#22c55e";
+      badge.style.background = "color-mix(in srgb, var(--green-hi) 12%, transparent)";
+      badge.style.color = "var(--green-hi)";
     } else {
       badge.textContent = "⚠️ Not configured";
-      badge.style.background = "rgba(255,179,64,0.12)";
-      badge.style.color = "#FFB340";
+      badge.style.background = "color-mix(in srgb, var(--yellow) 12%, transparent)";
+      badge.style.color = "var(--yellow)";
     }
   } catch(e) {
     badge.textContent = "— offline";
@@ -4438,7 +4457,7 @@ async function createDriveFolder() {
     if (guest) guest.assets_drive_url = data.folder_url;
 
     btn.textContent = "✅ Folder Created!";
-    btn.style.color = "#22c55e";
+    btn.style.color = "var(--green-hi)";
 
     // Open the folder
     window.open(data.folder_url, "_blank");
@@ -4469,10 +4488,10 @@ async function initSponsors() {
 let _allGuests = [];
 
 const GUEST_STATUS_META = {
-  prospect: { label: "Prospect",  emoji: "💡", color: "#A7B0C0" },
-  booked:   { label: "Booked",    emoji: "📅", color: "#2EA7FF" },
-  recorded: { label: "Recorded",  emoji: "🎙️", color: "#8B5CFF" },
-  aired:    { label: "Aired",     emoji: "✅", color: "#22c55e" },
+  prospect: { label: "Prospect",  emoji: "💡", color: "var(--text-sec)" },
+  booked:   { label: "Booked",    emoji: "📅", color: "var(--orange)" },
+  recorded: { label: "Recorded",  emoji: "🎙️", color: "var(--orange-hi)" },
+  aired:    { label: "Aired",     emoji: "✅", color: "var(--green-hi)" },
 };
 
 async function loadGuests() {
@@ -4530,16 +4549,16 @@ function renderGuests() {
     html += guests.map(g => {
       const hasEpLinks = g.episode_url_spotify || g.episode_url_youtube || g.episode_url_apple;
       const assetBtnStyle = g.status === "aired"
-        ? "background:linear-gradient(135deg,#22c55e,#2EA7FF);border:none;color:#fff;"
+        ? "background:linear-gradient(135deg,var(--green),var(--green-hi));border:none;color:var(--text-pri);"
         : "background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);";
       return `
       <div class="sponsor-card" style="margin-bottom:10px">
-        <div class="sponsor-logo-placeholder" style="background:${m.color}22;color:${m.color}">${m.emoji}</div>
+        <div class="sponsor-logo-placeholder" style="background:color-mix(in srgb, ${m.color} 13%, transparent);color:${m.color}">${m.emoji}</div>
         <div class="sponsor-info">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <span class="sponsor-name">${g.name}</span>
-            ${g.episode_number ? `<span style="font-size:10px;background:rgba(139,92,255,0.12);color:#8B5CFF;border-radius:10px;padding:2px 8px;font-weight:700">EP.${g.episode_number}</span>` : ""}
-            <span style="font-size:10px;background:${m.color}18;color:${m.color};border-radius:10px;padding:2px 8px;font-weight:700;text-transform:uppercase">${m.label}</span>
+            ${g.episode_number ? `<span style="font-size:10px;background:color-mix(in srgb, var(--orange-hi) 12%, transparent);color:var(--orange-hi);border-radius:10px;padding:2px 8px;font-weight:700">EP.${g.episode_number}</span>` : ""}
+            <span style="font-size:10px;background:color-mix(in srgb, ${m.color} 9%, transparent);color:${m.color};border-radius:10px;padding:2px 8px;font-weight:700;text-transform:uppercase">${m.label}</span>
           </div>
           <div class="sponsor-meta">
             ${g.email ? `<span>✉️ ${g.email}</span>` : ""}
@@ -4618,7 +4637,7 @@ function setExtractMode(mode) {
   const txtRow  = document.getElementById("g-extract-text-row");
   const urlBtn  = document.getElementById("g-extract-mode-url");
   const txtBtn  = document.getElementById("g-extract-mode-text");
-  const activeCSS   = "background:linear-gradient(135deg,#8B5CFF,#2EA7FF);color:#fff;";
+  const activeCSS   = "background:var(--grad);color:var(--text-pri);";
   const inactiveCSS = "background:transparent;color:var(--text-dim);";
   if (mode === "url") {
     urlRow.style.display = "flex";
@@ -4656,7 +4675,7 @@ function _applyExtractedGuest(data) {
   const filled = Object.entries(data).filter(([k,v]) => v && k !== "error" && k !== "raw").length;
   const status = document.getElementById("g-extract-status");
   status.style.display = "";
-  status.style.color   = "#22c55e";
+  status.style.color   = "var(--green-hi)";
   status.textContent   = `✅ Filled ${filled} field${filled !== 1 ? "s" : ""} — review and save.`;
 }
 
@@ -4745,7 +4764,7 @@ async function extractGuestFromUrl() {
     // Count what was filled
     const filled = Object.entries(data).filter(([k,v]) => v && k !== "error" && k !== "raw").length;
     status.textContent = `✅ Filled ${filled} field${filled !== 1 ? "s" : ""} — review and save.`;
-    status.style.color = "#22c55e";
+    status.style.color = "var(--green-hi)";
     btn.disabled = false; btn.textContent = "Extract";
 
   } catch(e) {
@@ -4916,7 +4935,7 @@ let _txPollTimers = {};
 function txDragOver(e) {
   e.preventDefault();
   document.getElementById("tx-drop-zone").style.borderColor = "var(--accent)";
-  document.getElementById("tx-drop-zone").style.background  = "rgba(46,167,255,0.04)";
+  document.getElementById("tx-drop-zone").style.background  = "color-mix(in srgb, var(--orange) 4%, transparent)";
 }
 function txDragLeave() {
   document.getElementById("tx-drop-zone").style.borderColor = "var(--border)";
@@ -5056,19 +5075,19 @@ function renderTranscriptions(items) {
     const isProcessing = t.status === "processing";
     const isError      = t.status === "error";
     const tagHtml      = (t.tags||[]).map(tag =>
-      `<span style="font-size:10px;background:rgba(139,92,255,0.12);color:#8B5CFF;border-radius:10px;padding:1px 7px">${tag}</span>`
+      `<span style="font-size:10px;background:color-mix(in srgb, var(--orange-hi) 12%, transparent);color:var(--orange-hi);border-radius:10px;padding:1px 7px">${tag}</span>`
     ).join(" ");
     const snippet = t._snippet ? `<div style="font-size:11px;color:var(--text-dim);margin-top:6px;font-style:italic;line-height:1.5">${t._snippet}</div>` : "";
     const summary = t.summary ? `<div style="font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.5">${t.summary}</div>` : "";
 
     return `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;${isError ? 'border-color:rgba(224,85,85,0.4)' : ''}">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;${isError ? 'border-color:color-mix(in srgb, var(--red) 40%, transparent)' : ''}">
       <div style="display:flex;align-items:flex-start;gap:10px">
         <div style="flex:1">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
             <div style="font-size:13px;font-weight:700;color:var(--text)">${t.title}</div>
-            ${isProcessing ? '<span style="font-size:10px;background:rgba(255,179,64,0.15);color:#FFB340;border-radius:10px;padding:1px 8px;animation:pulse 1.5s infinite">⏳ Processing</span>' : ''}
-            ${isError ? '<span style="font-size:10px;background:rgba(224,85,85,0.15);color:var(--red);border-radius:10px;padding:1px 8px">❌ Error</span>' : ''}
+            ${isProcessing ? '<span style="font-size:10px;background:color-mix(in srgb, var(--yellow) 15%, transparent);color:var(--yellow);border-radius:10px;padding:1px 8px;animation:pulse 1.5s infinite">⏳ Processing</span>' : ''}
+            ${isError ? '<span style="font-size:10px;background:color-mix(in srgb, var(--red) 15%, transparent);color:var(--red);border-radius:10px;padding:1px 8px">❌ Error</span>' : ''}
           </div>
           <div style="font-size:11px;color:var(--text-dim);margin-top:3px;display:flex;gap:12px;flex-wrap:wrap">
             ${t.source ? `<span>📂 ${t.source}</span>` : ''}
@@ -5094,12 +5113,12 @@ function renderTranscriptions(items) {
               style="background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">JSON</button>
           </div>
           <button onclick="viewTx('${t.id}')"
-            style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">
+            style="background:var(--accent);color:var(--bg);border:none;border-radius:6px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">
             View →
           </button>
           ` : ''}
           <button onclick="deleteTx('${t.id}', this)" title="Delete"
-            style="background:transparent;border:1px solid rgba(224,85,85,0.3);color:var(--red);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">✕</button>
+            style="background:transparent;border:1px solid color-mix(in srgb, var(--red) 30%, transparent);color:var(--red);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">✕</button>
         </div>
       </div>
     </div>`;
@@ -5161,7 +5180,7 @@ async function viewTx(id) {
         <button onclick="exportTx('${id}','txt')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">⬇ TXT</button>
         <button onclick="exportTx('${id}','srt')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">⬇ SRT</button>
         <button onclick="exportTx('${id}','md')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:6px 14px;font-size:12px;cursor:pointer">⬇ MD</button>
-        <button onclick="this.closest('[style*=fixed]').remove()" style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:700;cursor:pointer">Close</button>
+        <button onclick="this.closest('[style*=fixed]').remove()" style="background:var(--accent);color:var(--bg);border:none;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:700;cursor:pointer">Close</button>
       </div>
     </div>`;
   document.body.appendChild(modal);
@@ -5205,7 +5224,7 @@ async function uploadClipToYouTube(idx) {
     });
     const data = await res.json();
     if (data.ok) {
-      if (btn) { btn.textContent = "✅ Uploaded"; btn.style.background = "#22c55e"; }
+      if (btn) { btn.textContent = "✅ Uploaded"; btn.style.background = "var(--green-hi)"; }
       if (confirm(`✅ YouTube Short uploaded!\n\nView: ${data.url}\n\nOpen in browser?`)) {
         window.open(data.url, "_blank");
       }
@@ -5232,8 +5251,8 @@ async function checkYouTubeStatus() {
     if (d.authorized) {
       if (settingsBadge) {
         settingsBadge.textContent = "✅ Connected";
-        settingsBadge.style.background = "rgba(34,197,94,0.12)";
-        settingsBadge.style.color = "#22c55e";
+        settingsBadge.style.background = "color-mix(in srgb, var(--green-hi) 12%, transparent)";
+        settingsBadge.style.color = "var(--green-hi)";
       }
       if (connectBtn) connectBtn.style.display = "none";
       if (disconnectBtn) disconnectBtn.style.display = "";
@@ -5263,8 +5282,8 @@ async function checkYouTubeStatus() {
     } else {
       if (settingsBadge) {
         settingsBadge.textContent = d.configured ? "⚠️ Not connected" : "⚠️ Not configured";
-        settingsBadge.style.background = "rgba(255,179,64,0.12)";
-        settingsBadge.style.color = "#FFB340";
+        settingsBadge.style.background = "color-mix(in srgb, var(--yellow) 12%, transparent)";
+        settingsBadge.style.color = "var(--yellow)";
       }
       if (connectBtn) connectBtn.style.display = "";
       if (disconnectBtn) disconnectBtn.style.display = "none";
