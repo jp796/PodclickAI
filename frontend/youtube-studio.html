@@ -51,7 +51,7 @@
     .tab-btn { padding: 8px 22px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; letter-spacing: 0.05em; }
     .tab-btn.active { background: linear-gradient(135deg, var(--orange), var(--orange-hi)); color: var(--text-pri); }
     .tab-btn:not(.active) { color: var(--text-sec); background: var(--bg-card); border-color: var(--border); }
-    .tab-btn:not(.active):hover { color: var(--text-sec); $1var(--border-lit); }
+    .tab-btn:not(.active):hover { color: var(--text-sec); border-color: var(--border-lit); }
 
     /* Tool cards */
     .tool-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 14px; padding: 24px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
@@ -165,7 +165,7 @@
     @keyframes cfPop { from { transform:scale(.92); opacity:0; } to { transform:scale(1); opacity:1; } }
 
     /* Modal overlay */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(4px); }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); padding: 16px; }
     .modal-box { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 100%; max-width: 480px; }
 
     /* Coming soon badge */
@@ -179,7 +179,7 @@
     .sort-btn:hover { border-color: var(--orange); color: var(--text-pri); }
     .sort-btn.active { background: color-mix(in srgb, var(--orange) 15%, transparent); border-color: color-mix(in srgb, var(--orange) 50%, transparent); color: var(--orange); }
     .video-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s; }
-    .video-card:hover { $1var(--border-lit); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+    .video-card:hover { border-color: var(--border-lit); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
     .video-thumb-wrap { position: relative; padding-top: 56.25%; background: var(--bg-card); overflow: hidden; flex-shrink: 0; }
     .video-thumb-wrap img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; transition: transform 0.3s; }
     .video-card:hover .video-thumb-wrap img { transform: scale(1.03); }
@@ -219,7 +219,7 @@
       position: fixed;
       bottom: 24px;
       right: 24px;
-      $1var(--bg-raised);
+      background: var(--bg-raised);
       border: 1px solid var(--border-lit);
       border-left: 3px solid var(--orange);
       padding: 12px 16px;
@@ -241,6 +241,12 @@
     .nav-toggle a:hover { background:var(--bg-raised); color:var(--text-pri); }
     .nav-toggle a.active { background:var(--bg-panel); color:var(--orange); }
     .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
+
+    /* Hand-off to the agent hub (/agents) */
+    .crew-link { display:inline-flex; align-items:center; gap:4px; padding:4px 10px; border-radius:999px; border:1px solid var(--orange-dim); background:var(--orange-mist); color:var(--orange-hi); font:600 11px/1.2 var(--font-cond); letter-spacing:.06em; text-transform:uppercase; text-decoration:none; white-space:nowrap; transition:background .15s, border-color .15s; }
+    .crew-link:hover { background:var(--orange-glow); border-color:var(--orange); }
+    .crew-link:focus-visible { outline:2px solid var(--orange-hi); outline-offset:2px; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; gap:10px 16px; flex-wrap:wrap; }
   </style>
   <script src="/static/podclick-nav.js?v=20261002-1" defer></script>
 </head>
@@ -347,15 +353,18 @@
               </div>
               <div class="mt-4 flex flex-wrap gap-2">
                 <span class="tag-chip">Shoot Days</span>
-                <span class="tag-chip">Calendar Sync</span>
-                <span class="tag-chip">Reminders</span>
+                <span class="tag-chip">Topic Queue</span>
+                <span class="tag-chip">Today's Topic</span>
               </div>
             </div>
           </div>
 
           <!-- Content Scheduler panel -->
           <div id="scheduler-panel" class="hidden mb-6" style="background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:28px;">
-            <h3 class="font-bold text-white mb-5">Content Shoot Schedule</h3>
+            <div class="panel-head mb-5">
+              <h3 class="font-bold text-white">Content Shoot Schedule</h3>
+              <a class="crew-link" href="/agents">Now on The Crew &rarr;</a>
+            </div>
             <div class="mb-5">
               <label class="block text-xs font-semibold mb-3" style="color:var(--text-sec);">SELECT YOUR SHOOT DAYS</label>
               <div class="flex flex-wrap gap-2" id="shoot-days-row">
@@ -384,13 +393,16 @@
               <span id="scheduler-saved-msg" class="hidden text-sm" style="color:var(--green-hi);">&#10003; Saved!</span>
             </div>
             <div class="mt-4 p-3 rounded-lg text-xs" style="background:var(--bg-card); color:var(--text-sec);">
-              &#128161; <strong style="color:var(--orange);">Google Calendar sync</strong> coming soon — for now, your schedule is saved and we'll send shoot-day reminders via Telegram.
+              &#128161; <strong style="color:var(--orange);">Saved here, used in Studio.</strong> Your shoot days and topic queue are stored on this page, and the Studio pulls today's topic from the queue. No calendar sync or reminders are sent.
             </div>
           </div>
 
           <!-- Pillar Planner panel -->
           <div id="pillar-planner-panel" class="hidden mb-6" style="background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:28px;">
-            <h3 class="font-bold text-white mb-5">Pillar Planner</h3>
+            <div class="panel-head mb-5">
+              <h3 class="font-bold text-white">Pillar Planner</h3>
+              <a class="crew-link" href="/agents">Now on The Crew &rarr;</a>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
               <div>
                 <label class="block text-xs font-semibold mb-2" style="color:var(--text-sec);">YOUR MARKET</label>
@@ -1196,10 +1208,11 @@
 
         <!-- ── BOARD TAB ── -->
         <div id="pane-board" class="hidden">
-          <div style="background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:40px; text-align:center;">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="1.5" class="mx-auto mb-4"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-            <h3 class="font-semibold text-white mb-2">Studio Board</h3>
-            <p class="text-sm" style="color:var(--text-sec);">Your scheduled content will appear here.</p>
+          <div style="background:var(--bg-panel); border:1px solid var(--border); border-radius:16px; padding:32px; text-align:center;">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="1.75" class="mx-auto mb-4" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <h3 class="font-semibold mb-2" style="color:var(--text-pri);">Your scheduled content lives on the Calendar</h3>
+            <p class="text-sm mb-5" style="color:var(--text-sec); max-width:420px; margin-left:auto; margin-right:auto;">Posts you schedule, including the social posts created when an episode closes, show on the 30-day Calendar. One board to check.</p>
+            <a href="/calendar" class="btn-primary" style="display:inline-block; text-decoration:none;">Open the Calendar &rarr;</a>
           </div>
         </div>
 
@@ -1217,6 +1230,7 @@
       <div>
         <h2 class="font-bold text-white text-lg">Market Scout</h2>
         <p class="text-sm mt-0.5" style="color:var(--text-sec);">Market intelligence from real YouTube data</p>
+        <a class="crew-link mt-2" href="/agents">Now on The Crew &rarr;</a>
       </div>
       <button onclick="closeModalById('modal-competitor-spy')" style="color:var(--text-sec); background:none; border:none; cursor:pointer; font-size:20px; line-height:1;">×</button>
     </div>
@@ -1255,6 +1269,7 @@
       <div>
         <h2 class="font-bold text-white text-lg">Trend Radar</h2>
         <p class="text-sm mt-0.5" style="color:var(--text-sec);">Discover viral content opportunities</p>
+        <a class="crew-link mt-2" href="/agents">Now on The Crew &rarr;</a>
       </div>
       <button onclick="closeModalById('modal-topic-finder')" style="color:var(--text-sec); background:none; border:none; cursor:pointer; font-size:20px; line-height:1;">×</button>
     </div>
