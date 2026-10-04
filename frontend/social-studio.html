@@ -404,6 +404,147 @@
     }
     .crew-link:hover { border-color: var(--orange); background: var(--orange-glow); }
     .crew-link:focus-visible { outline: 2px solid var(--orange-hi); outline-offset: 2px; }
+    /* ===== Social Studio polish, design system v2 (tokens only) ===== */
+    .content-area { padding: var(--space-7) var(--space-6) var(--space-8); }
+    .tab-bar { gap: var(--space-1); }
+    .tab-bar button { display: inline-flex; align-items: center; gap: var(--space-2);
+      transition: color var(--dur-fast) ease, border-color var(--dur-fast) ease, background-color var(--dur-fast) ease; }
+    .tab-bar button .pc-i { opacity: .7; transition: opacity var(--dur-fast) ease; }
+    .tab-bar button:hover .pc-i, .tab-bar button.active .pc-i { opacity: 1; }
+    .tab-bar button:focus-visible { outline: none; box-shadow: inset 0 -2px 0 var(--orange-hi); background: var(--orange-mist); }
+
+    .section-heading { font: 700 24px/1.05 var(--font-display); letter-spacing: .04em; color: var(--text-pri);
+      text-transform: uppercase; margin-bottom: var(--space-2); }
+    .section-sub { color: var(--text-sec-hi); font-size: 14px; line-height: 1.55; max-width: 62ch; margin-bottom: var(--space-6); }
+    .panel-head { align-items: center; margin-bottom: var(--space-1); }
+    .crew-link { display: inline-flex; align-items: center; gap: var(--space-1); }
+
+    .forge-box { background: var(--bg-card); border: var(--hairline); border-radius: var(--radius-lg);
+      padding: var(--space-6); box-shadow: var(--shadow-card); margin-bottom: var(--space-6); }
+    .forge-box-title { display: flex; align-items: center; gap: var(--space-2); font: 600 10px/1 var(--font-mono);
+      letter-spacing: .16em; color: var(--text-sec-hi); margin-bottom: var(--space-5); }
+    .forge-box-title::before { content: ''; width: 14px; height: 2px; background: var(--orange); }
+
+    /* Entry-mode switch as a segmented control */
+    .mode-selector { display: inline-flex; gap: 2px; padding: 3px; background: var(--bg-inset); border: var(--hairline);
+      border-radius: var(--radius-md); margin-bottom: var(--space-5); }
+    .mode-btn { border: 0; border-radius: var(--radius-sm); background: transparent; padding: 8px 16px;
+      font: 600 13px/1 var(--font-cond); letter-spacing: .04em; color: var(--text-sec-hi);
+      transition: background-color var(--dur-fast) ease, color var(--dur-fast) ease; }
+    .mode-btn:hover { color: var(--text-pri); border-color: transparent; }
+    .mode-btn.active { background: var(--bg-raised); color: var(--text-pri); border-color: transparent;
+      box-shadow: inset 0 -2px 0 var(--orange), var(--shadow-card); }
+    .mode-btn:focus-visible, .tmpl-btn:focus-visible, .btn-sm:focus-visible, .btn-calendar:focus-visible,
+    .btn-primary:focus-visible, .modal-close:focus-visible, .clear-link:focus-visible { outline: none; box-shadow: var(--ring); }
+    .tmpl-btn { transition: border-color var(--dur-fast) ease, color var(--dur-fast) ease, background-color var(--dur-fast) ease; }
+    .tmpl-btn:active, .mode-btn:active, .btn-sm:active, .btn-calendar:active { transform: scale(.98); }
+
+    /* One primary CTA per panel */
+    .btn-primary { background: var(--grad-primary); border: 1px solid var(--orange-deep); color: var(--text-pri);
+      min-height: 46px; border-radius: var(--radius-md); font: 700 15px/1 var(--font-cond); letter-spacing: .06em;
+      text-transform: uppercase; text-decoration: none; margin-top: var(--space-5);
+      box-shadow: inset 0 1px 0 color-mix(in srgb, var(--text-pri) 18%, transparent), var(--shadow-card);
+      transition: background var(--dur-fast) ease, transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) ease; }
+    .btn-primary:hover { background: var(--grad-primary-hover); opacity: 1; transform: translateY(-1px); }
+    .btn-primary:active { transform: scale(.98); }
+    .btn-primary.is-busy { pointer-events: none; opacity: .7; }
+
+    .btn-sm { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; font-family: var(--font-cond);
+      font-size: 13px; letter-spacing: .03em; color: var(--text-sec-hi); background: var(--bg-raised); }
+    .btn-calendar { display: inline-flex; align-items: center; gap: var(--space-2); background: transparent;
+      border-color: var(--border-lit); color: var(--text-sec-hi); font-family: var(--font-cond); letter-spacing: .04em; }
+    .btn-calendar:hover { border-color: var(--orange); color: var(--orange-hi); background: var(--orange-mist); }
+
+    /* Output cards */
+    .output-grid { gap: var(--space-4); margin-top: var(--space-6); }
+    .platform-card { background: var(--bg-card); border: var(--hairline); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card); transition: border-color var(--dur-fast) ease, box-shadow var(--dur) ease; }
+    .platform-card:hover, .platform-card:focus-within { border-color: var(--border-hot); }
+    .platform-header { background: var(--bg-raised); padding: var(--space-3) var(--space-4); gap: var(--space-3); }
+    .platform-name { gap: var(--space-2); font: 700 14px/1 var(--font-cond); letter-spacing: .04em; }
+    .platform-meta { display: flex; align-items: center; gap: var(--space-2); }
+    .platform-body { padding: var(--space-4); }
+    .output-textarea { min-height: 168px; font-size: 13px; background: var(--bg-inset); }
+    .platform-footer { padding: var(--space-3) var(--space-4); flex-wrap: wrap; align-items: center; }
+    .char-badge { font-family: var(--font-mono); letter-spacing: .02em; }
+    .char-count { margin-left: auto; font: 500 11px/1 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-sec-hi); }
+    .char-count.is-near { color: var(--yellow); }
+    .char-count.is-over { color: var(--red-hi); }
+
+    /* Platform marks: neutral labeled chips, no brand art */
+    .plat-mark { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+      width: 26px; height: 26px; border-radius: var(--radius-sm); background: var(--bg-inset);
+      border: 1px solid var(--border-lit); border-top: 2px solid var(--plat, var(--orange));
+      font: 700 11px/1 var(--font-mono); letter-spacing: -.02em; color: var(--text-pri); text-transform: none; }
+    .plat-mark--lg { width: 40px; height: 40px; font-size: 14px; border-radius: var(--radius-md); }
+    .plat-mark[data-plat="linkedin"], .plat-mark[data-plat="facebook"] { --plat: var(--blue-hi); }
+    .plat-mark[data-plat="instagram"] { --plat: var(--purple-hi); }
+    .plat-mark[data-plat="x"] { --plat: var(--text-pri); }
+    .plat-mark[data-plat="tiktok"] { --plat: var(--red-hi); }
+
+    /* Generating state: skeleton cards that mirror the result grid */
+    .ss-loading { margin-top: var(--space-6); }
+    .ss-loading-label { display: flex; align-items: center; gap: var(--space-3); color: var(--text-sec-hi);
+      font: 600 13px/1 var(--font-cond); letter-spacing: .04em; margin-bottom: var(--space-4); }
+    .ss-skel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+    .ss-skel-card { background: var(--bg-card); border: var(--hairline); border-radius: var(--radius-lg); padding: var(--space-4);
+      display: flex; flex-direction: column; gap: var(--space-3); }
+    @media (max-width: 700px) { .ss-skel-grid { grid-template-columns: 1fr; } }
+
+    /* Foundation-not-ready empty state + thin banner */
+    .ss-empty { margin-top: var(--space-6); text-align: center; }
+    .ss-empty h3 { font: 700 20px/1.15 var(--font-display); letter-spacing: .04em; text-transform: uppercase; color: var(--text-pri); }
+    .ss-empty p { color: var(--text-sec-hi); max-width: 52ch; margin: var(--space-2) auto 0; line-height: 1.6; font-size: 14px; }
+    .ss-empty .ss-empty-actions { display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap; margin-top: var(--space-5); }
+    .ss-banner { display: flex; align-items: flex-start; gap: var(--space-3); margin-top: var(--space-4);
+      padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); font-size: 13px; line-height: 1.5; }
+    .ss-banner--warn { background: color-mix(in srgb, var(--yellow) 8%, transparent);
+      border: 1px solid color-mix(in srgb, var(--yellow) 30%, transparent); color: var(--text-pri); }
+    .ss-banner--warn > .pc-i { color: var(--yellow); margin-top: 2px; }
+    .ss-banner a { color: var(--yellow); font-weight: 600; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+
+    /* Hashtags + angles */
+    .hash-card, .angle-card, .conn-card { background: var(--bg-card); border: var(--hairline); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card); padding: var(--space-5); }
+    .hash-card-title, .angle-summary, .conn-name { font-family: var(--font-cond); letter-spacing: .02em; }
+    .hash-card-title { font-size: 15px; display: flex; align-items: center; gap: var(--space-2); }
+    .angle-summary { font-size: 16px; }
+    .angle-text { background: var(--bg-inset); }
+
+    /* Connections */
+    .conn-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    /* Toast */
+    #ss-toast { display: flex; align-items: center; gap: var(--space-2); background: var(--bg-raised); border: var(--hairline);
+      border-left: 3px solid var(--orange); color: var(--text-pri); box-shadow: var(--shadow-pop); border-radius: var(--radius-md);
+      transform: translateY(8px); transition: opacity var(--dur) ease, transform var(--dur) var(--ease-out); }
+    #ss-toast.show { transform: none; }
+    #ss-toast.info { background: var(--bg-raised); border-color: var(--border); border-left-color: var(--blue-hi); color: var(--text-pri); }
+    #ss-toast.success { background: var(--bg-raised); border-color: var(--border); border-left-color: var(--green-hi); color: var(--text-pri); }
+    #ss-toast.error { background: var(--bg-raised); border-color: var(--border); border-left-color: var(--red-hi); color: var(--text-pri); }
+    #ss-toast.success .pc-i, #ss-toast.success svg { color: var(--green-hi); }
+    #ss-toast.error .pc-i, #ss-toast.error svg { color: var(--red-hi); }
+
+    /* Modal */
+    .modal { background: var(--bg-card); border: var(--hairline); border-top: 3px solid var(--orange); border-radius: var(--radius-lg); box-shadow: var(--shadow-pop); }
+    .modal-title { display: inline-flex; align-items: center; gap: var(--space-2); font: 700 18px/1 var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+    .modal-close { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--radius-sm); }
+    .modal-close:hover { background: var(--bg-raised); }
+    .moved-panel .section-heading { font-size: 20px; }
+    .moved-cta { gap: var(--space-2); margin-top: 0; }
+    .setup-step { display: inline-flex; align-items: center; gap: 4px; }
+
+    @media (max-width: 600px) {
+      .content-area { padding: var(--space-5) var(--space-4) var(--space-8); }
+      .tab-bar { padding: 0 var(--space-2); }
+      .section-heading { font-size: 22px; }
+      .mode-selector { display: flex; width: 100%; }
+      .mode-btn { flex: 1; padding: 9px 6px; }
+      .forge-box { padding: var(--space-5) var(--space-4); }
+      .conn-grid { grid-template-columns: 1fr; }
+      .conn-note-box code, .forge-box code { word-break: break-all; }
+      #ss-toast { left: var(--space-4); right: var(--space-4); max-width: none; }
+    }
   </style>
   <script src="/static/podclick-nav.js?v=20261004-1" defer></script>
 </head>
@@ -419,12 +560,12 @@
 
 <!-- ── Tab bar ────────────────────────────────────────────────────── -->
 <div class="tab-bar pc-subtabs" role="group" aria-label="Social Studio tools">
-  <button class="active" data-tab="forge" onclick="switchPanel('forge')">✍️ Draftsman</button>
-  <button data-tab="calendar" onclick="switchPanel('calendar')">📅 Content Calendar</button>
-  <button data-tab="hashtags" onclick="switchPanel('hashtags')">🏷️ Hashtag Lab</button>
-  <button data-tab="repurpose" onclick="switchPanel('repurpose')">♻️ Repurpose Hub</button>
-  <button data-tab="connections" onclick="switchPanel('connections')">🔗 Connections</button>
-  <button data-tab="recorder" onclick="switchPanel('recorder')">🎬 Screen Recorder</button>
+  <button class="active" data-tab="forge" onclick="switchPanel('forge')"><i class="pc-i" data-i="pen-line"></i> Draftsman</button>
+  <button data-tab="calendar" onclick="switchPanel('calendar')"><i class="pc-i" data-i="calendar-days"></i> Content Calendar</button>
+  <button data-tab="hashtags" onclick="switchPanel('hashtags')"><i class="pc-i" data-i="tag"></i> Hashtag Lab</button>
+  <button data-tab="repurpose" onclick="switchPanel('repurpose')"><i class="pc-i" data-i="recycle"></i> Repurpose Hub</button>
+  <button data-tab="connections" onclick="switchPanel('connections')"><i class="pc-i" data-i="link"></i> Connections</button>
+  <button data-tab="recorder" onclick="switchPanel('recorder')"><i class="pc-i" data-i="clapperboard"></i> Screen Recorder</button>
 </div>
 
 <!-- ── Content area ───────────────────────────────────────────────── -->
@@ -436,7 +577,7 @@
   <div id="panel-forge" class="panel active">
     <div class="panel-head">
       <p class="section-heading">Draftsman</p>
-      <a href="/agents" class="crew-link">Now on The Crew →</a>
+      <a href="/agents" class="crew-link">Now on The Crew <i class="pc-i" data-i="arrow-right"></i></a>
     </div>
     <p class="section-sub">Generate platform-ready posts for LinkedIn, Facebook, Instagram, and X.</p>
 
@@ -454,7 +595,7 @@
       <textarea id="forge-topic" rows="3" placeholder="e.g. Why now is still a great time to buy in Springfield despite rising rates..."></textarea>
       <label for="forge-market">Your market / city</label>
       <input type="text" id="forge-market" placeholder="e.g. Springfield, MO" />
-      <button class="btn-primary" onclick="runForge()">⚡ Generate Posts</button>
+      <button class="btn-primary" onclick="runForge()"><i class="pc-i" data-i="sparkles"></i> Generate Posts</button>
     </div>
 
     <!-- Mode: From Episode -->
@@ -468,7 +609,7 @@
       <input type="text" id="forge-ep-topic" placeholder="e.g. Lead generation, seller motivation" />
       <label for="forge-ep-market">Market / City</label>
       <input type="text" id="forge-ep-market" placeholder="e.g. Springfield, MO" />
-      <button class="btn-primary" onclick="runForge()">⚡ Generate Posts</button>
+      <button class="btn-primary" onclick="runForge()"><i class="pc-i" data-i="sparkles"></i> Generate Posts</button>
     </div>
 
     <!-- Mode: From Template -->
@@ -528,47 +669,37 @@
         <input type="text" id="tmpl-tw-market" placeholder="e.g. Springfield, MO" />
       </div>
 
-      <button class="btn-primary" onclick="runForge()">⚡ Generate Posts</button>
+      <button class="btn-primary" onclick="runForge()"><i class="pc-i" data-i="sparkles"></i> Generate Posts</button>
     </div>
 
     <!-- Foundation empty-state (hidden until forge detects not_ready) -->
-    <div id="forge-empty-state" class="hidden" style="
-      background:color-mix(in srgb, var(--red) 8%, transparent); border:1px solid color-mix(in srgb, var(--red) 25%, transparent);
-      border-radius:10px; padding:20px 24px; margin-top:16px;">
-      <div style="font-size:14px; font-weight:700; color:var(--red); margin-bottom:6px;">
-        Foundation not set. Brick can't write in your voice until he knows your voice.
+    <div id="forge-empty-state" class="hidden empty-state ss-empty" role="status">
+      <div class="empty-state__icon"><i class="pc-i" data-i="brick-wall"></i></div>
+      <h3>Pour the foundation first</h3>
+      <p>Brick can't write in your voice until he knows your voice. Pour at least 5 voice samples (a quick interview,
+        a past post, or a voice memo) and every draft will sound like you.</p>
+      <div class="ss-empty-actions">
+        <a href="/foundation" class="pc-btn pc-btn--primary"><i class="pc-i" data-i="brick-wall"></i> Pour the foundation <i class="pc-i" data-i="arrow-right"></i></a>
       </div>
-      <div style="font-size:13px; color:var(--text-sec); line-height:1.6; margin-bottom:14px;">
-        Pour at least 5 voice samples — a quick interview, a past post, or a voice memo — and Brick will
-        generate posts that actually sound like you.
-      </div>
-      <a href="/foundation" style="
-        display:inline-block; padding:9px 18px; border-radius:8px;
-        background:linear-gradient(135deg,var(--orange),var(--orange-hi));
-        color: var(--text-pri); font-weight:800; font-size:13px; text-decoration:none;">
-        Pour the foundation →
-      </a>
     </div>
 
     <!-- Thin-foundation warning (shown when sample_count is 5–14) -->
-    <div id="forge-thin-warning" class="hidden" style="
-      background:color-mix(in srgb, var(--yellow) 8%, transparent); border:1px solid color-mix(in srgb, var(--yellow) 25%, transparent);
-      border-radius:8px; padding:10px 16px; margin-top:12px;
-      font-size:12px; color:var(--yellow); font-weight:600;">
-      ⚠ Foundation is thin — Brick will write in your voice but results sharpen with more samples.
-      <a href="/foundation" style="color:var(--yellow); margin-left:6px;">Add more →</a>
+    <div id="forge-thin-warning" class="hidden ss-banner ss-banner--warn" role="status">
+      <i class="pc-i" data-i="triangle-alert"></i>
+      <span><strong>Foundation is thin.</strong> Brick writes in your voice, and drafts sharpen as you pour more samples.
+        <a href="/foundation">Add more <i class="pc-i" data-i="arrow-right"></i></a></span>
     </div>
 
     <!-- Output area -->
     <div id="forge-output" class="hidden">
-      <div id="forge-loading" class="spinner-wrap hidden">
-        <div class="spinner"></div>
-        Writing your posts...
+      <div id="forge-loading" class="ss-loading hidden" aria-live="polite">
+        <div class="ss-loading-label"><span class="pc-spinner" aria-hidden="true"></span> Brick is drafting your posts…</div>
+        <div class="ss-skel-grid" aria-hidden="true"><div class="ss-skel-card"><div class="pc-skeleton pc-skeleton--title"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--block"></div></div><div class="ss-skel-card"><div class="pc-skeleton pc-skeleton--title"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--block"></div></div><div class="ss-skel-card"><div class="pc-skeleton pc-skeleton--title"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--block"></div></div><div class="ss-skel-card"><div class="pc-skeleton pc-skeleton--title"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--block"></div></div></div>
       </div>
       <div id="forge-results" class="hidden">
         <div class="output-grid" id="forge-platform-grid"></div>
         <div style="margin-top:16px;">
-          <button class="btn-calendar" onclick="openCalendarModal(null)">📅 Add to Calendar</button>
+          <button class="btn-calendar" onclick="openCalendarModal(null)"><i class="pc-i" data-i="calendar"></i> Add to Calendar</button>
         </div>
       </div>
     </div>
@@ -583,7 +714,7 @@
       <p class="section-heading">Scheduling lives on the Content Board</p>
       <p class="section-sub">One calendar runs the whole site: plan 30 days, auto-generate posts from your Blueprint, and close them out to your connected channels through GoHighLevel. This tab used to keep a separate 7-day list that never published, so it's retired.</p>
       <div class="moved-actions">
-        <a href="/calendar" class="btn-primary moved-cta">Open the Content Board →</a>
+        <a href="/calendar" class="btn-primary moved-cta">Open the Content Board <i class="pc-i" data-i="arrow-right"></i></a>
       </div>
     </div>
   </div>
@@ -606,12 +737,12 @@
           <input type="text" id="hash-niche" placeholder="e.g. First-time buyers, Luxury homes, Investors" />
         </div>
       </div>
-      <button class="btn-primary" onclick="generateHashtags()">🏷️ Generate Hashtag Sets</button>
+      <button class="btn-primary" onclick="generateHashtags()"><i class="pc-i" data-i="tag"></i> Generate Hashtag Sets</button>
     </div>
 
-    <div id="hash-loading" class="spinner-wrap hidden">
-      <div class="spinner"></div>
-      Building your hashtag sets...
+    <div id="hash-loading" class="ss-loading hidden" aria-live="polite">
+      <div class="ss-loading-label"><span class="pc-spinner" aria-hidden="true"></span> Building your hashtag sets…</div>
+      <div class="ss-skel-grid" aria-hidden="true"><div class="ss-skel-card"><div class="pc-skeleton pc-skeleton--title"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--block"></div></div><div class="ss-skel-card"><div class="pc-skeleton pc-skeleton--title"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--block"></div></div><div class="ss-skel-card"><div class="pc-skeleton pc-skeleton--title"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--block"></div></div><div class="ss-skel-card"><div class="pc-skeleton pc-skeleton--title"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--block"></div></div></div>
     </div>
 
     <div id="hash-output" class="hidden">
@@ -626,7 +757,7 @@
   <div id="panel-repurpose" class="panel">
     <div class="panel-head">
       <p class="section-heading">Repurpose Hub</p>
-      <a href="/agents" class="crew-link">Now on The Crew →</a>
+      <a href="/agents" class="crew-link">Now on The Crew <i class="pc-i" data-i="arrow-right"></i></a>
     </div>
     <p class="section-sub">Paste a YouTube URL or transcript to extract 5 social post angles.</p>
 
@@ -637,12 +768,12 @@
       <textarea id="repurpose-transcript" rows="6" placeholder="Paste your transcript or video description here..."></textarea>
       <label for="repurpose-market" style="margin-top:14px;">Your market / city</label>
       <input type="text" id="repurpose-market" placeholder="e.g. Springfield, MO" />
-      <button class="btn-primary" onclick="runRepurpose()">♻️ Extract Post Angles</button>
+      <button class="btn-primary" onclick="runRepurpose()"><i class="pc-i" data-i="recycle"></i> Extract Post Angles</button>
     </div>
 
-    <div id="repurpose-loading" class="spinner-wrap hidden">
-      <div class="spinner"></div>
-      Analyzing content...
+    <div id="repurpose-loading" class="ss-loading hidden" aria-live="polite">
+      <div class="ss-loading-label"><span class="pc-spinner" aria-hidden="true"></span> Pulling post angles from your content…</div>
+      <div class="ss-skel-grid" style="grid-template-columns:1fr" aria-hidden="true"><div class="ss-skel-card"><div class="pc-skeleton pc-skeleton--title"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--block"></div></div><div class="ss-skel-card"><div class="pc-skeleton pc-skeleton--title"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--block"></div></div><div class="ss-skel-card"><div class="pc-skeleton pc-skeleton--title"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--text"></div><div class="pc-skeleton pc-skeleton--block"></div></div></div>
     </div>
 
     <div id="repurpose-output" class="hidden">
@@ -675,8 +806,8 @@
       </div>
       <div class="conn-note-box" style="margin-top:14px;">
         <strong>Redirect URIs to register:</strong><br>
-        Facebook App → Valid OAuth Redirect URIs: <code>http://localhost:8765/api/social/meta/callback</code><br>
-        LinkedIn App → Authorized Redirect URLs: <code>http://localhost:8765/api/social/linkedin/callback</code>
+        <span class="setup-step">Facebook App <i class="pc-i" data-i="chevron-right"></i> Valid OAuth Redirect URIs:</span>  <code>http://localhost:8765/api/social/meta/callback</code><br>
+        <span class="setup-step">LinkedIn App <i class="pc-i" data-i="chevron-right"></i> Authorized Redirect URLs:</span> <code>http://localhost:8765/api/social/linkedin/callback</code>
       </div>
     </div>
   </div>
@@ -690,7 +821,7 @@
       <p class="section-heading">Record in the Studio</p>
       <p class="section-sub">The Studio records your screen or camera and turns the take into a Project, so it gets transcribed, cut, and shipped like every other build. This tab only downloaded a file, so it's retired.</p>
       <div class="moved-actions">
-        <a href="/studio" class="btn-primary moved-cta">Open the Studio →</a>
+        <a href="/studio" class="btn-primary moved-cta">Open the Studio <i class="pc-i" data-i="arrow-right"></i></a>
       </div>
       <p class="moved-note">Need a quick capture on any page? Use the floating record button in the corner.</p>
     </div>
@@ -702,8 +833,8 @@
 <div id="cal-modal" class="modal-overlay">
   <div class="modal">
     <div class="modal-header">
-      <span class="modal-title">📅 Add Post to Calendar</span>
-      <button class="modal-close" onclick="closeCalendarModal()">×</button>
+      <span class="modal-title"><i class="pc-i" data-i="calendar"></i> Add Post to Calendar</span>
+      <button class="modal-close" onclick="closeCalendarModal()" aria-label="Close"><i class="pc-i" data-i="x"></i></button>
     </div>
     <label for="cal-modal-title">Post Title / Summary</label>
     <input type="text" id="cal-modal-title" placeholder="e.g. Just Listed — Oak Street" />
@@ -747,12 +878,39 @@ let _ghlAccounts = [];
 
 const DAY_NAMES = { Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday', Fri:'Friday', Sat:'Saturday', Sun:'Sunday' };
 const PLATFORMS = [
-  { key: 'linkedin',  label: 'LinkedIn',  icon: '💼', chars: '150-200 words',      ghlPlatform: 'linkedin' },
-  { key: 'facebook',  label: 'Facebook',  icon: '📘', chars: '100-150 words',      ghlPlatform: 'facebook' },
-  { key: 'instagram', label: 'Instagram', icon: '📸', chars: '3 lines + hashtags', ghlPlatform: 'instagram' },
-  { key: 'x',         label: 'X',         icon: '✖', chars: '< 280 chars',         ghlPlatform: null },
-  { key: 'tiktok',    label: 'TikTok',    icon: '🎵', chars: 'hook + 3 lines + hashtags', ghlPlatform: 'tiktok' },
+  { key: 'linkedin',  label: 'LinkedIn',  chars: '150-200 words',      limit: 3000, ghlPlatform: 'linkedin' },
+  { key: 'facebook',  label: 'Facebook',  chars: '100-150 words',      limit: 0,    ghlPlatform: 'facebook' },
+  { key: 'instagram', label: 'Instagram', chars: '3 lines + hashtags', limit: 2200, ghlPlatform: 'instagram' },
+  { key: 'x',         label: 'X',         chars: '< 280 chars',        limit: 280,  ghlPlatform: null },
+  { key: 'tiktok',    label: 'TikTok',    chars: 'hook + 3 lines + hashtags', limit: 2200, ghlPlatform: 'tiktok' },
 ];
+
+/* Neutral platform marks (labeled monogram chips, no brand art). */
+const PLAT_MARKS = { linkedin: 'in', facebook: 'f', instagram: 'IG', x: 'X', tiktok: 'TT' };
+function platMark(key, label, size) {
+  const k = String(key || '').toLowerCase();
+  const txt = PLAT_MARKS[k] || String(label || k).slice(0, 2);
+  return '<span class="plat-mark' + (size === 'lg' ? ' plat-mark--lg' : '') + '" data-plat="' + escHtml(k) +
+    '" aria-hidden="true">' + escHtml(txt) + '</span>';
+}
+
+/* Icon markup: inline SVG when pc-icons.js is loaded, else a placeholder it mounts later. */
+function ssIcon(name) {
+  try { if (window.PodClickIcons) return window.PodClickIcons.svg(name); } catch (e) {}
+  return '<i class="pc-i" data-i="' + name + '"></i>';
+}
+function setBtnLabel(btn, icon, text) { btn.innerHTML = (icon ? ssIcon(icon) + ' ' : '') + escHtml(text); }
+function flashBtn(btn, icon, text, ms) {
+  if (!btn._ssOrig) btn._ssOrig = btn.innerHTML;
+  setBtnLabel(btn, icon, text);
+  clearTimeout(btn._ssT);
+  btn._ssT = setTimeout(() => { btn.innerHTML = btn._ssOrig; btn._ssOrig = null; }, ms || 2000);
+}
+function updateCharCount(el, len, limit) {
+  el.textContent = limit ? (len.toLocaleString() + ' / ' + limit.toLocaleString()) : (len.toLocaleString() + ' chars');
+  el.classList.toggle('is-over', !!limit && len > limit);
+  el.classList.toggle('is-near', !!limit && len <= limit && len > limit * 0.9);
+}
 
 /* ─── Utility ───────────────────────────────────────────────────── */
 function escHtml(str) {
@@ -767,7 +925,8 @@ let _toastTimer = null;
 function ssToast(msg, kind = 'info') {
   const el = document.getElementById('ss-toast');
   el.className = kind;
-  el.textContent = msg;
+  const icon = kind === 'success' ? 'circle-check' : kind === 'error' ? 'circle-alert' : 'info';
+  el.innerHTML = ssIcon(icon) + '<span>' + escHtml(msg) + '</span>';
   el.classList.add('show');
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
@@ -908,7 +1067,7 @@ async function runForge() {
     const data = await res.json();
     loadingDiv.classList.add('hidden');
 
-    // Foundation gate: not_ready → show empty state
+    // Foundation gate: not_ready shows the empty state
     if (res.status === 422 && data.foundation_not_ready) {
       outputDiv.classList.add('hidden');
       emptyState.classList.remove('hidden');
@@ -953,18 +1112,21 @@ function renderForgeOutput(data) {
     header.className = 'platform-header';
     header.innerHTML = `
       <div class="platform-name">
-        <span class="plat-icon">${plat.icon}</span>
+        ${platMark(plat.key, plat.label)}
         ${escHtml(plat.label)}
       </div>
-      <span class="char-badge">${escHtml(plat.chars)}</span>
+      <div class="platform-meta"><span class="char-badge" title="Target length">${escHtml(plat.chars)}</span></div>
     `;
 
     const body = document.createElement('div');
     body.className = 'platform-body';
+    body.setAttribute('data-ai-output', '');
     const ta = document.createElement('textarea');
     ta.className = 'output-textarea';
-    ta.value = content || `[${plat.label} post will appear here]`;
+    ta.value = content || '';
+    ta.placeholder = 'Brick returned nothing for ' + plat.label + '. Write it here or regenerate.';
     ta.setAttribute('spellcheck', 'false');
+    ta.setAttribute('aria-label', plat.label + ' post');
     body.appendChild(ta);
 
     const footer = document.createElement('div');
@@ -972,7 +1134,7 @@ function renderForgeOutput(data) {
 
     const copyBtn = document.createElement('button');
     copyBtn.className = 'btn-sm accent';
-    copyBtn.textContent = 'Copy';
+    setBtnLabel(copyBtn, 'copy', 'Copy');
     copyBtn.dataset.text = content;
     copyBtn.addEventListener('click', () => {
       const textToCopy = ta.value;
@@ -984,13 +1146,12 @@ function renderForgeOutput(data) {
         document.execCommand('copy');
         document.body.removeChild(tempTa);
       });
-      copyBtn.textContent = '✓ Copied!';
-      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+      flashBtn(copyBtn, 'check', 'Copied');
     });
 
     const calBtn = document.createElement('button');
     calBtn.className = 'btn-sm';
-    calBtn.textContent = '📅 Schedule';
+    setBtnLabel(calBtn, 'calendar', 'Schedule');
     calBtn.addEventListener('click', () => {
       openCalendarModal({ platform: plat.label, content: ta.value });
     });
@@ -1003,10 +1164,17 @@ function renderForgeOutput(data) {
     if (ghlAccount) {
       const ghlBtn = document.createElement('button');
       ghlBtn.className = 'btn-sm ghl-btn';
-      ghlBtn.textContent = '⚡ Send to GHL';
+      setBtnLabel(ghlBtn, 'send', 'Send to GHL');
       ghlBtn.addEventListener('click', () => sendToGHL(ghlAccount.id, ta.value, ghlBtn));
       footer.appendChild(ghlBtn);
     }
+
+    const counter = document.createElement('span');
+    counter.className = 'char-count';
+    counter.setAttribute('aria-live', 'polite');
+    updateCharCount(counter, ta.value.length, plat.limit);
+    ta.addEventListener('input', () => updateCharCount(counter, ta.value.length, plat.limit));
+    footer.appendChild(counter);
 
     card.appendChild(header);
     card.appendChild(body);
@@ -1162,6 +1330,7 @@ function renderHashtags(data) {
 
     const chips = document.createElement('div');
     chips.className = 'chips';
+    chips.setAttribute('data-ai-output', '');
     tags.forEach(tag => {
       const chip = document.createElement('span');
       chip.className = 'chip';
@@ -1174,12 +1343,12 @@ function renderHashtags(data) {
 
     const copyAllBtn = document.createElement('button');
     copyAllBtn.className = 'btn-sm accent';
-    copyAllBtn.textContent = 'Copy All';
+    setBtnLabel(copyAllBtn, 'copy', 'Copy All');
     copyAllBtn.addEventListener('click', () => copyHashtagSet(tags, 'space', copyAllBtn));
 
     const copyIgBtn = document.createElement('button');
     copyIgBtn.className = 'btn-sm';
-    copyIgBtn.textContent = 'Copy for Instagram';
+    copyIgBtn.innerHTML = platMark('instagram', 'Instagram') + ' Copy for Instagram';
     copyIgBtn.addEventListener('click', () => copyHashtagSet(tags, 'newline', copyIgBtn));
 
     actions.appendChild(copyAllBtn);
@@ -1203,9 +1372,7 @@ function copyHashtagSet(tags, format, btn) {
     document.execCommand('copy');
     document.body.removeChild(ta);
   });
-  const orig = btn.textContent;
-  btn.textContent = '✓ Copied!';
-  setTimeout(() => { btn.textContent = orig; }, 2000);
+  flashBtn(btn, 'check', 'Copied');
 }
 
 function clearHashtags() {
@@ -1273,10 +1440,12 @@ function renderRepurposeOutput(data) {
     const badge = document.createElement('span');
     badge.className = 'plat-badge';
     badge.textContent = plat;
+    header.insertAdjacentHTML('afterbegin', platMark(String(plat).toLowerCase(), plat));
     header.appendChild(badge);
 
     const sum = document.createElement('span');
     sum.className = 'angle-summary';
+    sum.setAttribute('data-ai-output', '');
     sum.textContent = summary;
     header.appendChild(sum);
 
@@ -1290,7 +1459,7 @@ function renderRepurposeOutput(data) {
 
     const copyBtn = document.createElement('button');
     copyBtn.className = 'btn-sm accent';
-    copyBtn.textContent = 'Copy';
+    setBtnLabel(copyBtn, 'copy', 'Copy');
     copyBtn.addEventListener('click', () => {
       const text = ta.value;
       navigator.clipboard.writeText(text).catch(() => {
@@ -1301,13 +1470,12 @@ function renderRepurposeOutput(data) {
         document.execCommand('copy');
         document.body.removeChild(tempTa);
       });
-      copyBtn.textContent = '✓ Copied!';
-      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+      flashBtn(copyBtn, 'check', 'Copied');
     });
 
     const schedBtn = document.createElement('button');
     schedBtn.className = 'btn-sm';
-    schedBtn.textContent = '📅 Schedule';
+    setBtnLabel(schedBtn, 'calendar', 'Schedule');
     schedBtn.addEventListener('click', () => {
       openCalendarModal({ platform: plat, content: ta.value, title: summary });
     });
@@ -1322,7 +1490,8 @@ function renderRepurposeOutput(data) {
   });
 
   if (angles.length === 0) {
-    list.innerHTML = '<p class="text-muted" style="padding:20px 0;">No angles returned. Try providing more content.</p>';
+    list.innerHTML = '<div class="empty-state ss-empty"><div class="empty-state__icon">' + ssIcon('recycle') +
+      '</div><h3>No angles in that one</h3><p>Brick could not pull usable angles. Paste a longer transcript or a different video and run it again.</p></div>';
   }
 }
 
@@ -1339,8 +1508,8 @@ async function loadGHLAccounts() {
 }
 
 async function sendToGHL(accountId, content, btn) {
-  const orig = btn.textContent;
-  btn.textContent = 'Sending…';
+  const orig = btn.innerHTML;
+  setBtnLabel(btn, 'loader-circle', 'Sending…');
   btn.disabled = true;
   try {
     const res = await fetch('/api/social/ghl/publish', {
@@ -1350,13 +1519,13 @@ async function sendToGHL(accountId, content, btn) {
     });
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error || 'GHL error');
-    btn.textContent = '✅ In GHL!';
+    setBtnLabel(btn, 'circle-check', 'In GHL');
     ssToast('Saved to GHL Social Planner as draft', 'success');
-    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+    setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 3000);
   } catch (err) {
-    btn.textContent = '❌ Failed';
+    setBtnLabel(btn, 'circle-x', 'Failed');
     ssToast('GHL error: ' + err.message, 'error');
-    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 3000);
+    setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 3000);
   }
 }
 
@@ -1382,7 +1551,6 @@ function renderConnections() {
   const platforms = [
     {
       key: 'facebook',
-      logo: '📘',
       name: 'Facebook',
       note: 'Posts to your selected Facebook Page',
       authUrl: '/api/social/meta/auth',
@@ -1391,7 +1559,6 @@ function renderConnections() {
     },
     {
       key: 'instagram',
-      logo: '📸',
       name: 'Instagram',
       note: 'Connected via Facebook — image posts only (captions copied)',
       authUrl: '/api/social/meta/auth',
@@ -1400,7 +1567,6 @@ function renderConnections() {
     },
     {
       key: 'linkedin',
-      logo: '💼',
       name: 'LinkedIn',
       note: 'Posts text updates to your LinkedIn profile',
       authUrl: '/api/social/linkedin/auth',
@@ -1409,7 +1575,6 @@ function renderConnections() {
     },
     {
       key: 'tiktok',
-      logo: '🎵',
       name: 'TikTok',
       note: 'Video clips posted from Clip Studio — captions copied here',
       authUrl: '/api/tiktok/auth',
@@ -1427,7 +1592,7 @@ function renderConnections() {
 
     const header = document.createElement('div');
     header.className = 'conn-header';
-    header.innerHTML = `<div class="conn-logo">${plat.logo}</div>
+    header.innerHTML = `${platMark(plat.key, plat.name, 'lg')}
       <div class="conn-info">
         <div class="conn-name">${escHtml(plat.name)}</div>
         <div class="conn-note">${escHtml(plat.note)}</div>
@@ -1480,7 +1645,7 @@ function renderConnections() {
     if (!connected) {
       const connectBtn = document.createElement('button');
       connectBtn.className = 'btn-sm accent';
-      connectBtn.textContent = '🔗 Connect ' + plat.name;
+      setBtnLabel(connectBtn, 'link', 'Connect ' + plat.name);
       connectBtn.addEventListener('click', () => { window.location.href = plat.authUrl; });
       actions.appendChild(connectBtn);
     } else if (plat.key !== 'instagram') {
@@ -1524,7 +1689,7 @@ async function disconnectPlatform(endpoint, name) {
 
 /* ─── Quick Publish ─────────────────────────────────────────────── */
 async function quickPublish(platform, text, btn) {
-  const origText = btn.textContent;
+  const origText = btn.innerHTML;
   btn.disabled = true;
   btn.textContent = '…';
 
@@ -1532,18 +1697,18 @@ async function quickPublish(platform, text, btn) {
     if (platform === 'instagram') {
       // Instagram needs image — copy text and inform user
       await navigator.clipboard.writeText(text).catch(() => {});
-      ssToast('📋 Caption copied — add your photo in the Instagram app.', 'info');
-      btn.textContent = '✓ Copied!';
-      setTimeout(() => { btn.disabled = false; btn.textContent = origText; }, 2500);
+      ssToast('Caption copied. Add your photo in the Instagram app.', 'info');
+      setBtnLabel(btn, 'check', 'Copied');
+      setTimeout(() => { btn.disabled = false; btn.innerHTML = origText; }, 2500);
       return;
     }
 
     if (platform === 'tiktok') {
       // TikTok is video-only — copy caption and direct to Clip Studio
       await navigator.clipboard.writeText(text).catch(() => {});
-      ssToast('🎵 Caption copied — go to Clip Studio to publish your video to TikTok.', 'info');
-      btn.textContent = '✓ Copied!';
-      setTimeout(() => { btn.disabled = false; btn.textContent = origText; }, 2500);
+      ssToast('Caption copied. Publish the video to TikTok from Clip Studio.', 'info');
+      setBtnLabel(btn, 'check', 'Copied');
+      setTimeout(() => { btn.disabled = false; btn.innerHTML = origText; }, 2500);
       return;
     }
 
@@ -1551,7 +1716,7 @@ async function quickPublish(platform, text, btn) {
     const endpoint = endpointMap[platform];
     if (!endpoint) {
       ssToast('Publishing not available for ' + platform, 'info');
-      btn.disabled = false; btn.textContent = origText;
+      btn.disabled = false; btn.innerHTML = origText;
       return;
     }
 
@@ -1568,17 +1733,17 @@ async function quickPublish(platform, text, btn) {
       } else {
         ssToast('Publish failed: ' + (data.error || 'Unknown error'), 'error');
       }
-      btn.disabled = false; btn.textContent = origText;
+      btn.disabled = false; btn.innerHTML = origText;
       return;
     }
 
-    ssToast('✅ Published to ' + platform + '!', 'success');
-    btn.textContent = '✓ Posted!';
-    setTimeout(() => { btn.disabled = false; btn.textContent = origText; }, 3000);
+    ssToast('Published to ' + platform + '.', 'success');
+    setBtnLabel(btn, 'circle-check', 'Posted');
+    setTimeout(() => { btn.disabled = false; btn.innerHTML = origText; }, 3000);
 
   } catch (err) {
     ssToast('Error: ' + err.message, 'error');
-    btn.disabled = false; btn.textContent = origText;
+    btn.disabled = false; btn.innerHTML = origText;
   }
 }
 
@@ -1594,7 +1759,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadGHLAccounts();
 });
 </script>
-<script src="/recorder-widget.js"></script>
-<script src="/brick-chat.js" defer></script>
+<script src="/recorder-widget.js?v=20261004-2"></script>
+<script src="/brick-chat.js?v=20261004-2" defer></script>
 </body>
 </html>
