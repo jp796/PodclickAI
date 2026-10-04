@@ -41,7 +41,10 @@ def _strip_comments(src):
 
 def _css_tokens():
     css = CSS.read_text(encoding="utf-8")
-    return css, dict(re.findall(r"(--[a-z0-9-]+)\s*:\s*([^;]+);", css))
+    tokens = {}
+    for name, value in re.findall(r"(--[a-z0-9-]+)\s*:\s*([^;]+);", css):
+        tokens.setdefault(name, value)   # first (:root) definition, not later scoped overrides
+    return css, tokens
 
 
 def _luminance(hex_):
@@ -124,7 +127,8 @@ EMOJI_RE = re.compile("[←-⇿⌀-➿⬀-⯿\U0001F000-\U0001FAFF]")
 
 def test_nav_loads_icons_itself_and_has_no_emoji():
     nav = NAV_JS.read_text(encoding="utf-8")
-    assert re.search(r"/static/pc-icons\.js\?v=[\w-]+", nav), "nav must inject pc-icons.js with its own ?v="
+    assert "/static/pc-icons.js?v=" in nav, "nav must inject pc-icons.js itself"
+    assert re.search(r"ICONS_V = '[\w-]+'", nav), "pc-icons.js needs its own cache-buster, separate from the nav ?v="
     assert "data-i=" in nav or "PodClickIcons" in nav, "nav items must use the shared icon set"
     code = _strip_comments(nav)
     assert not EMOJI_RE.search(code), "nav still renders emoji: %r" % EMOJI_RE.findall(code)[:5]

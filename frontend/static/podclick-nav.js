@@ -18,6 +18,9 @@
  *    /project/{id}. Fallback href /studio#upload scrolls to the studio tray
  *    (and dismisses the camera check) when JS handling is bypassed.
  *  - Ensures /podclick-design.css is loaded even if a page forgot the <link>
+ *  - Loads the shared icon set /static/pc-icons.js for every page (ensureIcons):
+ *    nav icons, <i class="pc-i" data-i="name"> placeholders, and the emoji -> icon
+ *    safety net for UI chrome. Pages do not need their own <script> for it.
  */
 (function () {
   'use strict';
@@ -61,48 +64,36 @@
    */
   var UPLOAD_HREF = '/studio#upload';
 
-  var ICONS = {
-    home:    '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>',
-    podcast: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0"/><path d="M12 18v3"/>',
-    studio:  '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>',
-    social:  '<path d="M4 5h16v11H8l-4 4z"/>',
-    video:   '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9l5 3-5 3z"/>',
-    brand:   '<path d="M12 3l2.6 5.6 6.1.6-4.6 4.1 1.3 6L12 16.3 6.6 19.3l1.3-6L3.3 9.2l6.1-.6z"/>',
-    calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
-    jobsite: '<path d="M3 21h18"/><path d="M5 21V9l7-5 7 5v12"/><path d="M10 21v-6h4v6"/>',
-    scout:   '<circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5"/>',
-    agents:  '<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M15 15c3 0 6 2 6 5"/>',
-    found:   '<path d="M3 20h18"/><path d="M5 20v-5h14v5"/><path d="M8 15v-4h8v4"/>',
-    blueprint:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>',
-    permit:  '<path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
-    upload:  '<path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 20h16"/>',
-    menu:    '<path d="M4 7h16M4 12h16M4 17h16"/>',
-    close:   '<path d="M6 6l12 12M18 6L6 18"/>'
-  };
+  /* Icons come from the shared inline-SVG set in /static/pc-icons.js (Lucide, ISC).
+   * This script loads it for EVERY page (ensureIcons below), so pages never need their
+   * own <script> tag for icons. Bump ICONS_V when pc-icons.js changes; it is versioned
+   * separately from this file's ?v= so the nav cache-buster pinned in every page (and in
+   * tests/test_agents_page.py) does not have to move. */
+  var ICONS_V = '20261004-1';
 
   var NAV = [
-    { section: 'Home', items: [
-      { href: '/walkthrough',    label: 'Walk-through', icon: 'home' }
+    { section: 'Home', icon: 'map', items: [
+      { href: '/walkthrough',    label: 'Walk-through', icon: 'house' }
     ]},
-    { section: 'Create', items: [
-      { href: '/studio',         label: 'Studio',       icon: 'studio' },
-      { href: '/social-studio',  label: 'Social',       icon: 'social' },
-      { href: '/vsl-editor',     label: 'Video / VSL',  icon: 'video' },
-      { href: '/brand-studio',   label: 'Brand',        icon: 'brand' }
+    { section: 'Create', icon: 'hammer', items: [
+      { href: '/studio',         label: 'Studio',       icon: 'video' },
+      { href: '/social-studio',  label: 'Social',       icon: 'message-square-text' },
+      { href: '/vsl-editor',     label: 'Video / VSL',  icon: 'clapperboard' },
+      { href: '/brand-studio',   label: 'Brand',        icon: 'stamp' }
     ]},
-    { section: 'Plan & publish', items: [
-      { href: '/calendar',       label: 'Calendar',     icon: 'calendar' },
-      { href: '/projects',       label: 'Job Site',     icon: 'jobsite', match: ['/project/'] }
+    { section: 'Plan & publish', icon: 'calendar-check', items: [
+      { href: '/calendar',       label: 'Calendar',     icon: 'calendar-days' },
+      { href: '/projects',       label: 'Job Site',     icon: 'hard-hat', match: ['/project/'] }
     ]},
-    { section: 'Grow', items: [
-      { href: '/youtube-studio', label: 'Scout',        icon: 'scout' },
-      { href: '/agents',         label: 'Crew',          icon: 'agents' }
+    { section: 'Grow', icon: 'trending-up', items: [
+      { href: '/youtube-studio', label: 'Scout',        icon: 'binoculars' },
+      { href: '/agents',         label: 'Crew',         icon: 'users' }
     ]},
-    { section: 'Foundation', items: [
-      { href: '/foundation',     label: 'Foundation',   icon: 'found' },
-      { href: '/blueprint',      label: 'Blueprint',    icon: 'blueprint' },
-      { href: '/permit',         label: 'Permit',       icon: 'permit' },
-      { href: '/legacy/episode-builder', label: 'Legacy builder', icon: 'podcast' }
+    { section: 'Foundation', icon: 'layers', items: [
+      { href: '/foundation',     label: 'Foundation',   icon: 'brick-wall' },
+      { href: '/blueprint',      label: 'Blueprint',    icon: 'drafting-compass' },
+      { href: '/permit',         label: 'Permit',       icon: 'shield-check' },
+      { href: '/legacy/episode-builder', label: 'Legacy builder', icon: 'history' }
     ]}
   ];
 
@@ -114,10 +105,21 @@
     return (item.match || []).some(function (p) { return path.indexOf(p) === 0; });
   }
 
-  function svg(name, cls) {
-    return '<svg class="' + (cls || 'pc-ico') + '" viewBox="0 0 24 24" width="16" height="16" fill="none" ' +
-      'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
-      (ICONS[name] || '') + '</svg>';
+  /* Placeholder <i> that pc-icons.js fills (immediately if it is already loaded, otherwise
+   * on its own init / MutationObserver). Fixed box size in CSS, so no layout shift. */
+  function ico(name, cls) {
+    var inner = window.PodClickIcons ? window.PodClickIcons.svg(name, { size: '100%' }) : '';
+    return '<i class="pc-i ' + (cls || 'pc-ico') + '" data-i="' + name + '"' +
+      (inner ? ' data-pc-mounted="' + name + '"' : '') + ' aria-hidden="true">' + inner + '</i>';
+  }
+
+  /* Load the shared icon set once, for every page that loads this shell. */
+  function ensureIcons() {
+    if (window.PodClickIcons || document.querySelector('script[src*="/static/pc-icons.js"]')) return;
+    var s = document.createElement('script');
+    s.src = '/static/pc-icons.js?v=' + ICONS_V;
+    s.async = true;
+    (document.head || document.documentElement).appendChild(s);
   }
 
   /* Make sure the design tokens are present on every page. */
@@ -136,11 +138,11 @@
         var attrs = 'href="' + item.href + '" class="pc-link' + (active ? ' pc-active' : '') + (item.soon ? ' pc-soon' : '') + '"';
         if (active) attrs += ' aria-current="page"';
         if (item.soon) attrs += ' title="Agents hub is being built — coming soon"';
-        return '<a ' + attrs + '>' + svg(item.icon) + '<span class="pc-link-label">' + item.label + '</span>' +
+        return '<a ' + attrs + '>' + ico(item.icon) + '<span class="pc-link-label">' + item.label + '</span>' +
           (item.soon ? '<span class="pc-badge">Soon</span>' : '') + '</a>';
       }).join('');
       return '<div class="pc-group" role="group" aria-label="' + g.section + '">' +
-        '<div class="pc-group-label">' + g.section + '</div>' + links + '</div>';
+        '<div class="pc-group-label">' + ico(g.icon) + '<span>' + g.section + '</span></div>' + links + '</div>';
     }).join('');
 
     var nav = document.createElement('nav');
@@ -150,13 +152,13 @@
     nav.innerHTML =
       '<div class="pc-shell-bar">' +
         '<a href="/walkthrough" class="pc-brand" aria-label="PodClick home">Pod<em>Click</em></a>' +
-        '<a href="' + UPLOAD_HREF + '" class="pc-bar-cta" data-pc-upload>' + svg('upload') + '<span>Upload</span></a>' +
+        '<a href="' + UPLOAD_HREF + '" class="pc-bar-cta" data-pc-upload>' + ico('upload') + '<span>Upload</span></a>' +
         '<button type="button" class="pc-burger" aria-expanded="false" aria-controls="pc-shell-menu" aria-label="Open menu">' +
-          svg('menu', 'pc-ico pc-ico-menu') + svg('close', 'pc-ico pc-ico-close') +
+          ico('menu', 'pc-ico pc-ico-menu') + ico('x', 'pc-ico pc-ico-close') +
         '</button>' +
       '</div>' +
       '<div class="pc-shell-menu" id="pc-shell-menu">' +
-        '<a href="' + UPLOAD_HREF + '" class="pc-cta" data-pc-upload>' + svg('upload') + '<span>Upload episode</span></a>' +
+        '<a href="' + UPLOAD_HREF + '" class="pc-cta" data-pc-upload>' + ico('upload') + '<span>Upload episode</span></a>' +
         groups +
         '<div class="pc-shell-foot">Your content.<br>Your voice.</div>' +
       '</div>';
@@ -246,7 +248,7 @@
     d.className = 'pc-upload-backdrop';
     d.innerHTML =
       '<div class="pc-upload-box" role="dialog" aria-modal="true" aria-labelledby="pc-upload-h">' +
-        '<p class="pc-upload-eyebrow">New build</p>' +
+        '<p class="pc-upload-eyebrow">' + ico('hard-hat', 'pc-upload-ico') + ' New build</p>' +
         '<h2 id="pc-upload-h">Upload episode</h2>' +
         '<p class="pc-upload-file"></p>' +
         '<label for="pc-upload-title">What’s this build?</label>' +
@@ -255,7 +257,7 @@
         '<p class="pc-upload-status" role="status"></p>' +
         '<div class="pc-upload-actions">' +
           '<button type="button" class="pc-upload-cancel">Cancel</button>' +
-          '<button type="button" class="pc-upload-go">Upload &amp; continue</button>' +
+          '<button type="button" class="pc-upload-go">' + ico('upload', 'pc-upload-ico') + ' Upload &amp; continue</button>' +
         '</div>' +
       '</div>';
     d.querySelector('.pc-upload-file').textContent = file.name + ' · ' + fmtSize(file.size);
@@ -341,6 +343,7 @@
   function inject() {
     if (document.getElementById('pc-shell')) return; // already injected
     ensureDesignCss();
+    ensureIcons();
     var built = buildShell();
     document.body.insertBefore(built.scrim, document.body.firstChild);
     document.body.insertBefore(built.nav, document.body.firstChild);
