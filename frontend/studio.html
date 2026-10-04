@@ -667,6 +667,8 @@
 .panel { padding: var(--space-4); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
 .panel h3 { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: .14em; color: var(--text-sec-hi); }
 .panel h3 > .pc-i { color: var(--orange-hi); font-size: 14px; }
+.panel h3 { flex-wrap: wrap; row-gap: var(--space-2); }
+@media (max-width: 1100px) { main { grid-template-columns: minmax(0, 1fr); } }
 main { gap: var(--space-5); padding: var(--space-5); }
 .preview-shell, .right-pane { gap: var(--space-4); }
 
@@ -706,10 +708,13 @@ main { gap: var(--space-5); padding: var(--space-5); }
 .vad-meter { z-index: 3; bottom: 16px; left: 16px; right: 16px; }
 
 /* Transport bar: devices | record core | output */
-.transport { gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
+.transport { display: grid; grid-template-columns: auto 1fr; gap: var(--space-3) var(--space-4); align-items: center;
+  padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); }
 .transport-group { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-.transport-group + .transport-group { padding-left: var(--space-3); border-left: 1px solid var(--border); }
-.transport-group--out { margin-left: auto; }
+.transport-group--devices { grid-column: 1 / -1; padding-bottom: var(--space-3); border-bottom: 1px solid var(--border); }
+.transport-group--devices #btn-screen { margin-left: auto; }
+.transport-group--out { justify-content: flex-end; }
+.transport-group--core .btn { min-height: 42px; }
 .duration { font-family: var(--font-mono); font-size: 13px; letter-spacing: .06em; color: var(--text-sec-hi); min-width: 48px; text-align: right; }
 .duration.recording { color: var(--red-hi); }
 
@@ -732,7 +737,8 @@ main { gap: var(--space-5); padding: var(--space-5); }
 .speed-btn, .smart-pace-btn { min-height: 26px; transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast); }
 .speed-btn:hover, .smart-pace-btn:hover { color: var(--text-pri); }
 .speed-btn.active { background: var(--orange-mist); border-color: var(--orange-dim); color: var(--orange-hi); }
-.smart-pace-btn { display: inline-flex; align-items: center; gap: 5px; }
+.smart-pace-btn { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.prompter:has(.prompter-empty) .prompter-overlay { display: none; }
 
 /* Upload tray + drop zone */
 #upload-drop-zone { background-color: var(--bg-inset); }
@@ -751,11 +757,15 @@ main { gap: var(--space-5); padding: var(--space-5); }
 .pub-tile-icon { color: var(--orange-hi); line-height: 1; }
 .pub-close { display: inline-flex; }
 .pub-preset-btn { display: inline-flex; align-items: center; gap: 6px; }
-.pub-exec-btn, .pub-sub-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.pub-sub-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.pub-exec-btn .pc-i, .pub-tile-name .pc-i { vertical-align: -0.15em; }
+.pub-exec-btn { background: var(--grad-primary); transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast); }
+.pub-exec-btn:hover { background: var(--grad-primary-hover); }
+.pub-exec-btn:active { transform: scale(.99); }
 .yt-conn-warn .pc-i { vertical-align: -0.15em; }
 
 /* Toast with a status icon */
-.toast { display: flex; align-items: flex-start; gap: var(--space-2); box-shadow: var(--shadow-pop); border-radius: var(--radius-md); }
+.toast { display: flex; align-items: flex-start; gap: var(--space-2); box-shadow: var(--shadow-pop); border-radius: var(--radius-md); bottom: 88px; } /* clears the floating Brick chat button */
 .toast__icon { display: inline-flex; color: var(--blue-hi); margin-top: 1px; }
 .toast.error .toast__icon { color: var(--red-hi); }
 .toast.success .toast__icon { color: var(--green-hi); }
@@ -769,9 +779,10 @@ main { gap: var(--space-5); padding: var(--space-5); }
 #record-cta { border-radius: var(--radius-lg); }
 
 @media (max-width: 760px) {
-  .transport-group { width: 100%; }
-  .transport-group + .transport-group { border-left: 0; padding-left: 0; padding-top: var(--space-3); border-top: 1px solid var(--border); }
-  .transport-group--out { margin-left: 0; }
+  .transport { grid-template-columns: 1fr; padding: var(--space-3); }
+  .transport-group--devices #btn-screen { margin-left: 0; }
+  .transport-group--core .btn-rec, .transport-group--core #btn-stop { flex: 1; }
+  .transport-group--out { justify-content: flex-start; padding-top: var(--space-3); border-top: 1px solid var(--border); }
   .transport-group--out .duration { margin-left: auto; }
   #studio-cam-select { flex: 1; max-width: none !important; }
   .btn-rec { flex: 1; }
@@ -779,7 +790,7 @@ main { gap: var(--space-5); padding: var(--space-5); }
   #device-check > div { gap: var(--space-6) !important; }
   .dc-title { font-size: 24px; }
   .stage-marks { inset: 10px; }
-  .stage-empty p { display: none; }
+  .preview .stage-empty p { display: none; }
 }
   </style>
   <script src="/static/podclick-nav.js?v=20261004-1" defer></script>
@@ -3360,7 +3371,7 @@ main { gap: var(--space-5); padding: var(--space-5); }
       if (data.message && !data.topic) {
         // No schedule / no topics
         $("topic-empty").style.display  = "block";
-        $("topic-empty").innerHTML = data.message + ' <a href="/youtube-studio" style="color:var(--orange-hi);">Set one in Click Studio ' + ic('arrow-right') + '</a>';
+        $("topic-empty").innerHTML = escHtml(String(data.message || "").replace(/\s*Set one in Click Studio.*$/i, "").replace(/\s*→\s*/g, " · ")) + ' <a href="/youtube-studio" style="color:var(--orange-hi);">Set one in Click Studio ' + ic('arrow-right') + '</a>';
         return;
       }
 
@@ -3600,7 +3611,7 @@ main { gap: var(--space-5); padding: var(--space-5); }
       } catch (e1) {
         // iPhone / Continuity Camera frequently rejects fixed res/fps — retry at native settings
         _dcStream = await _grab({ deviceId: { exact: camId } });
-        if (hint) { hint.style.display = 'block'; hint.innerHTML = ic('smartphone') + ' Connected at the camera’s native settings.'; }
+        if (hint) { hint.style.display = 'block'; hint.innerHTML = ic('smartphone') + ' Connected at the camera’s native resolution.'; }
       }
       const v = document.getElementById('dc-video');
       v.srcObject = _dcStream;
@@ -3616,7 +3627,7 @@ main { gap: var(--space-5); padding: var(--space-5); }
       const msg = ({
         NotReadableError:     "That camera's busy — close FaceTime / Photo Booth / Zoom / the iPhone's Camera app, then tap re-scan.",
         NotAllowedError:      'Camera permission is blocked — allow camera access in the browser, then tap re-scan.',
-        OverconstrainedError: "That camera can't match the requested settings — tap re-scan to retry.",
+        OverconstrainedError: "That camera can't match the requested resolution — tap re-scan to retry.",
         NotFoundError:        'Camera not found — reconnect the iPhone (unlock it, keep it nearby), then tap re-scan.',
         AbortError:           'Camera failed to start — unlock the iPhone and tap re-scan.',
       })[name] || ('Could not start that camera (' + name + ').');
