@@ -9,43 +9,43 @@
   <link rel="stylesheet" href="/podclick-design.css?v=20261002-1">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    html,body{background:#0b0a08;color:#F5F7FA;min-height:100vh;font-family:var(--font-body)}
+    html,body{background:var(--bg);color:var(--text-pri);min-height:100vh;font-family:var(--font-body)}
     .shell{max-width:1280px;margin:0 auto;padding:22px 22px 80px}
-    .ehead{display:flex;align-items:center;gap:14px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #272420}
+    .ehead{display:flex;align-items:center;gap:14px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border)}
     .etitle{font-size:19px;font-weight:800}
-    .emeta{font-size:12px;color:#847d74;margin-top:2px}
-    .btn{font-size:13px;font-weight:700;border-radius:9px;cursor:pointer;border:1px solid #272420;background:#1e1b16;color:#cabfb2;padding:9px 14px;text-decoration:none;display:inline-block}
+    .emeta{font-size:12px;color:var(--text-sec);margin-top:2px}
+    .btn{font-size:13px;font-weight:700;border-radius:9px;cursor:pointer;border:1px solid var(--border);background:var(--bg-raised);color:var(--text-pri);padding:9px 14px;text-decoration:none;display:inline-block}
     .btn:hover{opacity:.9}
-    .btn-primary{background:linear-gradient(135deg,#d95f1e,#f07030);color:#fff;border:none}
+    .btn-primary{background:linear-gradient(135deg,var(--orange),var(--orange-hi));color:var(--text-pri);border:none}
     .btn-primary:disabled{opacity:.4;cursor:not-allowed}
     .grid{display:grid;grid-template-columns:380px 1fr;gap:20px;align-items:start}
     @media(max-width:900px){.grid{grid-template-columns:1fr}}
     .vpanel{position:sticky;top:18px}
-    .vwrap{background:#000;border-radius:12px;overflow:hidden;aspect-ratio:16/9}
-    #ev{width:100%;height:100%;display:block;object-fit:contain;background:#000}
-    .card{background:#161410;border:1px solid #272420;border-radius:12px;padding:16px;margin-top:14px}
-    .stat{display:flex;justify-content:space-between;font-size:13px;color:#847d74;padding:3px 0}
-    .stat b{color:#F5F7FA;font-weight:700}
-    .hint{font-size:12px;color:#847d74;line-height:1.6;margin-bottom:12px}
-    .tx{min-height:320px;max-height:60vh;overflow-y:auto;background:#0d0c0a;border:1px solid #272420;border-radius:10px;padding:18px;font-size:16px;line-height:2.1}
+    .vwrap{background:var(--bg);border-radius:12px;overflow:hidden;aspect-ratio:16/9}
+    #ev{width:100%;height:100%;display:block;object-fit:contain;background:var(--bg)}
+    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:14px}
+    .stat{display:flex;justify-content:space-between;font-size:13px;color:var(--text-sec);padding:3px 0}
+    .stat b{color:var(--text-pri);font-weight:700}
+    .hint{font-size:12px;color:var(--text-sec);line-height:1.6;margin-bottom:12px}
+    .tx{min-height:320px;max-height:60vh;overflow-y:auto;background:var(--bg-inset);border:1px solid var(--border);border-radius:10px;padding:18px;font-size:16px;line-height:2.1}
     .w{cursor:pointer;border-radius:4px;padding:1px 3px;transition:background .1s}
     .w:hover{background:rgba(240,112,48,.22)}
     .w.playing{background:rgba(240,112,48,.34)}
-    .w.cur{box-shadow:inset 0 -2px 0 #f07030}
-    .w.del{text-decoration:line-through;color:#5a534a;background:rgba(160,56,56,.12)}
+    .w.cur{box-shadow:inset 0 -2px 0 var(--orange-hi)}
+    .w.del{text-decoration:line-through;color:var(--text-dim);background:rgba(160,56,56,.12)}
     .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
     .spd{display:inline-flex;gap:4px;align-items:center}
     .spd-b{padding:9px 10px}
-    .spd-b.on{background:linear-gradient(135deg,#d95f1e,#f07030);color:#fff;border-color:transparent}
-    #toast{position:fixed;bottom:24px;right:24px;background:#1e1b16;border:1px solid #352f28;border-radius:9px;padding:11px 16px;font-size:13px;opacity:0;transform:translateY(6px);transition:all .18s;z-index:200;max-width:340px}
+    .spd-b.on{background:linear-gradient(135deg,var(--orange),var(--orange-hi));color:var(--text-pri);border-color:transparent}
+    #toast{position:fixed;bottom:24px;right:24px;background:var(--bg-raised);border:1px solid var(--border-lit);border-radius:9px;padding:11px 16px;font-size:13px;opacity:0;transform:translateY(6px);transition:all .18s;z-index:200;max-width:340px}
     #toast.show{opacity:1;transform:translateY(0)}
-    #toast.ok{border-color:#3d8c5c}#toast.err{border-color:#a03838;color:#f0c8c8}
-    .empty{padding:50px 20px;text-align:center;color:#847d74}
-    #tl{position:relative;height:16px;margin-top:8px;background:#1e1b16;border:1px solid #272420;border-radius:6px;cursor:pointer;overflow:hidden}
+    #toast.ok{border-color:var(--green)}#toast.err{border-color:var(--red);color:var(--text-pri)}
+    .empty{padding:50px 20px;text-align:center;color:var(--text-sec)}
+    #tl{position:relative;height:16px;margin-top:8px;background:var(--bg-raised);border:1px solid var(--border);border-radius:6px;cursor:pointer;overflow:hidden}
     #tl-cuts{position:absolute;inset:0}
     #tl-cuts .cutband{position:absolute;top:0;bottom:0;background:rgba(160,56,56,.55)}
-    #tl-sel{position:absolute;top:0;bottom:0;background:rgba(240,112,48,.45);border-left:2px solid #f07030;border-right:2px solid #f07030}
-    #tl-play{position:absolute;top:-2px;bottom:-2px;width:2px;background:#F5F7FA;left:0;box-shadow:0 0 4px rgba(255,255,255,.6)}
+    #tl-sel{position:absolute;top:0;bottom:0;background:rgba(240,112,48,.45);border-left:2px solid var(--orange-hi);border-right:2px solid var(--orange-hi)}
+    #tl-play{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--text-pri);left:0;box-shadow:0 0 4px rgba(255,255,255,.6)}
   </style>
 </head>
 <body>
@@ -82,7 +82,7 @@
         <div class="stat" style="margin-top:10px"><span>Selection</span><b id="sec-readout">— none —</b></div>
       </div>
       <div class="card">
-        <button class="btn btn-primary" id="autoedit-btn" style="width:100%;background:linear-gradient(135deg,#6b2e9e,#9b59d0)">⚡ Auto-edit — First Pass</button>
+        <button class="btn btn-primary" id="autoedit-btn" style="width:100%;background:linear-gradient(135deg,var(--orange),var(--orange-hi))">⚡ Auto-edit — First Pass</button>
         <div class="hint" style="margin:8px 0 0">Removes fillers, stutters, false starts &amp; dead air automatically. Then sweep up anything it missed by hand below.</div>
       </div>
       <div class="card">
@@ -99,7 +99,7 @@
       </div>
       <div class="card">
         <div class="hint" style="margin:0">
-          <b style="color:#f07030">How to edit</b><br>
+          <b style="color:var(--orange-hi)">How to edit</b><br>
           • Click a word → the video jumps there (hear it).<br>
           • Double-click a word (or press Delete) to cut it.<br>
           • Shift-click to cut a whole range.<br>

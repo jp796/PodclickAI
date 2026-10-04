@@ -9,40 +9,40 @@
   <link rel="stylesheet" href="/podclick-design.css?v=20261002-1">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { background: #0b0a08; color: #F5F7FA; min-height: 100vh; font-family: var(--font-body); }
+    html, body { background: var(--bg); color: var(--text-pri); min-height: 100vh; font-family: var(--font-body); }
 
     .shell { max-width: 1080px; margin: 0 auto; padding: 28px 22px 80px; }
     .page-head { margin-bottom: 24px; }
     .page-head h1 { font-size: 22px; font-weight: 800; }
-    .page-head p  { font-size: 13px; color: #847d74; margin-top: 6px; }
+    .page-head p  { font-size: 13px; color: var(--text-sec); margin-top: 6px; }
 
     .editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
     @media (max-width: 820px) { .editor-grid { grid-template-columns: 1fr; } }
 
-    .panel { background: #161410; border: 1px solid #272420; border-radius: 10px; padding: 20px; }
+    .panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
     .panel h2 { font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-                color: #f07030; margin-bottom: 14px; }
+                color: var(--orange-hi); margin-bottom: 14px; }
 
     textarea {
-      width: 100%; background: #0d0c0a; border: 1px solid #352f28; border-radius: 8px;
-      color: #F5F7FA; padding: 12px 14px; font-family: var(--font-body);
+      width: 100%; background: var(--bg-inset); border: 1px solid var(--border-lit); border-radius: 8px;
+      color: var(--text-pri); padding: 12px 14px; font-family: var(--font-body);
       font-size: 13px; line-height: 1.6; resize: vertical; min-height: 420px;
     }
-    textarea:focus { outline: none; border-color: #d95f1e; }
+    textarea:focus { outline: none; border-color: var(--orange); }
 
     .upload-zone {
-      border: 2px dashed #272420; border-radius: 10px; padding: 32px 16px;
+      border: 2px dashed var(--border); border-radius: 10px; padding: 32px 16px;
       text-align: center; cursor: pointer; transition: all .15s; margin-bottom: 14px;
     }
-    .upload-zone:hover, .upload-zone.dragover { border-color: #d95f1e; background: rgba(217,95,30,0.05); }
+    .upload-zone:hover, .upload-zone.dragover { border-color: var(--orange); background: rgba(217,95,30,0.05); }
     .upload-zone .icon { font-size: 32px; margin-bottom: 8px; }
-    .upload-zone .label { font-size: 13px; color: #847d74; }
-    .upload-zone .label em { color: #f07030; font-style: normal; }
-    .upload-zone .file-name { font-size: 12px; color: #f07030; font-weight: 600; margin-top: 8px; }
+    .upload-zone .label { font-size: 13px; color: var(--text-sec); }
+    .upload-zone .label em { color: var(--orange-hi); font-style: normal; }
+    .upload-zone .file-name { font-size: 12px; color: var(--orange-hi); font-weight: 600; margin-top: 8px; }
 
     .btn-primary {
       width: 100%; padding: 13px; font-size: 14px; font-weight: 700;
-      background: linear-gradient(135deg, #d95f1e, #f07030); color: #fff;
+      background: linear-gradient(135deg, var(--orange), var(--orange-hi)); color: var(--text-pri);
       border: none; border-radius: 9px; cursor: pointer; transition: opacity .12s;
       letter-spacing: .02em;
     }
@@ -51,33 +51,33 @@
 
     .btn-ghost {
       padding: 9px 14px; font-size: 12px; font-weight: 600; border-radius: 8px;
-      background: #1e1b16; border: 1px solid #272420; color: #a0a0c0; cursor: pointer;
+      background: var(--bg-raised); border: 1px solid var(--border); color: var(--text-sec); cursor: pointer;
       transition: all .12s;
     }
-    .btn-ghost:hover { border-color: #d95f1e; color: #f07030; }
+    .btn-ghost:hover { border-color: var(--orange); color: var(--orange-hi); }
 
     /* Timeline preview */
     .timeline { margin-top: 18px; }
     .tl-row {
       display: flex; align-items: center; gap: 10px; padding: 8px 0;
-      border-bottom: 1px solid #1a1714; font-size: 12px;
+      border-bottom: 1px solid var(--bg-raised); font-size: 12px;
     }
-    .tl-time { font-variant-numeric: tabular-nums; color: #f07030; font-weight: 700; min-width: 42px; }
-    .tl-label { font-weight: 600; color: #F5F7FA; flex: 1; }
-    .tl-note  { color: #4a4540; font-size: 11px; }
+    .tl-time { font-variant-numeric: tabular-nums; color: var(--orange-hi); font-weight: 700; min-width: 42px; }
+    .tl-label { font-weight: 600; color: var(--text-pri); flex: 1; }
+    .tl-note  { color: var(--text-dim); font-size: 11px; }
     .tl-badge {
       font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;
     }
-    .tl-cta     { background: rgba(217,95,30,0.2); color: #f07030; border: 1px solid #6b2e0e; }
-    .tl-signoff { background: rgba(82,196,122,0.12); color: #52c47a; border: 1px solid #1a3d28; }
+    .tl-cta     { background: rgba(217,95,30,0.2); color: var(--orange-hi); border: 1px solid var(--orange-dim); }
+    .tl-signoff { background: rgba(82,196,122,0.12); color: var(--green-hi); border: 1px solid var(--green-dim); }
 
     /* Progress */
     .progress-card {
-      background: #161410; border: 1px solid #272420; border-radius: 10px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px;
       padding: 20px; margin-top: 20px; display: none;
     }
     .progress-card.show { display: block; }
-    .prog-bar-wrap { background: #272420; border-radius: 4px; height: 6px; overflow: hidden; margin: 12px 0; }
+    .prog-bar-wrap { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; margin: 12px 0; }
     /* Working, with no claimed percentage — the server reports a stage string,
        not a number, so a filling bar would be inventing one. */
     .prog-bar.indeterminate {
@@ -92,36 +92,36 @@
       0%   { background-position: -45% 0; }
       100% { background-position: 145% 0; }
     }
-    .prog-bar { height: 100%; background: linear-gradient(90deg, #d95f1e, #f07030);
+    .prog-bar { height: 100%; background: linear-gradient(90deg, var(--orange), var(--orange-hi));
                 border-radius: 4px; width: 0%; transition: width 0.3s; }
-    .prog-msg  { font-size: 13px; color: #847d74; }
-    .prog-done { font-size: 13px; font-weight: 700; color: #52c47a; display: none; }
-    .prog-err  { font-size: 13px; color: #ff8080; display: none; }
+    .prog-msg  { font-size: 13px; color: var(--text-sec); }
+    .prog-done { font-size: 13px; font-weight: 700; color: var(--green-hi); display: none; }
+    .prog-err  { font-size: 13px; color: var(--red); display: none; }
 
     .download-btn {
       display: inline-flex; align-items: center; gap: 8px;
       padding: 11px 20px; border-radius: 9px; font-size: 14px; font-weight: 700;
-      background: #3d8c5c; color: #fff; border: none; cursor: pointer;
+      background: var(--green); color: var(--text-pri); border: none; cursor: pointer;
       text-decoration: none; margin-top: 12px; transition: opacity .12s;
     }
     .download-btn:hover { opacity: .9; }
 
     .parse-preview {
-      margin-top: 14px; background: #0d0c0a; border: 1px solid #272420;
-      border-radius: 8px; padding: 12px; font-size: 12px; color: #847d74;
+      margin-top: 14px; background: var(--bg-inset); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px; font-size: 12px; color: var(--text-sec);
       display: none;
     }
     .parse-preview.show { display: block; }
 
     #toast {
-      position: fixed; bottom: 24px; right: 24px; background: #1e1b16;
-      border: 1px solid #352f28; border-radius: 9px; padding: 11px 16px;
-      font-size: 13px; color: #F5F7FA; opacity: 0; transform: translateY(6px);
+      position: fixed; bottom: 24px; right: 24px; background: var(--bg-raised);
+      border: 1px solid var(--border-lit); border-radius: 9px; padding: 11px 16px;
+      font-size: 13px; color: var(--text-pri); opacity: 0; transform: translateY(6px);
       transition: all .18s; z-index: 200; max-width: 320px;
     }
     #toast.show { opacity: 1; transform: translateY(0); }
-    #toast.error { border-color: #a03838; color: #f0c8c8; }
-    #toast.ok    { border-color: #3d8c5c; }
+    #toast.error { border-color: var(--red); color: var(--text-pri); }
+    #toast.ok    { border-color: var(--green); }
   </style>
 </head>
 <body>
@@ -167,10 +167,10 @@ Dollar amounts in the CTA section are auto-detected for the pricing card."></tex
       <input type="file" id="video-input" accept=".mp4,.mov,.webm" style="display:none;" onchange="fileSelected(this)">
 
       <div style="margin-bottom:14px;">
-        <label style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#847d74;display:block;margin-bottom:6px;">
+        <label style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-sec);display:block;margin-bottom:6px;">
           Graphic Style
         </label>
-        <select id="style-select" style="width:100%;background:#0d0c0a;border:1px solid #352f28;border-radius:8px;color:#F5F7FA;padding:8px 12px;font-size:13px;font-family:inherit;">
+        <select id="style-select" style="width:100%;background:var(--bg-inset);border:1px solid var(--border-lit);border-radius:8px;color:var(--text-pri);padding:8px 12px;font-size:13px;font-family:inherit;">
           <option value="bold">Bold — orange accents, dark overlays</option>
         </select>
       </div>
@@ -179,13 +179,13 @@ Dollar amounts in the CTA section are auto-detected for the pricing card."></tex
         ⚡ Auto-Edit VSL
       </button>
 
-      <p style="font-size:11px;color:#4a4540;margin-top:10px;text-align:center;">
+      <p style="font-size:11px;color:var(--text-dim);margin-top:10px;text-align:center;">
         Adds section titles · CTA pricing card · sign-off · captions
       </p>
 
       <!-- Timeline preview (from parse) -->
       <div class="timeline" id="timeline" style="display:none;">
-        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#4a4540;margin-bottom:8px;">Edit Timeline</div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;">Edit Timeline</div>
         <div id="timeline-rows"></div>
       </div>
     </div>
@@ -193,7 +193,7 @@ Dollar amounts in the CTA section are auto-detected for the pricing card."></tex
 
   <!-- Progress -->
   <div class="progress-card" id="progress-card">
-    <div style="font-size:14px;font-weight:700;color:#F5F7FA;margin-bottom:4px;">Rendering VSL…</div>
+    <div style="font-size:14px;font-weight:700;color:var(--text-pri);margin-bottom:4px;">Rendering VSL…</div>
     <div class="prog-msg" id="prog-msg">Starting…</div>
     <div class="prog-bar-wrap"><div class="prog-bar" id="prog-bar"></div></div>
     <div class="prog-done" id="prog-done">
