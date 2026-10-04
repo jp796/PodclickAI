@@ -429,6 +429,63 @@
       100% { background-position: 200% 0; }
     }
     .skeleton-block { height: 80px; border-radius: var(--radius); margin-bottom: 10px; }
+
+    /* ===== Walk-through v2: morning briefing ===== */
+    .wt-skeleton { display: grid; gap: var(--space-4); }
+    .wt-skel-hero { height: 128px; }
+    .wt-skel-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
+    .wt-skel-stats > * { height: 96px; }
+    .wt-skel-card { display: grid; gap: var(--space-3); padding: var(--space-5); border: var(--hairline); border-radius: var(--radius-lg); background: var(--bg-card); }
+
+    .greeting-card { padding: var(--space-6) var(--space-6); gap: var(--space-5); border-radius: var(--radius-lg); align-items: center; }
+    .greeting-icon { width: 64px; height: 64px; flex-shrink: 0; }
+    .greeting-from { font-family: var(--font-mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--orange-hi); margin-bottom: var(--space-2); }
+    .greeting-from .wt-sep { color: var(--text-sec); margin: 0 var(--space-1); }
+    .greeting-msg { font-family: var(--font-body); font-size: clamp(20px, 2.3vw, 28px); font-weight: 600; line-height: 1.3; color: var(--text-pri); max-width: 60ch; }
+
+    .stats-strip { gap: var(--space-3); }
+    .stat-cell { padding: var(--space-4) var(--space-5); border: var(--hairline); border-radius: var(--radius-lg); background: var(--bg-card); box-shadow: var(--shadow-card); transition: border-color var(--dur) var(--ease-out); }
+    .stat-cell:hover { border-color: var(--border-hi, var(--border)); }
+    .stat-label { font-size: 10px; color: var(--text-sec); }
+    .stat-num { font-family: var(--font-mono); font-weight: 600; font-size: clamp(30px, 3.2vw, 40px); letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin: var(--space-2) 0 var(--space-1); color: var(--text-pri); }
+    .stat-sub { color: var(--text-sec); }
+
+    .card { border-radius: var(--radius-lg); }
+    .card-title { display: flex; align-items: center; gap: var(--space-2); }
+    .card-title .pc-i { color: var(--orange-hi); }
+
+    .punch-item { border: var(--hairline); border-radius: var(--radius-lg); background: var(--bg-raised); padding: var(--space-5); margin-bottom: var(--space-3); box-shadow: var(--shadow-card); transition: border-color var(--dur) var(--ease-out), transform var(--dur) var(--ease-out); }
+    .punch-item:hover { border-color: color-mix(in srgb, var(--orange) 45%, transparent); transform: translateY(-1px); }
+    .punch-rationale { font-size: 16px; line-height: 1.5; color: var(--text-pri); font-weight: 500; }
+    .punch-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-4); }
+    .btn-approve, .btn-approve-send {
+      display: inline-flex; align-items: center; gap: var(--space-2); min-height: 40px; padding: 0 var(--space-5);
+      background: var(--grad-primary); color: white; border: 1px solid var(--orange-deep); border-radius: var(--radius-md);
+      font-family: var(--font-cond); font-size: 14px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; cursor: pointer;
+      box-shadow: inset 0 1px 0 color-mix(in srgb, white 18%, transparent);
+      transition: transform var(--dur-fast) var(--ease-out), filter var(--dur) var(--ease-out);
+    }
+    .btn-approve:hover, .btn-approve-send:hover { background: var(--grad-primary-hover); filter: none; }
+    .btn-approve:active, .btn-approve-send:active { transform: scale(.98); }
+    .btn-approve:focus-visible, .btn-approve-send:focus-visible, .btn-reject:focus-visible, .btn-mark-manual:focus-visible { outline: none; box-shadow: var(--ring); }
+    .btn-reject, .btn-mark-manual { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 40px; padding: 0 var(--space-4); background: transparent; border-radius: var(--radius-md); }
+    .btn-reject:active, .btn-mark-manual:active { transform: scale(.98); }
+
+    .empty-state { display: grid; justify-items: center; gap: var(--space-2); padding: var(--space-7) var(--space-5); text-align: center; border: 1px dashed var(--border); border-radius: var(--radius-lg); background-color: var(--bg-inset); }
+    .empty-state.hidden { display: none; }
+    .empty-state__icon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 50%; border: var(--hairline); background: var(--bg-card); color: var(--orange-hi); margin-bottom: var(--space-2); }
+    .empty-state__icon .pc-i { font-size: 22px; }
+    .empty-state h3 { margin: 0; font-family: var(--font-display); font-size: 18px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-pri); }
+    .empty-state p { margin: 0; color: var(--text-sec); font-size: 14px; max-width: 42ch; }
+    .sparkline-placeholder { display: flex; align-items: center; justify-content: center; gap: var(--space-2); }
+
+    @media (max-width: 720px) {
+      .greeting-card { padding: var(--space-5); gap: var(--space-4); align-items: flex-start; }
+      .greeting-icon { width: 48px; height: 48px; }
+      .wt-skel-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .punch-actions > button { flex: 1 1 auto; justify-content: center; }
+      .punch-item-top { flex-wrap: wrap; gap: var(--space-2); }
+    }
     .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
     .brick-avatar { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; }
   </style>
@@ -456,20 +513,32 @@
   </div>
 
   <!-- Loading skeleton -->
-  <div id="skeleton">
-    <div class="loading-shimmer skeleton-block"></div>
-    <div class="loading-shimmer skeleton-block"></div>
-    <div class="loading-shimmer skeleton-block" style="height:140px"></div>
+  <div id="skeleton" class="wt-skeleton" aria-busy="true" aria-label="Loading the walk-through">
+    <div class="wt-skel-hero pc-skeleton pc-skeleton--block"></div>
+    <div class="wt-skel-stats">
+      <div class="pc-skeleton pc-skeleton--block"></div><div class="pc-skeleton pc-skeleton--block"></div>
+      <div class="pc-skeleton pc-skeleton--block"></div><div class="pc-skeleton pc-skeleton--block"></div>
+    </div>
+    <div class="wt-skel-card">
+      <div class="pc-skeleton pc-skeleton--title"></div>
+      <div class="pc-skeleton pc-skeleton--text"></div>
+      <div class="pc-skeleton pc-skeleton--text" style="width:72%"></div>
+    </div>
+    <div class="wt-skel-card">
+      <div class="pc-skeleton pc-skeleton--title"></div>
+      <div class="pc-skeleton pc-skeleton--text"></div>
+      <div class="pc-skeleton pc-skeleton--text" style="width:58%"></div>
+    </div>
   </div>
 
   <!-- Walk-through content (hidden until loaded) -->
   <div id="wt-content" class="hidden">
 
     <!-- 1 · Greeting -->
-    <div class="greeting-card">
+    <div class="greeting-card bg-blueprint">
       <div class="greeting-icon"><img src="/static/brick-avatar.png" alt="Brick" class="brick-avatar" onerror="this.style.display='none'"></div>
       <div class="greeting-text">
-        <div class="greeting-from">Brick — Walk-through Report</div>
+        <div class="greeting-from"><span id="wt-date">Today</span> <span class="wt-sep" aria-hidden="true">/</span> Brick's morning report</div>
         <div class="greeting-msg" id="greeting-msg" data-ai-output>Loading…</div>
       </div>
     </div>
@@ -514,8 +583,9 @@
       <div id="punch-list-container">
         <!-- items injected here -->
         <div class="empty-state hidden" id="punch-empty">
-          <div class="empty-icon"><i class="pc-i" data-i="circle-check"></i></div>
-          Punch list is clear. Good build.
+          <div class="empty-state__icon"><i class="pc-i" data-i="circle-check"></i></div>
+          <h3>Punch list is clear</h3>
+          <p>Good build. Brick lays out the next items on his 4 a.m. walk.</p>
         </div>
       </div>
     </div>
@@ -527,8 +597,9 @@
       </div>
       <div id="recent-list-container">
         <div class="empty-state hidden" id="recent-empty">
-          <div class="empty-icon"><i class="pc-i" data-i="moon"></i></div>
-          Nothing built overnight — Brick's been quiet.
+          <div class="empty-state__icon"><i class="pc-i" data-i="moon"></i></div>
+          <h3>Quiet night on site</h3>
+          <p>Nothing built overnight. Approve a punch-list item and it shows up here.</p>
         </div>
       </div>
     </div>
@@ -1185,6 +1256,10 @@ async function loadPermit() {
 
 /* ── Init ─────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', function () {
+  try {
+    document.getElementById('wt-date').textContent =
+      new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+  } catch (e) { /* keep "Today" */ }
   loadWalkthrough();
   loadPermit();
 });

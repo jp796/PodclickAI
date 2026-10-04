@@ -176,6 +176,40 @@
       .drawer { width: 100%; border-left: none; }
       .imgs { grid-template-columns: repeat(2, 1fr); }
     }
+
+    /* ===== The Crew v2 polish ===== */
+    .cat-head { position: relative; padding-left: var(--space-4); font-family: var(--font-display); font-size: 18px; letter-spacing: .06em; color: var(--text-pri); align-items: center; }
+    .cat-head::before { content: ""; position: absolute; left: 0; top: 50%; width: 8px; height: 2px; margin-top: -5px; background: var(--orange-hi); }
+    .cat-head .n { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; color: var(--text-sec); background: var(--bg-raised); border: var(--hairline); border-radius: var(--radius-pill); padding: 1px var(--space-2); }
+    .chips { gap: var(--space-3); }
+    .chip { padding: var(--space-4) var(--space-7) var(--space-4) var(--space-4); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); cursor: pointer;
+      transition: transform var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), background-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out); }
+    .chip:hover { transform: translateY(-2px); box-shadow: var(--shadow-pop); }
+    .chip:active { transform: translateY(0) scale(.98); transition-duration: var(--dur-fast); }
+    .chip:focus-visible { outline: none; box-shadow: var(--ring); }
+    .chip .dot { top: var(--space-4); right: var(--space-4); box-shadow: 0 0 0 3px var(--bg-card); }
+    .chip.running { border-color: transparent; }
+    .chip.running::after { content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none;
+      background: conic-gradient(from var(--crew-angle, 0deg), var(--orange-hi), transparent 30%, transparent 70%, var(--orange-hi));
+      -webkit-mask: linear-gradient(black 0 0) content-box, linear-gradient(black 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+      animation: crewSpin 1.6s linear infinite; }
+    @property --crew-angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+    @keyframes crewSpin { to { --crew-angle: 360deg; } }
+    .skel { border-radius: var(--radius-lg); background: linear-gradient(90deg, var(--bg-raised) 0%, var(--bg-card) 50%, var(--bg-raised) 100%); background-size: 200% 100%; animation: crewShimmer 1.4s linear infinite; }
+    @keyframes crewShimmer { to { background-position: -200% 0; } }
+    .drawer { box-shadow: var(--shadow-pop); animation: crewDrawerIn var(--dur-slow) var(--ease-out); }
+    .scrim { animation: crewFade var(--dur) var(--ease-out); }
+    @keyframes crewDrawerIn { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+    @keyframes crewFade { from { opacity: 0; } to { opacity: .7; } }
+    .drawer-x { display: grid; place-items: center; transition: border-color var(--dur) var(--ease-out); }
+    .drawer-x:hover { border-color: var(--border-hot); }
+    .btn { border-radius: var(--radius-md); transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur) var(--ease-out), background-color var(--dur) var(--ease-out); }
+    .btn:active:not(:disabled) { transform: scale(.98); }
+    .btn.primary { background: var(--grad-primary); border-color: var(--orange-deep); }
+    .btn.primary:hover:not(:disabled) { background: var(--grad-primary-hover); }
+    .need .mk { display: inline-grid; place-items: center; }
+    .row { border-radius: var(--radius-md); transition: border-color var(--dur) var(--ease-out), background-color var(--dur) var(--ease-out); }
+    @media (prefers-reduced-motion: reduce) { .chip.running::after, .skel { animation: none; } .chip:hover { transform: none; } }
   </style>
   <script src="/static/podclick-nav.js?v=20261004-1" defer></script>
 </head>
