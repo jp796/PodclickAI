@@ -555,7 +555,7 @@
   display: flex; flex-direction: column; gap: 5px; position: relative;
 }
 .pub-tile:hover:not(.disabled) { border-color: var(--accent2); background: rgba(217,95,30,0.08); }
-.pub-tile.disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+.pub-tile-link { text-decoration: none; color: inherit; }
 .pub-tile.expanded { grid-column: 1 / -1; }
 .pub-tile-icon { font-size: 22px; }
 .pub-tile-name { font-size: 13px; font-weight: 700; color: var(--text); }
@@ -564,13 +564,6 @@
   position: absolute; top: 10px; right: 10px;
   background: rgba(82,196,122,0.15); color: var(--green-hi);
   border: 1px solid rgba(82,196,122,0.3);
-  font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
-  padding: 2px 7px; border-radius: 20px;
-}
-.pub-badge-soon {
-  position: absolute; top: 10px; right: 10px;
-  background: rgba(196,150,28,0.12); color: var(--yellow);
-  border: 1px solid rgba(196,150,28,0.3);
   font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
   padding: 2px 7px; border-radius: 20px;
 }
@@ -767,37 +760,12 @@
         <div class="pub-tile-desc">AI clips highlights → viral subtitles → TikTok &amp; YouTube Shorts</div>
       </div>
 
-      <!-- Facebook -->
-      <div class="pub-tile disabled">
-        <span class="pub-badge-soon">COMING SOON</span>
-        <div class="pub-tile-icon">📘</div>
-        <div class="pub-tile-name">Facebook</div>
-        <div class="pub-tile-desc">Post video to Facebook page or profile</div>
-      </div>
-
-      <!-- Instagram -->
-      <div class="pub-tile disabled">
-        <span class="pub-badge-soon">COMING SOON</span>
-        <div class="pub-tile-icon">📸</div>
-        <div class="pub-tile-name">Instagram</div>
-        <div class="pub-tile-desc">Post as Reel or feed video</div>
-      </div>
-
-      <!-- LinkedIn -->
-      <div class="pub-tile disabled">
-        <span class="pub-badge-soon">COMING SOON</span>
-        <div class="pub-tile-icon">💼</div>
-        <div class="pub-tile-name">LinkedIn</div>
-        <div class="pub-tile-desc">Share as native LinkedIn video post</div>
-      </div>
-
-      <!-- Mobile App -->
-      <div class="pub-tile disabled">
-        <span class="pub-badge-soon">COMING SOON</span>
-        <div class="pub-tile-icon">📱</div>
-        <div class="pub-tile-name">Mobile App</div>
-        <div class="pub-tile-desc">Record from phone, auto-publish to all channels</div>
-      </div>
+      <!-- Social channels: handled by The Crew (Facebook / Instagram / LinkedIn / TikTok) -->
+      <a class="pub-tile pub-tile-link" href="/agents">
+        <div class="pub-tile-icon">👷</div>
+        <div class="pub-tile-name">Publish from The Crew →</div>
+        <div class="pub-tile-desc">Facebook, Instagram, LinkedIn and TikTok posts go out through The Crew, with a review step before anything posts.</div>
+      </a>
 
     </div>
     <div id="pub-footer" style="margin-top:18px;display:none;">
@@ -2479,9 +2447,9 @@
             <div style="font-size:13px;font-weight:600;color:var(--text-pri);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(v.title)}</div>
             <div style="font-size:11px;color:var(--text-dim);margin-top:2px;">${TYPE_LABELS[v.video_type]||v.video_type} · ${durLabel}${v.size_mb} MB · ${new Date(v.created_at).toLocaleDateString()}</div>
           </div>
-          <a href="/editor/${escHtml(v.id)}"
+          <a href="/studio"
              style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;background:rgba(217,95,30,0.12);border:1px solid var(--orange-dim);color:var(--orange-hi);text-decoration:none;white-space:nowrap;"
-             title="Open in transcript editor">✂ Edit</a>
+             title="Open in the Studio">✂ Edit</a>
           <a href="${escHtml(v.url)}" download style="font-size:18px;color:var(--text-dim);text-decoration:none;" title="Download">⬇</a>
           <button onclick="deleteDirectVideo('${escHtml(v.id)}')" style="background:none;border:none;color:var(--text-dim);font-size:15px;cursor:pointer;padding:0;" title="Delete">🗑</button>
         </div>`;
@@ -3566,7 +3534,6 @@
     }
   });
   </script>
-<script src="/recorder-widget.js"></script>
 <script src="/brick-chat.js" defer></script>
 </body>
 </html>
