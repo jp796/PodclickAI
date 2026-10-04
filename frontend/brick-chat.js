@@ -504,7 +504,11 @@
                   scrollToBottom();
                 } else if (obj.tool !== undefined) {
                   // tool notification
-                  appendMessage('tool', '⚙ ' + obj.tool, new Date().toISOString());
+                  var toolEl = appendMessage('tool', obj.tool, new Date().toISOString());
+                  try {
+                    var gear = (window.PodClickIcons && window.PodClickIcons.svg('wrench', { size: 12 })) || '';
+                    if (gear) toolEl.insertAdjacentHTML('afterbegin', gear + ' ');
+                  } catch (e) { /* plain-text fallback */ }
                   scrollToBottom();
                 }
               } catch (e) {

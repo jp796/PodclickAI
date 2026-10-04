@@ -13,6 +13,14 @@
   let _timer = null, _secs = 0, _active = false, _visible = false;
   let _useHeadphones = true, _vuRunning = false;
 
+  // Icon helper: inline SVG when pc-icons.js is loaded, otherwise a placeholder that
+  // PodClickIcons.mount() fills later. If icons never load, the label text still reads.
+  function _ic(name) {
+    try { if (window.PodClickIcons) return window.PodClickIcons.svg(name, { className: 'pR-ic' }); } catch (_) {}
+    return '<i class="pc-i pR-ic" data-i="' + name + '" aria-hidden="true"></i>';
+  }
+  function _label(el, icon, text) { if (el) el.innerHTML = (icon ? _ic(icon) + ' ' : '') + text; }
+
   function _fmt(s) {
     return String(Math.floor(s / 60)).padStart(2,'0') + ':' + String(s % 60).padStart(2,'0');
   }
@@ -33,6 +41,17 @@
     .pR-title{font:700 15px/1 var(--font-cond);letter-spacing:.04em;text-transform:uppercase;}
     .pR-x{background:none;border:none;color:var(--text-sec);cursor:pointer;font-size:20px;line-height:1;padding:0;}
     .pR-x:hover{color:var(--text);}
+    .pR-ic{display:inline-block;width:1.1em;height:1.1em;vertical-align:-0.18em;flex-shrink:0;}
+    .pR-ic svg{width:100%;height:100%;display:block;}
+    .pR-title,.pR-lbl,.pR-big,.pR-sm,.pR-test-btn,.pR-pos-btn,.pR-status{display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+    .pR-lbl{display:flex;justify-content:flex-start;}
+    .pR-status{display:flex;}
+    .pR-title{justify-content:flex-start;}
+    .pR-x{display:inline-flex;width:28px;height:28px;align-items:center;justify-content:center;border-radius:var(--radius-sm,4px);}
+    .pR-x .pR-ic{width:18px;height:18px;}
+    #pcRec-fab .pR-ic{width:22px;height:22px;}
+    #pcRec-fab:focus-visible,.pR-x:focus-visible,.pR-big:focus-visible,.pR-sm:focus-visible{outline:none;box-shadow:var(--ring);}
+    .pR-live-dot{width:8px;height:8px;border-radius:50%;background:var(--red-hi,var(--red));animation:pcRecPulse 1.4s ease-in-out infinite;}
     .pR-lbl{font-size:10px;font-weight:700;color:var(--text-sec);text-transform:uppercase;letter-spacing:.08em;margin:12px 0 6px;}
     .pR-sel{width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;outline:none;cursor:pointer;margin-bottom:10px;}
     .pR-sel:focus{border-color:var(--orange);}
@@ -85,21 +104,21 @@
   launcher.innerHTML = `
     <div id="pcRec-panel" class="hidden">
       <div class="pR-hdr">
-        <span class="pR-title">🎬 Screen Recorder</span>
-        <button class="pR-x" id="pcRec-X">×</button>
+        <span class="pR-title">${_ic('clapperboard')} Screen Recorder</span>
+        <button class="pR-x" id="pcRec-X" aria-label="Close recorder">${_ic('x')}</button>
       </div>
 
       <!-- IDLE -->
       <div id="pcRec-idle">
 
         <!-- Mic -->
-        <div class="pR-lbl">🎙️ Microphone</div>
+        <div class="pR-lbl">${_ic('mic')} Microphone</div>
         <select class="pR-sel" id="pcRec-micSel"><option value="">Default mic</option></select>
         <div class="pR-mic-test-row">
-          <button class="pR-test-btn" id="pcRec-testBtn" onclick="window._pcTestMic()">🎙 Test Mic</button>
+          <button class="pR-test-btn" id="pcRec-testBtn" onclick="window._pcTestMic()">${_ic('mic')} Test Mic</button>
           <div class="pR-vu-track"><div class="pR-vu-fill" id="pcRec-vuFill"></div></div>
         </div>
-        <div class="pR-lbl">🎧 Using headphones?</div>
+        <div class="pR-lbl">${_ic('headphones')} Using headphones?</div>
         <div class="pR-hp">
           <button class="pR-hp-btn on" id="pcRec-hpY" onclick="window._pcHP(true)">Yes — headphones</button>
           <button class="pR-hp-btn" id="pcRec-hpN" onclick="window._pcHP(false)">No — speakers</button>
@@ -108,7 +127,7 @@
         <hr class="pR-hr">
 
         <!-- Camera bubble -->
-        <div class="pR-lbl">📹 Floating Camera (Loom-style)</div>
+        <div class="pR-lbl">${_ic('video')} Floating Camera (Loom-style)</div>
         <label class="pR-opt">
           <input type="checkbox" id="pcRec-camChk" onchange="window._pcToggleCamSetup()"> Show floating head bubble
         </label>
@@ -125,10 +144,10 @@
           <!-- Position picker -->
           <div class="pR-lbl">Bubble position</div>
           <div class="pR-bubble-pos">
-            <button class="pR-pos-btn" data-pos="bl" onclick="window._pcSetPos('bl')">↙ Bottom left</button>
-            <button class="pR-pos-btn on" data-pos="br" onclick="window._pcSetPos('br')">↘ Bottom right</button>
-            <button class="pR-pos-btn" data-pos="tl" onclick="window._pcSetPos('tl')">↖ Top left</button>
-            <button class="pR-pos-btn" data-pos="tr" onclick="window._pcSetPos('tr')">↗ Top right</button>
+            <button class="pR-pos-btn" data-pos="bl" onclick="window._pcSetPos('bl')">${_ic('arrow-down-left')} Bottom left</button>
+            <button class="pR-pos-btn on" data-pos="br" onclick="window._pcSetPos('br')">${_ic('arrow-down-right')} Bottom right</button>
+            <button class="pR-pos-btn" data-pos="tl" onclick="window._pcSetPos('tl')">${_ic('arrow-up-left')} Top left</button>
+            <button class="pR-pos-btn" data-pos="tr" onclick="window._pcSetPos('tr')">${_ic('arrow-up-right')} Top right</button>
           </div>
 
           <!-- Bubble size -->
@@ -145,7 +164,7 @@
         <hr class="pR-hr">
 
         <!-- Speaker -->
-        <div class="pR-lbl">🔊 Speaker / Output</div>
+        <div class="pR-lbl">${_ic('volume-2')} Speaker / Output</div>
         <select class="pR-sel" id="pcRec-spkSel"><option value="">Default speaker</option></select>
 
         <hr class="pR-hr">
@@ -153,30 +172,30 @@
         <label class="pR-opt">
           <input type="checkbox" id="pcRec-micChk" checked> Include microphone audio
         </label>
-        <button class="pR-big start" id="pcRec-startBtn" onclick="window._pcStart()">⏺ Start Recording</button>
+        <button class="pR-big start" id="pcRec-startBtn" onclick="window._pcStart()">${_ic('circle-dot')} Start Recording</button>
         <p class="pR-hint">Chooses screen or window after you click start</p>
       </div>
 
       <!-- RECORDING -->
       <div id="pcRec-rec" style="display:none">
         <div class="pR-timer" id="pcRec-runTimer">00:00</div>
-        <div class="pR-status">🔴 Recording…</div>
-        <button class="pR-big stop" onclick="window._pcStop()">⏹ Stop</button>
+        <div class="pR-status"><span class="pR-live-dot" aria-hidden="true"></span> Recording…</div>
+        <button class="pR-big stop" onclick="window._pcStop()">${_ic('square')} Stop</button>
       </div>
 
       <!-- PREVIEW -->
       <div id="pcRec-prev" style="display:none">
         <video id="pcRec-vid" class="pR-vid" controls></video>
         <div class="pR-row">
-          <button class="pR-sm" onclick="window._pcDlWebM()">⬇ WebM</button>
-          <button class="pR-sm" id="pcRec-mp4Btn" onclick="window._pcConvert()">🎬 MP4</button>
-          <button class="pR-sm" onclick="window._pcAgain()">🔄 Again</button>
+          <button class="pR-sm" onclick="window._pcDlWebM()">${_ic('download')} WebM</button>
+          <button class="pR-sm" id="pcRec-mp4Btn" onclick="window._pcConvert()">${_ic('film')} MP4</button>
+          <button class="pR-sm" onclick="window._pcAgain()">${_ic('refresh-cw')} Again</button>
         </div>
-        <p class="pR-note"><strong style="color:var(--text);">TikTok review:</strong> Download MP4 → <a href="https://developers.tiktok.com/apps/" target="_blank" style="color:var(--orange-hi);">developers.tiktok.com</a></p>
+        <p class="pR-note"><strong style="color:var(--text);">TikTok review:</strong> Download MP4, then upload at <a href="https://developers.tiktok.com/apps/" target="_blank" style="color:var(--orange-hi);">developers.tiktok.com</a></p>
       </div>
     </div>
 
-    <button id="pcRec-fab" title="Screen Recorder">🎬</button>
+    <button id="pcRec-fab" title="Screen Recorder" aria-label="Open screen recorder">${_ic('clapperboard')}</button>
   `;
   document.body.appendChild(launcher);
 
@@ -304,7 +323,7 @@
     if (_vuRunning) {
       _killVU();
       document.getElementById('pcRec-testBtn').classList.remove('active');
-      document.getElementById('pcRec-testBtn').textContent = '🎙 Test Mic';
+      _label(document.getElementById('pcRec-testBtn'), 'mic', 'Test Mic');
       return;
     }
     const micId = document.getElementById('pcRec-micSel')?.value;
@@ -330,7 +349,7 @@
       }
       tick();
       document.getElementById('pcRec-testBtn').classList.add('active');
-      document.getElementById('pcRec-testBtn').textContent = '⏹ Stop Test';
+      _label(document.getElementById('pcRec-testBtn'), 'square', 'Stop Test');
     } catch (err) { _toast('Mic access failed: ' + err.message); }
   };
 
@@ -519,7 +538,7 @@
       });
 
     } catch (err) {
-      btn.disabled = false; btn.textContent = '⏺ Start Recording';
+      btn.disabled = false; _label(btn, 'circle-dot', 'Start Recording');
       if (err.name !== 'NotAllowedError') _toast('Could not start: ' + err.message);
     }
   };
@@ -548,7 +567,7 @@
       if (spkId && typeof vid.setSinkId === 'function') vid.setSinkId(spkId).catch(() => {});
     }
     document.getElementById('pcRec-prev').style.display = 'block';
-    _toast('✅ Done — ' + _fmt(_secs));
+    _toast('Done: ' + _fmt(_secs) + ' recorded');
   }
 
   // ── Download / Convert ─────────────────────────────────────────────
@@ -563,7 +582,7 @@
   window._pcConvert = async function () {
     if (!_blob) return;
     const btn = document.getElementById('pcRec-mp4Btn');
-    btn.disabled = true; btn.textContent = '⏳…';
+    btn.disabled = true; _label(btn, 'loader-circle', 'Converting…');
     _toast('Converting to MP4…');
     try {
       const fd = new FormData();
@@ -574,11 +593,11 @@
       a.href = URL.createObjectURL(await res.blob());
       a.download = 'recording-' + Date.now() + '.mp4';
       a.click();
-      _toast('✅ MP4 downloaded!');
+      _toast('MP4 downloaded');
     } catch (err) {
       _toast('Convert failed: ' + err.message);
     } finally {
-      btn.disabled = false; btn.textContent = '🎬 MP4';
+      btn.disabled = false; _label(btn, 'film', 'MP4');
     }
   };
 
@@ -591,9 +610,9 @@
     document.getElementById('pcRec-prev').style.display  = 'none';
     document.getElementById('pcRec-rec').style.display   = 'none';
     const btn = document.getElementById('pcRec-startBtn');
-    btn.disabled = false; btn.textContent = '⏺ Start Recording';
+    btn.disabled = false; _label(btn, 'circle-dot', 'Start Recording');
     document.getElementById('pcRec-testBtn').classList.remove('active');
-    document.getElementById('pcRec-testBtn').textContent = '🎙 Test Mic';
+    _label(document.getElementById('pcRec-testBtn'), 'mic', 'Test Mic');
     _loadDevices();
   };
 
