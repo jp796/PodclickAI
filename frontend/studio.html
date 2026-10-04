@@ -3109,7 +3109,7 @@
   async function publishToClips() {
     closePublishModal();
     toast('Sending to Clips…');
-    _doClipsPublishRaw().then(() => { toast('✂️ Clip job started', 'success'); setTimeout(() => { window.location.href = '/'; }, 2500); }).catch(e => toast('Clips failed: ' + e.message, 'error'));
+    _doClipsPublishRaw().then(() => { toast('✂️ Clip job started', 'success'); setTimeout(() => { window.location.href = '/legacy/episode-builder'; }, 2500); }).catch(e => toast('Clips failed: ' + e.message, 'error'));
   }
 
   // ── File Transfer Progress Bar ───────────────────────────────────────

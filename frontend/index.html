@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Podcast Studio · PodClick</title>
+  <title>Legacy Episode builder · PodClick</title>
   <script src="/static/podclick-nav.js?v=20261002-1" defer></script>
   <link rel="icon" href="/static/podclick-mark.png" type="image/png">
   <style>
@@ -618,6 +618,7 @@
   <link rel="stylesheet" href="/podclick-design.css?v=20261002-1" />
 </head>
 <body class="podclick-studio">
+<aside role="note" style="margin:0;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg-panel);color:var(--text-sec);font-size:13px"><strong style="color:var(--text)">Legacy Episode builder: sponsors, guests, release queue.</strong> New episodes start on the <a href="/projects" style="color:var(--accent)">Job Site</a>.</aside>
 <a class="studio-skip-link" href="#episode-builder">Skip to episode builder</a>
 
 <header class="studio-toolbar">
@@ -2688,7 +2689,7 @@ document.getElementById("process-btn").addEventListener("click", async () => {
   currentJobId = data.job_id;
 
   if (ws) ws.close();
-  ws = new WebSocket(`ws://${location.host}/ws/${currentJobId}`);
+  ws = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws/${currentJobId}`);
 
   ws.onmessage = e => {
     const msg = JSON.parse(e.data);
@@ -3519,7 +3520,7 @@ async function startClipJob() {
   clipJobId  = data.job_id;
 
   if (clipWs) clipWs.close();
-  clipWs = new WebSocket(`ws://${location.host}/ws/clip/${clipJobId}`);
+  clipWs = new WebSocket(`${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}/ws/clip/${clipJobId}`);
   clipWs.onmessage = e => {
     const msg = JSON.parse(e.data);
     if (msg.type === "ping") return;

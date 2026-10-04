@@ -29,3 +29,11 @@ interceptor-screenshot-*.png
 # Test/tooling caches
 .pytest_cache/
 *.egg-info/
+
+# Secrets outside data/ (data/ is already ignored wholesale). Cookie/token/OAuth
+# files must never be committed even if they land elsewhere. bot.log/server.log
+# are covered by *.log above.
+*cookies*.json
+*_token.json
+*client_secret*.json
+service_account*.json

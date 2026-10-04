@@ -5461,8 +5461,17 @@ async def _create_closing_posts(
 
 
 # ── Routes ─────────────────────────────────────────────────────────────────────
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def serve_frontend():
+    """One front door: the Job Site. The legacy Episode builder moved to
+    /legacy/episode-builder (2026-10-04)."""
+    return RedirectResponse("/projects", status_code=302)
+
+
+@app.get("/legacy/episode-builder", response_class=HTMLResponse)
+async def serve_legacy_episode_builder():
+    """Legacy Episode builder (sponsors, guests, release queue) on the
+    /api/process pipeline. Kept reachable while the Projects pipeline is canonical."""
     return HTMLResponse((FRONTEND_DIR / "index.html").read_text())
 
 
@@ -5488,14 +5497,11 @@ async def serve_vsl_editor():
     return HTMLResponse((FRONTEND_DIR / "vsl-editor.html").read_text())
 
 
-@app.get("/editor/{vid_id}", response_class=HTMLResponse)
+@app.get("/editor/{vid_id}")
 async def serve_editor(vid_id: str):
-    """
-    Transcript-driven editor — Phase 0 entry point.
-    Opens a Library video in the word-level editor.
-    vid_id is the Video Library item id (UUID).
-    """
-    return HTMLResponse((FRONTEND_DIR / "editor.html").read_text())
+    """Retired Phase 0 editor stub. Old /editor/{id} links land in the Studio;
+    the real transcript editor is /project/{id}/edit."""
+    return RedirectResponse("/studio", status_code=302)
 
 
 @app.get("/project/{project_id}", response_class=HTMLResponse)
@@ -7470,7 +7476,7 @@ async def transcribe_file(
 async def tiktok_auth():
     from pipeline.tiktok import get_auth_url, is_authorized
     if is_authorized():
-        return HTMLResponse("<h2>✅ TikTok already connected!</h2><p>Return to <a href='/'>Podcast OS</a></p>")
+        return HTMLResponse("<h2>✅ TikTok already connected!</h2><p>Return to <a href='/projects'>PodClick</a></p>")
     if not os.getenv("TIKTOK_CLIENT_KEY"):
         return HTMLResponse(
             "<h2>TikTok Setup Required</h2>"
@@ -7490,7 +7496,7 @@ async def tiktok_callback(code: str = "", state: str = "", error: str = ""):
     from pipeline.tiktok import exchange_code
     try:
         await exchange_code(code, state)
-        return HTMLResponse("<h2>✅ TikTok connected!</h2><p>You can close this tab and return to <a href='/'>Podcast OS</a></p>")
+        return HTMLResponse("<h2>✅ TikTok connected!</h2><p>You can close this tab and return to <a href='/projects'>PodClick</a></p>")
     except Exception as exc:
         return HTMLResponse(f"<h2>Error</h2><p>{exc}</p>")
 
@@ -7998,7 +8004,7 @@ async def youtube_auth():
             return HTMLResponse(
                 f"<h2>✅ YouTube already connected!</h2>"
                 f"<p>Channel: <strong>{title}</strong></p>"
-                f"<p>Return to <a href='/'>Podcast OS</a></p>"
+                f"<p>Return to <a href='/projects'>PodClick</a></p>"
             )
         disconnect()  # dead token — clear it and reconnect below
     if not is_configured():
@@ -8014,7 +8020,7 @@ async def youtube_auth():
             "<li>Download JSON → rename to <code>youtube_client_secrets.json</code> → place in the <code>data/</code> folder</li>"
             "<li>Return here and click Connect YouTube again</li>"
             "</ol>"
-            "<p><a href='/'>← Back to Podcast OS</a></p>"
+            "<p><a href='/projects'>← Back to PodClick</a></p>"
         )
     try:
         url = get_auth_url()
@@ -8026,7 +8032,7 @@ async def youtube_auth():
         f"<h2>Opening YouTube authorization…</h2>"
         f"<p>A browser window should open for you to grant access.</p>"
         f"<p>If it didn't open, <a href='{url}'>click here</a>.</p>"
-        f"<p><a href='/'>← Back to Podcast OS</a></p>"
+        f"<p><a href='/projects'>← Back to PodClick</a></p>"
     )
 
 
@@ -8035,7 +8041,7 @@ async def youtube_callback(code: str = "", error: str = "", state: str = ""):
     if error:
         return HTMLResponse(
             f"<h2>Authorization denied</h2><p>{error}</p>"
-            f"<p><a href='/'>← Back to Podcast OS</a></p>"
+            f"<p><a href='/projects'>← Back to PodClick</a></p>"
         )
     from pipeline.youtube import exchange_code
     result = exchange_code(code)
@@ -8072,7 +8078,7 @@ h2{{color:#52c47a;margin-bottom:6px;}} .sub{{color:#847d74;font-size:13px;margin
   <form id="f">{channel_rows}
     <button class="save-btn" type="submit">Set Active Channel →</button>
   </form>
-  <p style="margin-top:16px;font-size:12px;color:#4a4540;">Or <a href="/">skip — use first channel</a></p>
+  <p style="margin-top:16px;font-size:12px;color:#4a4540;">Or <a href="/projects">skip — use first channel</a></p>
 </div>
 <script>
 document.getElementById('f').addEventListener('submit', async e => {{

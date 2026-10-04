@@ -85,7 +85,6 @@
       { href: '/walkthrough',    label: 'Walk-through', icon: 'home' }
     ]},
     { section: 'Create', items: [
-      { href: '/',               label: 'Podcast',      icon: 'podcast', exact: true },
       { href: '/studio',         label: 'Studio',       icon: 'studio' },
       { href: '/social-studio',  label: 'Social',       icon: 'social' },
       { href: '/vsl-editor',     label: 'Video / VSL',  icon: 'video' },
@@ -93,7 +92,7 @@
     ]},
     { section: 'Plan & publish', items: [
       { href: '/calendar',       label: 'Calendar',     icon: 'calendar' },
-      { href: '/projects',       label: 'Job Site',     icon: 'jobsite', match: ['/project/', '/editor/'] }
+      { href: '/projects',       label: 'Job Site',     icon: 'jobsite', match: ['/project/'] }
     ]},
     { section: 'Grow', items: [
       { href: '/youtube-studio', label: 'Scout',        icon: 'scout' },
@@ -102,7 +101,8 @@
     { section: 'Foundation', items: [
       { href: '/foundation',     label: 'Foundation',   icon: 'found' },
       { href: '/blueprint',      label: 'Blueprint',    icon: 'blueprint' },
-      { href: '/permit',         label: 'Permit',       icon: 'permit' }
+      { href: '/permit',         label: 'Permit',       icon: 'permit' },
+      { href: '/legacy/episode-builder', label: 'Legacy builder', icon: 'podcast' }
     ]}
   ];
 
