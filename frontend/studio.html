@@ -85,7 +85,14 @@
       padding: 20px;
       min-height: 0;
     }
-    @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+    @media (max-width: 1100px) {
+      /* Size to content in one column; flex:1 + min-height:0 squeezed the rows and made panels overlap. */
+      main { grid-template-columns: 1fr; flex: 0 0 auto; }
+      /* Single column: lift the upload tray above the camera so it is visible without scrolling.
+         (main > selector outranks the later .right-pane { display:flex } rule.) */
+      main > .right-pane { display: contents; }
+      #upload-tray { order: -1; }
+    }
 
     /* ── Left column: preview + transport ── */
     .preview-shell {
@@ -1017,42 +1024,6 @@
         <div id="video-library-list" style="font-size:13px;color:var(--text-sec);">Loading…</div>
       </div>
 
-      <!-- ── Upload Pre-Recorded File ─────────────────────────────────── -->
-      <div class="panel" id="upload-tray">
-        <h3>📂 Upload a Pre-Recorded File</h3>
-        <p style="font-size:12px;color:var(--text-sec);margin:0 0 10px;">Have a recording already? Drop it here and we'll pour it straight into the pipeline.</p>
-
-        <!-- Drop zone -->
-        <div id="upload-drop-zone"
-          style="border:2px dashed var(--border);border-radius:10px;padding:28px 16px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;margin-bottom:10px;"
-          onclick="document.getElementById('upload-file-input').click()"
-          ondragover="uploadDragOver(event)"
-          ondragleave="uploadDragLeave(event)"
-          ondrop="uploadDrop(event)">
-          <div style="font-size:28px;margin-bottom:6px;">🎬</div>
-          <div style="font-size:13px;color:var(--text-sec);">Drag &amp; drop or <span style="color:var(--orange);font-weight:600;">browse</span></div>
-          <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">MP4 · MOV · WebM · MP3 · M4A</div>
-          <div id="upload-file-name" style="display:none;margin-top:8px;font-size:12px;color:var(--orange);font-weight:600;word-break:break-all;"></div>
-        </div>
-        <input type="file" id="upload-file-input" accept=".mp4,.mov,.webm,.mp3,.m4a" style="display:none;" onchange="uploadFileSelected(this)">
-
-        <!-- Title -->
-        <div style="margin-bottom:10px;">
-          <label for="upload-title" style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;">What's this build?</label>
-          <input type="text" id="upload-title"
-            style="width:100%;margin-top:4px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-pri);font-size:14px;box-sizing:border-box;"
-            placeholder="Leave blank to auto-name…" />
-        </div>
-
-        <!-- Upload button -->
-        <button id="btn-upload-continue"
-          style="width:100%;padding:11px;font-size:15px;font-weight:700;letter-spacing:0.03em;background:var(--border);color:var(--text-sec);border:none;border-radius:8px;cursor:not-allowed;margin-bottom:6px;"
-          disabled onclick="uploadAndContinue()">
-          Upload &amp; Continue →
-        </button>
-        <div id="upload-status" style="font-size:12px;color:var(--text-sec);text-align:center;display:none;"></div>
-      </div>
-
       <!-- ── Post-Episode Tools ──────────────────────────────────────── -->
       <div class="panel" id="post-ep-panel" style="display:none;">
         <h3>Episode Tools</h3>
@@ -1093,6 +1064,42 @@
 
     <!-- ── Right: teleprompter + script ──────────────────────────── -->
     <div class="right-pane">
+      <!-- ── Upload Pre-Recorded File ─────────────────────────────────── -->
+      <div class="panel" id="upload-tray">
+        <h3>📂 Upload a recording (audio or video)</h3>
+        <p style="font-size:12px;color:var(--text-sec);margin:0 0 10px;">Already recorded? Drop the file here and we'll start a new build from it.</p>
+
+        <!-- Drop zone -->
+        <div id="upload-drop-zone"
+          style="border:2px dashed var(--border);border-radius:10px;padding:18px 16px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;margin-bottom:10px;"
+          onclick="document.getElementById('upload-file-input').click()"
+          ondragover="uploadDragOver(event)"
+          ondragleave="uploadDragLeave(event)"
+          ondrop="uploadDrop(event)">
+          <div style="font-size:24px;margin-bottom:4px;">🎬</div>
+          <div style="font-size:13px;color:var(--text-sec);">Drag &amp; drop or <span style="color:var(--orange);font-weight:600;">browse</span></div>
+          <div id="upload-accepted-types" style="font-size:11px;color:var(--text-dim);margin-top:4px;line-height:1.5;">Video: MP4 · MOV · WebM · MKV<br>Audio: MP3 · M4A · WAV · FLAC · AAC</div>
+          <div id="upload-file-name" style="display:none;margin-top:8px;font-size:12px;color:var(--orange);font-weight:600;word-break:break-all;"></div>
+        </div>
+        <input type="file" id="upload-file-input" accept=".mp4,.mov,.webm,.mkv,.mp3,.m4a,.wav,.flac,.aac" style="display:none;" onchange="uploadFileSelected(this)">
+
+        <!-- Title -->
+        <div style="margin-bottom:10px;">
+          <label for="upload-title" style="font-size:11px;color:var(--text-sec);text-transform:uppercase;letter-spacing:0.06em;">What's this build?</label>
+          <input type="text" id="upload-title"
+            style="width:100%;margin-top:4px;background:var(--bg-inset);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text-pri);font-size:14px;box-sizing:border-box;"
+            placeholder="Leave blank to auto-name…" />
+        </div>
+
+        <!-- Upload button -->
+        <button id="btn-upload-continue"
+          style="width:100%;padding:11px;font-size:15px;font-weight:700;letter-spacing:0.03em;background:var(--border);color:var(--text-sec);border:none;border-radius:8px;cursor:not-allowed;margin-bottom:6px;"
+          disabled onclick="uploadAndContinue()">
+          Upload &amp; Continue →
+        </button>
+        <div id="upload-status" style="font-size:12px;color:var(--text-sec);text-align:center;display:none;"></div>
+      </div>
+
       <div class="panel">
         <h3>Teleprompter <span class="pill" id="prompter-status">paused</span>
           <span style="margin-left:auto;display:flex;gap:6px">
@@ -2532,10 +2539,10 @@
     uploadDragLeave(e);
     const f = e.dataTransfer.files && e.dataTransfer.files[0];
     if (!f) return;
-    const allowed = ['mp4', 'mov', 'webm', 'mp3', 'm4a'];
+    const allowed = ['mp4', 'mov', 'webm', 'mkv', 'mp3', 'm4a', 'wav', 'flac', 'aac'];
     const ext = f.name.split('.').pop().toLowerCase();
     if (!allowed.includes(ext)) {
-      toast('⚠️ Unsupported file type — use MP4, MOV, WebM, MP3, or M4A', 'error');
+      toast('⚠️ Unsupported file type — use MP4, MOV, WebM, MKV, MP3, M4A, WAV, FLAC, or AAC', 'error');
       return;
     }
     _uploadFile = f;
