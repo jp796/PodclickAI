@@ -2580,3 +2580,11 @@ all `frontend/*.html` head/nav regions, `main.py` (upload whitelist), `docs/UI_C
 
 **Files:** `main.py`, `frontend/index.html`, `frontend/static/podclick-nav.js`, `frontend/studio.html`, `frontend/billing.html`, `.gitignore`, `tests/test_entry_points.py`, `docs/FRONTEND.md`, `docs/API.md`, `docs/BUGS_AND_FIXES.md`
 
+
+## 2026-10-04 — Emoji in Social Studio / Brand Studio chrome, Brand Studio clipped at 375px
+
+**Symptom (JP):** "fix those emojis, that looks terrible." Social Studio, Brand Studio, the recorder widget and Brick chat used emoji as icons, platform logos, toast prefixes and button states (131 in source, 1,168 safety-net swaps across 28 page states). Brand Studio's two-column intake grid kept its min-content width at 375px, so the form and output were cut off on the right. `main` hid the overflow, so `scrollWidth` reported 0.
+
+**Fix:** Every chrome emoji now uses a Lucide `pc-i` icon (`PodClickIcons.svg()` in JS, with a placeholder fallback). Platforms show neutral monogram chips (`.plat-mark`). AI output containers have `data-ai-output`, and Copy still copies verbatim. Added skeleton loaders, a designed Foundation-not-ready empty state, a thin-Foundation banner, per-platform live character counters, segmented mode tabs, focus rings and press states, all using tokens only. Brand Studio's grid is now `minmax(0,1fr)` below 900px. The widget scripts got `?v=20261004-2`.
+
+**Verified:** 0 visible chrome emoji and 0 safety-net swaps across 28 headless-Chrome states at 1366px and 375px. No elements clip past the viewport, there is one `<nav>`, and there are no JS exceptions. The Brick bubble and the recorder FAB both open. 785 tests pass.
