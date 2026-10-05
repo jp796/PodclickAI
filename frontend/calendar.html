@@ -7,505 +7,561 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Content Board · PodClickAI</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    /* Design tokens come from /podclick-design.css (single source of truth). */
-
-    html, body { height: 100%; }
+    /* Calendar (Content Board). Tokens only: every colour is a var() from podclick-design.css.
+       Page-local custom properties below are aliases of existing tokens, never new values. */
+    *, *::before, *::after { box-sizing: border-box; }
+    :root {
+      --b-viral: var(--orange-hi);
+      --b-brand: var(--blue-hi);
+      --b-personal: var(--purple-hi);
+      --b-conversion: var(--green-hi);
+      --b-podcast: var(--yellow);
+      --b-none: var(--border-lit);
+    }
     body {
-      font-family: var(--font);
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+      margin: 0; font-family: var(--font-body); background: var(--bg); color: var(--text-pri);
+      min-height: 100vh; overflow-x: hidden;
     }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .hidden { display: none !important; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+    button { font: inherit; color: inherit; }
 
-    header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 14px 24px; border-bottom: 1px solid var(--border);
-      background: var(--surface); flex-shrink: 0;
-    }
-    .brand { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: 0.04em; display: flex; align-items: center; }
-    .brand .pc { color: var(--text); }
-    .brand .ai {
-      color: var(--orange); -webkit-background-clip: unset; background-clip: unset; background: none;
-    }
-    .brand .sub { font-family: var(--font-cond); font-size: 11px; font-weight: 500; color: var(--text-muted); margin-left: 10px; }
-    .nav-toggle {
-      display: flex; align-items: center; gap: 2px;
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 7px; padding: 3px;
-    }
-    .nav-toggle a {
-      font-family: var(--font-cond);
-      padding: 5px 13px; border-radius: 7px; font-size: 12px; font-weight: 600;
-      color: var(--text-muted); text-decoration: none;
-      transition: background .12s, color .12s;
-    }
-    .nav-toggle a:hover { background: var(--surface); color: var(--text); }
-    .nav-toggle a.active { background: var(--surface); color: var(--accent); }
+    .content-area { width: 100%; max-width: 1640px; margin: 0 auto; padding: var(--space-7) var(--space-6) var(--space-8); }
 
-    .content-area {
-      flex: 1; overflow-y: auto; padding: 28px 24px;
-      max-width: 1300px; width: 100%; margin: 0 auto;
-    }
+    /* ── Header ─────────────────────────────────────────────────────────── */
+    .cal-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-4) var(--space-6); align-items: end; margin-bottom: var(--space-5); }
+    .cal-eyebrow { font: 500 11px/1 var(--font-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--text-sec-hi); display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); }
+    .cal-eyebrow::before { content: ""; width: 14px; height: 2px; background: var(--orange); }
+    .cal-title-row { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; }
+    #cal-title { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: clamp(34px, 4.2vw, 56px); line-height: .95; letter-spacing: .03em; text-transform: uppercase; color: var(--text-pri); }
+    .cal-sub { margin: var(--space-2) 0 0; font-size: 14px; color: var(--text-sec-hi); }
+    .cal-sub b { color: var(--text-pri); font-weight: 600; font-family: var(--font-mono); font-size: 13px; }
 
-    /* Page header */
-    .page-head {
-      display: flex; align-items: center; justify-content: space-between;
-      gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
-    }
-    .page-head h1 {
-      font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
-    }
-    .page-head .sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+    .cal-nav { display: inline-flex; align-items: center; gap: var(--space-1); padding: 3px; background: var(--bg-inset); border: var(--hairline); border-radius: var(--radius-md); }
+    .nav-btn { height: 34px; min-width: 34px; padding: 0 var(--space-3); display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
+      background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--text-sec-hi); cursor: pointer;
+      font: 600 13px/1 var(--font-cond); letter-spacing: .06em; text-transform: uppercase; transition: background var(--dur-fast) ease, color var(--dur-fast) ease, transform var(--dur-fast) ease; }
+    .nav-btn:hover { background: var(--bg-raised); color: var(--text-pri); border-color: var(--border); }
+    .nav-btn:active { transform: scale(.96); }
+    .nav-btn--icon { padding: 0; width: 34px; }
 
-    .head-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .head-controls { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; justify-content: flex-end; }
+    .view-toggle.pc-tabs > button { font: 600 13px/1 var(--font-cond); letter-spacing: .06em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px; }
+    .head-actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+    .pc-btn { font-family: var(--font-cond); letter-spacing: .04em; }
 
-    .view-toggle {
-      display: flex; gap: 2px; background: var(--surface2);
-      border: 1px solid var(--border); border-radius: 9px; padding: 3px;
-    }
-    .view-toggle button {
-      padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
-      border: none; background: none; color: var(--text-muted); cursor: pointer;
-      transition: background .12s, color .12s;
-    }
-    .view-toggle button:hover { color: var(--text); }
-    .view-toggle button.active { background: var(--surface); color: var(--accent); }
+    /* ── Bucket filter chips ───────────────────────────────────────────── */
+    .bucket-bar { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding: var(--space-3) 0; margin-bottom: var(--space-4); border-top: var(--hairline); border-bottom: var(--hairline); }
+    .bucket-bar__label { font: 500 10px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-sec); margin-right: var(--space-2); }
+    .bucket-chip { --bc: var(--b-none); display: inline-flex; align-items: center; gap: var(--space-2); height: 32px; padding: 0 var(--space-3) 0 var(--space-2);
+      border-radius: var(--radius-pill); border: 1px solid var(--border-lit); background: var(--bg-card); color: var(--text-pri); cursor: pointer;
+      font: 600 13px/1 var(--font-cond); letter-spacing: .05em; text-transform: uppercase; transition: border-color var(--dur-fast) ease, opacity var(--dur-fast) ease, background var(--dur-fast) ease, transform var(--dur-fast) ease; }
+    .bucket-chip:hover { border-color: var(--bc); }
+    .bucket-chip:active { transform: scale(.97); }
+    .bucket-chip .sw { width: 10px; height: 10px; border-radius: 3px; background: var(--bc); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bc) 18%, transparent); }
+    .bucket-chip .ct { font: 500 12px/1 var(--font-mono); color: var(--bc); min-width: 1.5ch; text-align: right; }
+    .bucket-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--bc) 9%, var(--bg-card)); border-color: color-mix(in srgb, var(--bc) 45%, var(--border)); }
+    .bucket-chip[aria-pressed="false"] { opacity: .5; }
+    .bucket-chip[aria-pressed="false"] .sw { background: transparent; box-shadow: inset 0 0 0 2px var(--bc); }
+    .bucket-chip[aria-pressed="false"] .lbl { text-decoration: line-through; text-decoration-color: var(--text-sec); }
+    .b-viral { --bc: var(--b-viral); } .b-brand { --bc: var(--b-brand); } .b-personal { --bc: var(--b-personal); }
+    .b-conversion { --bc: var(--b-conversion); } .b-podcast { --bc: var(--b-podcast); } .b-none { --bc: var(--b-none); }
+    .bucket-reset { margin-left: auto; background: none; border: 0; color: var(--text-sec-hi); font: 600 12px/1 var(--font-cond); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; padding: var(--space-2); border-radius: var(--radius-sm); }
+    .bucket-reset:hover { color: var(--orange-hi); }
 
-    .btn-primary {
-      padding: 10px 18px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      border: none; border-radius: 7px; color: var(--bg);
-      font-size: 13px; font-weight: 800; cursor: pointer;
-      transition: opacity .15s, transform .1s;
-    }
-    .btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
-    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    /* ── Month grid ────────────────────────────────────────────────────── */
+    .month-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border: var(--hairline); border-radius: var(--radius-lg); overflow: hidden; background: var(--border); gap: 1px; box-shadow: var(--shadow-card); }
+    .dow-header { background: var(--bg-panel); padding: var(--space-2) var(--space-3); font: 500 10px/1.4 var(--font-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--text-sec-hi); }
+    .dow-header.is-weekend { color: var(--text-sec); }
+    .day-cell { position: relative; background: var(--bg-card); min-height: 116px; padding: var(--space-2); display: flex; flex-direction: column; gap: var(--space-1); min-width: 0;
+      transition: background var(--dur-fast) ease, box-shadow var(--dur-fast) ease; }
+    .day-cell:hover { background: color-mix(in srgb, var(--bg-raised) 70%, var(--bg-card)); }
+    .day-cell.is-weekend { background: var(--bg-panel); }
+    .day-cell.is-other-month { background: var(--bg-inset); }
+    .day-cell.is-other-month > * { opacity: .45; }
+    .day-cell.is-today { box-shadow: inset 0 0 0 2px var(--orange); background: color-mix(in srgb, var(--orange) 5%, var(--bg-card)); }
+    .day-cell.drag-over { background: color-mix(in srgb, var(--orange) 12%, var(--bg-card)); box-shadow: inset 0 0 0 2px var(--orange-hi); }
+    .day-head { display: flex; align-items: center; gap: var(--space-2); min-height: 24px; }
+    .day-num { font: 500 13px/1 var(--font-mono); color: var(--text-sec-hi); font-variant-numeric: tabular-nums; }
+    .is-today .day-num { color: var(--orange-hi); font-weight: 700; }
+    .is-past:not(.is-today) .day-num { color: var(--text-sec); }
+    .today-tag { font: 600 9px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--bg); background: var(--orange-hi); padding: 3px 6px; border-radius: var(--radius-sm); }
+    .day-add { margin-left: auto; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm);
+      border: 1px dashed var(--border-lit); background: transparent; color: var(--text-sec-hi); cursor: pointer; opacity: 0; transition: opacity var(--dur-fast) ease, color var(--dur-fast) ease, border-color var(--dur-fast) ease; }
+    .day-cell:hover .day-add, .day-add:focus-visible, .day-cell.is-empty .day-add:hover { opacity: 1; }
+    .day-add:hover { color: var(--orange-hi); border-color: var(--orange); border-style: solid; }
+    .day-cell.is-empty:hover::after { content: "New draft"; position: absolute; inset: auto var(--space-2) var(--space-2); text-align: center; font: 500 10px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-sec); pointer-events: none; }
+    .more-btn { align-self: flex-start; background: none; border: 0; padding: 2px var(--space-1); border-radius: var(--radius-sm); cursor: pointer;
+      font: 500 11px/1.3 var(--font-mono); color: var(--text-sec-hi); letter-spacing: .04em; }
+    .more-btn:hover { color: var(--orange-hi); background: var(--orange-mist); }
 
-    .btn-secondary {
-      padding: 9px 16px; border-radius: 7px; font-size: 13px; font-weight: 600;
-      border: 1px solid var(--accent); background: rgba(217,95,30,0.08);
-      color: var(--accent); cursor: pointer; transition: all .15s;
-    }
-    .btn-secondary:hover { background: rgba(217,95,30,0.18); }
+    /* ── Post chip (shared by month, week and agenda) ───────────────────── */
+    .post-chip { --bc: var(--b-none); position: relative; display: grid; grid-template-columns: auto auto minmax(0, 1fr); grid-template-areas: "st time plats" "cap cap cap";
+      align-items: center; column-gap: 6px; row-gap: 2px; width: 100%; min-width: 0; text-align: left; padding: 5px 7px 6px 8px;
+      background: var(--bg-raised); border: 1px solid var(--border-lit); border-left: 3px solid var(--bc); border-radius: var(--radius-sm); cursor: pointer;
+      transition: transform var(--dur-fast) var(--ease-out), border-color var(--dur-fast) ease, background var(--dur-fast) ease, box-shadow var(--dur-fast) ease; }
+    .post-chip:hover { background: color-mix(in srgb, var(--bc) 8%, var(--bg-raised)); border-color: color-mix(in srgb, var(--bc) 50%, var(--border-lit)); border-left-color: var(--bc); transform: translateY(-1px); }
+    .post-chip:active { transform: scale(.98); }
+    .post-chip[draggable="true"] { cursor: grab; }
+    .post-chip.is-dragging { opacity: .4; }
+    .chip-status { grid-area: st; display: inline-flex; color: var(--text-sec-hi); }
+    .chip-status .pc-svg, .chip-status svg { width: 12px; height: 12px; }
+    .chip-time { grid-area: time; font: 500 10.5px/1 var(--font-mono); color: var(--text-sec-hi); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .chip-tag { font: 600 8.5px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; padding: 2px 4px; border-radius: 3px; border: 1px dashed var(--text-sec); color: var(--text-sec-hi); }
+    .chip-cap { grid-area: cap; font-size: 12px; line-height: 1.3; color: var(--text-pri); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chip-plats { grid-area: plats; display: flex; gap: 2px; justify-content: flex-end; min-width: 0; overflow: hidden; }
 
-    .btn-ghost {
-      padding: 9px 16px; border-radius: 7px; font-size: 13px; font-weight: 600;
-      border: 1px solid var(--border); background: var(--surface2);
-      color: var(--text-muted); cursor: pointer; transition: all .15s;
-    }
-    .btn-ghost:hover { color: var(--text); border-color: var(--accent); }
-
-    .btn-danger-ghost {
-      padding: 9px 16px; border-radius: 7px; font-size: 13px; font-weight: 600;
-      border: 1px solid var(--coral); background: rgba(160,56,56,0.08);
-      color: var(--coral); cursor: pointer; transition: all .15s;
-    }
-    .btn-danger-ghost:hover { background: rgba(160,56,56,0.18); }
-
-    /* Stats strip */
-    .stats-strip {
-      display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
-      margin-bottom: 22px;
-    }
-    @media (max-width: 800px) { .stats-strip { grid-template-columns: repeat(2, 1fr); } }
-    .stat-cell {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 12px 14px;
-      display: flex; align-items: center; gap: 10px;
-    }
-    .stat-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-    }
-    .stat-info { display: flex; flex-direction: column; }
-    .stat-label { font-family: var(--font-mono); font-size: 9px; font-weight: 400; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted);
-                  text-transform: uppercase; letter-spacing: 0.08em; }
-    .stat-num { font-family: var(--font-display); font-weight: 900; font-size: 18px; color: var(--text); margin-top: 2px; }
-
-    /* Bucket colors — pill dots on calendar cells */
-    .bucket-viral      { background: rgba(58,110,168,0.7); }
-    .bucket-brand      { background: var(--orange); }
-    .bucket-personal   { background: rgba(122,74,168,0.7); }
-    .bucket-conversion { background: var(--green-hi); }
-    .bucket-podcast    { background: var(--yellow); }
-
-    /* Month grid */
-    .month-grid {
-      display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;
-      margin-top: 8px;
-    }
-    .dow-header {
-      padding: 8px 6px; font-size: 11px; font-weight: 700;
-      color: var(--text-muted); text-transform: uppercase;
-      letter-spacing: 0.08em; text-align: center;
-    }
-    .day-cell {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 8px; min-height: 110px;
-      display: flex; flex-direction: column; gap: 5px;
-      transition: border-color .12s;
-    }
-    .day-cell.is-today { border-color: var(--accent); }
-    .day-cell.is-other-month { opacity: 0.4; }
-    .day-cell.drag-over { border-color: var(--accent2); background: rgba(217,95,30,0.05); }
-    .day-num {
-      font-size: 12px; font-weight: 700; color: var(--text);
-      display: flex; align-items: center; justify-content: space-between;
-    }
-    .day-num .dow { font-size: 9px; color: var(--text-muted); font-weight: 600;
-                    text-transform: uppercase; letter-spacing: 0.06em; }
-    .day-empty { font-size: 10px; color: var(--text-muted); margin-top: 6px; font-style: italic; }
-
-    .post-pill {
-      display: flex; align-items: center; gap: 6px;
-      padding: 4px 7px; border-radius: 6px;
-      background: var(--surface2); border: 1px solid var(--border);
-      cursor: grab; font-size: 11px; line-height: 1.3;
-      transition: transform .1s, border-color .12s;
-    }
-    .post-pill:hover { border-color: var(--accent); }
-    .post-pill:active { cursor: grabbing; }
-    .post-pill .dot {
-      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-    }
-    .post-pill .pill-text {
-      flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-      color: var(--text);
-    }
-    .post-pill.status-published { opacity: 0.65; }
-    .post-pill.status-publishing { border-color: var(--yellow); }
-    .post-pill.status-failed { border-color: var(--coral); }
-
-    /* Week view */
-    .week-controls {
-      display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
-    }
-    .week-controls button {
-      padding: 6px 14px; border-radius: 7px; background: var(--surface2);
-      border: 1px solid var(--border); color: var(--text); cursor: pointer;
-      font-size: 13px;
-    }
-    .week-controls button:hover { border-color: var(--accent); }
-    .week-label { font-size: 13px; color: var(--text-muted); font-weight: 600; }
-
-    /* List view */
-    .list-table {
-      width: 100%; border-collapse: collapse; margin-top: 8px;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); overflow: hidden;
-    }
-    .list-table th, .list-table td {
-      padding: 10px 12px; text-align: left;
-      border-bottom: 1px solid var(--border); font-size: 12px;
-    }
-    .list-table th {
-      background: var(--surface2); color: var(--text-muted);
-      font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
-      font-size: 10px;
-    }
-    .list-table tr:last-child td { border-bottom: none; }
-    .list-table tr:hover { background: rgba(217,95,30,0.04); }
-
-    /* Modal overlay */
-    .modal-overlay {
-      position: fixed; inset: 0; z-index: 1000;
-      background: rgba(11,10,8,0.88); backdrop-filter: blur(4px);
-      display: flex; align-items: center; justify-content: center;
-      padding: 20px;
-    }
-    .modal-overlay.hidden { display: none; }
-    .modal-box {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 22px;
-      width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto;
-    }
-    .modal-box.modal-sm { max-width: 460px; }
-    .modal-header {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
-    }
-    .modal-header h3 {
-      font-size: 16px; font-weight: 800; color: var(--text);
-      display: flex; align-items: center; gap: 10px;
-    }
-    .modal-header button {
-      background: none; border: none; color: var(--text-muted);
-      font-size: 22px; cursor: pointer; line-height: 1;
-    }
-    .modal-header button:hover { color: var(--text); }
-    .modal-section { margin-bottom: 18px; }
-    .modal-section label {
-      display: block; font-size: 10px; font-weight: 700;
-      color: var(--text-muted); margin-bottom: 6px;
-      text-transform: uppercase; letter-spacing: 0.08em;
-    }
-    .caption-preview {
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 8px; padding: 12px; font-size: 13px;
-      line-height: 1.5; color: var(--text); white-space: pre-wrap;
-    }
-    .modal-actions {
-      display: flex; gap: 10px; margin-top: 22px;
-      padding-top: 16px; border-top: 1px solid var(--border);
-      flex-wrap: wrap;
-    }
-
-    /* Variant tab bar */
-    .variant-tab-bar {
-      display: flex; gap: 2px; margin-bottom: 12px;
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 9px; padding: 3px; flex-wrap: wrap;
-    }
-    .variant-tab {
-      padding: 7px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
-      border: none; background: none; color: var(--text-muted); cursor: pointer;
-      transition: background .12s, color .12s;
-    }
-    .variant-tab:hover { color: var(--text); }
-    .variant-tab.active { background: var(--surface); color: var(--accent); }
-
-    textarea {
-      width: 100%; padding: 10px 12px;
-      background: var(--bg); border: 1px solid var(--border);
-      border-radius: 8px; color: var(--text); font-size: 13px;
-      font-family: var(--font); outline: none; resize: vertical;
-      line-height: 1.5;
-    }
-    textarea:focus { border-color: var(--accent); }
-
-    .spinner-wrap {
-      display: flex; align-items: center; gap: 10px;
-      padding: 14px; color: var(--text-muted); font-size: 13px;
-    }
-    .spinner {
-      width: 18px; height: 18px; border: 2px solid var(--border);
-      border-top-color: var(--accent); border-radius: 50%;
-      animation: spin 0.7s linear infinite; flex-shrink: 0;
-    }
+    .s-draft { border-style: dashed; border-left-style: solid; background: color-mix(in srgb, var(--bg-raised) 60%, transparent); }
+    .s-draft .chip-cap { color: var(--text-sec-hi); }
+    .s-scheduled .chip-status { color: var(--blue-hi); }
+    .s-publishing { border-color: color-mix(in srgb, var(--yellow) 55%, var(--border-lit)); animation: chip-ring 1.6s var(--ease-out) infinite; }
+    .s-publishing .chip-status { color: var(--yellow); }
+    .s-publishing .chip-status svg { animation: spin 1s linear infinite; }
+    .s-published { opacity: .72; }
+    .s-published .chip-status { color: var(--green-hi); }
+    .s-published:hover { opacity: 1; }
+    .s-failed { background: color-mix(in srgb, var(--red) 14%, var(--bg-raised)); border-color: color-mix(in srgb, var(--red) 70%, var(--border-lit)); border-left-color: var(--red-hi); }
+    .s-failed .chip-status, .s-failed .chip-time { color: var(--red-hi); }
+    @keyframes chip-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--yellow) 45%, transparent); } 100% { box-shadow: 0 0 0 6px transparent; } }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .hidden { display: none !important; }
-    .text-muted { color: var(--text-muted); }
+    .plat { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 14px; border-radius: 3px;
+      font: 700 7.5px/1 var(--font-mono); letter-spacing: .02em; color: var(--pl, var(--text-sec-hi)); background: color-mix(in srgb, var(--pl, var(--text-sec)) 14%, transparent); border: 1px solid color-mix(in srgb, var(--pl, var(--text-sec)) 35%, transparent); }
+    .plat[data-plat="linkedin"], .plat[data-plat="facebook"] { --pl: var(--blue-hi); }
+    .plat[data-plat="instagram"] { --pl: var(--purple-hi); }
+    .plat[data-plat="tiktok"], .plat[data-plat="x"], .plat[data-plat="threads"] { --pl: var(--text-pri); }
+    .plat[data-plat="youtube"] { --pl: var(--red-hi); }
+    .plat[data-plat="gmb"] { --pl: var(--green-hi); }
+    .plat--lg { width: 22px; height: 18px; font-size: 9px; }
+
+    /* Agenda (phone month view) */
+    .month-agenda { display: none; }
+    .agenda-day { background: var(--bg-card); border: var(--hairline); border-radius: var(--radius-lg); padding: var(--space-3); margin-bottom: var(--space-3); }
+    .agenda-day.is-today { box-shadow: inset 0 0 0 2px var(--orange); }
+    .agenda-day.drag-over { box-shadow: inset 0 0 0 2px var(--orange-hi); }
+    .agenda-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+    .agenda-date { font: 800 20px/1 var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+    .agenda-dow { font: 500 10px/1 var(--font-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--text-sec-hi); }
+    .agenda-day .day-add { opacity: 1; width: 32px; height: 32px; }
+    .agenda-list { display: grid; gap: var(--space-2); }
+    .agenda-list .post-chip { padding: 8px 10px; }
+    .agenda-list .chip-cap { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; font-size: 13.5px; }
+    .agenda-none { padding: var(--space-6) var(--space-4); text-align: center; color: var(--text-sec-hi); border: 1px dashed var(--border-lit); border-radius: var(--radius-lg); }
+
+    /* ── Week view ─────────────────────────────────────────────────────── */
+    .week-meta { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); font: 500 11px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--text-sec-hi); }
+    .week-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-2); align-items: stretch; }
+    .week-col { display: flex; flex-direction: column; min-width: 0; min-height: 420px; background: var(--bg-card); border: var(--hairline); border-radius: var(--radius-lg); transition: box-shadow var(--dur-fast) ease, background var(--dur-fast) ease; }
+    .week-col.is-weekend { background: var(--bg-panel); }
+    .week-col.is-today { box-shadow: inset 0 0 0 2px var(--orange); }
+    .week-col.drag-over { background: color-mix(in srgb, var(--orange) 10%, var(--bg-card)); box-shadow: inset 0 0 0 2px var(--orange-hi); }
+    .week-col-head { position: sticky; top: var(--pc-sticky-top, 0px); z-index: 2; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3); background: inherit; border-bottom: var(--hairline); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+    .week-col-head .wd { font: 500 10px/1 var(--font-mono); letter-spacing: .16em; text-transform: uppercase; color: var(--text-sec-hi); }
+    .week-col-head .wn { font: 800 24px/1 var(--font-display); letter-spacing: .02em; }
+    .week-col.is-today .wn { color: var(--orange-hi); }
+    .week-col-head .day-add { opacity: 1; }
+    .week-cards { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); flex: 1; }
+    .week-cards .post-chip { padding: 8px 9px 9px 10px; row-gap: 6px; }
+    .week-cards .chip-cap { white-space: normal; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; font-size: 12.5px; line-height: 1.4; }
+    .week-empty { margin: auto; font: 500 10px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-sec); }
+
+    /* ── List view ─────────────────────────────────────────────────────── */
+    .list-day { margin-bottom: var(--space-5); scroll-margin-top: calc(var(--pc-sticky-top, 0px) + 16px); }
+    .list-day-head { position: sticky; top: var(--pc-sticky-top, 0px); z-index: 2; display: flex; align-items: baseline; gap: var(--space-3); margin: 0; padding: var(--space-3) var(--space-1);
+      background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(6px); border-bottom: var(--hairline); }
+    .list-day-head .ld-date { font: 800 18px/1 var(--font-display); letter-spacing: .05em; text-transform: uppercase; }
+    .list-day-head .ld-count { margin-left: auto; font: 500 11px/1 var(--font-mono); color: var(--text-sec-hi); }
+    .list-day.flash .list-day-head { box-shadow: inset 3px 0 0 var(--orange-hi); }
+    .list-row { display: grid; grid-template-columns: 10px 72px minmax(0, 1fr) auto auto auto; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-2);
+      border-bottom: var(--hairline); transition: background var(--dur-fast) ease; }
+    .list-row:hover { background: var(--bg-card); }
+    .list-row .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--bc); }
+    .list-row .lr-time { font: 500 12px/1 var(--font-mono); color: var(--text-sec-hi); font-variant-numeric: tabular-nums; }
+    .lr-cap { min-width: 0; background: none; border: 0; padding: 0; text-align: left; cursor: pointer; font-size: 14px; line-height: 1.4; color: var(--text-pri); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .lr-cap:hover { color: var(--orange-hi); }
+    .lr-plats { display: inline-flex; gap: 3px; }
+    .lr-actions { display: inline-flex; gap: var(--space-1); }
+    .status-pill { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: var(--radius-pill); border: 1px solid var(--border-lit);
+      font: 600 10px/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-sec-hi); white-space: nowrap; }
+    .status-pill svg { width: 11px; height: 11px; }
+    .status-pill.s-draft { border-style: dashed; }
+    .status-pill.s-scheduled { color: var(--blue-hi); border-color: var(--blue-dim); }
+    .status-pill.s-publishing { color: var(--yellow); border-color: var(--yellow-dim); animation: none; }
+    .status-pill.s-publishing svg { animation: spin 1s linear infinite; }
+    .status-pill.s-published { color: var(--green-hi); border-color: var(--green-dim); opacity: 1; }
+    .status-pill.s-failed { color: var(--red-hi); border-color: color-mix(in srgb, var(--red) 70%, transparent); background: color-mix(in srgb, var(--red) 12%, transparent); }
+
+    /* ── States ────────────────────────────────────────────────────────── */
+    .skel-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; background: var(--border); border: var(--hairline); border-radius: var(--radius-lg); overflow: hidden; }
+    .skel-cell { background: var(--bg-card); min-height: 116px; padding: var(--space-2); display: flex; flex-direction: column; gap: var(--space-2); }
+    .skel-cell .pc-skeleton { border-radius: var(--radius-sm); }
+    .skel-num { width: 18px; height: 12px; }
+    .skel-chip { height: 30px; }
+    .state-card { display: grid; justify-items: center; text-align: center; gap: var(--space-3); padding: var(--space-8) var(--space-6); margin: var(--space-4) 0;
+      background-color: var(--bg-card); border: 1px dashed var(--border-lit); border-radius: var(--radius-lg);
+      background-image: linear-gradient(var(--blueprint-line) 1px, transparent 1px), linear-gradient(90deg, var(--blueprint-line) 1px, transparent 1px); background-size: 24px 24px; }
+    .state-icon { width: 56px; height: 56px; display: grid; place-items: center; border-radius: var(--radius-lg); border: var(--hairline); background: var(--bg-raised); color: var(--orange-hi); }
+    .state-icon .pc-svg, .state-icon svg { width: 26px; height: 26px; }
+    .state-card.is-error .state-icon { color: var(--red-hi); }
+    .state-card h3 { margin: 0; font: 800 28px/1 var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+    .state-card p { margin: 0; max-width: 46ch; color: var(--text-sec-hi); font-size: 14px; line-height: 1.5; }
+    .state-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; justify-content: center; margin-top: var(--space-2); }
+
+    /* ── Modals ────────────────────────────────────────────────────────── */
+    .modal-overlay { position: fixed; inset: 0; z-index: 9000; display: grid; place-items: center; padding: var(--space-4);
+      background: color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter: blur(6px); animation: fade-in var(--dur) ease both; }
+    .modal-box { position: relative; width: 100%; max-width: 680px; max-height: calc(100vh - 32px); overflow-y: auto; padding: var(--space-6);
+      background: var(--bg-card); border: 1px solid var(--border-lit); border-radius: var(--radius-lg); box-shadow: var(--shadow-pop); animation: pop-in var(--dur) var(--ease-out) both; }
+    .modal-box::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      background: repeating-linear-gradient(135deg, var(--orange) 0 10px, var(--bg-raised) 10px 20px); opacity: .8; }
+    .modal-box.modal-sm { max-width: 500px; }
+    @keyframes fade-in { from { opacity: 0; } }
+    @keyframes pop-in { from { opacity: 0; transform: translateY(8px) scale(.985); } }
+    .modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+    .modal-header h3 { margin: 0; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; font: 800 22px/1.1 var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+    .modal-close { flex-shrink: 0; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); background: transparent; border: 1px solid transparent; color: var(--text-sec-hi); cursor: pointer; }
+    .modal-close:hover { background: var(--bg-raised); border-color: var(--border); color: var(--text-pri); }
+    .modal-lede { margin: 0 0 var(--space-3); font-size: 14px; line-height: 1.55; color: var(--text-pri); }
+    .modal-note { margin: 0; font: 500 11px/1.5 var(--font-mono); letter-spacing: .04em; color: var(--text-sec-hi); }
+    .modal-section { margin-bottom: var(--space-5); }
+    .modal-section > label, .field-label { display: block; margin-bottom: var(--space-2); font: 500 10px/1.4 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-sec-hi); }
+    .caption-preview { background: var(--bg-inset); border: var(--hairline); border-radius: var(--radius-md); padding: var(--space-3); font-size: 14px; line-height: 1.55; color: var(--text-pri); white-space: pre-wrap; max-height: 180px; overflow-y: auto; }
+    .modal-actions { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; margin-top: var(--space-5); padding-top: var(--space-4); border-top: var(--hairline); }
+    .modal-actions .spacer { flex: 1; }
+    .modal-box textarea, .modal-box input[type="text"], .modal-box input[type="date"], .modal-box input[type="time"], .modal-box select { width: 100%; font: 14px/1.5 var(--font-body); padding: 10px 12px; border-radius: var(--radius-md); }
+    .modal-box textarea { resize: vertical; }
+    .field-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); }
+    .field-help { display: flex; justify-content: space-between; gap: var(--space-2); margin-top: 6px; font: 500 11px/1.4 var(--font-mono); color: var(--text-sec); }
+    .field-error { color: var(--red-hi); }
+    .check-row { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); font-size: 13px; cursor: pointer; }
+    .quiet-danger { margin-left: auto; background: none; border: 1px solid transparent; color: var(--red-hi); font: 600 13px/1 var(--font-cond); letter-spacing: .05em; text-transform: uppercase; padding: 8px 10px; border-radius: var(--radius-sm); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .quiet-danger:hover { background: var(--red-dim); border-color: color-mix(in srgb, var(--red) 60%, transparent); }
+
+    /* status timeline */
+    .timeline { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 var(--space-5); padding: 0; list-style: none; }
+    .timeline li { position: relative; display: grid; justify-items: center; gap: 6px; font: 500 10px/1.2 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--text-sec); text-align: center; }
+    .timeline li::before { content: ""; position: absolute; top: 11px; left: -50%; width: 100%; height: 2px; background: var(--border-lit); z-index: 0; }
+    .timeline li:first-child::before { display: none; }
+    .timeline .tl-dot { position: relative; z-index: 1; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--bg-card); border: 2px solid var(--border-lit); color: var(--text-sec); }
+    .timeline .tl-dot svg { width: 12px; height: 12px; }
+    .timeline li.done { color: var(--text-sec-hi); }
+    .timeline li.done::before { background: var(--orange); }
+    .timeline li.done .tl-dot { border-color: var(--orange); background: var(--orange); color: var(--bg); }
+    .timeline li.current { color: var(--orange-hi); }
+    .timeline li.current::before { background: var(--orange); }
+    .timeline li.current .tl-dot { border-color: var(--orange-hi); color: var(--orange-hi); box-shadow: var(--ring-soft); }
+    .timeline li.failed { color: var(--red-hi); }
+    .timeline li.failed .tl-dot { border-color: var(--red-hi); color: var(--red-hi); background: var(--red-dim); }
+
+    .post-head-meta { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
+    .bucket-tag { --bc: var(--b-none); display: inline-flex; align-items: center; gap: 6px; font: 600 11px/1 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--bc); }
+    .bucket-tag::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--bc); }
+
+    .variant-tab-bar { display: flex; gap: 2px; padding: 3px; margin-bottom: var(--space-3); background: var(--bg-inset); border: var(--hairline); border-radius: var(--radius-md); flex-wrap: wrap; }
+    .variant-tab { display: inline-flex; align-items: center; gap: var(--space-2); padding: 8px 14px; border: 1px solid transparent; border-radius: var(--radius-sm); background: none; color: var(--text-sec-hi); cursor: pointer;
+      font: 600 13px/1 var(--font-cond); letter-spacing: .05em; text-transform: uppercase; transition: background var(--dur-fast) ease, color var(--dur-fast) ease; }
+    .variant-tab:hover { color: var(--text-pri); }
+    .variant-tab.active { background: var(--bg-raised); border-color: var(--border-lit); color: var(--orange-hi); }
+
+    .spinner-wrap { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; color: var(--text-sec-hi); font-size: 13px; }
+    .spinner { width: 18px; height: 18px; border: 2px solid var(--border-lit); border-top-color: var(--orange-hi); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+    #modal-result { margin-top: var(--space-3); padding: var(--space-3); background: var(--bg-inset); border: var(--hairline); border-left: 3px solid var(--blue-hi); border-radius: var(--radius-md); font-size: 13px; line-height: 1.5; }
+    #modal-result.success { border-left-color: var(--green-hi); }
+    #modal-result.error { border-left-color: var(--red-hi); }
+    .brief-meta { font: 500 11px/1.5 var(--font-mono); color: var(--text-sec-hi); margin-bottom: 6px; }
+    .brief-title { font: 800 20px/1.1 var(--font-display); letter-spacing: .03em; text-transform: uppercase; margin-bottom: var(--space-2); }
+    #brief-script { font-size: 13.5px; line-height: 1.6; background: var(--bg-inset); }
 
     /* Toast */
-    #toast {
-      position: fixed; bottom: 24px; right: 24px; z-index: 2000;
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 7px; padding: 12px 18px; max-width: 380px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-      font-size: 13px; color: var(--text);
-      opacity: 0; transform: translateY(20px);
-      transition: opacity .2s, transform .2s;
-    }
-    #toast.show { opacity: 1; transform: translateY(0); }
-    #toast.success { border-color: var(--green); }
-    #toast.error { border-color: var(--coral); }
+    #toast { position: fixed; right: var(--space-4); bottom: var(--space-4); z-index: 10050; display: flex; align-items: center; gap: var(--space-2); max-width: min(400px, calc(100vw - 32px));
+      padding: var(--space-3) var(--space-4); background: var(--bg-raised); border: 1px solid var(--border-lit); border-left: 3px solid var(--blue-hi); border-radius: var(--radius-md); box-shadow: var(--shadow-pop);
+      font-size: 13.5px; color: var(--text-pri); opacity: 0; transform: translateY(16px); pointer-events: none; transition: opacity var(--dur) ease, transform var(--dur) var(--ease-out); }
+    #toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    #toast.success { border-left-color: var(--green-hi); }
+    #toast.error { border-left-color: var(--red-hi); }
 
-    /* Empty state */
-    .empty-state {
-      background: var(--surface); border: 2px dashed var(--border);
-      border-radius: var(--radius); padding: 40px; text-align: center;
-      margin-top: 20px;
+    /* ── Responsive ────────────────────────────────────────────────────── */
+    @media (max-width: 1180px) {
+      .cal-head { grid-template-columns: minmax(0, 1fr); align-items: start; }
+      .head-controls { justify-content: flex-start; }
+      .week-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     }
-    .empty-state h3 { font-size: 16px; margin-bottom: 8px; }
-    .empty-state p { color: var(--text-muted); font-size: 13px; margin-bottom: 16px; }
+    @media (max-width: 767px) {
+      .content-area { padding: var(--space-5) var(--space-4) var(--space-8); }
+      .head-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-2); width: 100%; }
+      .view-toggle.pc-tabs { justify-self: stretch; display: flex; }
+      .view-toggle.pc-tabs > button { flex: 1; justify-content: center; }
+      .head-actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
+      .head-actions .pc-btn--primary { grid-column: 1 / -1; order: -1; }
+      .bucket-bar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-left: calc(-1 * var(--space-4)); margin-right: calc(-1 * var(--space-4)); padding-left: var(--space-4); padding-right: var(--space-4); }
+      .bucket-bar::-webkit-scrollbar { display: none; }
+      .bucket-chip { flex-shrink: 0; }
+      .bucket-bar__label { display: none; }
+      .month-grid-wrap, .skel-grid { display: none; }
+      .month-agenda { display: block; }
+      #cal-skeleton .skel-agenda { display: grid; }
+      .week-grid { grid-template-columns: minmax(0, 1fr); }
+      .week-col { min-height: 0; }
+      .week-col-head { position: static; }
+      .list-row { grid-template-columns: 10px minmax(0, 1fr) auto; grid-template-areas: "dot time status" "cap cap cap" "plats plats actions"; row-gap: var(--space-2); }
+      .list-row .dot { grid-area: dot; } .lr-time { grid-area: time; } .lr-cap { grid-area: cap; white-space: normal; } .lr-plats { grid-area: plats; } .status-pill { grid-area: status; justify-self: end; } .lr-actions { grid-area: actions; justify-self: end; }
+      .field-row { grid-template-columns: minmax(0, 1fr); }
+      .modal-box { padding: var(--space-5) var(--space-4); }
+      .timeline li { font-size: 8.5px; letter-spacing: .06em; }
+    }
+    .skel-agenda { display: none; gap: var(--space-3); }
+    .skel-agenda .pc-skeleton { height: 92px; border-radius: var(--radius-lg); }
 
-    /* Modal result */
-    #modal-result {
-      margin-top: 12px; padding: 12px;
-      background: var(--surface2); border: 1px solid var(--border);
-      border-radius: 8px; font-size: 12px; line-height: 1.5;
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+      .s-publishing { box-shadow: 0 0 0 2px color-mix(in srgb, var(--yellow) 45%, transparent); }
     }
-    #modal-result.success { border-color: var(--green); }
-    #modal-result.error { border-color: var(--coral); }
-    .nav-logo { height: 28px; width: auto; object-fit: contain; display: block; }
   </style>
   <script src="/static/podclick-nav.js?v=20261004-1" defer></script>
 </head>
 <body>
 
+  <main class="content-area" id="cal-main">
 
-  <div class="content-area">
-
-    <div class="page-head">
+    <header class="cal-head">
       <div>
-        <h1>30-Day Content Board</h1>
-        <p class="sub">Plan the month. Drag to reschedule. Ship It when ready.</p>
-      </div>
-      <div class="head-actions">
-        <div class="view-toggle">
-          <button id="vt-month" class="active" onclick="setViewMode('month')">Month</button>
-          <button id="vt-week" onclick="setViewMode('week')">Week</button>
-          <button id="vt-list" onclick="setViewMode('list')">List</button>
+        <p class="cal-eyebrow">Content Board</p>
+        <div class="cal-title-row">
+          <h1 id="cal-title" aria-live="polite">This month</h1>
+          <div class="cal-nav" role="group" aria-label="Change the visible range">
+            <button type="button" class="nav-btn nav-btn--icon" id="nav-prev" onclick="navStep(-1)" aria-label="Previous month"><i class="pc-i" data-i="chevron-left"></i></button>
+            <button type="button" class="nav-btn" id="nav-today" onclick="navToday()">Today</button>
+            <button type="button" class="nav-btn nav-btn--icon" id="nav-next" onclick="navStep(1)" aria-label="Next month"><i class="pc-i" data-i="chevron-right"></i></button>
+          </div>
         </div>
-        <button class="btn-secondary" onclick="openBriefModal()"><i class="pc-i" data-i="mic"></i> RE Daily Brief</button>
-        <button class="btn-secondary" onclick="openAutoPlanModal()"><i class="pc-i" data-i="zap"></i> Auto-plan 30 Days</button>
+        <p class="cal-sub" id="cal-range-sub">Plan the month. Drag a post to another day to reschedule.</p>
+      </div>
+      <div class="head-controls">
+        <div class="view-toggle pc-tabs" role="group" aria-label="View">
+          <button type="button" id="vt-month" class="active" aria-pressed="true" onclick="setViewMode('month')"><i class="pc-i" data-i="layout-grid"></i>Month</button>
+          <button type="button" id="vt-week" aria-pressed="false" onclick="setViewMode('week')"><i class="pc-i" data-i="calendar-days"></i>Week</button>
+          <button type="button" id="vt-list" aria-pressed="false" onclick="setViewMode('list')"><i class="pc-i" data-i="list"></i>List</button>
+        </div>
+        <div class="head-actions">
+          <button type="button" class="pc-btn pc-btn--ghost" onclick="openBriefModal()"><i class="pc-i" data-i="mic"></i> RE Daily Brief</button>
+          <button type="button" class="pc-btn pc-btn--outline" onclick="openNewDraft()"><i class="pc-i" data-i="plus"></i> New draft</button>
+          <button type="button" class="pc-btn pc-btn--primary" onclick="openAutoPlanModal()"><i class="pc-i" data-i="zap"></i> Auto-plan 30 days</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Bucket legend = filter chips (ids stat-* keep the old counter hooks) -->
+    <div class="bucket-bar" id="stats-strip" role="group" aria-label="Filter by bucket">
+      <span class="bucket-bar__label">Buckets</span>
+      <button type="button" class="bucket-chip b-viral" data-bucket="viral" aria-pressed="true" onclick="toggleBucket('viral')"><span class="sw"></span><span class="lbl">Viral</span><span class="ct" id="stat-viral">0</span></button>
+      <button type="button" class="bucket-chip b-brand" data-bucket="brand" aria-pressed="true" onclick="toggleBucket('brand')"><span class="sw"></span><span class="lbl">Brand</span><span class="ct" id="stat-brand">0</span></button>
+      <button type="button" class="bucket-chip b-personal" data-bucket="personal" aria-pressed="true" onclick="toggleBucket('personal')"><span class="sw"></span><span class="lbl">Personal</span><span class="ct" id="stat-personal">0</span></button>
+      <button type="button" class="bucket-chip b-conversion" data-bucket="conversion" aria-pressed="true" onclick="toggleBucket('conversion')"><span class="sw"></span><span class="lbl">Conversion</span><span class="ct" id="stat-conversion">0</span></button>
+      <button type="button" class="bucket-chip b-podcast" data-bucket="podcast" aria-pressed="true" onclick="toggleBucket('podcast')"><span class="sw"></span><span class="lbl">Podcast</span><span class="ct" id="stat-podcast">0</span></button>
+      <button type="button" class="bucket-reset hidden" id="bucket-reset" onclick="resetBuckets()">Show all</button>
+    </div>
+
+    <!-- Loading -->
+    <div id="cal-skeleton" aria-hidden="true">
+      <div class="skel-grid" id="skel-grid"></div>
+      <div class="skel-agenda"><div class="pc-skeleton"></div><div class="pc-skeleton"></div><div class="pc-skeleton"></div></div>
+    </div>
+    <p class="sr-only" id="cal-status" role="status" aria-live="polite"></p>
+
+    <!-- Error -->
+    <div id="error-state" class="state-card is-error hidden" role="alert">
+      <div class="state-icon"><i class="pc-i" data-i="triangle-alert"></i></div>
+      <h3>Board didn't load</h3>
+      <p id="error-detail">The calendar service stalled. Nothing was changed.</p>
+      <div class="state-actions"><button type="button" class="pc-btn pc-btn--primary" onclick="loadCalendar30()"><i class="pc-i" data-i="refresh-cw"></i> Retry</button></div>
+    </div>
+
+    <!-- Empty month -->
+    <div id="empty-state" class="state-card hidden">
+      <div class="state-icon"><i class="pc-i" data-i="calendar-days"></i></div>
+      <h3 id="empty-title">Nothing lined up this month</h3>
+      <p>Brick can lay out 30 days of drafts from your Blueprint, or you can pour one post at a time.</p>
+      <div class="state-actions">
+        <button type="button" class="pc-btn pc-btn--primary" onclick="openAutoPlanModal()"><i class="pc-i" data-i="zap"></i> Auto-plan 30 days</button>
+        <button type="button" class="pc-btn pc-btn--outline" onclick="openNewDraft()"><i class="pc-i" data-i="plus"></i> New draft</button>
       </div>
     </div>
 
-    <!-- Stats strip -->
-    <div class="stats-strip" id="stats-strip">
-      <div class="stat-cell">
-        <div class="stat-dot bucket-viral"></div>
-        <div class="stat-info"><div class="stat-label">Viral</div><div class="stat-num" id="stat-viral">0</div></div>
-      </div>
-      <div class="stat-cell">
-        <div class="stat-dot bucket-brand"></div>
-        <div class="stat-info"><div class="stat-label">Brand</div><div class="stat-num" id="stat-brand">0</div></div>
-      </div>
-      <div class="stat-cell">
-        <div class="stat-dot bucket-personal"></div>
-        <div class="stat-info"><div class="stat-label">Personal</div><div class="stat-num" id="stat-personal">0</div></div>
-      </div>
-      <div class="stat-cell">
-        <div class="stat-dot bucket-conversion"></div>
-        <div class="stat-info"><div class="stat-label">Conversion</div><div class="stat-num" id="stat-conversion">0</div></div>
-      </div>
-      <div class="stat-cell">
-        <div class="stat-dot bucket-podcast"></div>
-        <div class="stat-info"><div class="stat-label">Podcast</div><div class="stat-num" id="stat-podcast">0</div></div>
-      </div>
-    </div>
+    <!-- Views -->
+    <section id="view-month" class="hidden" aria-label="Month view">
+      <div class="month-grid-wrap" id="month-grid-wrap"></div>
+      <div class="month-agenda" id="month-agenda"></div>
+    </section>
+    <section id="view-week" class="hidden" aria-label="Week view">
+      <div class="week-meta"><i class="pc-i" data-i="calendar-days"></i><span id="week-label">This week</span></div>
+      <div id="week-grid" class="week-grid"></div>
+    </section>
+    <section id="view-list" class="hidden" aria-label="List view"></section>
 
-    <!-- View containers -->
-    <div id="view-month"></div>
-    <div id="view-week" class="hidden">
-      <div class="week-controls">
-        <button onclick="changeWeek(-1)">‹ Prev</button>
-        <span class="week-label" id="week-label">This week</span>
-        <button onclick="changeWeek(1)">Next ›</button>
+  </main>
+
+  <!-- New draft modal -->
+  <div id="draft-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="draft-modal-title">
+    <div class="modal-box modal-sm">
+      <div class="modal-header">
+        <h3 id="draft-modal-title"><i class="pc-i" data-i="notebook-pen"></i> New draft</h3>
+        <button type="button" class="modal-close" onclick="closeNewDraft()" aria-label="Close"><i class="pc-i" data-i="x"></i></button>
       </div>
-      <div id="week-grid"></div>
+      <form id="draft-form" onsubmit="submitNewDraft(event)" novalidate>
+        <div class="modal-section">
+          <label class="field-label" for="draft-content">Post</label>
+          <textarea id="draft-content" rows="6" maxlength="10000" data-keep-emoji placeholder="What goes on the board?" aria-describedby="draft-help" oninput="updateDraftCount()"></textarea>
+          <div class="field-help" id="draft-help"><span id="draft-error" class="field-error" aria-live="polite"></span><span id="draft-count">0 / 10,000</span></div>
+        </div>
+        <div class="field-row">
+          <div>
+            <label class="field-label" for="draft-date">Date</label>
+            <input id="draft-date" type="date">
+          </div>
+          <div>
+            <label class="field-label" for="draft-time">Time</label>
+            <input id="draft-time" type="time" value="09:00">
+          </div>
+          <div>
+            <label class="field-label" for="draft-platform">Platform</label>
+            <select id="draft-platform">
+              <option value="">Base only</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="facebook">Facebook</option>
+              <option value="instagram">Instagram</option>
+              <option value="tiktok">TikTok</option>
+              <option value="youtube">YouTube</option>
+              <option value="x">X</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <p class="modal-note">Lands as a draft. Nothing goes live until you publish it.</p>
+          <span class="spacer"></span>
+          <button type="button" class="pc-btn pc-btn--ghost" onclick="closeNewDraft()">Cancel</button>
+          <button type="submit" class="pc-btn pc-btn--primary" id="draft-submit"><i class="pc-i" data-i="plus"></i> Add to board</button>
+        </div>
+      </form>
     </div>
-    <div id="view-list" class="hidden"></div>
-
-    <div id="empty-state" class="empty-state hidden">
-      <h3>Board's clear.</h3>
-      <p>Auto-plan 30 days from your Blueprint, or add posts one at a time.</p>
-      <button class="btn-primary" onclick="openAutoPlanModal()"><i class="pc-i" data-i="zap"></i> Auto-plan 30 Days</button>
-    </div>
-
   </div>
 
   <!-- Auto-plan modal -->
-  <div id="autoplan-modal" class="modal-overlay hidden">
+  <div id="autoplan-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="autoplan-title">
     <div class="modal-box modal-sm">
       <div class="modal-header">
-        <h3><i class="pc-i" data-i="zap"></i> Auto-plan 30 Days</h3>
-        <button onclick="closeAutoPlanModal()">×</button>
+        <h3 id="autoplan-title"><i class="pc-i" data-i="zap"></i> Auto-plan 30 days</h3>
+        <button type="button" class="modal-close" onclick="closeAutoPlanModal()" aria-label="Close"><i class="pc-i" data-i="x"></i></button>
       </div>
-      <p style="font-size:13px;line-height:1.5;color:var(--text);">
-        Brick will generate 30 posts from your Blueprint and Foundation. This creates drafts — nothing goes live until you Ship It.
-      </p>
-      <p class="text-muted" style="font-size:12px;margin-top:10px;">
-        Mix: 12 viral · 9 brand · 6 personal · 3 conversion
-      </p>
+      <p class="modal-lede">Brick will generate 30 posts from your Blueprint and Foundation. They land as drafts. Nothing goes live until you publish.</p>
+      <p class="modal-note">Mix: 12 viral · 9 brand · 6 personal · 3 conversion</p>
       <div id="autoplan-loading" class="hidden spinner-wrap">
         <div class="spinner"></div>
         <span id="autoplan-status-text">Brick's laying out 30 days from your Foundation...</span>
       </div>
       <div id="autoplan-actions" class="modal-actions">
-        <button class="btn-primary" onclick="runAutoPlan()">Generate Plan</button>
-        <button class="btn-ghost" onclick="closeAutoPlanModal()">Cancel</button>
+        <span class="spacer"></span>
+        <button type="button" class="pc-btn pc-btn--ghost" onclick="closeAutoPlanModal()">Cancel</button>
+        <button type="button" class="pc-btn pc-btn--primary" onclick="runAutoPlan()"><i class="pc-i" data-i="zap"></i> Generate plan</button>
       </div>
     </div>
   </div>
 
   <!-- RE Daily Brief generator -->
-  <div id="brief-modal" class="modal-overlay hidden">
+  <div id="brief-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="brief-modal-title">
     <div class="modal-box">
       <div class="modal-header">
-        <h3><i class="pc-i" data-i="mic"></i> RE Daily Brief — ready-to-film script</h3>
-        <button onclick="closeBriefModal()">×</button>
+        <h3 id="brief-modal-title"><i class="pc-i" data-i="mic"></i> RE Daily Brief</h3>
+        <button type="button" class="modal-close" onclick="closeBriefModal()" aria-label="Close"><i class="pc-i" data-i="x"></i></button>
       </div>
-      <p style="font-size:13px;line-height:1.5;color:var(--text);">
-        A 15–30 min daily real-estate-industry briefing, written in your Foundation voice — teleprompter-ready. Generate it, then film it.
-      </p>
+      <p class="modal-lede">A 15 to 30 minute real estate briefing written in your Foundation voice, teleprompter-ready. Generate it, then film it.</p>
       <div id="brief-inputs">
-        <label style="display:block;font-size:12px;color:var(--text);margin:12px 0 4px;">Today's angle (optional — leave blank for a fresh industry pick)</label>
-        <input id="brief-topic" type="text" placeholder="e.g. what falling rates mean for buyers this week"
-               style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(0,0,0,0.2);color:var(--text);font-size:13px;">
-        <label style="display:block;font-size:12px;color:var(--text);margin:12px 0 4px;">Length</label>
-        <select id="brief-length" style="padding:9px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(0,0,0,0.2);color:var(--text);font-size:13px;">
-          <option value="15">15 min</option>
-          <option value="20" selected>20 min</option>
-          <option value="25">25 min</option>
-          <option value="30">30 min</option>
-        </select>
-        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);margin:12px 0 0;cursor:pointer;">
-          <input id="brief-add-board" type="checkbox" checked> Add today's brief to the Content Board
-        </label>
+        <div class="modal-section">
+          <label class="field-label" for="brief-topic">Today's angle (optional)</label>
+          <input id="brief-topic" type="text" placeholder="e.g. what falling rates mean for buyers this week">
+        </div>
+        <div class="field-row">
+          <div>
+            <label class="field-label" for="brief-length">Length</label>
+            <select id="brief-length">
+              <option value="15">15 min</option>
+              <option value="20" selected>20 min</option>
+              <option value="25">25 min</option>
+              <option value="30">30 min</option>
+            </select>
+          </div>
+        </div>
+        <label class="check-row"><input id="brief-add-board" type="checkbox" checked> Add today's brief to the Content Board</label>
       </div>
       <div id="brief-loading" class="hidden spinner-wrap">
         <div class="spinner"></div>
-        <span id="brief-status-text">Writing today's brief in your voice…</span>
+        <span id="brief-status-text">Writing today's brief in your voice...</span>
       </div>
-      <div id="brief-result" class="hidden" style="margin-top:14px;">
-        <div id="brief-meta" class="text-muted" style="font-size:12px;margin-bottom:6px;"></div>
-        <div id="brief-title" style="font-weight:600;font-size:15px;margin-bottom:8px;"></div>
-        <textarea data-ai-output id="brief-script" rows="14" spellcheck="false"
-                  style="width:100%;box-sizing:border-box;white-space:pre-wrap;font-family:inherit;font-size:13px;line-height:1.55;color:var(--text);background:rgba(0,0,0,0.25);border:1px solid var(--border);border-radius:8px;padding:12px;resize:vertical;"></textarea>
+      <div id="brief-result" class="hidden">
+        <div id="brief-meta" class="brief-meta"></div>
+        <div id="brief-title" class="brief-title"></div>
+        <textarea data-ai-output data-keep-emoji id="brief-script" rows="14" spellcheck="false"></textarea>
       </div>
       <div id="brief-actions" class="modal-actions">
-        <button class="btn-primary" id="brief-gen-btn" onclick="runDailyBrief()">Generate Script</button>
-        <button class="btn-primary hidden" id="brief-film-btn" onclick="filmBriefNow()"><i class="pc-i" data-i="clapperboard"></i> Film This Now</button>
-        <button class="btn-secondary hidden" id="brief-copy-btn" onclick="copyBrief()"><i class="pc-i" data-i="clipboard-list"></i> Copy</button>
-        <button class="btn-secondary hidden" id="brief-regen-btn" onclick="runDailyBrief()">↻ Regenerate</button>
-        <button class="btn-ghost" onclick="closeBriefModal()">Close</button>
+        <button type="button" class="pc-btn pc-btn--primary" id="brief-gen-btn" onclick="runDailyBrief()">Generate script</button>
+        <button type="button" class="pc-btn pc-btn--primary hidden" id="brief-film-btn" onclick="filmBriefNow()"><i class="pc-i" data-i="clapperboard"></i> Film this now</button>
+        <button type="button" class="pc-btn pc-btn--outline hidden" id="brief-copy-btn" onclick="copyBrief()"><i class="pc-i" data-i="clipboard-list"></i> Copy</button>
+        <button type="button" class="pc-btn pc-btn--outline hidden" id="brief-regen-btn" onclick="runDailyBrief()"><i class="pc-i" data-i="rotate-cw"></i> Regenerate</button>
+        <span class="spacer"></span>
+        <button type="button" class="pc-btn pc-btn--ghost" onclick="closeBriefModal()">Close</button>
       </div>
     </div>
   </div>
 
-  <!-- Publish/Edit modal -->
-  <div id="publish-modal" class="modal-overlay hidden">
+  <!-- Post detail modal -->
+  <div id="publish-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-date-bucket">
     <div class="modal-box">
       <div class="modal-header">
-        <h3 id="modal-date-bucket">Post</h3>
-        <button onclick="closePostModal()">×</button>
+        <div>
+          <h3 id="modal-date-bucket">Post</h3>
+          <div class="post-head-meta" id="modal-meta"></div>
+        </div>
+        <button type="button" class="modal-close" onclick="closePostModal()" aria-label="Close"><i class="pc-i" data-i="x"></i></button>
+      </div>
+
+      <ol class="timeline" id="post-timeline" aria-label="Status"></ol>
+
+      <div class="modal-section">
+        <label>Base content</label>
+        <div id="modal-base-caption" class="caption-preview" data-ai-output data-keep-emoji>—</div>
       </div>
 
       <div class="modal-section">
-        <label>Base Content</label>
-        <div id="modal-base-caption" class="caption-preview">—</div>
-      </div>
-
-      <div class="modal-section">
-        <label>Platform Variants</label>
-        <div class="variant-tab-bar" id="variant-tab-bar">
-          <button class="variant-tab active" data-platform="linkedin" onclick="switchVariantTab('linkedin')">LinkedIn</button>
-          <button class="variant-tab" data-platform="facebook" onclick="switchVariantTab('facebook')">Facebook</button>
-          <button class="variant-tab" data-platform="instagram" onclick="switchVariantTab('instagram')">Instagram</button>
+        <label>Platform variants</label>
+        <div class="variant-tab-bar" id="variant-tab-bar" role="group" aria-label="Platform">
+          <button type="button" class="variant-tab active" data-platform="linkedin" onclick="switchVariantTab('linkedin')"><span class="plat plat--lg" data-plat="linkedin" aria-hidden="true">in</span>LinkedIn</button>
+          <button type="button" class="variant-tab" data-platform="facebook" onclick="switchVariantTab('facebook')"><span class="plat plat--lg" data-plat="facebook" aria-hidden="true">f</span>Facebook</button>
+          <button type="button" class="variant-tab" data-platform="instagram" onclick="switchVariantTab('instagram')"><span class="plat plat--lg" data-plat="instagram" aria-hidden="true">IG</span>Instagram</button>
         </div>
         <div id="variant-loading" class="hidden spinner-wrap">
           <div class="spinner"></div>
           Brick's pulling from your Foundation...
         </div>
         <div id="variant-content">
-          <textarea id="variant-caption" rows="6" placeholder="Generate variants to see platform-specific content"></textarea>
-          <div id="instagram-first-comment" class="hidden" style="margin-top:10px;">
-            <label>First Comment (hashtags)</label>
-            <textarea id="variant-first-comment" rows="2"></textarea>
+          <textarea id="variant-caption" rows="6" data-keep-emoji data-ai-output aria-label="Platform caption" placeholder="Generate variants to see platform-specific copy"></textarea>
+          <div id="instagram-first-comment" class="hidden" style="margin-top: var(--space-3);">
+            <label class="field-label" for="variant-first-comment">First comment (hashtags)</label>
+            <textarea id="variant-first-comment" rows="2" data-keep-emoji data-ai-output></textarea>
           </div>
         </div>
-        <button id="btn-generate-variants" class="btn-secondary" style="margin-top:10px;" onclick="generateVariants()"><i class="pc-i" data-i="zap"></i> Generate Platform Variants</button>
+        <button type="button" id="btn-generate-variants" class="pc-btn pc-btn--outline pc-btn--sm" style="margin-top: var(--space-3);" onclick="generateVariants()"><i class="pc-i" data-i="zap"></i> Generate platform variants</button>
       </div>
 
       <div class="modal-actions">
-        <button class="btn-primary" id="btn-ship-it" onclick="shipIt()"><i class="pc-i" data-i="rocket"></i> Ship It</button>
-        <button class="btn-danger-ghost" id="btn-delete-post" onclick="deletePost()">Delete Draft</button>
+        <button type="button" class="pc-btn pc-btn--primary" id="btn-ship-it" onclick="shipIt()"><i class="pc-i" data-i="rocket"></i> Publish</button>
+        <button type="button" class="pc-btn pc-btn--ghost" onclick="closePostModal()">Close</button>
+        <button type="button" class="quiet-danger" id="btn-delete-post" onclick="deletePost()"><i class="pc-i" data-i="trash-2"></i> Delete draft</button>
       </div>
 
-      <div id="modal-result" class="hidden"></div>
+      <div id="modal-result" class="hidden" role="status"></div>
     </div>
   </div>
 
-  <div id="toast"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
 
 <script>
 // ── Global state ────────────────────────────────────────────────────────────
@@ -518,6 +574,26 @@ let _activeVariants = {};
 let _activePlatform = 'linkedin';
 let _ghlAccounts = [];
 let _draggingPostId = null;
+let _month = null;        // first day of the visible month
+let _weekStart = null;    // Sunday that starts the visible week
+let _hiddenBuckets = new Set();
+let _loadSeq = 0;
+let _loadState = 'loading';
+let _listFocusDate = null;
+let _lastFocus = null;
+
+const BUCKETS = ['viral', 'brand', 'personal', 'conversion', 'podcast'];
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const STATUS = {
+  draft:      { label: 'Draft',      icon: 'notebook-pen' },
+  scheduled:  { label: 'Scheduled',  icon: 'clock' },
+  publishing: { label: 'Publishing', icon: 'loader-circle' },
+  published:  { label: 'Published',  icon: 'circle-check' },
+  partially_published: { label: 'Partial', icon: 'circle-alert' },
+  failed:     { label: 'Failed',     icon: 'circle-alert' },
+};
+const PLAT = { linkedin: 'in', facebook: 'f', instagram: 'IG', tiktok: 'TT', youtube: 'YT', x: 'X', gmb: 'G', threads: 'TH' };
+const PLAT_NAME = { linkedin: 'LinkedIn', facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube', x: 'X', gmb: 'Google Business', threads: 'Threads' };
 
 // ── Utilities ───────────────────────────────────────────────────────────────
 function escHtml(str) {
@@ -528,17 +604,39 @@ function escHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
-
+function ic(name, size) {
+  if (window.PodClickIcons && PodClickIcons.svg) return PodClickIcons.svg(name, { size: size || 14 });
+  return `<i class="pc-i" data-i="${name}"></i>`;
+}
+function pad(n) { return String(n).padStart(2, '0'); }
+function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function parseYmd(s) { const p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function startOfWeek(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - x.getDay()); return x; }
+function todayLocal() { const t = new Date(); t.setHours(0, 0, 0, 0); return t; }
+function postDateKey(p) {
+  if (!p || !p.scheduled_at) return null;
+  const d = new Date(p.scheduled_at);
+  return isNaN(d) ? String(p.scheduled_at).slice(0, 10) : ymd(d);
+}
+function fmtTime(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }).replace(' AM', 'a').replace(' PM', 'p');
+}
 function toast(msg, kind) {
   const el = document.getElementById('toast');
-  el.textContent = msg;
+  const icon = kind === 'error' ? 'circle-alert' : (kind === 'success' ? 'circle-check' : 'info');
+  el.innerHTML = ic(icon, 16) + '<span></span>';
+  el.querySelector('span').textContent = msg;
   el.className = '';
   if (kind === 'success') el.classList.add('success');
   else if (kind === 'error') el.classList.add('error');
   el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 3500);
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove('show'), 3800);
 }
-
 function fmtDate(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -550,23 +648,109 @@ function fmtDateTime(iso) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
     ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
-function isoDate(d) {
-  return d.toISOString().slice(0, 10);
-}
+function isoDate(d) { return ymd(d); }
 function bucketLabel(b) {
   if (!b) return 'Post';
   return b.charAt(0).toUpperCase() + b.slice(1);
 }
+function bucketClass(b) { return BUCKETS.includes(b) ? 'b-' + b : 'b-none'; }
+function statusKey(s) { return STATUS[s] ? s : 'draft'; }
+function platMarks(p, lg, max) {
+  const all = (p.platforms_with_variants || []).filter(x => x !== 'base' && PLAT[x]);
+  const list = max ? all.slice(0, max) : all;
+  const extra = all.length - list.length;
+  return list.map(x => `<span class="plat${lg ? ' plat--lg' : ''}" data-plat="${x}" title="${PLAT_NAME[x]}">${PLAT[x]}</span>`).join('') +
+    (extra > 0 ? `<span class="plat${lg ? ' plat--lg' : ''}" title="${extra} more">+${extra}</span>` : '');
+}
+function canMove(p) { return p.status === 'draft' || p.status === 'scheduled'; }
+function filteredPosts() { return _posts.filter(p => !(BUCKETS.includes(p.bucket) && _hiddenBuckets.has(p.bucket))); }
+function groupByDate(list) {
+  const out = {};
+  for (const p of list) {
+    const k = postDateKey(p);
+    if (!k) continue;
+    (out[k] = out[k] || []).push(p);
+  }
+  for (const k in out) out[k].sort((a, b) => (a.scheduled_at || '').localeCompare(b.scheduled_at || ''));
+  return out;
+}
+
+// ── Range + navigation ─────────────────────────────────────────────────────
+function visibleRange() {
+  if (_viewMode === 'week') {
+    return { start: new Date(_weekStart), end: addDays(_weekStart, 6), first: new Date(_weekStart), last: addDays(_weekStart, 6) };
+  }
+  const first = new Date(_month.getFullYear(), _month.getMonth(), 1);
+  const last = new Date(_month.getFullYear(), _month.getMonth() + 1, 0);
+  const start = addDays(first, -first.getDay());
+  const weeks = Math.ceil((first.getDay() + last.getDate()) / 7);
+  return { start, end: addDays(start, weeks * 7 - 1), first, last, weeks };
+}
+function inCountRange(p) {
+  const k = postDateKey(p);
+  if (!k) return false;
+  const r = visibleRange();
+  return k >= ymd(r.first) && k <= ymd(r.last);
+}
+function updateTitle() {
+  const titleEl = document.getElementById('cal-title');
+  const prev = document.getElementById('nav-prev'), next = document.getElementById('nav-next');
+  if (_viewMode === 'week') {
+    const s = _weekStart, e = addDays(_weekStart, 6);
+    const sameMonth = s.getMonth() === e.getMonth();
+    titleEl.textContent = s.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' – ' +
+      (sameMonth ? e.getDate() : e.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })) + ', ' + e.getFullYear();
+    prev.setAttribute('aria-label', 'Previous week'); next.setAttribute('aria-label', 'Next week');
+  } else {
+    titleEl.textContent = _month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    prev.setAttribute('aria-label', 'Previous month'); next.setAttribute('aria-label', 'Next month');
+  }
+}
+function navStep(dir) {
+  if (_viewMode === 'week') { changeWeek(dir); return; }
+  _month = new Date(_month.getFullYear(), _month.getMonth() + dir, 1);
+  loadCalendar30();
+}
+function navToday() {
+  const t = todayLocal();
+  _month = new Date(t.getFullYear(), t.getMonth(), 1);
+  _weekStart = startOfWeek(t);
+  _weekOffset = 0;
+  loadCalendar30();
+}
 
 // ── View mode ───────────────────────────────────────────────────────────────
 function setViewMode(mode) {
+  const prevMode = _viewMode;
   _viewMode = mode;
-  document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active'));
-  document.getElementById('vt-' + mode).classList.add('active');
-  document.getElementById('view-month').classList.toggle('hidden', mode !== 'month');
-  document.getElementById('view-week').classList.toggle('hidden', mode !== 'week');
-  document.getElementById('view-list').classList.toggle('hidden', mode !== 'list');
-  renderView();
+  document.querySelectorAll('.view-toggle button').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-pressed', 'false'); });
+  const btn = document.getElementById('vt-' + mode);
+  btn.classList.add('active'); btn.setAttribute('aria-pressed', 'true');
+  if (mode === 'week' && prevMode !== 'week') {
+    const t = todayLocal();
+    const inMonth = t.getMonth() === _month.getMonth() && t.getFullYear() === _month.getFullYear();
+    _weekStart = startOfWeek(inMonth ? t : _month);
+  } else if (mode !== 'week' && prevMode === 'week') {
+    const mid = addDays(_weekStart, 3);
+    _month = new Date(mid.getFullYear(), mid.getMonth(), 1);
+  }
+  if ((mode === 'week') !== (prevMode === 'week')) { loadCalendar30(); return; }
+  updateTitle();
+  showViews();
+}
+
+function showViews() {
+  const loading = _loadState === 'loading', error = _loadState === 'error';
+  const empty = _loadState === 'ready' && _posts.filter(inCountRange).length === 0 && _viewMode !== 'week';
+  document.getElementById('cal-skeleton').classList.toggle('hidden', !loading);
+  document.getElementById('error-state').classList.toggle('hidden', !error);
+  document.getElementById('empty-state').classList.toggle('hidden', !empty);
+  const ok = _loadState === 'ready' && !empty;
+  document.getElementById('view-month').classList.toggle('hidden', !ok || _viewMode !== 'month');
+  document.getElementById('view-week').classList.toggle('hidden', !ok || _viewMode !== 'week');
+  document.getElementById('view-list').classList.toggle('hidden', !ok || _viewMode !== 'list');
+  if (empty) document.getElementById('empty-title').textContent = 'Nothing lined up for ' + _month.toLocaleDateString('en-US', { month: 'long' });
+  if (ok) renderView();
 }
 
 function renderView() {
@@ -575,18 +759,33 @@ function renderView() {
   else renderList();
 }
 
-// ── Initial load ────────────────────────────────────────────────────────────
+// ── Load ────────────────────────────────────────────────────────────────────
 async function loadCalendar30() {
+  const seq = ++_loadSeq;
+  const r = visibleRange();
+  updateTitle();
+  _loadState = 'loading';
+  document.getElementById('cal-status').textContent = 'Loading the board.';
+  showViews();
   try {
-    const res = await fetch('/api/calendar');
-    const data = await res.json();
-    if (data.error) { toast(data.error, 'error'); return; }
+    const res = await fetch('/api/calendar?from_date=' + ymd(r.start) + '&to_date=' + ymd(r.end));
+    let data = {};
+    try { data = await res.json(); } catch (_) { data = { error: 'The server sent back something unreadable (' + res.status + ').' }; }
+    if (seq !== _loadSeq) return;
+    if (!res.ok || data.error) throw new Error(data.error || ('Server ' + res.status));
     _posts = data.posts || [];
+    _loadState = 'ready';
     updateStatsStrip();
-    renderView();
-    document.getElementById('empty-state').classList.toggle('hidden', _posts.length > 0);
+    document.getElementById('cal-status').textContent = 'Board loaded.';
+    showViews();
   } catch (e) {
-    toast('Stalled. ' + e.message, 'error');
+    if (seq !== _loadSeq) return;
+    _loadState = 'error';
+    _posts = [];
+    updateStatsStrip();
+    document.getElementById('error-detail').textContent = 'The calendar service stalled: ' + e.message + '. Nothing was changed.';
+    document.getElementById('cal-status').textContent = 'The board did not load.';
+    showViews();
   }
 }
 
@@ -602,162 +801,199 @@ async function loadGHLAccounts() {
 
 function updateStatsStrip() {
   const counts = { viral: 0, brand: 0, personal: 0, conversion: 0, podcast: 0 };
+  let lined = 0, drafts = 0, stalled = 0, live = 0;
   for (const p of _posts) {
+    if (!inCountRange(p)) continue;
     if (p.bucket && counts[p.bucket] !== undefined) counts[p.bucket]++;
+    if (p.status === 'scheduled' || p.status === 'publishing') lined++;
+    else if (p.status === 'draft') drafts++;
+    else if (p.status === 'failed') stalled++;
+    else if (p.status === 'published') live++;
   }
-  document.getElementById('stat-viral').textContent = counts.viral;
-  document.getElementById('stat-brand').textContent = counts.brand;
-  document.getElementById('stat-personal').textContent = counts.personal;
-  document.getElementById('stat-conversion').textContent = counts.conversion;
-  document.getElementById('stat-podcast').textContent = counts.podcast;
+  for (const b of BUCKETS) document.getElementById('stat-' + b).textContent = counts[b];
+  const sub = document.getElementById('cal-range-sub');
+  if (_loadState !== 'ready') { sub.textContent = 'Plan the month. Drag a post to another day to reschedule.'; return; }
+  const parts = [`<b>${lined}</b> lined up`, `<b>${drafts}</b> draft${drafts === 1 ? '' : 's'}`, `<b>${live}</b> live`];
+  if (stalled) parts.push(`<b>${stalled}</b> stalled`);
+  sub.innerHTML = parts.join(' · ') + ' · drag a post to another day to reschedule';
+}
+
+function toggleBucket(b) {
+  if (_hiddenBuckets.has(b)) _hiddenBuckets.delete(b); else _hiddenBuckets.add(b);
+  document.querySelectorAll('.bucket-chip').forEach(c => c.setAttribute('aria-pressed', String(!_hiddenBuckets.has(c.dataset.bucket))));
+  document.getElementById('bucket-reset').classList.toggle('hidden', _hiddenBuckets.size === 0);
+  if (_loadState === 'ready') renderView();
+}
+function resetBuckets() {
+  _hiddenBuckets.clear();
+  document.querySelectorAll('.bucket-chip').forEach(c => c.setAttribute('aria-pressed', 'true'));
+  document.getElementById('bucket-reset').classList.add('hidden');
+  if (_loadState === 'ready') renderView();
+}
+
+// ── Shared chip ─────────────────────────────────────────────────────────────
+function chipHtml(p) {
+  const st = statusKey(p.status);
+  const info = STATUS[st];
+  const cap = p.caption_preview || bucketLabel(p.bucket);
+  const time = fmtTime(p.scheduled_at);
+  const label = `${info.label}, ${bucketLabel(p.bucket)}${time ? ', ' + time : ''}: ${cap}`;
+  return `<button type="button" class="post-chip ${bucketClass(p.bucket)} s-${st}" draggable="${canMove(p)}"
+      data-post-id="${escHtml(p.id)}" ondragstart="onDragStart(event,this.dataset.postId)" ondragend="onDragEnd(event)"
+      onclick="openPostModal(this.dataset.postId)" aria-label="${escHtml(label)}" title="${escHtml(cap)}">
+    ${st === 'draft' ? '<span class="chip-status chip-tag">Draft</span>' : `<span class="chip-status" aria-hidden="true">${ic(info.icon, 12)}</span>`}
+    <span class="chip-time">${escHtml(time)}</span>
+    <span class="chip-plats" aria-hidden="true">${platMarks(p, false, 2)}</span>
+    <span class="chip-cap" data-keep-emoji>${escHtml(cap)}</span>
+  </button>`;
+}
+function dropAttrs() { return 'ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)"'; }
+function addBtn(key, d) {
+  const lbl = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  return `<button type="button" class="day-add" onclick="event.stopPropagation();openNewDraft('${key}')" aria-label="New draft on ${lbl}">${ic('plus', 14)}</button>`;
 }
 
 // ── Month view ─────────────────────────────────────────────────────────────
 function renderMonth() {
-  const root = document.getElementById('view-month');
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  let html = '<div class="month-grid">';
-  for (const d of DOW) html += `<div class="dow-header">${d}</div>`;
-
-  // Group posts by date
-  const postsByDate = {};
-  for (const p of _posts) {
-    if (!p.scheduled_at) continue;
-    const dateKey = p.scheduled_at.slice(0, 10);
-    (postsByDate[dateKey] = postsByDate[dateKey] || []).push(p);
-  }
-
-  // Find start of grid (the Sunday on or before today)
-  const start = new Date(today);
-  start.setDate(start.getDate() - start.getDay());
-
-  // 35 cells (5 weeks)
-  for (let i = 0; i < 35; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    const dateKey = isoDate(d);
-    const isToday = d.getTime() === today.getTime();
-    const isOtherMonth = d.getMonth() !== today.getMonth() && i > 7;
-    const slots = (postsByDate[dateKey] || []).sort((a, b) =>
-      (a.scheduled_at || '').localeCompare(b.scheduled_at || '')
-    );
-
-    let cellCls = 'day-cell';
-    if (isToday) cellCls += ' is-today';
-
-    html += `<div class="${cellCls}" data-date="${dateKey}"
-        ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">`;
-    html += `<div class="day-num">${d.getDate()}<span class="dow">${DOW[d.getDay()]}</span></div>`;
-
-    if (slots.length === 0) {
-      html += '<div class="day-empty">—</div>';
-    } else {
-      for (const p of slots) {
-        const text = (p.caption_preview || bucketLabel(p.bucket)).slice(0, 40);
-        html += `<div class="post-pill status-${p.status}" draggable="true"
-              data-post-id="${p.id}"
-              ondragstart="onDragStart(event,'${p.id}')"
-              onclick="openPostModal('${p.id}')">
-            <div class="dot bucket-${p.bucket || 'brand'}"></div>
-            <div class="pill-text" title="${escHtml(p.caption_preview)}">${escHtml(text)}</div>
-          </div>`;
-      }
-    }
+  const r = visibleRange();
+  const today = todayLocal(), todayKey = ymd(today);
+  const by = groupByDate(filteredPosts());
+  let html = `<div class="month-grid" aria-label="${escHtml(_month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }))}">`;
+  DOW.forEach((d, i) => { html += `<div class="dow-header${i === 0 || i === 6 ? ' is-weekend' : ''}">${d}</div>`; });
+  for (let i = 0; i < r.weeks * 7; i++) {
+    const d = addDays(r.start, i);
+    const key = ymd(d);
+    const slots = by[key] || [];
+    const cls = ['day-cell'];
+    if (key === todayKey) cls.push('is-today');
+    if (key < todayKey) cls.push('is-past');
+    if (d.getDay() === 0 || d.getDay() === 6) cls.push('is-weekend');
+    if (d.getMonth() !== _month.getMonth()) cls.push('is-other-month');
+    if (!slots.length) cls.push('is-empty');
+    const lbl = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) + (slots.length ? `, ${slots.length} post${slots.length === 1 ? '' : 's'}` : '');
+    html += `<div class="${cls.join(' ')}" data-date="${key}" role="group" aria-label="${escHtml(lbl)}"${key === todayKey ? ' aria-current="date"' : ''} ${dropAttrs()}>`;
+    html += `<div class="day-head"><span class="day-num">${d.getDate()}</span>${key === todayKey ? '<span class="today-tag">Today</span>' : ''}${addBtn(key, d)}</div>`;
+    slots.slice(0, 3).forEach(p => { html += chipHtml(p); });
+    if (slots.length > 3) html += `<button type="button" class="more-btn" onclick="openDayInList('${key}')">+${slots.length - 3} more</button>`;
     html += '</div>';
   }
   html += '</div>';
-  root.innerHTML = html;
+  document.getElementById('month-grid-wrap').innerHTML = html;
+  renderAgenda(by, todayKey);
+}
+
+function renderAgenda(by, todayKey) {
+  const r = visibleRange();
+  let html = '';
+  for (let d = new Date(r.first); d <= r.last; d = addDays(d, 1)) {
+    const key = ymd(d);
+    const slots = by[key] || [];
+    if (!slots.length) continue;
+    html += `<section class="agenda-day${key === todayKey ? ' is-today' : ''}" data-date="${key}"${key === todayKey ? ' aria-current="date"' : ''} ${dropAttrs()}>
+      <div class="agenda-head"><span class="agenda-date">${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+        <span class="agenda-dow">${d.toLocaleDateString('en-US', { weekday: 'long' })}</span>${key === todayKey ? '<span class="today-tag">Today</span>' : ''}${addBtn(key, d)}</div>
+      <div class="agenda-list">${slots.map(chipHtml).join('')}</div></section>`;
+  }
+  document.getElementById('month-agenda').innerHTML = html ||
+    '<div class="agenda-none">No posts in the selected buckets this month.</div>';
 }
 
 // ── Week view ──────────────────────────────────────────────────────────────
 function renderWeek() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const start = new Date(today);
-  start.setDate(start.getDate() - today.getDay() + (_weekOffset * 7));
-
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  document.getElementById('week-label').textContent =
-    fmtDate(start.toISOString()) + ' – ' + fmtDate(end.toISOString());
-
-  const postsByDate = {};
-  for (const p of _posts) {
-    if (!p.scheduled_at) continue;
-    const dateKey = p.scheduled_at.slice(0, 10);
-    (postsByDate[dateKey] = postsByDate[dateKey] || []).push(p);
-  }
-
-  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  let html = '<div class="month-grid">';
-  for (const d of DOW) html += `<div class="dow-header">${d}</div>`;
+  const start = new Date(_weekStart), end = addDays(start, 6);
+  const todayKey = ymd(todayLocal());
+  document.getElementById('week-label').textContent = fmtDate(start.toISOString()) + ' – ' + fmtDate(end.toISOString());
+  const by = groupByDate(filteredPosts());
+  let html = '';
   for (let i = 0; i < 7; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    const dateKey = isoDate(d);
-    const isToday = d.getTime() === today.getTime();
-    const slots = (postsByDate[dateKey] || []).sort((a, b) =>
-      (a.scheduled_at || '').localeCompare(b.scheduled_at || '')
-    );
-    let cellCls = 'day-cell';
-    if (isToday) cellCls += ' is-today';
-    html += `<div class="${cellCls}" data-date="${dateKey}"
-        ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)"
-        style="min-height:180px;">`;
-    html += `<div class="day-num">${d.getDate()}<span class="dow">${DOW[d.getDay()]}</span></div>`;
-    if (slots.length === 0) html += '<div class="day-empty">—</div>';
-    else {
-      for (const p of slots) {
-        const text = (p.caption_preview || bucketLabel(p.bucket)).slice(0, 60);
-        html += `<div class="post-pill status-${p.status}" draggable="true"
-              data-post-id="${p.id}"
-              ondragstart="onDragStart(event,'${p.id}')"
-              onclick="openPostModal('${p.id}')">
-            <div class="dot bucket-${p.bucket || 'brand'}"></div>
-            <div class="pill-text">${escHtml(text)}</div>
-          </div>`;
-      }
-    }
-    html += '</div>';
+    const d = addDays(start, i);
+    const key = ymd(d);
+    const slots = by[key] || [];
+    const cls = ['week-col', 'day-cell-target'];
+    if (key === todayKey) cls.push('is-today');
+    if (i === 0 || i === 6) cls.push('is-weekend');
+    html += `<div class="${cls.join(' ')}" data-date="${key}"${key === todayKey ? ' aria-current="date"' : ''} ${dropAttrs()}>
+      <div class="week-col-head"><span class="wn">${d.getDate()}</span><span class="wd">${DOW[i]}</span>${key === todayKey ? '<span class="today-tag">Today</span>' : ''}${addBtn(key, d)}</div>
+      <div class="week-cards">${slots.length ? slots.map(chipHtml).join('') : '<span class="week-empty">Open day</span>'}</div></div>`;
   }
-  html += '</div>';
   document.getElementById('week-grid').innerHTML = html;
 }
 
 function changeWeek(delta) {
   _weekOffset += delta;
-  renderWeek();
+  _weekStart = addDays(_weekStart, 7 * delta);
+  loadCalendar30();
 }
 
 // ── List view ──────────────────────────────────────────────────────────────
 function renderList() {
   const root = document.getElementById('view-list');
-  if (_posts.length === 0) { root.innerHTML = ''; return; }
-  const sorted = [..._posts].sort((a, b) =>
-    (a.scheduled_at || '').localeCompare(b.scheduled_at || '')
-  );
-  let html = '<table class="list-table"><thead><tr>';
-  html += '<th>Date / Time</th><th>Bucket</th><th>Caption</th><th>Platforms</th><th>Status</th><th>Actions</th>';
-  html += '</tr></thead><tbody>';
-  for (const p of sorted) {
-    const platforms = (p.platforms_with_variants || []).filter(x => x !== 'base').join(', ') || '—';
-    html += `<tr>
-      <td>${fmtDateTime(p.scheduled_at)}</td>
-      <td><span class="post-pill" style="display:inline-flex;"><div class="dot bucket-${p.bucket || 'brand'}"></div><div class="pill-text">${bucketLabel(p.bucket)}</div></span></td>
-      <td>${escHtml((p.caption_preview || '').slice(0, 60))}</td>
-      <td>${escHtml(platforms)}</td>
-      <td>${escHtml(p.status)}</td>
-      <td>
-        <button class="btn-ghost" style="padding:5px 10px;font-size:11px;" onclick="openPostModal('${p.id}')">Open</button>
-        ${p.status === 'draft' ? `<button class="btn-danger-ghost" style="padding:5px 10px;font-size:11px;" onclick="quickDelete('${p.id}')">Delete</button>` : ''}
-      </td>
-    </tr>`;
+  const r = visibleRange();
+  const todayKey = ymd(todayLocal());
+  const by = groupByDate(filteredPosts().filter(inCountRange));
+  const keys = Object.keys(by).sort();
+  if (!keys.length) { root.innerHTML = '<div class="agenda-none">No posts in the selected buckets for this range.</div>'; return; }
+  let html = '';
+  for (const key of keys) {
+    const d = parseYmd(key);
+    html += `<section class="list-day" id="d-${key}" aria-label="${escHtml(d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }))}">
+      <h3 class="list-day-head"><span class="ld-date">${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>${key === todayKey ? '<span class="today-tag">Today</span>' : ''}<span class="ld-count">${by[key].length} post${by[key].length === 1 ? '' : 's'}</span></h3>
+      <div role="list">`;
+    for (const p of by[key]) {
+      const st = statusKey(p.status);
+      const cap = p.caption_preview || bucketLabel(p.bucket);
+      const publishable = ['draft', 'scheduled', 'failed'].includes(p.status);
+      html += `<div class="list-row ${bucketClass(p.bucket)}" role="listitem">
+        <span class="dot" title="${bucketLabel(p.bucket)}"></span>
+        <span class="lr-time">${escHtml(fmtTime(p.scheduled_at) || '—')}</span>
+        <button type="button" class="lr-cap" data-post-id="${escHtml(p.id)}" onclick="openPostModal(this.dataset.postId)" data-keep-emoji>${escHtml(cap)}</button>
+        <span class="lr-plats">${platMarks(p, true) || '<span class="modal-note">Base</span>'}</span>
+        <span class="status-pill s-${st}">${ic(STATUS[st].icon, 11)}${STATUS[st].label}</span>
+        <span class="lr-actions">
+          <button type="button" class="pc-btn pc-btn--ghost pc-btn--sm" data-post-id="${escHtml(p.id)}" onclick="openPostModal(this.dataset.postId)">Open</button>
+          ${publishable ? `<button type="button" class="pc-btn pc-btn--outline pc-btn--sm" data-post-id="${escHtml(p.id)}" onclick="quickPublish(this.dataset.postId)">${ic('rocket', 13)} Publish</button>` : ''}
+          ${p.status === 'draft' ? `<button type="button" class="pc-btn pc-btn--ghost pc-btn--sm pc-btn--icon" data-post-id="${escHtml(p.id)}" onclick="quickDelete(this.dataset.postId)" aria-label="Delete draft">${ic('trash-2', 14)}</button>` : ''}
+        </span>
+      </div>`;
+    }
+    html += '</div></section>';
   }
-  html += '</tbody></table>';
   root.innerHTML = html;
+  if (_listFocusDate) {
+    const target = document.getElementById('d-' + _listFocusDate);
+    _listFocusDate = null;
+    if (target) {
+      target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      target.classList.add('flash');
+      setTimeout(() => target.classList.remove('flash'), 1800);
+    }
+  }
+}
+
+function openDayInList(key) {
+  _listFocusDate = key;
+  setViewMode('list');
+}
+
+async function quickPublish(postId) {
+  const p = _posts.find(x => x.id === postId);
+  const hasVariants = p && (p.platforms_with_variants || []).some(x => x !== 'base');
+  if (!hasVariants) {
+    toast('Generate platform variants first. Opening the post.', 'error');
+    openPostModal(postId);
+    return;
+  }
+  if (!confirm('Publish this post to every connected platform now?')) return;
+  try {
+    const res = await fetch('/api/calendar/posts/' + postId + '/publish', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || data.error) { toast('Stalled. ' + (data.error || ('Server ' + res.status)), 'error'); return; }
+    const enq = (data.enqueued || []).length;
+    toast(`Lined up. ${enq} platform${enq === 1 ? '' : 's'} in the queue.`, 'success');
+    loadCalendar30();
+  } catch (e) {
+    toast('Stalled. ' + e.message, 'error');
+  }
 }
 
 async function quickDelete(postId) {
@@ -769,7 +1005,7 @@ async function quickDelete(postId) {
     toast('Draft removed.', 'success');
     _posts = _posts.filter(p => p.id !== postId);
     updateStatsStrip();
-    renderView();
+    showViews();
   } catch (e) {
     toast('Stalled. ' + e.message, 'error');
   }
@@ -779,12 +1015,19 @@ async function quickDelete(postId) {
 function onDragStart(e, postId) {
   _draggingPostId = postId;
   e.dataTransfer.effectAllowed = 'move';
+  try { e.dataTransfer.setData('text/plain', postId); } catch (_) {}
+  if (e.currentTarget && e.currentTarget.classList) e.currentTarget.classList.add('is-dragging');
+}
+function onDragEnd(e) {
+  if (e.currentTarget && e.currentTarget.classList) e.currentTarget.classList.remove('is-dragging');
+  document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
 }
 function onDragOver(e) {
   e.preventDefault();
   e.currentTarget.classList.add('drag-over');
 }
 function onDragLeave(e) {
+  if (e.relatedTarget && e.currentTarget.contains(e.relatedTarget)) return;
   e.currentTarget.classList.remove('drag-over');
 }
 async function onDrop(e) {
@@ -792,52 +1035,150 @@ async function onDrop(e) {
   e.currentTarget.classList.remove('drag-over');
   const newDate = e.currentTarget.dataset.date;
   if (!_draggingPostId || !newDate) return;
-  // Build new datetime — keep time component if existing
+  // Build new datetime: keep the post's local time of day
   const post = _posts.find(p => p.id === _draggingPostId);
-  let timeStr = '15:00:00';
+  if (post && postDateKey(post) === newDate) { _draggingPostId = null; return; }
+  let h = 15, mi = 0;
   if (post && post.scheduled_at) {
-    timeStr = post.scheduled_at.slice(11, 19);
+    const old = new Date(post.scheduled_at);
+    if (!isNaN(old)) { h = old.getHours(); mi = old.getMinutes(); }
   }
-  const newIso = newDate + 'T' + timeStr + 'Z';
+  const nd = parseYmd(newDate);
+  nd.setHours(h, mi, 0, 0);
+  const newIso = nd.toISOString().replace('.000Z', 'Z');
+  const movingId = _draggingPostId;
+  _draggingPostId = null;
   try {
-    const res = await fetch('/api/calendar/posts/' + _draggingPostId, {
+    const res = await fetch('/api/calendar/posts/' + movingId, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ scheduled_at: newIso }),
     });
     const data = await res.json();
-    if (data.error) { toast(data.error, 'error'); return; }
+    if (!res.ok || data.error) { toast(data.error || ('Server ' + res.status), 'error'); return; }
     toast('Lined up for ' + fmtDate(newIso) + '.', 'success');
     await loadCalendar30();
   } catch (err) {
     toast('Stalled. ' + err.message, 'error');
   }
-  _draggingPostId = null;
+}
+
+// ── Modal helpers ──────────────────────────────────────────────────────────
+function openModal(id, focusSel) {
+  _lastFocus = document.activeElement;
+  const m = document.getElementById(id);
+  m.classList.remove('hidden');
+  const f = focusSel ? m.querySelector(focusSel) : m.querySelector('button, input, textarea, select');
+  if (f) setTimeout(() => f.focus(), 30);
+}
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+  if (_lastFocus && document.contains(_lastFocus)) { try { _lastFocus.focus(); } catch (_) {} }
+}
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const open = ['publish-modal', 'draft-modal', 'brief-modal', 'autoplan-modal'].find(id => !document.getElementById(id).classList.contains('hidden'));
+  if (!open) return;
+  if (open === 'publish-modal') closePostModal();
+  else if (open === 'draft-modal') closeNewDraft();
+  else if (open === 'brief-modal') closeBriefModal();
+  else closeAutoPlanModal();
+});
+document.querySelectorAll('.modal-overlay').forEach(ov => ov.addEventListener('mousedown', e => {
+  if (e.target !== ov) return;
+  if (ov.id === 'publish-modal') closePostModal();
+  else if (ov.id === 'draft-modal') closeNewDraft();
+  else if (ov.id === 'brief-modal') closeBriefModal();
+  else closeAutoPlanModal();
+}));
+
+// ── New draft ──────────────────────────────────────────────────────────────
+function openNewDraft(dateKey) {
+  const t = todayLocal();
+  const fallback = (_viewMode === 'week') ? _weekStart :
+    ((t.getMonth() === _month.getMonth() && t.getFullYear() === _month.getFullYear()) ? addDays(t, 1) : _month);
+  document.getElementById('draft-date').value = dateKey || ymd(fallback < t ? addDays(t, 1) : fallback);
+  document.getElementById('draft-error').textContent = '';
+  document.getElementById('draft-content').removeAttribute('aria-invalid');
+  updateDraftCount();
+  openModal('draft-modal', '#draft-content');
+}
+function closeNewDraft() { closeModal('draft-modal'); }
+function updateDraftCount() {
+  const v = document.getElementById('draft-content').value;
+  document.getElementById('draft-count').textContent = v.length.toLocaleString('en-US') + ' / 10,000';
+  if (v.trim()) { document.getElementById('draft-error').textContent = ''; document.getElementById('draft-content').removeAttribute('aria-invalid'); }
+}
+async function submitNewDraft(e) {
+  if (e) e.preventDefault();
+  const ta = document.getElementById('draft-content');
+  const content = ta.value.trim();
+  const err = document.getElementById('draft-error');
+  if (!content) { err.textContent = 'Write something first.'; ta.setAttribute('aria-invalid', 'true'); ta.focus(); return; }
+  if (content.length > 10000) { err.textContent = 'Keep it under 10,000 characters.'; ta.setAttribute('aria-invalid', 'true'); ta.focus(); return; }
+  const dateVal = document.getElementById('draft-date').value;
+  const timeVal = document.getElementById('draft-time').value;
+  const body = { content };
+  const platform = document.getElementById('draft-platform').value;
+  if (platform) body.platform = platform;
+  if (dateVal) {
+    if (timeVal) {
+      const dt = parseYmd(dateVal);
+      const tp = timeVal.split(':').map(Number);
+      dt.setHours(tp[0] || 0, tp[1] || 0, 0, 0);
+      body.date = dt.toISOString();
+    } else {
+      body.date = dateVal;
+    }
+  }
+  const btn = document.getElementById('draft-submit');
+  btn.disabled = true; btn.classList.add('is-loading');
+  try {
+    const res = await fetch('/api/calendar/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) { err.textContent = data.error || ('Server ' + res.status); return; }
+    ta.value = '';
+    closeNewDraft();
+    toast('Draft on the board for ' + fmtDate(data.scheduled_at) + '.', 'success');
+    if (data.scheduled_at) {
+      const d = new Date(data.scheduled_at);
+      if (!isNaN(d)) { _month = new Date(d.getFullYear(), d.getMonth(), 1); if (_viewMode === 'week') _weekStart = startOfWeek(d); }
+    }
+    await loadCalendar30();
+  } catch (ex) {
+    err.textContent = 'Stalled. ' + ex.message;
+  } finally {
+    btn.disabled = false; btn.classList.remove('is-loading');
+  }
 }
 
 // ── Auto-plan modal ────────────────────────────────────────────────────────
 function openAutoPlanModal() {
-  document.getElementById('autoplan-modal').classList.remove('hidden');
   document.getElementById('autoplan-loading').classList.add('hidden');
   document.getElementById('autoplan-actions').classList.remove('hidden');
+  openModal('autoplan-modal', '#autoplan-actions .pc-btn--primary');
 }
 function closeAutoPlanModal() {
-  document.getElementById('autoplan-modal').classList.add('hidden');
+  closeModal('autoplan-modal');
 }
 
 // ── RE Daily Brief generator ──────────────────────────────────────────────
 let _briefData = null;
 function openBriefModal() {
-  document.getElementById('brief-modal').classList.remove('hidden');
   document.getElementById('brief-inputs').classList.remove('hidden');
   document.getElementById('brief-loading').classList.add('hidden');
   document.getElementById('brief-result').classList.add('hidden');
   document.getElementById('brief-gen-btn').classList.remove('hidden');
   ['brief-film-btn','brief-copy-btn','brief-regen-btn'].forEach(id => document.getElementById(id).classList.add('hidden'));
   _briefData = null;
+  openModal('brief-modal', '#brief-topic');
 }
 function closeBriefModal() {
-  document.getElementById('brief-modal').classList.add('hidden');
+  closeModal('brief-modal');
 }
 async function runDailyBrief() {
   const topic   = document.getElementById('brief-topic').value.trim();
@@ -868,24 +1209,24 @@ async function runDailyBrief() {
     document.getElementById('brief-loading').classList.add('hidden');
     document.getElementById('brief-inputs').classList.remove('hidden');
     document.getElementById('brief-gen-btn').classList.remove('hidden');
-    toast("Couldn't generate the brief — " + e.message, 'error');
+    toast("Couldn't generate the brief. " + e.message, 'error');
   }
 }
 function filmBriefNow() {
   // Pull any edits from the textarea, hand off to the Studio teleprompter
   const script = document.getElementById('brief-script').value.trim();
   const title  = (_briefData && _briefData.title) || 'RE Daily Brief';
-  if (!script) { toast('Nothing to film yet — generate first.', 'error'); return; }
+  if (!script) { toast('Nothing to film yet. Generate first.', 'error'); return; }
   localStorage.setItem('podclick_teleprompter_script', script);
   localStorage.setItem('podclick_teleprompter_title', title);
   window.open('/studio', '_blank');
-  toast('Sent to Studio — teleprompter loaded in the new tab.', 'success');
+  toast('Sent to Studio. Teleprompter loaded in the new tab.', 'success');
 }
 function copyBrief() {
   const script = document.getElementById('brief-script').value;
   navigator.clipboard.writeText(script).then(
     () => toast('Script copied.', 'success'),
-    () => toast("Couldn't copy — select and copy manually.", 'error')
+    () => toast("Couldn't copy. Select and copy manually.", 'error')
   );
 }
 
@@ -893,8 +1234,7 @@ async function runAutoPlan() {
   document.getElementById('autoplan-loading').classList.remove('hidden');
   document.getElementById('autoplan-actions').classList.add('hidden');
   try {
-    const today = new Date();
-    const startDate = today.toISOString().slice(0, 10);
+    const startDate = ymd(todayLocal());
     const res = await fetch('/api/calendar/auto-plan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -920,32 +1260,51 @@ async function runAutoPlan() {
 }
 
 // ── Post modal ─────────────────────────────────────────────────────────────
+function renderTimeline(status) {
+  const steps = [['draft', 'Draft', 'notebook-pen'], ['scheduled', 'Scheduled', 'clock'], ['publishing', 'Publishing', 'loader-circle'], ['published', 'Published', 'check']];
+  const order = { draft: 0, scheduled: 1, publishing: 2, published: 3, partially_published: 3, failed: 2 };
+  const at = order[status] != null ? order[status] : 0;
+  document.getElementById('post-timeline').innerHTML = steps.map(([key, label, icon], i) => {
+    let cls = i < at ? 'done' : (i === at ? 'current' : '');
+    if (status === 'failed' && i === at) { cls = 'failed'; icon = 'circle-alert'; label = 'Stalled'; }
+    if ((status === 'published' || status === 'partially_published') && i === at) cls = 'done';
+    return `<li class="${cls}"${i === at ? ' aria-current="step"' : ''}><span class="tl-dot">${ic(i < at || cls === 'done' ? 'check' : icon, 12)}</span>${label}</li>`;
+  }).join('');
+}
+
 async function openPostModal(postId) {
   _activePostId = postId;
   _activePost = null;
   _activeVariants = {};
   _activePlatform = 'linkedin';
 
-  document.getElementById('publish-modal').classList.remove('hidden');
+  openModal('publish-modal', '.modal-close');
   document.getElementById('modal-base-caption').textContent = 'Loading...';
   document.getElementById('modal-result').classList.add('hidden');
   document.getElementById('variant-caption').value = '';
   document.getElementById('variant-first-comment').value = '';
   document.getElementById('instagram-first-comment').classList.add('hidden');
+  const listed = _posts.find(p => p.id === postId);
+  renderTimeline(listed ? listed.status : 'draft');
+  document.getElementById('modal-meta').innerHTML = '';
 
   try {
     const res = await fetch('/api/calendar/posts/' + postId);
     const data = await res.json();
     if (data.error) { toast(data.error, 'error'); return; }
+    if (_activePostId !== postId) return;
     _activePost = data;
 
     // Header
-    const dateStr = data.scheduled_at ? fmtDate(data.scheduled_at) : 'No date';
-    document.getElementById('modal-date-bucket').innerHTML =
-      `<div class="dot bucket-${data.bucket || 'brand'}" style="width:14px;height:14px;border-radius:50%;"></div>` +
-      `${dateStr} — ${bucketLabel(data.bucket)}`;
+    const dateStr = data.scheduled_at ? fmtDateTime(data.scheduled_at) : 'No date';
+    document.getElementById('modal-date-bucket').textContent = dateStr;
+    const st = statusKey(data.status);
+    document.getElementById('modal-meta').innerHTML =
+      `<span class="bucket-tag ${bucketClass(data.bucket)}">${escHtml(bucketLabel(data.bucket))}</span>` +
+      `<span class="status-pill s-${st}">${ic(STATUS[st].icon, 11)}${STATUS[st].label}</span>`;
+    renderTimeline(data.status);
 
-    // Base caption — now lives on Post.base_caption, not in variants
+    // Base caption lives on Post.base_caption, not in variants
     document.getElementById('modal-base-caption').textContent =
       data.base_caption || '(no base caption)';
 
@@ -957,9 +1316,11 @@ async function openPostModal(postId) {
       };
     }
 
-    // Toggle delete button — only enabled for drafts
+    // Delete is only offered for drafts
     document.getElementById('btn-delete-post').style.display =
       data.status === 'draft' ? '' : 'none';
+    const canPublish = ['draft', 'scheduled', 'failed'].includes(data.status);
+    document.getElementById('btn-ship-it').disabled = !canPublish;
 
     switchVariantTab(_activePlatform);
   } catch (e) {
@@ -968,7 +1329,7 @@ async function openPostModal(postId) {
 }
 
 function closePostModal() {
-  document.getElementById('publish-modal').classList.add('hidden');
+  closeModal('publish-modal');
   _activePostId = null;
   _activePost = null;
 }
@@ -977,6 +1338,7 @@ function switchVariantTab(platform) {
   _activePlatform = platform;
   document.querySelectorAll('.variant-tab').forEach(t => {
     t.classList.toggle('active', t.dataset.platform === platform);
+    t.setAttribute('aria-pressed', String(t.dataset.platform === platform));
   });
   const v = _activeVariants[platform];
   document.getElementById('variant-caption').value = v ? v.caption : '';
@@ -1017,7 +1379,7 @@ async function generateVariants() {
 
 async function shipIt() {
   if (!_activePostId) return;
-  if (Object.keys(_activeVariants).length === 0) {
+  if (Object.keys(_activeVariants).filter(k => k !== 'base').length === 0) {
     toast('Generate platform variants first.', 'error');
     return;
   }
@@ -1034,8 +1396,9 @@ async function shipIt() {
     }
     const enq = (data.enqueued || []).length;
     const skip = (data.skipped || []).length;
+    renderTimeline('publishing');
     if (skip > 0) {
-      toast(`Partially lined up — ${enq} queued, ${skip} skipped. Check your Platform Connections.`, 'success');
+      toast(`Partially lined up: ${enq} queued, ${skip} skipped. Check your Platform Connections.`, 'success');
       showModalResult(
         `Queued ${enq} platforms. Skipped ${skip}: ` +
           (data.skipped || []).map(s => `${s.platform} (${s.reason})`).join(', '),
@@ -1070,16 +1433,27 @@ async function deletePost() {
     const data = await res.json();
     if (data.error) { toast(data.error, 'error'); return; }
     toast('Draft removed.', 'success');
-    _posts = _posts.filter(p => p.id !== _activePostId);
+    const gone = _activePostId;
+    _posts = _posts.filter(p => p.id !== gone);
     closePostModal();
     updateStatsStrip();
-    renderView();
+    showViews();
   } catch (e) {
     toast('Stalled. ' + e.message, 'error');
   }
 }
 
 // ── Boot ───────────────────────────────────────────────────────────────────
+(function boot() {
+  const t = todayLocal();
+  _month = new Date(t.getFullYear(), t.getMonth(), 1);
+  _weekStart = startOfWeek(t);
+  let skel = '';
+  for (let i = 0; i < 35; i++) {
+    skel += `<div class="skel-cell"><div class="pc-skeleton skel-num"></div>${i % 3 === 0 ? '<div class="pc-skeleton skel-chip"></div>' : ''}${i % 5 === 1 ? '<div class="pc-skeleton skel-chip"></div><div class="pc-skeleton skel-chip"></div>' : ''}</div>`;
+  }
+  document.getElementById('skel-grid').innerHTML = skel;
+})();
 loadCalendar30();
 loadGHLAccounts();
 </script>
