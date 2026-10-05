@@ -611,3 +611,19 @@ Planned review gates (lane B): `rg -n '#[0-9a-fA-F]{3,8}\b' frontend/agents.html
 
 `studio.html`'s legacy clip publish (`/api/clip`) now redirects to `/legacy/episode-builder`, where legacy clips are listed. Pinned by `tests/test_entry_points.py`, including a guard that no `frontend/*.html` or `main.py` line links to `href="/"`.
 
+
+## October 4 — calendar.html redesign (Content Board)
+
+Month / Week / List views with a month-navigation header, bucket filter chips, status-at-a-glance post chips, and a New draft modal. All earlier element IDs and functions are unchanged. Posts are grouped by the viewer's local day (not UTC). Only draft and scheduled posts are draggable, matching what `PATCH /api/calendar/posts/{id}` allows. Below 768px the month grid becomes an agenda list of days that have posts.
+
+| New function | Purpose |
+|---|---|
+| `navStep(dir)` / `navToday()` | Move the visible range by one month/week or jump to today; requests `/api/calendar?from_date=&to_date=` for full weeks |
+| `toggleBucket(bucket)` / `resetBuckets()` | Bucket filter chips (viral, brand, personal, conversion, podcast); counts reflect the visible range |
+| `openDayInList(dateKey)` | The "+N more" target: switch to List view scrolled to and briefly highlighting that day |
+| `quickPublish(postId)` | List-view Publish; opens the post instead when it has no platform variants yet |
+| `openNewDraft(dateKey)` / `submitNewDraft()` / `updateDraftCount()` | New draft modal; POSTs `/api/calendar/posts` `{content, platform?, date?}` with a timezone-qualified date |
+| `renderTimeline(post)` | Draft > Scheduled > Publishing > Published status timeline in the post modal |
+| `renderAgenda(posts)` | Phone (<768px) agenda list |
+
+Status chips: draft = dashed outline, scheduled = clock, publishing = animated ring, published = check, failed = red alert. Posts with no bucket (new drafts) get a neutral border and are not counted in any chip. Pinned by `tests/test_calendar_page.py`.
