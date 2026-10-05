@@ -13121,7 +13121,21 @@ async def brick_walkthrough():
             .order_by(_BM.created_at.desc())
             .limit(1)
         )).scalar_one_or_none()
-        greeting = greeting_row.content if greeting_row else "Morning. Walk-through ready."
+        from services.brick_agent import greeting_is_fresh as _greeting_fresh, STALE_GREETING as _STALE_GREETING
+        if greeting_row and _greeting_fresh(greeting_row.created_at):
+            greeting = greeting_row.content
+        elif greeting_row:
+            greeting = _STALE_GREETING
+        else:
+            greeting = "Morning. Walk-through ready."
+
+        # Age out stale auto-suggestions first (see services/brick_agent.py). Failure here must
+        # never break the page: the read-time filter below keeps the list honest either way.
+        try:
+            from services.brick_agent import expire_stale_suggestions as _expire_stale
+            await _expire_stale(str(loc_uuid))
+        except Exception as _exp_err:
+            print(f"[walkthrough] stale-suggestion expiry skipped: {_exp_err}")
 
         # Pending punch list
         pending_rows = (await session.execute(
@@ -13134,7 +13148,10 @@ async def brick_walkthrough():
         # Dedup by rationale text — multiple planning runs can produce identical items
         _seen_rationales = set()
         pending_actions = []
+        from services.brick_agent import is_stale_suggestion as _is_stale
         for a in pending_rows:
+            if _is_stale(a.action_type, a.requested_at):
+                continue
             rat = (a.rationale or "").strip()
             if rat in _seen_rationales:
                 continue

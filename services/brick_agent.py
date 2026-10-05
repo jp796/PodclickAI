@@ -2605,6 +2605,66 @@ class BrickAgent:
             logger.warning("[brick.notify] Telegram notification failed: %s", exc)
 
 
+# Brick's auto-suggested work goes stale fast: a draft idea from last week is noise, and
+# nothing else needs approval for it. These types age out on their own; every other
+# pending type (guest_asset_package, agent_commit, publish/send actions...) is something
+# a person must decide on and is NEVER expired by age here.
+STALE_SUGGESTION_TYPES = ("draft_post", "suggest_post_idea")
+STALE_SUGGESTION_HOURS = 36
+
+
+def is_stale_suggestion(action_type: Optional[str], requested_at: Optional[datetime],
+                        now: Optional[datetime] = None,
+                        max_age_hours: int = STALE_SUGGESTION_HOURS) -> bool:
+    """True when a pending auto-suggestion is too old to belong on today's punch list."""
+    if action_type not in STALE_SUGGESTION_TYPES or requested_at is None:
+        return False
+    now = now or datetime.utcnow()
+    ts = requested_at.replace(tzinfo=None) if requested_at.tzinfo else requested_at
+    return (now.replace(tzinfo=None) - ts) > timedelta(hours=max_age_hours)
+
+
+GREETING_MAX_AGE_HOURS = 20
+STALE_GREETING = "Walk-through's up. Brick hasn't planned today yet, so nothing new is on the list."
+
+
+def greeting_is_fresh(created_at: Optional[datetime], now: Optional[datetime] = None,
+                      max_age_hours: int = GREETING_MAX_AGE_HOURS) -> bool:
+    """A greeting like 'Friday walk-through...' is wrong on Sunday; only show recent ones."""
+    if created_at is None:
+        return False
+    now = now or datetime.utcnow()
+    ts = created_at.replace(tzinfo=None) if created_at.tzinfo else created_at
+    return (now.replace(tzinfo=None) - ts) <= timedelta(hours=max_age_hours)
+
+
+async def expire_stale_suggestions(location_id: str, max_age_hours: int = STALE_SUGGESTION_HOURS) -> int:
+    """Expire old pending auto-suggestions for one location. Safe to call on every read.
+
+    The nightly planning run is the only other place this happened, and that cron is
+    off whenever automation is disabled (QA launch, previews, locked deployments), so
+    suggestions piled up for weeks. Doing it lazily on read makes the count correct
+    regardless of whether a scheduler is alive.
+    """
+    cutoff = datetime.utcnow() - timedelta(hours=max_age_hours)
+    async with async_session() as session:
+        result = await session.execute(
+            update(BrickAction)
+            .where(and_(
+                BrickAction.location_id == uuid.UUID(str(location_id)),
+                BrickAction.status == "pending",
+                BrickAction.action_type.in_(STALE_SUGGESTION_TYPES),
+                BrickAction.requested_at < cutoff,
+            ))
+            .values(status="expired")
+        )
+        await session.commit()
+        n = result.rowcount or 0
+    if n:
+        logger.info("[brick.expire] Expired %d stale suggestions (>%dh)", n, max_age_hours)
+    return n
+
+
 # ── Cron handler ──────────────────────────────────────────────────────────────
 
 async def expire_stale_actions() -> int:
