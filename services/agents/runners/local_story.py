@@ -457,7 +457,7 @@ async def _mirror_posts(location_id: str, rows: List[Tuple[datetime, str, Dict[s
         made = []
         for at, base, variants in rows:
             post = Post(location_id=loc, base_caption=base, scheduled_at=at,
-                        status="scheduled", source="local_story")
+                        status="scheduled", source="brick_proposed")  # crew-approved; ck_posts_source has no local_story
             session.add(post)
             made.append((post, variants))
         await session.flush()
@@ -549,6 +549,14 @@ async def commit(ctx, job: Dict[str, Any], edits: Dict[str, Any]) -> Dict[str, A
                     failed.append({"story": s.get("n"), "platform": plat, "error": str(exc)[:200]})
             if variants:
                 rows.append((at, s.get("caption") or s.get("gmb") or "", variants))
+
+        if not scheduled:
+            # Nothing reached GHL, so nothing can double-post: clear the marker and fail
+            # loudly instead of recording a "done" job with zero posts (which is what
+            # happened on the first live approve, 2026-11-15).
+            started.unlink(missing_ok=True)
+            first_err = failed[0]["error"] if failed else "no post was accepted"
+            raise StepError(f"GHL didn't take any of the posts — nothing was scheduled. First error: {first_err}")
 
         post_ids: List[str] = []
         if rows:

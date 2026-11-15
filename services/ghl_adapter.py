@@ -530,14 +530,19 @@ class GHLAdapter(SocialService):
         if user_id:
             payload["userId"] = user_id
         if scheduled_at:
-            payload["scheduledAt"] = scheduled_at
-        if media_urls:
-            # Detect video vs image by extension so IG Reels / TikTok get type=video
-            # (was hardcoded "image" — video-only platforms rejected image posts).
-            def _media_type(u: str) -> str:
-                stem = u.split("?", 1)[0].lower()
-                return "video" if stem.endswith((".mp4", ".mov", ".webm", ".m4v")) else "image"
-            payload["media"] = [{"url": u, "type": _media_type(u)} for u in media_urls]
+            # GHL's key is `scheduleDate`. `scheduledAt` is rejected outright
+            # (422 "property scheduledAt should not exist") — verified live 2026-11-15.
+            _require_utc_instant(scheduled_at)
+            payload["scheduleDate"] = scheduled_at
+        # `media` must always be present (an empty array for text-only posts such as
+        # Google Business updates), and each item needs a real MIME type — bare
+        # "image"/"video" now 422s with "Invalid media format type" on create too.
+        # Verified live 2026-11-15.
+        payload["media"] = [
+            _to_mime_media({"url": u, "type": "video" if u.split("?", 1)[0].lower().endswith(
+                (".mp4", ".mov", ".webm", ".m4v")) else "image"})
+            for u in (media_urls or [])
+        ]
         if first_comment:
             # Instagram first-comment pattern for hashtags
             payload["firstComment"] = first_comment

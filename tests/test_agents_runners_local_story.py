@@ -265,6 +265,35 @@ def test_no_connected_accounts_refuses_without_scheduling(tmp_path, feeds, gen, 
     assert not (tmp_path / ls.COMMIT_STARTED).exists()
 
 
+def test_all_posts_rejected_fails_the_job_and_allows_a_retry(tmp_path, feeds, gen, monkeypatch):
+    ghl = FakeGHL()
+
+    async def reject(**kw):
+        raise RuntimeError("GHL returned 422: nope")
+    ghl.schedule = reject
+    monkeypatch.setattr(ls, "_ghl", lambda: ghl)
+    ctx = _built(tmp_path)
+    with pytest.raises(StepError, match="nothing was scheduled"):
+        run(ls.commit(ctx, ctx.job(), {}))
+    assert not (tmp_path / ls.COMMIT_STARTED).exists()
+    assert not (tmp_path / ls.COMMIT_DONE).exists()
+
+
+def test_ghl_create_payload_matches_the_live_api(monkeypatch):
+    """Shape GHL accepted on 2026-11-15: scheduleDate (not scheduledAt), MIME media
+    types, and an empty media array for text-only posts."""
+    from services import ghl_adapter as ga
+    a = ga.GHLAdapter()
+    p = a._build_payload("loc", "acct", "hi", status="scheduled",
+                         scheduled_at="2026-11-16T16:00:00Z",
+                         media_urls=["https://cdn/x/slide1.png", "https://cdn/x/v.mp4"])
+    assert "scheduledAt" not in p and p["scheduleDate"] == "2026-11-16T16:00:00Z"
+    assert [m["type"] for m in p["media"]] == ["image/png", "video/mp4"]
+    text_only = a._build_payload("loc", "acct", "hi", status="scheduled",
+                                 scheduled_at="2026-11-16T16:00:00Z")
+    assert text_only["media"] == []
+
+
 # ── weekly cron ───────────────────────────────────────────────────────────────
 
 def test_weekly_run_starts_both_markets_and_pings_telegram(monkeypatch):
