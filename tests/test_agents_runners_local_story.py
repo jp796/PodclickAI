@@ -617,3 +617,13 @@ def test_refresh_error_is_one_readable_line():
            "PrismaClientInitializationError: Can't reach database server at `127.0.0.1:1`\n"
            "      at handleAndLogRequestError (/x/library.js:121:6623)\n\nBun v1.3.12 (macOS x64)")
     assert ls._error_line(raw) == "PrismaClientInitializationError: Can't reach database server at `127.0.0.1:1`"
+
+
+def test_dropped_listing_says_which_rule_broke(tmp_path, with_listing, monkeypatch):
+    async def fake(system, user, max_tokens=900):
+        return listing_draft(extra=", under $150K") if "MY listing" in system else json.dumps([])
+    monkeypatch.setattr(ls, "_complete", fake)
+    ctx = Ctx(tmp_path)
+    with pytest.raises(StepError):
+        run(ls.run(ctx, {"market": "Cheyenne, WY", "stories": 1}))
+    assert any("Dropped the listing post" in w and "150" in w for w in ctx.warnings)

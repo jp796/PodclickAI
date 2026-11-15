@@ -530,9 +530,14 @@ LISTING_BRIEF = DRAFT_BRIEF.replace(
     "written for locals.", "about this home and its area, written for local buyers.")
 
 
-async def draft_listing(bc: Any, market: str, listing: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+LISTING_ATTEMPTS = 3
+
+
+async def draft_listing(bc: Any, market: str, listing: Dict[str, Any],
+                        problems_out: Optional[List[str]] = None) -> Optional[Dict[str, Any]]:
     """All formats for one of JP's own listings, guarded. Numbers may only come from the
-    structured listing fields (not the free-text remarks). None if two attempts break the rules."""
+    structured listing fields (not the free-text remarks). None if every attempt breaks the
+    rules; the last attempt's problems go into `problems_out` so the punch list can say why."""
     facts_rows = listing_facts(listing)
     system = ("You write listing content in my voice for my real estate brand. This is MY listing — "
               "I'm the listing agent. Sound like a neighbor showing a friend a house, not an ad.\n"
@@ -557,7 +562,7 @@ async def draft_listing(bc: Any, market: str, listing: Dict[str, Any]) -> Option
              + ", ".join(allowed) + ". Any other number (room sizes, distances, counts, rounded "
              "prices) gets the draft rejected — describe those things in words instead.")
     problems: List[str] = []
-    for _attempt in range(2):
+    for _attempt in range(LISTING_ATTEMPTS):
         user = facts
         if problems:
             user += "\n\nYour last draft broke the rules: " + "; ".join(problems) + ". Fix those."
@@ -573,6 +578,8 @@ async def draft_listing(bc: Any, market: str, listing: Dict[str, Any]) -> Option
             for k in FORMATS:
                 d[k] = str(d[k]).strip()
             return with_attribution(d, listing)
+    if problems_out is not None:
+        problems_out.extend(problems)
     return None
 
 
@@ -757,10 +764,11 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
     if listing is not None:
         async with ctx.step("listing", f"Writing your listing post for {listing['address']}"):
             ctx.check_cancelled()
-            d = await draft_listing(bc, market, listing)
+            why: List[str] = []
+            d = await draft_listing(bc, market, listing, why)
             if d is None:
                 ctx.warn(f"Dropped the listing post for {listing['address']} — the drafts kept breaking "
-                         "the guardrails.")
+                         "the guardrails (" + "; ".join(why) + ").")
             else:
                 outs = await _listing_outputs(ctx, out_dir, len(stories) + 1, market, listing, d, stories)
                 outputs.extend(outs)
