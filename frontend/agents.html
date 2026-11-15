@@ -800,13 +800,23 @@ function mutate(jobId, action, body, okMsg) {
     else { crewToast((r.data && r.data.error) || (r.status === 0 ? 'Couldn\'t reach the crew.' : 'That didn\'t go through.'), 'err'); if (currentJob && drawer.jobId === jobId) renderJob(currentJob); }
   });
 }
-function approveJob(jobId) {
-  var edits = collectEdits(); if (edits === null) return;
-  var sum = currentJob && currentJob.approval ? currentJob.approval.summary : 'Commit this work?';
-  if (!window.confirm(sum + '\n\nApprove & commit?')) return;
+/* Click-twice confirm on the button itself. window.confirm() is silently
+   suppressed in embedded browsers (returns false with no dialog), which made
+   Approve a no-op there. First click arms the button; second click within 6s acts. */
+function armOrGo(btn, armedLabel) {
+  if (!btn) return true;
+  if (btn.dataset.armed === '1') return true;
+  var orig = btn.innerHTML;
+  btn.dataset.armed = '1'; btn.textContent = armedLabel; btn.classList.add('armed');
+  setTimeout(function () { if (btn.isConnected && btn.dataset.armed === '1') { btn.dataset.armed = ''; btn.innerHTML = orig; btn.classList.remove('armed'); } }, 6000);
+  return false;
+}
+function approveJob(jobId, btn) {
+  var edits = collectEdits(); if (edits === null) { crewToast('Fix the highlighted edit first.', 'err'); return; }
+  if (!armOrGo(btn, 'Click again to approve')) return;
   mutate(jobId, 'approve', Object.keys(edits).length ? { edits: edits } : {}, 'Approved. On the job.');
 }
-function rejectJob(jobId) { if (window.confirm('Send this one back?')) mutate(jobId, 'reject', {}, 'Sent back.'); }
+function rejectJob(jobId, btn) { if (armOrGo(btn, 'Click again to send back')) mutate(jobId, 'reject', {}, 'Sent back.'); }
 function cancelJob(jobId) { mutate(jobId, 'cancel', {}, 'Stopped.'); }
 function handOff(fromJob, toAgentId) {
   var a = agentsById[toAgentId]; if (!a) return;
@@ -837,8 +847,8 @@ document.addEventListener('click', function (e) {
   var k = act.getAttribute('data-act');
   if (k === 'close') closeDrawer();
   else if (k === 'run') submitRun(drawer.agentId);
-  else if (k === 'approve') approveJob(drawer.jobId);
-  else if (k === 'reject') rejectJob(drawer.jobId);
+  else if (k === 'approve') approveJob(drawer.jobId, act);
+  else if (k === 'reject') rejectJob(drawer.jobId, act);
   else if (k === 'cancel') cancelJob(drawer.jobId);
   else if (k === 'again' && currentJob) openAgentDrawer(currentJob.agent_id, currentJob.input || {}, drawer.opener);
   else if (k === 'handoff' && currentJob) handOff(currentJob, act.getAttribute('data-to'));
