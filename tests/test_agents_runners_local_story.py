@@ -3,7 +3,7 @@ import asyncio
 import json
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -13,6 +13,7 @@ from services.agents.contract import StepError
 from services.agents.runners import local_story as ls
 
 _REAL_BUILD_SLIDESHOW = ls.build_slideshow
+_REAL_LISTINGS_FOR = ls._listings_for
 
 
 def run(coro):
@@ -111,6 +112,14 @@ def gen(monkeypatch):
         return st.queue.pop(0) if st.queue else good_draft()
     monkeypatch.setattr(ls, "_complete", fake)
     return st
+
+
+@pytest.fixture(autouse=True)
+def no_listings(monkeypatch):
+    """No REOS listings feed unless a test supplies one (never shells out to REOS)."""
+    async def none(market):
+        return [], None
+    monkeypatch.setattr(ls, "_listings_for", none)
 
 
 @pytest.fixture(autouse=True)
@@ -362,6 +371,7 @@ def test_weekly_run_starts_both_markets_and_pings_telegram(monkeypatch):
 
     async def fake_start(agent_id, inp, initiator="user", location_id=None):
         started.append((agent_id, inp["market"], initiator))
+        assert inp.get("listings") is True
         return {"id": f"j{len(started)}"}
     monkeypatch.setattr(_jobs, "start", fake_start)
     monkeypatch.setattr(_jobs, "task_for", lambda jid: None)
@@ -377,3 +387,233 @@ def test_weekly_run_starts_both_markets_and_pings_telegram(monkeypatch):
     assert [m for _, m, _ in started] == ["Springfield, MO", "Cheyenne, WY"]
     assert all(i == "cron" for _, _, i in started)
     assert "4 local stories drafted" in sent[0]
+
+
+# ── JP's own MLS listings ─────────────────────────────────────────────────────
+
+def _jpeg(color=(30, 140, 200)):
+    from io import BytesIO
+    from PIL import Image
+    buf = BytesIO()
+    Image.new("RGB", (800, 600), color).save(buf, "JPEG")
+    return buf.getvalue()
+
+
+LISTING = {
+    "mlsId": "102109", "market": "WY", "status": "active",
+    "address": "312 Walker Ln, Cheyenne WY 82001", "city": "Cheyenne", "state": "WY",
+    "postalCode": "82001", "listPrice": 149000, "beds": 3, "baths": 1.75, "sqft": 1087,
+    "lotAcres": None, "yearBuilt": 2025, "propertyType": "Manufactured Home",
+    "remarks": "3812 Walker Ln. 3 Bedrooms | 2 Bathrooms. Move-in ready with central A/C and a storage shed.",
+    "photos": ["https://img.test/1.jpg", "https://img.test/2.jpg"], "listingUrl": None,
+    "listOffice": {"name": "Real Broker, LLC", "phone": "307-555-0199"},
+    "mlsSource": "Cheyenne MLS",
+    "attribution": "Listing courtesy of Real Broker, LLC. Source: Cheyenne MLS. Information deemed reliable but not guaranteed.",
+}
+
+
+def listing_draft(extra=""):
+    return json.dumps({
+        "caption": f"Just listed: 312 Walker Ln in Cheyenne, $149,000. 3 beds, 1.75 baths, 1,087 sq ft{extra}. Want a look?",
+        "slides": [{"headline": f"Walker Ln {chr(64 + i)}", "body": "Built in 2025, central A/C and a storage shed."}
+                   for i in range(1, 6)],
+        "gmb": "312 Walker Ln is for sale at $149,000: 3 beds, 1.75 baths, 1,087 sq ft.",
+        "script": "Hook: Want to see a 2025 build in Cheyenne?\n3 beds, 1.75 baths.",
+        "blog": "# 312 Walker Ln\n\nA 2025 build with central A/C, listed at $149,000.",
+    })
+
+
+def _feed(tmp_path, monkeypatch, markets, agent="jp@example.test", made=None):
+    path = tmp_path / "own-listings.json"
+    path.write_text(json.dumps({"generatedAt": (made or datetime.now(timezone.utc)).isoformat(),
+                                "agentEmail": agent, "markets": markets}))
+    monkeypatch.setattr(ls, "LISTINGS_FEED", str(path))
+    monkeypatch.setenv("LOCAL_STORY_LISTINGS_EMAIL", "jp@example.test")
+    return path
+
+
+def test_load_listings_keeps_only_this_markets_active_attributed_rows(tmp_path, monkeypatch):
+    pending = dict(LISTING, mlsId="2", status="pending")
+    unattributed = dict(LISTING, mlsId="3", attribution="")
+    _feed(tmp_path, monkeypatch, {"WY": {"ok": True, "listings": [LISTING, pending, unattributed]},
+                                  "MO": {"ok": True, "listings": []}})
+    rows, warn = ls.load_listings("Cheyenne, WY")
+    assert [r["mlsId"] for r in rows] == ["102109"] and warn is None
+    assert ls.load_listings("Springfield, MO") == ([], None)
+
+
+def test_load_listings_refuses_stale_foreign_or_denied_feeds(tmp_path, monkeypatch):
+    _feed(tmp_path, monkeypatch, {"WY": {"ok": True, "listings": [LISTING]}},
+          made=datetime.now(timezone.utc) - timedelta(days=9))
+    assert ls.load_listings("Cheyenne, WY")[0] == []
+    _feed(tmp_path, monkeypatch, {"WY": {"ok": True, "listings": [LISTING]}}, agent="other@agent.test")
+    rows, warn = ls.load_listings("Cheyenne, WY")
+    assert rows == [] and "different agent" in warn
+    _feed(tmp_path, monkeypatch, {"WY": {"ok": False, "error": "mls_access_denied: not_granted", "listings": []}})
+    rows, warn = ls.load_listings("Cheyenne, WY")
+    assert rows == [] and "mls_access_denied" in warn
+    monkeypatch.setattr(ls, "LISTINGS_FEED", str(tmp_path / "nope.json"))
+    assert ls.load_listings("Cheyenne, WY") == ([], "no listings feed yet")
+
+
+def test_refresh_needs_an_email_and_the_reos_script(tmp_path, monkeypatch):
+    monkeypatch.delenv("LOCAL_STORY_LISTINGS_EMAIL", raising=False)
+    assert "LOCAL_STORY_LISTINGS_EMAIL" in run(ls.refresh_listings_feed())
+    monkeypatch.setenv("LOCAL_STORY_LISTINGS_EMAIL", "jp@example.test")
+    monkeypatch.setattr(ls, "REOS_DIR", str(tmp_path))
+    assert "own-listings-feed.ts" in run(ls.refresh_listings_feed())
+
+
+def test_pick_listing_rotates_weekly():
+    rows = [dict(LISTING, mlsId=str(i)) for i in range(3)]
+    picked = {ls.pick_listing(rows, date(2026, 11, 2) + timedelta(weeks=w))["mlsId"] for w in range(3)}
+    assert picked == {"0", "1", "2"}
+    assert ls.pick_listing([]) is None
+
+
+def test_listing_draft_only_uses_record_numbers_and_stamps_attribution(monkeypatch):
+    calls = []
+    queue = [listing_draft(extra=", 2 full baths"), listing_draft()]
+
+    async def fake(system, user, max_tokens=900):
+        calls.append(user)
+        return queue.pop(0)
+    monkeypatch.setattr(ls, "_complete", fake)
+    d = run(ls.draft_listing(BRAND, "Cheyenne, WY", LISTING))
+    assert "listing record doesn't have" in calls[-1] and "(2)" in calls[-1]   # remarks' "2 Bathrooms" isn't a record number
+    assert "Remarks (description only" in calls[0] and "List price: $149,000" in calls[0]
+    for k in ("caption", "gmb", "script", "blog"):
+        assert LISTING["attribution"] in d[k]
+
+
+def test_listing_draft_with_fair_housing_language_is_dropped(monkeypatch):
+    async def fake(system, user, max_tokens=900):
+        return listing_draft(extra=", perfect for families")
+    monkeypatch.setattr(ls, "_complete", fake)
+    assert run(ls.draft_listing(BRAND, "Cheyenne, WY", LISTING)) is None
+
+
+@pytest.fixture
+def with_listing(monkeypatch):
+    async def rows(market):
+        return [LISTING], None
+    monkeypatch.setattr(ls, "_listings_for", rows)
+
+    async def fake_fetch(url):
+        if url.startswith("https://img.test/"):
+            return _jpeg()
+        return b"<rss><channel></channel></rss>"
+    monkeypatch.setattr(ls, "_fetch", fake_fetch)
+
+    async def fake(system, user, max_tokens=900):
+        return listing_draft() if "MY listing" in system else json.dumps([])
+    monkeypatch.setattr(ls, "_complete", fake)
+
+
+def test_run_adds_one_listing_story_with_photo_slides_and_attribution(tmp_path, with_listing, monkeypatch):
+    ghl = FakeGHL()
+    monkeypatch.setattr(ls, "_ghl", lambda: ghl)
+    ctx = Ctx(tmp_path)
+    res = run(ls.run(ctx, {"market": "Cheyenne, WY", "stories": 1}))
+    by_id = {o.id: o for o in ctx.outputs}
+    story = by_id["s1_story"].value
+    assert story["kind"] == "listing" and story["mls_id"] == "102109" and story["photos_used"] == 2
+    assert {"s1_video", "s1_slides", "s1_caption", "s1_gmb", "s1_script", "s1_blog"} <= set(by_id)
+    for k in ("caption", "gmb", "blog"):
+        assert "Source: Cheyenne MLS" in by_id[f"s1_{k}"].value
+    from PIL import Image
+    slide = Image.open(tmp_path / "story1_slide1.png")
+    assert slide.size == (1080, 1350)
+    assert slide.getpixel((540, 300)) == pytest.approx((30, 140, 200), abs=12)   # the listing photo
+    assert "your listing" in res.commit.summary
+    assert not ghl.uploads and not ghl.scheduled                                # build never touches GHL
+
+
+def test_listing_story_schedules_like_any_other_on_approve(tmp_path, feeds, gen, monkeypatch):
+    async def rows(market):
+        return [LISTING], None
+    monkeypatch.setattr(ls, "_listings_for", rows)
+    gen.queue = [good_draft(), listing_draft()]
+    ghl = FakeGHL()
+
+    async def fake_mirror(loc, rows_):
+        return ["p1", "p2"]
+    monkeypatch.setattr(ls, "_ghl", lambda: ghl)
+    monkeypatch.setattr(ls, "_mirror_posts", fake_mirror)
+    ctx = Ctx(tmp_path)
+    run(ls.run(ctx, {"market": "Springfield, MO", "stories": 1}))
+    assert {o.id for o in ctx.outputs} >= {"s1_story", "s2_story"}
+    result = run(ls.commit(ctx, ctx.job(), {}))
+    listing_posts = [s for s in ghl.scheduled if "Cheyenne MLS" in s["caption"]]
+    assert {s["platform"] for s in listing_posts} == {"instagram", "facebook", "gmb"}
+    assert result["posts_scheduled"] == 6
+
+
+def test_missing_listing_feed_warns_and_keeps_the_news(tmp_path, feeds, gen, monkeypatch):
+    async def rows(market):
+        return [], "no listings feed yet"
+    monkeypatch.setattr(ls, "_listings_for", rows)
+    ctx = Ctx(tmp_path)
+    run(ls.run(ctx, {"market": "Springfield, MO", "stories": 1}))
+    assert any("No listing post this week — no listings feed yet" in w for w in ctx.warnings)
+    assert "s2_story" not in {o.id for o in ctx.outputs}
+
+
+def test_listings_off_skips_the_feed(tmp_path, feeds, gen, monkeypatch):
+    async def boom(market):
+        raise AssertionError("should not read listings")
+    monkeypatch.setattr(ls, "_listings_for", boom)
+    run(ls.run(Ctx(tmp_path), {"market": "Springfield, MO", "stories": 1, "listings": False}))
+
+
+def test_listing_slide_renders_without_a_photo(tmp_path):
+    from PIL import Image
+    p = tmp_path / "x.png"
+    ls.render_listing_slide(str(p), "Walker Ln", "Body", 1, 5, "Cheyenne, WY", None, LISTING["attribution"])
+    assert Image.open(p).size == (ls.SLIDE_W, ls.SLIDE_H)
+
+
+def test_a_failed_refresh_with_a_cached_feed_is_reported(tmp_path, monkeypatch):
+    _feed(tmp_path, monkeypatch, {"WY": {"ok": True, "listings": [LISTING]}})
+
+    async def fail():
+        return "bun isn't installed"
+    monkeypatch.setattr(ls, "refresh_listings_feed", fail)
+    monkeypatch.setattr(ls, "_listings_for", _REAL_LISTINGS_FOR)
+    rows, warn = run(ls._listings_for("Cheyenne, WY"))
+    assert [r["mlsId"] for r in rows] == ["102109"] and "used the last feed" in warn
+
+
+def test_refresh_runs_the_reos_script_without_podclicks_env(tmp_path, monkeypatch):
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts" / "own-listings-feed.ts").write_text("")
+    (tmp_path / ".env").write_text("")
+    monkeypatch.setattr(ls, "REOS_DIR", str(tmp_path))
+    monkeypatch.setattr(ls, "LISTINGS_FEED", str(tmp_path / "feed.json"))
+    monkeypatch.setattr(ls, "_bun", lambda: "/usr/local/bin/bun")
+    monkeypatch.setenv("LOCAL_STORY_LISTINGS_EMAIL", "jp@example.test")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://podclick-db")
+    seen = {}
+
+    class Proc:
+        returncode = 0
+
+        async def communicate(self):
+            return b"wrote", b""
+
+    async def fake_exec(*args, **kw):
+        seen["args"], seen["kw"] = args, kw
+        return Proc()
+    monkeypatch.setattr(ls.asyncio, "create_subprocess_exec", fake_exec)
+    assert run(ls.refresh_listings_feed()) is None
+    assert "DATABASE_URL" not in seen["kw"]["env"] and "PATH" in seen["kw"]["env"]
+    assert seen["kw"]["cwd"] == str(tmp_path)
+    assert seen["args"][1:] == ("--env-file=.env", "scripts/own-listings-feed.ts", "--email", "jp@example.test",
+                                "--out", str(tmp_path / "feed.json"))
+
+
+def test_refresh_error_is_one_readable_line():
+    raw = ("12 | const user = await prisma.user.findFirst({\n"
+           "PrismaClientInitializationError: Can't reach database server at `127.0.0.1:1`\n"
+           "      at handleAndLogRequestError (/x/library.js:121:6623)\n\nBun v1.3.12 (macOS x64)")
+    assert ls._error_line(raw) == "PrismaClientInitializationError: Can't reach database server at `127.0.0.1:1`"

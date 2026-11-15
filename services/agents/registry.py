@@ -66,8 +66,8 @@ _SPECS: List[AgentSpec] = [
         id="local_story",
         name="Local Story Desk",
         category="research",
-        job="Find this week's local stories and turn each into a carousel, Google Business update, "
-            "reel script and blog post — scheduled only when you approve.",
+        job="Find this week's local stories, plus one of your own active listings, and turn each into a "
+            "slideshow Reel, Google Business update, reel script and blog post — scheduled only when you approve.",
         icon="🗞️",
         runner=_R + "local_story",
         fields=(
@@ -77,6 +77,8 @@ _SPECS: List[AgentSpec] = [
                       min_value=1, max_value=5),
             FieldSpec("extra_topics", "Extra topics to search", "text", max_len=300,
                       help="Optional, comma separated, e.g. new subdivision, zoning."),
+            FieldSpec("listings", "Add one of my active listings", "checkbox", default=True,
+                      help="Your own active MLS listings only, pulled through REOS's MLS gate."),
         ),
         commit_tier="bricklayer",
         foundation="required",

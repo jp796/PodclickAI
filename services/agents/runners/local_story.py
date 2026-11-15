@@ -9,6 +9,10 @@ stories homeowners would care about, then draft per story, in the Foundation voi
   - Google Business Profile update
   - 30-45s reel script for the human to film
   - blog post (markdown)
+Plus one of JP's OWN active MLS listings per market (from a REOS feed that runs
+REOS's MLS licensing gate and public-display projection — see "own MLS listings"
+below): same formats, the listing's photos on the slides, numbers only from the
+listing record, and the brokerage + MLS attribution stamped on every format.
 Every draft runs the shared deterministic guards (no invented numbers, no Fair
 Housing red flags); one redraft, then the story is dropped rather than shipped.
 The build phase never touches GHL.
@@ -381,6 +385,283 @@ def render_slide(path: str, headline: str, body: str, index: int, total: int, ma
     img.save(path, "PNG")
 
 
+# ── JP's own MLS listings (from REOS) ────────────────────────────────────────
+#
+# REOS owns the MLS license gate, so PodClick never talks to an MLS. A REOS script
+# (scripts/own-listings-feed.ts) runs AS the listing agent through
+# getMlsProviderForActor → requireMlsAccess, keeps only that agent's own ACTIVE
+# listings, projects them with toPublicListing and writes a JSON feed. Each row
+# carries the listing-firm + MLS source line that every public post must show.
+# Here we refresh that feed (best effort), fall back to the last good copy if it
+# is under a week old, and turn one listing per market into a story.
+
+REOS_DIR = os.path.expanduser(os.environ.get("LOCAL_STORY_REOS_DIR", "~/real-estate-os"))
+LISTINGS_FEED = os.path.expanduser(os.environ.get("LOCAL_STORY_LISTINGS_FEED", "~/.reos/own-listings.json"))
+LISTINGS_SCRIPT = "scripts/own-listings-feed.ts"
+LISTINGS_FEED_MAX_AGE = timedelta(days=8)
+LISTINGS_REFRESH_TIMEOUT_S = 180
+MARKET_CODES = {"Springfield, MO": "MO", "Cheyenne, WY": "WY"}
+
+
+def _listings_email() -> str:
+    return os.environ.get("LOCAL_STORY_LISTINGS_EMAIL", "").strip().lower()
+
+
+def _bun() -> Optional[str]:
+    import shutil
+    found = shutil.which("bun")
+    if found:
+        return found
+    fallback = os.path.expanduser("~/.bun/bin/bun")
+    return fallback if os.path.exists(fallback) else None
+
+
+async def refresh_listings_feed() -> Optional[str]:
+    """Rebuild the feed via the REOS script. Returns an error string, or None on success."""
+    email = _listings_email()
+    if not email:
+        return "LOCAL_STORY_LISTINGS_EMAIL isn't set"
+    if not os.path.exists(os.path.join(REOS_DIR, LISTINGS_SCRIPT)):
+        return f"{LISTINGS_SCRIPT} isn't in {REOS_DIR}"
+    bun = _bun()
+    if not bun:
+        return "bun isn't installed"
+    Path(LISTINGS_FEED).parent.mkdir(parents=True, exist_ok=True)
+    args = [bun]
+    for env_file in (".env", ".env.local"):   # .env.local (if present) points at the live DB
+        if os.path.exists(os.path.join(REOS_DIR, env_file)):
+            args.append(f"--env-file={env_file}")
+    args += [LISTINGS_SCRIPT, "--email", email, "--out", LISTINGS_FEED]
+    # A bare environment: bun's --env-file never overrides a variable that's already set,
+    # so PodClick's own DATABASE_URL (and friends) would point the REOS script at the
+    # wrong database. REOS's env files supply everything it needs.
+    env = {k: v for k, v in os.environ.items() if k in ("PATH", "HOME", "USER", "LANG", "TMPDIR", "TZ")}
+    proc = await asyncio.create_subprocess_exec(*args, cwd=REOS_DIR, env=env, stdout=asyncio.subprocess.PIPE,
+                                                stderr=asyncio.subprocess.PIPE)
+    try:
+        out, err = await asyncio.wait_for(proc.communicate(), timeout=LISTINGS_REFRESH_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        proc.kill()
+        return "the REOS listings script timed out"
+    if proc.returncode != 0:
+        return _error_line((err or out or b"").decode("utf-8", "replace")) or f"exit {proc.returncode}"
+    return None
+
+
+def _error_line(text: str) -> str:
+    """The one line of a bun/Prisma failure worth showing on the punch list (no stack frames)."""
+    lines = [l.strip() for l in text.splitlines()
+             if l.strip() and not l.strip().startswith(("at ", "Bun v", "^", "|")) and not l.strip()[:1].isdigit()]
+    pick = next((l for l in lines if "rror" in l or "denied" in l or "No user" in l), lines[0] if lines else "")
+    return pick[:200]
+
+
+def load_listings(market: str, now: Optional[datetime] = None) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    """Active own listings for a market from the feed file, plus a warning when there are none to use."""
+    code = MARKET_CODES.get(market)
+    try:
+        feed = json.loads(Path(LISTINGS_FEED).read_text())
+    except FileNotFoundError:
+        return [], "no listings feed yet"
+    except (OSError, ValueError) as exc:
+        return [], f"the listings feed is unreadable ({exc})"
+    try:
+        made = datetime.fromisoformat(str(feed.get("generatedAt", "")).replace("Z", "+00:00"))
+    except ValueError:
+        return [], "the listings feed has no date"
+    if (now or datetime.now(timezone.utc)) - made > LISTINGS_FEED_MAX_AGE:
+        return [], "the listings feed is more than a week old"
+    want = _listings_email()
+    if want and str(feed.get("agentEmail") or "").strip().lower() != want:
+        return [], "the listings feed belongs to a different agent"
+    entry = (feed.get("markets") or {}).get(code) or {}
+    if not entry.get("ok", False):
+        return [], f"REOS couldn't read the {code} MLS ({entry.get('error') or 'not in the feed'})"
+    rows = [r for r in entry.get("listings") or []
+            if r.get("status") == "active" and r.get("market") == code and r.get("attribution")
+            and r.get("mlsId") and r.get("address")]
+    return rows, None
+
+
+async def _listings_for(market: str) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    """Refresh (best effort) then load. Patched in tests."""
+    err = await refresh_listings_feed()
+    rows, warn = load_listings(market)
+    if err:
+        warn = (f"{warn}; refresh failed: {err}" if warn
+                else f"couldn't refresh listings from REOS ({err}), used the last feed")
+    return rows, warn
+
+
+def pick_listing(listings: List[Dict[str, Any]], today: Optional[date] = None) -> Optional[Dict[str, Any]]:
+    """One listing, rotating weekly so every active listing gets its turn."""
+    if not listings:
+        return None
+    ordered = sorted(listings, key=lambda r: str(r.get("mlsId")))
+    week = (today or date.today()).isocalendar()[1]
+    return ordered[week % len(ordered)]
+
+
+def _fmt_num(n: Any) -> str:
+    if n is None:
+        return ""
+    f = float(n)
+    return f"{int(f):,}" if f == int(f) else f"{f:g}"
+
+
+def listing_facts(listing: Dict[str, Any]) -> List[Tuple[str, str]]:
+    """The structured fields the draft may use, in order. Only these carry numbers."""
+    rows = [("Address", listing.get("address") or ""),
+            ("Status", "Active, for sale"),
+            ("List price", f"${_fmt_num(listing.get('listPrice'))}" if listing.get("listPrice") is not None else ""),
+            ("Bedrooms", _fmt_num(listing.get("beds"))),
+            ("Bathrooms", _fmt_num(listing.get("baths"))),
+            ("Living area (sq ft)", _fmt_num(listing.get("sqft"))),
+            ("Lot (acres)", _fmt_num(listing.get("lotAcres"))),
+            ("Year built", str(listing.get("yearBuilt") or "")),
+            ("Property type", listing.get("propertyType") or ""),
+            ("Listing brokerage", (listing.get("listOffice") or {}).get("name") or "")]
+    return [(k, v) for k, v in rows if v]
+
+
+LISTING_BRIEF = DRAFT_BRIEF.replace(
+    "slide 5 is a soft call to follow for local updates.",
+    "slide 5 is a soft call to message me for a showing.").replace(
+    "written for locals.", "about this home and its area, written for local buyers.")
+
+
+async def draft_listing(bc: Any, market: str, listing: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """All formats for one of JP's own listings, guarded. Numbers may only come from the
+    structured listing fields (not the free-text remarks). None if two attempts break the rules."""
+    facts_rows = listing_facts(listing)
+    system = ("You write listing content in my voice for my real estate brand. This is MY listing — "
+              "I'm the listing agent. Sound like a neighbor showing a friend a house, not an ad.\n"
+              + _av._voice_block(bc) +
+              "\n\nRules:\n- Plain language. Never mention being an AI.\n- " + _av.NO_FABRICATION_RULE +
+              "\n- Every number (price, beds, baths, square feet, year, address number) must come from the "
+              "Facts lines exactly as written. Never take a number from the remarks. Write the price in full, "
+              "like $149,000, never $149K."
+              "\n- Fair Housing: describe the property, never the people. Never say who a home is 'perfect "
+              "for', never mention family status, age, religion, race, national origin, sex, disability, "
+              "schools' quality, or how safe an area is."
+              "\n- Don't invent features. Use only what the Facts and remarks say."
+              "\n- No claims about the price versus the market or other homes (no 'under market', "
+              "'best deal', 'priced to sell', 'won't last')."
+              "\n- Don't add the brokerage or MLS disclaimer yourself; I add it after."
+              "\n\n" + LISTING_BRIEF)
+    sources = [market] + [v for _, v in facts_rows] + [str(listing.get("attribution") or "")]
+    allowed = sorted(set().union(*(_av.numbers_in(s) for s in sources)), key=lambda x: float(x))
+    facts = (f"Market: {market}\n" + "\n".join(f"{k}: {v}" for k, v in facts_rows)
+             + f"\nRemarks (description only, no numbers from here): {listing.get('remarks') or '(none)'}"
+             + "\n\nThe ONLY numbers you may write anywhere (prices with commas are fine): "
+             + ", ".join(allowed) + ". Any other number (room sizes, distances, counts, rounded "
+             "prices) gets the draft rejected — describe those things in words instead.")
+    problems: List[str] = []
+    for _attempt in range(2):
+        user = facts
+        if problems:
+            user += "\n\nYour last draft broke the rules: " + "; ".join(problems) + ". Fix those."
+        try:
+            d = _json_block(await _complete(system, user, 2200))
+        except (ValueError, TypeError):
+            d = None
+        problems = [p.replace("the story never gave", "the listing record doesn't have")
+                    for p in _problems(d, sources)]
+        if not problems:
+            d["slides"] = [{"headline": str(s.get("headline") or "").strip(),
+                            "body": str(s.get("body") or "").strip()} for s in d["slides"]]
+            for k in FORMATS:
+                d[k] = str(d[k]).strip()
+            return with_attribution(d, listing)
+    return None
+
+
+def with_attribution(d: Dict[str, Any], listing: Dict[str, Any]) -> Dict[str, Any]:
+    """Stamp the required MLS/brokerage attribution (and the link, if any) on every text format.
+    Deterministic, so the model can't drop or reword it."""
+    attr = str(listing.get("attribution") or "").strip()
+    url = str(listing.get("listingUrl") or "").strip()
+    link = f"\nDetails: {url}" if url else ""
+    out = dict(d)
+    out["caption"] = f"{d['caption']}\n\n{attr}{link}"
+    out["gmb"] = f"{d['gmb']} {attr}{(' ' + url) if url else ''}"
+    out["script"] = f"{d['script']}\n\n[On-screen text: {attr}]"
+    out["blog"] = f"{d['blog']}\n\n---\n\n*{attr}*" + (f"\n\n[See the full listing]({url})" if url else "")
+    return out
+
+
+async def fetch_listing_photos(listing: Dict[str, Any], out_dir: Path, s: int, count: int) -> List[Optional[str]]:
+    """Download up to `count` listing photos as JPEGs; a failed one is None (that slide goes text-only)."""
+    from io import BytesIO
+    from PIL import Image
+    urls = [u for u in listing.get("photos") or [] if isinstance(u, str) and u.startswith("http")][:count]
+    raws = await asyncio.gather(*(_fetch(u) for u in urls), return_exceptions=True)
+    paths: List[Optional[str]] = []
+    for j, raw in enumerate(raws, 1):
+        if isinstance(raw, BaseException):
+            paths.append(None)
+            continue
+        try:
+            img = Image.open(BytesIO(raw)).convert("RGB")
+            p = out_dir / f"story{s}_photo{j}.jpg"
+            img.save(p, "JPEG", quality=90)
+            paths.append(str(p))
+        except Exception:
+            paths.append(None)
+    return paths
+
+
+LISTING_PHOTO_H = 640
+
+
+def render_listing_slide(path: str, headline: str, body: str, index: int, total: int, market: str,
+                         photo: Optional[str], attribution: str) -> None:
+    """A listing slide: the listing's own photo on top, copy below, the MLS attribution line,
+    then the same headshot footer as every other slide."""
+    from PIL import Image, ImageDraw, ImageOps
+    bg, accent, fg, muted = (20, 22, 26), (214, 108, 52), (245, 243, 238), (176, 172, 164)
+    img = Image.new("RGB", (SLIDE_W, SLIDE_H), bg)
+    d = ImageDraw.Draw(img)
+    pad = 80
+    top = 0
+    if photo:
+        try:
+            ph = ImageOps.fit(Image.open(photo).convert("RGB"), (SLIDE_W, LISTING_PHOTO_H), Image.LANCZOS)
+            img.paste(ph, (0, 0))
+            top = LISTING_PHOTO_H
+        except Exception:
+            top = 0
+    d.rectangle([0, top, SLIDE_W, top + 12], fill=accent)
+    label = f"{market.upper()} · MY LISTING"
+    if top:
+        lf = _font(30)
+        lw = d.textlength(label, font=lf)
+        d.rectangle([pad - 16, 40, pad + lw + 16, 96], fill=bg)
+        d.text((pad, 50), label, font=lf, fill=accent)
+        y = top + 50
+        hf, hstep, bf, bstep = _font(64), 78, _font(40), 54
+    else:
+        d.text((pad, 110), label, font=_font(34), fill=accent)
+        y = 230
+        hf, hstep, bf, bstep = _font(84), 104, _font(46), 64
+    for line in _wrap(d, headline, hf, SLIDE_W - 2 * pad)[:3]:
+        d.text((pad, y), line, font=hf, fill=fg)
+        y += hstep
+    y += 24
+    af = _font(24)
+    attr_lines = _wrap(d, attribution, af, SLIDE_W - 2 * pad)[:2]
+    attr_top = SLIDE_H - FOOTER_H - 20 - 32 * len(attr_lines)
+    for line in _wrap(d, body, bf, SLIDE_W - 2 * pad):
+        if y + bstep > attr_top - 10:
+            break
+        d.text((pad, y), line, font=bf, fill=muted)
+        y += bstep
+    for k, line in enumerate(attr_lines):
+        d.text((pad, attr_top + 32 * k), line, font=af, fill=muted)
+    _brand_footer(img, d, accent, fg, muted, index, total)
+    img.save(path, "PNG")
+
+
 # ── build ─────────────────────────────────────────────────────────────────────
 
 async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
@@ -393,16 +674,29 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
     except (TypeError, ValueError):
         n = 3
     extra = str(inp.get("extra_topics") or "")
+    want_listing = inp.get("listings", True) not in (False, "false", "0", 0, "")
+
+    listing: Optional[Dict[str, Any]] = None
+    if want_listing:
+        async with ctx.step("listings", "Checking your active MLS listings"):
+            rows, warn = await _listings_for(market)
+            listing = pick_listing(rows)
+            if listing is None:
+                ctx.warn(f"No listing post this week — {warn or 'you have no active listings in ' + market}.")
+            elif warn:
+                ctx.warn(f"Listing post: {warn}.")
 
     async with ctx.step("source", f"Reading this week's {city} news"):
         candidates = await gather_candidates(city, state, extra)
-        if not candidates:
+        if not candidates and listing is None:
             raise StepError(f"No usable {city} stories in the last {MAX_AGE_DAYS} days — the news "
                             "feeds came back empty. Run it again later.")
+        if not candidates:
+            ctx.warn(f"No usable {city} news this week — only your listing is in this batch.")
 
     async with ctx.step("pick", "Picking the stories locals will care about"):
         ctx.check_cancelled()
-        picks = await pick_stories(market, candidates, n)
+        picks = await pick_stories(market, candidates, n) if candidates else []
 
     async with ctx.step("foundation", "Checking the Foundation"):
         try:
@@ -460,12 +754,63 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
                 ctx.add_output(o)
                 outputs.append(o)
 
+    if listing is not None:
+        async with ctx.step("listing", f"Writing your listing post for {listing['address']}"):
+            ctx.check_cancelled()
+            d = await draft_listing(bc, market, listing)
+            if d is None:
+                ctx.warn(f"Dropped the listing post for {listing['address']} — the drafts kept breaking "
+                         "the guardrails.")
+            else:
+                outs = await _listing_outputs(ctx, out_dir, len(stories) + 1, market, listing, d, stories)
+                outputs.extend(outs)
+
     if not stories:
         raise StepError("Every story I picked broke a guardrail, so nothing is ready to review. "
                         "Run it again.")
-    summary = (f"Schedule {len(stories)} {city} stor{'y' if len(stories) == 1 else 'ies'}: "
-               "slideshow Reel on Instagram + Facebook and an update on Google Business, one per day")
+    has_listing = any(s.get("kind") == "listing" for s in stories)
+    summary = (f"Schedule {len(stories)} {city} stor{'y' if len(stories) == 1 else 'ies'}"
+               + (" (including your listing)" if has_listing else "") +
+               ": slideshow Reel on Instagram + Facebook and an update on Google Business, one per day")
     return AgentResult(outputs=outputs, commit=CommitPlan(summary=summary))
+
+
+async def _listing_outputs(ctx, out_dir: Path, s: int, market: str, listing: Dict[str, Any],
+                           d: Dict[str, Any], stories: List[Dict[str, Any]]) -> List[Any]:
+    """Slides (with the listing's own photos), slideshow video and the text formats for
+    one listing story. Same output ids as a news story, so approve schedules it the same way."""
+    loop = asyncio.get_running_loop()
+    photos = await fetch_listing_photos(listing, out_dir, s, SLIDE_COUNT)
+    photos += [None] * (SLIDE_COUNT - len(photos))
+    first_photo = next((p for p in photos if p), None)
+    images = []
+    for j, slide in enumerate(d["slides"], 1):
+        name = f"story{s}_slide{j}.png"
+        await loop.run_in_executor(None, render_listing_slide, str(out_dir / name), slide["headline"],
+                                   slide["body"], j, SLIDE_COUNT, market, photos[j - 1] or first_photo,
+                                   listing["attribution"])
+        images.append({"file": name, "url": f"/api/agents/jobs/{ctx.job_id}/files/{name}",
+                       "label": slide["headline"]})
+    video = VIDEO_NAME.format(n=s)
+    duration = await build_slideshow([str(out_dir / i["file"]) for i in images], str(out_dir / video))
+    title = f"For sale: {listing['address']}"
+    stories.append({"n": s, "kind": "listing", "title": title, "source": listing.get("mlsSource", ""),
+                    "url": listing.get("listingUrl") or "", "why": "Your own active listing.",
+                    "summary": "", "mls_id": listing.get("mlsId"), "attribution": listing["attribution"],
+                    "facts": dict(listing_facts(listing)), "slides": d["slides"],
+                    "images": [i["file"] for i in images], "video": video,
+                    "photos_used": sum(1 for p in photos if p)})
+    outs = [Output(id=f"s{s}_story", kind="json", label=f"Story {s} (your listing): {listing['address']}",
+                   value=stories[-1]),
+            Output(id=f"s{s}_video", kind="video", label=f"Story {s} listing slideshow (Reel)", file=video,
+                   meta={"duration_s": round(duration, 1), "slides": len(images)}),
+            Output(id=f"s{s}_slides", kind="images", label=f"Story {s} listing slides", value=images)]
+    for k in FORMATS:
+        outs.append(Output(id=f"s{s}_{k}", kind="text", label=f"Story {s} (listing) — {LABELS[k]}",
+                           value=d[k], meta={"editable": True, "original": d[k], "story": s, "format": k}))
+    for o in outs:
+        ctx.add_output(o)
+    return outs
 
 
 # ── slideshow video ───────────────────────────────────────────────────────────
@@ -681,7 +1026,8 @@ async def weekly_run(markets: Optional[List[str]] = None) -> List[str]:
     lines: List[str] = []
     for market in markets or list(MARKETS):
         try:
-            job = await _jobs.start("local_story", {"market": market, "stories": 3}, initiator="cron")
+            job = await _jobs.start("local_story", {"market": market, "stories": 3, "listings": True},
+                                    initiator="cron")
             started.append((market, job["id"]))
         except Exception as exc:
             lines.append(f"• {market}: didn't start ({getattr(exc, 'args', [exc])[0]})")
