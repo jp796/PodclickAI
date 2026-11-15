@@ -236,9 +236,24 @@ async def _startup():
             misfire_grace_time=600,
         )
 
+        # ── Local Story Desk weekly run ───────────────────────────────────────
+        # Mondays 11:00 America/Chicago: drafts this week's local stories for
+        # Springfield + Cheyenne and pings Telegram. Nothing posts until JP
+        # approves the job on /agents (the approve IS the review gate).
+        from services.agents.runners.local_story import weekly_run as _local_story_weekly
+        _brick_scheduler.add_job(
+            _local_story_weekly,
+            CronTrigger(day_of_week="mon", hour=11, minute=0,
+                        timezone=pytz.timezone("America/Chicago")),
+            id="local_story_weekly",
+            replace_existing=True,
+            misfire_grace_time=3600,
+        )
+
         _brick_scheduler.start()
         print("[brick.cron] Daily planning cron registered — fires 04:00 America/Chicago")
         print("[foundation.cron] Nightly score recompute registered — fires 03:00 America/Chicago")
+        print("[local_story.cron] Weekly local stories registered — fires Mon 11:00 America/Chicago")
     except Exception as _brick_cron_err:
         # A failed cron registration used to print a warning and move on, which is
         # indistinguishable from success in a deployed log. Escalate it: the whole

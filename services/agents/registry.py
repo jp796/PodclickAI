@@ -62,6 +62,28 @@ _SPECS: List[AgentSpec] = [
         foundation="required",
         wraps=("/api/yt/content-calendar",),
     ),
+    AgentSpec(
+        id="local_story",
+        name="Local Story Desk",
+        category="research",
+        job="Find this week's local stories and turn each into a carousel, Google Business update, "
+            "reel script and blog post — scheduled only when you approve.",
+        icon="🗞️",
+        runner=_R + "local_story",
+        fields=(
+            FieldSpec("market", "Market", "select", required=True, default="Springfield, MO",
+                      options=("Springfield, MO", "Cheyenne, WY")),
+            FieldSpec("stories", "How many stories", "number", default=3,
+                      min_value=1, max_value=5),
+            FieldSpec("extra_topics", "Extra topics to search", "text", max_len=300,
+                      help="Optional, comma separated, e.g. new subdivision, zoning."),
+        ),
+        commit_tier="bricklayer",
+        foundation="required",
+        requires=("anthropic",),
+        spends=("Claude drafting", "GHL media uploads on approve"),
+        wraps=("/calendar",),
+    ),
     # ── Plan ──────────────────────────────────────────────────────────────────
     AgentSpec(
         id="pillar_planner",
