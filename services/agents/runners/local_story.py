@@ -319,6 +319,43 @@ def _wrap(draw, text: str, font, width: int) -> List[str]:
     return lines
 
 
+# Brand footer on every slide (and so on the slideshow video and the GBP cover).
+# Override with env vars; a missing photo just drops the circle, never the slide.
+BRAND_PHOTO = os.environ.get(
+    "LOCAL_STORY_BRAND_PHOTO",
+    str(Path(__file__).resolve().parents[3] / "frontend" / "static" / "brand" / "jp_headshot.png"))
+BRAND_NAME = os.environ.get("LOCAL_STORY_BRAND_NAME", "JP Fluellen")
+BRAND_LINE = os.environ.get("LOCAL_STORY_BRAND_LINE", "Titan Real Estate Team · Real Broker")
+BRAND_HANDLE = os.environ.get("LOCAL_STORY_BRAND_HANDLE", "@jp_fluellen")
+FOOTER_H = 230
+
+
+def _brand_footer(img, d, accent, fg, muted, index: int, total: int) -> None:
+    from PIL import Image, ImageDraw
+    pad, size = 96, 150
+    top = SLIDE_H - FOOTER_H
+    d.line([(pad, top), (SLIDE_W - pad, top)], fill=(48, 50, 56), width=2)
+    cy = top + (FOOTER_H - size) // 2 + 6
+    x = pad
+    try:
+        photo = Image.open(BRAND_PHOTO).convert("RGB").resize((size, size), Image.LANCZOS)
+        mask = Image.new("L", (size * 4, size * 4), 0)
+        ImageDraw.Draw(mask).ellipse([0, 0, size * 4 - 1, size * 4 - 1], fill=255)
+        mask = mask.resize((size, size), Image.LANCZOS)
+        d.ellipse([x - 5, cy - 5, x + size + 4, cy + size + 4], fill=accent)
+        img.paste(photo, (x, cy), mask)
+        x += size + 36
+    except Exception:
+        pass
+    d.text((x, cy + 8), BRAND_NAME, font=_font(48), fill=fg)
+    d.text((x, cy + 70), BRAND_LINE, font=_font(30), fill=muted)
+    d.text((x, cy + 110), BRAND_HANDLE, font=_font(30), fill=accent)
+    label = f"{index}/{total}"
+    lf = _font(34)
+    lw = d.textlength(label, font=lf)
+    d.text((SLIDE_W - pad - lw, cy + 14), label, font=lf, fill=muted)
+
+
 def render_slide(path: str, headline: str, body: str, index: int, total: int, market: str) -> None:
     from PIL import Image, ImageDraw
     bg, accent, fg, muted = (20, 22, 26), (214, 108, 52), (245, 243, 238), (176, 172, 164)
@@ -334,10 +371,13 @@ def render_slide(path: str, headline: str, body: str, index: int, total: int, ma
         y += 104
     y += 50
     bf = _font(46)
-    for line in _wrap(d, body, bf, SLIDE_W - 2 * pad)[:8]:
+    floor = SLIDE_H - FOOTER_H - 40          # body text never runs into the footer
+    for line in _wrap(d, body, bf, SLIDE_W - 2 * pad):
+        if y + 64 > floor:
+            break
         d.text((pad, y), line, font=bf, fill=muted)
         y += 64
-    d.text((pad, SLIDE_H - 140), f"{index}/{total}", font=_font(34), fill=muted)
+    _brand_footer(img, d, accent, fg, muted, index, total)
     img.save(path, "PNG")
 
 

@@ -242,6 +242,19 @@ def test_build_slideshow_makes_a_real_vertical_video(tmp_path):
     assert probe.stdout.strip() == "216,384"
 
 
+def test_every_slide_carries_the_headshot_and_still_renders_without_it(tmp_path, monkeypatch):
+    from PIL import Image
+    branded = tmp_path / "b.png"
+    ls.render_slide(str(branded), "Point A", "Body", 1, 5, "Springfield, MO")
+    assert Path(ls.BRAND_PHOTO).exists()
+    cx, cy = 96 + 75, ls.SLIDE_H - ls.FOOTER_H + (ls.FOOTER_H - 150) // 2 + 6 + 75
+    assert Image.open(branded).getpixel((cx, cy)) != (20, 22, 26)      # photo, not background
+    monkeypatch.setattr(ls, "BRAND_PHOTO", str(tmp_path / "missing.png"))
+    bare = tmp_path / "n.png"
+    ls.render_slide(str(bare), "Point A", "Body", 1, 5, "Springfield, MO")
+    assert Image.open(bare).size == (ls.SLIDE_W, ls.SLIDE_H)
+
+
 # ── commit ────────────────────────────────────────────────────────────────────
 
 def _built(tmp_path, feeds_gen_ctx=None):
