@@ -4,12 +4,15 @@ import json
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from services.agents.contract import StepError
 from services.agents.runners import local_story as ls
+
+_REAL_BUILD_SLIDESHOW = ls.build_slideshow
 
 
 def run(coro):
@@ -110,6 +113,20 @@ def gen(monkeypatch):
     return st
 
 
+@pytest.fixture(autouse=True)
+def fast_slideshow(monkeypatch):
+    """Real ffmpeg is exercised once in test_build_slideshow_makes_a_real_vertical_video;
+    everywhere else a stub writes a placeholder so the suite stays fast."""
+    made = []
+
+    async def fake(paths, out, size=None):
+        made.append((list(paths), out))
+        Path(out).write_bytes(b"mp4")
+        return 17.5
+    monkeypatch.setattr(ls, "build_slideshow", fake)
+    return made
+
+
 class FakeGHL:
     def __init__(self, platforms=("instagram", "facebook", "google")):
         self.platforms = platforms
@@ -197,6 +214,34 @@ def test_unknown_market_is_refused(tmp_path):
         run(ls.run(Ctx(tmp_path), {"market": "Austin, TX"}))
 
 
+def test_run_builds_one_slideshow_video_per_story(tmp_path, feeds, gen, fast_slideshow):
+    ctx = Ctx(tmp_path)
+    run(ls.run(ctx, {"market": "Springfield, MO", "stories": 1}))
+    assert len(fast_slideshow) == 1
+    paths, out = fast_slideshow[0]
+    assert len(paths) == 5 and out.endswith("story1_slideshow.mp4")
+    video = [o for o in ctx.job()["outputs"] if ls._get(o, "id") == "s1_video"][0]
+    assert ls._get(video, "kind") == "video"
+
+
+def test_build_slideshow_makes_a_real_vertical_video(tmp_path):
+    import shutil, subprocess
+    if not shutil.which("ffmpeg"):
+        pytest.skip("ffmpeg not installed")
+    real = _REAL_BUILD_SLIDESHOW
+    paths = []
+    for i in range(3):
+        p = tmp_path / f"s{i}.png"
+        ls.render_slide(str(p), f"Point {chr(65 + i)}", "Body text", i + 1, 3, "Springfield, MO")
+        paths.append(str(p))
+    out = tmp_path / "v.mp4"
+    dur = run(real(paths, str(out), size=(216, 384)))
+    assert dur == pytest.approx(3 * ls.SLIDE_SECONDS - 2 * ls.FADE_SECONDS)
+    probe = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries",
+                            "stream=width,height", "-of", "csv=p=0", str(out)], capture_output=True, text=True)
+    assert probe.stdout.strip() == "216,384"
+
+
 # ── commit ────────────────────────────────────────────────────────────────────
 
 def _built(tmp_path, feeds_gen_ctx=None):
@@ -216,11 +261,13 @@ def test_approve_uploads_slides_and_schedules_ig_fb_and_gmb(tmp_path, feeds, gen
     monkeypatch.setattr(ls, "_mirror_posts", fake_mirror)
     ctx = _built(tmp_path)
     result = run(ls.commit(ctx, ctx.job(), {}))
-    assert len(ghl.uploads) == 5 and all(m == "image/png" for _, m in ghl.uploads)
+    assert sorted(m for _, m in ghl.uploads) == ["image/png", "video/mp4"]
     by_plat = {s["platform"]: s for s in ghl.scheduled}
     assert set(by_plat) == {"instagram", "facebook", "gmb"}
-    assert len(by_plat["instagram"]["media_urls"]) == 5
-    assert by_plat["gmb"]["media_urls"] is None
+    assert by_plat["instagram"]["media_urls"] == by_plat["facebook"]["media_urls"]
+    assert len(by_plat["instagram"]["media_urls"]) == 1
+    assert by_plat["instagram"]["media_urls"][0].endswith("slideshow.mp4")
+    assert by_plat["gmb"]["media_urls"][0].endswith("slide1.png")
     assert by_plat["gmb"]["caption"].startswith("Huey Magoo's opened")
     assert by_plat["instagram"]["scheduled_at"].endswith("Z")
     assert result["posts_scheduled"] == 3 and result["post_ids"] == ["post-1"]

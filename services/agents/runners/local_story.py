@@ -5,7 +5,7 @@ Build: pull recent local news for a market (Bing News RSS for headline + summary
 Google News RSS for extra headlines — both free, no key), drop crime/safety stories
 (Fair Housing: never characterise an area's safety), let the model pick the N
 stories homeowners would care about, then draft per story, in the Foundation voice:
-  - carousel caption + 5 slides (rendered to 1080x1350 PNGs)
+  - caption + 5 slides (1080x1350 PNGs), stitched into one 9:16 slideshow MP4
   - Google Business Profile update
   - 30-45s reel script for the human to film
   - blog post (markdown)
@@ -13,9 +13,9 @@ Every draft runs the shared deterministic guards (no invented numbers, no Fair
 Housing red flags); one redraft, then the story is dropped rather than shipped.
 The build phase never touches GHL.
 
-Commit (on approval — the human review IS the gate): per story, upload the slides
-to GHL's media library, then SCHEDULE the carousel on Instagram + Facebook and the
-update on Google Business through services/ghl_adapter (contract #5), staggered one
+Commit (on approval — the human review IS the gate): per story, upload the slideshow
+video and cover slide to GHL's media library, then SCHEDULE the video on Instagram +
+Facebook and the update (with the cover slide) on Google Business through services/ghl_adapter (contract #5), staggered one
 story per day. A PodClick calendar Post mirrors each story so /calendar shows it.
 Platforms with no connected GHL account are skipped and reported. Idempotent via
 commit.json — a second approve schedules nothing new.
@@ -400,14 +400,18 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
                                            slide["headline"], slide["body"], j, SLIDE_COUNT, market)
                 images.append({"file": name, "url": f"/api/agents/jobs/{ctx.job_id}/files/{name}",
                                "label": slide["headline"]})
+            video = VIDEO_NAME.format(n=s)
+            duration = await build_slideshow([str(out_dir / i["file"]) for i in images], str(out_dir / video))
             stories.append({"n": s, "title": story["title"], "source": story.get("source", ""),
                             "url": story.get("url", ""), "why": story.get("why", ""),
                             "summary": story.get("summary", ""), "slides": d["slides"],
-                            "images": [i["file"] for i in images]})
+                            "images": [i["file"] for i in images], "video": video})
             head = Output(id=f"s{s}_story", kind="json", label=f"Story {s}: {story['title']}",
                           value=stories[-1])
-            outs = [head, Output(id=f"s{s}_slides", kind="images", label=f"Story {s} carousel",
-                                 value=images)]
+            outs = [head,
+                    Output(id=f"s{s}_video", kind="video", label=f"Story {s} slideshow (Reel)", file=video,
+                           meta={"duration_s": round(duration, 1), "slides": len(images)}),
+                    Output(id=f"s{s}_slides", kind="images", label=f"Story {s} slides", value=images)]
             for k in FORMATS:
                 outs.append(Output(id=f"s{s}_{k}", kind="text", label=f"Story {s} — {LABELS[k]}",
                                    value=d[k], meta={"editable": True, "original": d[k], "story": s,
@@ -420,8 +424,51 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
         raise StepError("Every story I picked broke a guardrail, so nothing is ready to review. "
                         "Run it again.")
     summary = (f"Schedule {len(stories)} {city} stor{'y' if len(stories) == 1 else 'ies'}: "
-               "carousel on Instagram + Facebook and an update on Google Business, one per day")
+               "slideshow Reel on Instagram + Facebook and an update on Google Business, one per day")
     return AgentResult(outputs=outputs, commit=CommitPlan(summary=summary))
+
+
+# ── slideshow video ───────────────────────────────────────────────────────────
+
+SLIDE_SECONDS = 3.5        # how long each slide holds
+FADE_SECONDS = 0.5         # crossfade between slides
+VIDEO_W, VIDEO_H = 1080, 1920
+VIDEO_NAME = "story{n}_slideshow.mp4"
+
+
+async def build_slideshow(slide_paths: List[str], out_path: str,
+                          size: Tuple[int, int] = (VIDEO_W, VIDEO_H)) -> float:
+    """Stitch the slide PNGs into one 9:16 MP4 with crossfades and a silent track.
+
+    GHL's API cuts a SCHEDULED post down to its first image (verified 2026-11-15),
+    so a 5-slide carousel can't be scheduled. One video carries every slide and
+    posts as an Instagram Reel / Facebook video. The 4:5 slides sit centred on the
+    slide background colour. Returns the duration in seconds.
+    """
+    from services.media.ffmpeg_local import run_ffmpeg
+    if not slide_paths:
+        raise StepError("No slides to build the video from.")
+    w, h = size
+    n = len(slide_paths)
+    args: List[str] = []
+    for p in slide_paths:
+        args += ["-loop", "1", "-t", f"{SLIDE_SECONDS}", "-i", p]
+    total = n * SLIDE_SECONDS - (n - 1) * FADE_SECONDS
+    args += ["-f", "lavfi", "-t", f"{total}", "-i", "anullsrc=channel_layout=stereo:sample_rate=44100"]
+    parts = [f"[{i}:v]scale={w}:-2:force_original_aspect_ratio=decrease,"
+             f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=0x14161A,setsar=1,fps=30,format=yuv420p[v{i}]"
+             for i in range(n)]
+    last = "v0"
+    for i in range(1, n):
+        off = i * (SLIDE_SECONDS - FADE_SECONDS)
+        tag = f"x{i}"
+        parts.append(f"[{last}][v{i}]xfade=transition=fade:duration={FADE_SECONDS}:offset={off}[{tag}]")
+        last = tag
+    args += ["-filter_complex", ";".join(parts), "-map", f"[{last}]", "-map", f"{n}:a",
+             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+             "-c:a", "aac", "-b:a", "96k", "-shortest", "-movflags", "+faststart", out_path]
+    await run_ffmpeg(args, timeout=300)
+    return total
 
 
 # ── commit ────────────────────────────────────────────────────────────────────
@@ -514,28 +561,34 @@ async def commit(ctx, job: Dict[str, Any], edits: Dict[str, Any]) -> Dict[str, A
             day = first + timedelta(days=i)
             at = datetime(day.year, day.month, day.day, POST_HOUR_UTC, 0, 0, tzinfo=timezone.utc)
             when = at.isoformat().replace("+00:00", "Z")
+            # One slideshow video for Instagram + Facebook (GHL keeps only the first image
+            # of a scheduled post, so a carousel can't survive scheduling); the cover
+            # slide for Google Business, which takes a single image anyway.
             media: List[str] = []
-            if any(p in live for p in ("instagram", "facebook")):
-                for name in s.get("images") or []:
-                    path = out_dir / name
-                    if not path.exists():
-                        continue
-                    try:
-                        media.append(await ghl.upload_media(loc, str(path), filename=f"{job_id[:8]}_{name}",
-                                                            mime="image/png"))
-                    except Exception as exc:
-                        failed.append({"story": s.get("n"), "platform": "media", "error": str(exc)[:200]})
-                        media = []
-                        break
+            cover: List[str] = []
+            video = s.get("video")
+            if video and any(p in live for p in ("instagram", "facebook")) and (out_dir / video).exists():
+                try:
+                    media = [await ghl.upload_media(loc, str(out_dir / video),
+                                                    filename=f"{job_id[:8]}_{video}", mime="video/mp4")]
+                except Exception as exc:
+                    failed.append({"story": s.get("n"), "platform": "media", "error": str(exc)[:200]})
+            first_slide = (s.get("images") or [None])[0]
+            if "gmb" in live and first_slide and (out_dir / first_slide).exists():
+                try:
+                    cover = [await ghl.upload_media(loc, str(out_dir / first_slide),
+                                                    filename=f"{job_id[:8]}_{first_slide}", mime="image/png")]
+                except Exception as exc:   # GBP still posts as text
+                    failed.append({"story": s.get("n"), "platform": "gmb-image", "error": str(exc)[:200]})
             variants: Dict[str, Tuple[str, List[str]]] = {}
             for plat in live:
                 if plat == "gmb":
-                    caption, m = s.get("gmb") or "", []
+                    caption, m = s.get("gmb") or "", cover
                 else:
                     caption, m = s.get("caption") or "", media
                     if plat == "instagram" and not m:
                         failed.append({"story": s.get("n"), "platform": plat,
-                                       "error": "Instagram needs the slide images and they didn't upload."})
+                                       "error": "Instagram needs the slideshow video and it didn't upload."})
                         continue
                 if not caption:
                     continue
