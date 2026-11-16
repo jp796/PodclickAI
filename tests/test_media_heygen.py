@@ -20,7 +20,7 @@ import pytest
 
 from services.agents.contract import AgentContext
 from services.agents.runners import avatar_video, twin_video
-from services.media import base, ffmpeg_local, heygen, registry
+from services.media import base, ffmpeg_local, heygen, higgsfield, registry
 from services.media.base import GenerationRequest
 
 pytestmark = pytest.mark.skipif(
@@ -29,6 +29,10 @@ pytestmark = pytest.mark.skipif(
 HG = "api.heygen.com"
 EL = "api.elevenlabs.io"
 CDN = "files.heygen.ai"
+HF = "api.higgsfield.ai"
+HF_CDN = "cdn.higgsfield.example"
+PX = "api.pexels.com"
+PX_IMG = "images.pexels.com"
 SRT = ("1\n00:00:00,000 --> 00:00:01,500\nHere's the deal on Springfield.\n\n"
        "2\n00:00:01,500 --> 00:00:03,000\nThis market rewards people who move first.\n")
 
@@ -152,18 +156,48 @@ def env(monkeypatch, tmp_path, fx):
 
     monkeypatch.setattr(avatar_video, "_complete", fake_complete)
 
-    broll_calls: List[Dict[str, Any]] = []
+    # The three sync pipeline calls behind cutaways (planner = GPT, clips = Pexels
+    # video, composite = a long ffmpeg pass) are replaced; everything around
+    # them — including the Higgsfield and Pexels-photo HTTP — is real code.
+    planned: List[Any] = []
+    slots: List[Dict[str, Any]] = [
+        {"start": 1.0, "end": 9.0, "query": "suburban street at golden hour", "is_city": False},
+        {"start": 12.0, "end": 20.0, "query": "couple carrying moving boxes", "is_city": False},
+        {"start": 24.0, "end": 32.0, "query": "kitchen with morning light", "is_city": False},
+        {"start": 36.0, "end": 44.0, "query": "for sale sign front yard", "is_city": False},
+    ]
+    stock_fetches: List[List[Dict[str, Any]]] = []
+    composites: List[List[Dict[str, Any]]] = []
 
-    def fake_broll(video, segments, dest, cache, openai_key, pexels_key):
-        broll_calls.append({"video": video, "segments": segments})
+    def fake_plan(segments, openai_key, duration):
+        planned.append(segments)
+        return [dict(s) for s in slots]
+
+    def fake_fetch(rest, pexels_key, cache):
+        stock_fetches.append(rest)
+        out = []
+        for i, slot in enumerate(rest):
+            clip = tmp_path / f"stock_{i}.mp4"
+            clip.write_bytes(fx["mp4"])
+            out.append({**slot, "clip_path": str(clip)})
+        return out
+
+    def fake_composite(video, placed, dest):
+        composites.append(placed)
         shutil.copyfile(video, dest)
-        return dest
+        return True
 
-    monkeypatch.setattr(twin_video, "_add_broll_sync", fake_broll)
+    monkeypatch.setattr(twin_video, "_plan_slots_sync", fake_plan)
+    monkeypatch.setattr(twin_video, "_fetch_clips_sync", fake_fetch)
+    monkeypatch.setattr(twin_video, "_composite_sync", fake_composite)
+    monkeypatch.setattr(higgsfield, "_rand", lambda lo, hi: 1.0)
+    higgsfield._SEMAPHORES.clear()
+    monkeypatch.setattr(higgsfield, "LIKENESS_ROOTS", (tmp_path / "out",))
 
     ctx = FakeCtx(tmp_path / "out", bc=BRAND)
     return SimpleNamespace(net=net, cfg=values, ctx=ctx, fx=fx, tmp=tmp_path, sleeps=sleeps,
-                           scripts=scripts, drafts=drafts, broll=broll_calls)
+                           scripts=scripts, drafts=drafts, planned=planned, slots=slots,
+                           stock=stock_fetches, composites=composites)
 
 
 def heygen_ok(env, polls_before_done: int = 1, srt: Optional[str] = SRT, status_final: str = "completed"):
@@ -197,6 +231,42 @@ def heygen_ok(env, polls_before_done: int = 1, srt: Optional[str] = SRT, status_
         raise AssertionError(f"unexpected {r.method} {r.url}")
 
     return handler
+
+
+def with_animation(env, hf_submit: Optional[Callable[[int], httpx.Response]] = None,
+                   no_photo_for: str = ""):
+    """HeyGen + ElevenLabs happy path, plus Pexels photo search and Higgsfield image-to-video."""
+    ok = heygen_ok(env)
+    state = {"n": 0}
+
+    def handler(r: httpx.Request) -> httpx.Response:
+        if r.url.host == PX:
+            if no_photo_for and no_photo_for in r.url.params.get("query", ""):
+                return httpx.Response(200, json={"photos": []})
+            return httpx.Response(200, json={"photos": [
+                {"src": {"large2x": f"https://{PX_IMG}/photos/1/pexels-photo-1.jpeg?w=1880"}}]})
+        if r.url.host == PX_IMG:
+            return httpx.Response(200, content=b"\xff\xd8\xff\xe0still")
+        if r.url.host == HF and r.method == "POST":
+            state["n"] += 1
+            if hf_submit is not None:
+                answer = hf_submit(state["n"])
+                if answer is not None:
+                    return answer
+            rid = f"req{state['n']}"
+            return httpx.Response(200, json={"status": "queued", "request_id": rid,
+                                             "status_url": f"https://{HF}/requests/{rid}/status"})
+        if r.url.host == HF and r.method == "GET":
+            return httpx.Response(200, json={"status": "completed",
+                                             "video": {"url": f"https://{HF_CDN}/out.mp4"}})
+        if r.url.host == HF_CDN:
+            return httpx.Response(200, content=env.fx["mp4"])
+        return ok(r)
+
+    return handler
+
+
+ANIM_KEYS = dict(openai_api_key="oa", pexels_api_key="px", hf_api_key="hfk", hf_api_secret="hfs")
 
 
 def voice_file(env) -> Path:
@@ -433,17 +503,19 @@ async def test_runner_builds_voice_twin_cutaways_and_captions(env):
     env.cfg.update(KEYS, openai_api_key="oa", pexels_api_key="px")
     env.net.handler = heygen_ok(env)
     script = "Here's the deal on Springfield. This market rewards people who move first."
-    await twin_video.run(env.ctx, {"script": script, "format": "landscape"})
+    await twin_video.run(env.ctx, {"script": script, "format": "landscape", "animate": "0"})
 
     assert env.ctx.step_keys() == ["preflight", "voice", "twin", "cutaways", "captions"]
     assert env.ctx.bc_calls == [] and env.drafts == []            # verbatim script → no drafting
     assert json.loads(env.net.calls("POST", HG, "/v3/videos")[0].content)["aspect_ratio"] == "16:9"
-    assert [s["text"] for s in env.broll[0]["segments"]] == [                 # cutaways planned on HeyGen's cues
+    assert [s["text"] for s in env.planned[0]] == [                           # cutaways planned on HeyGen's cues
         "Here's the deal on Springfield.", "This market rewards people who move first."]
 
     video = env.ctx.out("video")[0]
     assert video.label == "Twin video" and video.meta["ai_generated"] is True
     assert video.meta["cutaways"] is True and video.meta["captions"] is True
+    assert video.meta["stock_cutaways"] == 4 and video.meta["animated_cutaways"] == 0
+    assert not [r for r in env.net.requests if r.url.host in (HF, PX)]         # animate 0 → no Higgsfield, no stills
     assert video.meta["caption_timing"] == "heygen_srt" and video.meta["format"] == "landscape"
     final = env.ctx.output_dir / video.file
     assert abs((await ffmpeg_local.probe_duration(final)) - 3.0) < 0.5
@@ -463,7 +535,7 @@ async def test_runner_drafts_from_topic_through_foundation_with_room_for_long_fo
     assert "5-minute" in env.drafts[0]["user"]
     assert env.drafts[0]["max_tokens"] > 900                      # long-form needs more than the short default
     assert json.loads(env.net.calls("POST", HG, "/v3/videos")[0].content)["aspect_ratio"] == "9:16"
-    assert env.broll == []
+    assert env.planned == [] and env.composites == []
     assert "cutaways" in env.ctx.step_keys("skipped") and "captions" not in env.ctx.step_keys()
     video = env.ctx.out("video")[0]
     assert video.meta["cutaways"] is False and video.meta["captions"] is False
@@ -484,11 +556,11 @@ async def test_runner_keeps_you_on_camera_when_cutaways_are_unavailable(env, mon
     env.cfg.update(KEYS)                                          # no Pexels / OpenAI key
     env.net.handler = heygen_ok(env)
     await twin_video.run(env.ctx, {"script": "Hi there Springfield.", "captions": False})
-    assert env.broll == [] and any("PEXELS_API_KEY" in w for w in env.ctx.warnings)
+    assert env.planned == [] and any("PEXELS_API_KEY" in w for w in env.ctx.warnings)
 
     env.ctx.warnings.clear()
     env.cfg.update(openai_api_key="oa", pexels_api_key="px")
-    monkeypatch.setattr(twin_video, "_add_broll_sync", lambda video, *a: video)   # planner found nothing
+    monkeypatch.setattr(twin_video, "_plan_slots_sync", lambda *a: [])            # planner found nothing
     await twin_video.run(env.ctx, {"script": "Hi there Springfield.", "captions": False})
     assert any("on camera the whole way" in w for w in env.ctx.warnings)
     assert env.ctx.out("video")[-1].meta["cutaways"] is False
@@ -506,6 +578,118 @@ async def test_runner_ships_clean_when_the_caption_pass_fails(env, monkeypatch):
     video = env.ctx.out("video")[0]
     assert video.meta["captions"] is False and (env.ctx.output_dir / video.file).exists()
     assert any("without them" in w for w in env.ctx.warnings)
+
+
+# ── runner: animated cutaways (Higgsfield) ───────────────────────────────────
+
+SCRIPT = "Here's the deal on Springfield. This market rewards people who move first."
+
+
+def test_pick_spread_spaces_the_animated_shots_through_the_video():
+    slots = [{"start": i} for i in range(8)]
+    assert twin_video.pick_spread(slots, 0) == []
+    assert twin_video.pick_spread(slots, 2) == [2, 6]
+    assert twin_video.pick_spread(slots, 4) == [1, 3, 5, 7]
+    assert twin_video.pick_spread(slots, 99) == list(range(8))
+    assert twin_video.pick_spread([], 3) == []
+
+
+async def test_animated_cutaways_use_the_stills_public_address_and_fill_the_rest_with_stock(env):
+    env.cfg.update(KEYS, **ANIM_KEYS)
+    env.net.handler = with_animation(env)
+    await twin_video.run(env.ctx, {"script": SCRIPT, "animate": "2", "captions": False})
+
+    submits = env.net.calls("POST", HF)
+    assert len(submits) == 2
+    for r in submits:
+        assert r.url.path == "/wan/v2.7/image-to-video"
+        body = json.loads(r.content)
+        assert body["image_url"] == f"https://{PX_IMG}/photos/1/pexels-photo-1.jpeg?w=1880"   # no public origin needed
+        assert body["duration"] == twin_video.ANIMATION_SECONDS and "audio_url" not in body
+        assert "No text" in body["prompt"]
+    queries = [r.url.params["query"] for r in env.net.calls("GET", PX)]
+    assert queries == ["couple carrying moving boxes", "for sale sign front yard"]          # spread, not the first two
+    assert all(r.url.params["orientation"] == "landscape" for r in env.net.calls("GET", PX))
+    assert (env.ctx.output_dir / "still_01.jpg").exists()                                   # the likeness-check copy
+
+    placed = env.composites[0]
+    assert [s["start"] for s in placed] == [1.0, 12.0, 24.0, 36.0]                          # back in time order
+    animated = [s for s in placed if s.get("animated")]
+    assert len(animated) == 2 and all(s["end"] - s["start"] == twin_video.ANIMATION_SECONDS for s in animated)
+    assert all(Path(s["clip_path"]).read_bytes() == env.fx["mp4"] for s in animated)
+    assert [s["query"] for s in env.stock[0]] == ["suburban street at golden hour", "kitchen with morning light"]
+
+    meta = env.ctx.out("video")[0].meta
+    assert meta["animated_cutaways"] == 2 and meta["stock_cutaways"] == 2 and meta["cutaways"] is True
+    assert [u["provider"] for u in env.ctx.usage].count("higgsfield") == 2
+    assert env.ctx.warnings == []
+
+
+async def test_animation_defaults_to_three_and_vertical_asks_for_portrait_stills(env):
+    env.cfg.update(KEYS, **ANIM_KEYS)
+    env.net.handler = with_animation(env)
+    await twin_video.run(env.ctx, {"script": SCRIPT, "format": "vertical", "captions": False})
+    assert len(env.net.calls("POST", HF)) == 3
+    assert all(r.url.params["orientation"] == "portrait" for r in env.net.calls("GET", PX))
+
+
+async def test_no_higgsfield_key_means_stock_only_with_a_warning_not_a_failure(env):
+    env.cfg.update(KEYS, openai_api_key="oa", pexels_api_key="px")
+    env.net.handler = with_animation(env)
+    await twin_video.run(env.ctx, {"script": SCRIPT, "animate": "4", "captions": False})
+    assert not [r for r in env.net.requests if r.url.host in (HF, PX)]
+    assert len(env.stock[0]) == 4
+    assert any("Higgsfield isn't connected" in w for w in env.ctx.warnings)
+    assert env.ctx.out("video")[0].meta["animated_cutaways"] == 0
+
+
+async def test_either_higgsfield_key_spelling_connects_it(env):
+    env.cfg.update(KEYS, openai_api_key="oa", pexels_api_key="px",
+                   higgsfield_api_key="hfk", higgsfield_api_secret="hfs")
+    env.net.handler = with_animation(env)
+    await twin_video.run(env.ctx, {"script": SCRIPT, "animate": "2", "captions": False})
+    submits = env.net.calls("POST", HF)
+    assert len(submits) == 2 and submits[0].headers["Authorization"] == "Key hfk:hfs"
+
+
+async def test_animation_count_is_trimmed_to_the_seconds_cap_before_any_submit(env):
+    env.cfg.update(KEYS, **ANIM_KEYS, higgsfield_max_seconds=10)        # room for two 5 s shots
+    env.net.handler = with_animation(env)
+    await twin_video.run(env.ctx, {"script": SCRIPT, "animate": "4", "captions": False})
+    assert len(env.net.calls("POST", HF)) == 2
+    assert any("HIGGSFIELD_MAX_SECONDS" in w for w in env.ctx.warnings)
+
+
+async def test_out_of_credits_stops_animating_and_the_video_still_ships_on_stock(env):
+    env.cfg.update(KEYS, **ANIM_KEYS)
+    env.net.handler = with_animation(env, hf_submit=lambda n: httpx.Response(402))
+    await twin_video.run(env.ctx, {"script": SCRIPT, "animate": "4", "captions": False})
+    assert len(env.net.calls("POST", HF)) == 1                          # one refusal, no hammering
+    assert len(env.stock[0]) == 4 and len(env.composites[0]) == 4
+    assert any("credits" in w for w in env.ctx.warnings)
+    meta = env.ctx.out("video")[0].meta
+    assert meta["animated_cutaways"] == 0 and meta["stock_cutaways"] == 4
+
+
+async def test_a_moment_with_no_still_gets_stock_and_the_others_still_animate(env):
+    env.cfg.update(KEYS, **ANIM_KEYS)
+    env.net.handler = with_animation(env, no_photo_for="moving boxes")
+    await twin_video.run(env.ctx, {"script": SCRIPT, "animate": "2", "captions": False})
+    assert len(env.net.calls("POST", HF)) == 1
+    meta = env.ctx.out("video")[0].meta
+    assert meta["animated_cutaways"] == 1 and meta["stock_cutaways"] == 3
+
+
+def test_higgsfield_requirement_is_met_under_either_key_name(monkeypatch):
+    from services.agents import jobs
+
+    monkeypatch.setattr("services.media.registry.get_provider", lambda cap: object())
+    for name in ("HIGGSFIELD_API_KEY", "HF_API_KEY"):
+        monkeypatch.delenv("HIGGSFIELD_API_KEY", raising=False)
+        monkeypatch.delenv("HF_API_KEY", raising=False)
+        assert jobs.requirement_met("higgsfield") is False
+        monkeypatch.setenv(name, "k")
+        assert jobs.requirement_met("higgsfield") is True, name
 
 
 # ── the usage bug this change fixes for every media runner ────────────────────

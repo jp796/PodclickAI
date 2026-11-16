@@ -134,7 +134,11 @@ class HiggsfieldProvider(MediaProvider):
 
     # ── config ──
     def _creds(self) -> Tuple[str, str]:
-        return (str(base.setting("hf_api_key", "") or ""), str(base.setting("hf_api_secret", "") or ""))
+        # Two spellings are in circulation (the adapter's HF_* and the Crew page's
+        # HIGGSFIELD_*). Either works; HF_* wins when both are set.
+        key = base.setting("hf_api_key", "") or base.setting("higgsfield_api_key", "")
+        secret = base.setting("hf_api_secret", "") or base.setting("higgsfield_api_secret", "")
+        return (str(key or ""), str(secret or ""))
 
     def is_configured(self) -> bool:
         key, secret = self._creds()

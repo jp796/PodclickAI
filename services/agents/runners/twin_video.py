@@ -7,12 +7,21 @@ The pieces, and who owns each:
     script   Foundation (`draft_script`, contract #3) — or your own words, verbatim
     voice    ElevenLabs (`tts`) — your cloned voice
     face     HeyGen (`twin_video`) — your digital twin, lip-synced to that voice
-    cutaways pipeline/broll.py — stock footage over the middle of the video
+    cutaways pipeline/broll.py — stock footage over the middle of the video,
+             and Higgsfield (`image_to_video`) — a few of those cutaways as
+             stills brought to life instead of stock clips
     captions pipeline/subtitles.py — the same word-highlight captions clips use
 
 Hard requirements: ElevenLabs AND HeyGen (key + `HEYGEN_AVATAR_ID`). Cutaways
 are soft: with no Pexels/OpenAI key, or when nothing fits, you stay on camera
-and the job carries a warning.
+and the job carries a warning. Animated cutaways are softer still: with no
+Higgsfield key, or when a render fails, that moment gets a stock clip instead.
+
+Animated cutaways need no public media origin either: Higgsfield fetches the
+still straight from the stock library's own public address, and the downloaded
+copy in this job's folder is what the likeness check looks at. Every animated
+shot is `ANIMATION_SECONDS` long and the count is capped by
+`HIGGSFIELD_MAX_SECONDS` before the first one is submitted.
 
 Unlike Avatar Video this needs no public media origin — HeyGen takes the voice
 track as an upload — and no persona photo: the twin lives in HeyGen, where the
@@ -44,6 +53,11 @@ FALLBACK_SIZE: Dict[str, Tuple[int, int]] = {"landscape": (1920, 1080), "vertica
 MINUTES = (1, 2, 3, 5, 8)
 CHARS_PER_WORD = 6.0            # spoken English incl. the space — for the pre-draft cap check
 SEGMENT_WORDS = 14              # fallback cutaway-planning segment size when HeyGen sends no SRT
+ANIMATION_SECONDS = 5           # length of each Higgsfield-animated cutaway
+ANIMATION_CHOICES = (0, 2, 3, 4, 6)
+ANIMATION_PROMPT = ("Slow cinematic camera move with subtle, natural motion. Photorealistic. "
+                    "No text, no captions, no logos. Scene: {query}")
+PEXELS_PHOTO_SEARCH = "https://api.pexels.com/v1/search"
 
 LONG_FORM_RULES = (
     "Structure: a hook, then the points one at a time, then one clear call to action.",
@@ -133,22 +147,150 @@ def _video_size(path: Path, fmt: str) -> Tuple[int, int]:
     return FALLBACK_SIZE[fmt]
 
 
-def _add_broll_sync(video: Path, segments: List[Dict[str, Any]], dest: Path, cache: Path,
-                    openai_key: str, pexels_key: str) -> Path:
-    from pipeline.broll import add_broll
+def _plan_slots_sync(segments: List[Dict[str, Any]], openai_key: str, duration: float) -> List[Dict[str, Any]]:
+    from pipeline.broll import plan_broll
+    return plan_broll(segments, openai_key, duration)
+
+
+def _fetch_clips_sync(slots: List[Dict[str, Any]], pexels_key: str, cache: Path) -> List[Dict[str, Any]]:
+    from pipeline.broll import fetch_clips
     cache.mkdir(parents=True, exist_ok=True)
-    return Path(add_broll(str(video), segments, str(dest), openai_key, pexels_key, str(cache)))
+    return fetch_clips(slots, pexels_key, str(cache))
 
 
-async def add_cutaways(video: Path, segments: List[Dict[str, Any]], dest: Path, cache: Path,
-                       openai_key: str, pexels_key: str) -> Path:
-    """Returns `dest` when cutaways landed, `video` when they didn't (never raises)."""
+def _composite_sync(video: Path, slots: List[Dict[str, Any]], dest: Path) -> bool:
+    from pipeline.broll import composite
+    return bool(composite(str(video), slots, str(dest)))
+
+
+def pick_spread(slots: List[Dict[str, Any]], count: int) -> List[int]:
+    """Indexes of `count` slots spread evenly through the video (not the first few)."""
+    n = len(slots)
+    if count <= 0 or n == 0:
+        return []
+    if count >= n:
+        return list(range(n))
+    step = n / float(count)
+    return sorted({min(n - 1, int(step * i + step / 2.0)) for i in range(count)})
+
+
+async def fetch_still(query: str, pexels_key: str, dest: Path, fmt: str) -> Optional[Tuple[Path, str]]:
+    """One stock photo for `query` → (local copy, its public https address), or None.
+
+    The public address is what Higgsfield fetches; the local copy is the
+    `source_image` its likeness check requires. Never raises: a missing still
+    just means that moment gets a stock clip.
+    """
+    orientation = "portrait" if fmt == "vertical" else "landscape"
+    headers = {"Authorization": pexels_key, "User-Agent": "PodClickAI/1.0"}
+    try:
+        async with base.http_client(timeout=30.0) as client:
+            resp = await client.get(PEXELS_PHOTO_SEARCH, headers=headers,
+                                    params={"query": query, "per_page": 3, "orientation": orientation})
+            if resp.status_code != 200:
+                return None
+            photos = (resp.json() or {}).get("photos") or []
+            for photo in photos:
+                src = photo.get("src") or {}
+                url = str(src.get("large2x") or src.get("large") or src.get("original") or "")
+                if not url.startswith("https://"):
+                    continue
+                img = await client.get(url, headers={"User-Agent": "PodClickAI/1.0"}, follow_redirects=True)
+                if img.status_code == 200 and img.content:
+                    base.atomic_write_bytes(dest, img.content)
+                    return dest, url
+    except Exception:
+        return None
+    return None
+
+
+async def animate_slots(ctx: Any, slots: List[Dict[str, Any]], count: int, pexels_key: str,
+                        out_dir: Path, fmt: str) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Turn up to `count` slots into Higgsfield-animated stills.
+
+    Returns (animated slots with `clip_path`, the slots left for stock footage).
+    Any slot that can't be animated stays in the stock list — never raises.
+    """
+    if count <= 0 or not slots:
+        return [], list(slots)
+    hf = ctx.media("image_to_video")
+    if hf is None:
+        ctx.warn("No animated cutaways on this one — Higgsfield isn't connected. Stock footage only.")
+        return [], list(slots)
+    cap = int(getattr(hf, "max_seconds", 0) or 0)
+    if cap:
+        fits = cap // ANIMATION_SECONDS
+        if fits < count:
+            count = fits
+            ctx.warn(f"Animated cutaways trimmed to {count} — HIGGSFIELD_MAX_SECONDS is {cap}.")
+    chosen = set(pick_spread(slots, count))
+    animated: List[Dict[str, Any]] = []
+    stock: List[Dict[str, Any]] = []
+    stopped = False
+    for i, slot in enumerate(slots):
+        if i not in chosen or stopped:
+            stock.append(slot)
+            continue
+        ctx.check_cancelled()
+        still = await fetch_still(slot["query"], pexels_key, out_dir / f"still_{i:02d}.jpg", fmt)
+        if still is None:
+            stock.append(slot)
+            continue
+        photo, url = still
+        clip = out_dir / f"anim_{i:02d}.mp4"
+        try:
+            asset = await hf.generate(
+                GenerationRequest(capability="image_to_video",
+                                  prompt=ANIMATION_PROMPT.format(query=slot["query"]),
+                                  duration_s=ANIMATION_SECONDS, image_url=url, source_image=photo,
+                                  aspect=FORMATS[fmt]),
+                clip)
+        except MediaProviderError as exc:
+            # One bad render falls back to stock. Anything that will fail the
+            # same way next time (key, credits, an unheard-from submit) stops
+            # the animating so the job doesn't keep spending or keep failing.
+            stock.append(slot)
+            if not isinstance(exc, base.ProviderRejected):
+                stopped = True
+                ctx.warn("Animated cutaways stopped early — " + exc.user_message)
+            continue
+        except ValueError:
+            stock.append(slot)
+            continue
+        _record_usage(ctx, asset.usage)
+        animated.append({**slot, "end": min(float(slot["end"]), float(slot["start"]) + ANIMATION_SECONDS),
+                         "clip_path": str(clip), "animated": True})
+    return animated, stock
+
+
+async def add_cutaways(ctx: Any, video: Path, segments: List[Dict[str, Any]], dest: Path, out_dir: Path,
+                       duration: float, openai_key: str, pexels_key: str, animate: int,
+                       fmt: str) -> Tuple[Path, int, int]:
+    """(video to use, stock cutaways, animated cutaways). Returns `video`
+    unchanged when nothing landed. Never raises for a cutaway problem."""
     loop = asyncio.get_running_loop()
     try:
-        return await loop.run_in_executor(None, _add_broll_sync, video, segments, dest, cache,
-                                          openai_key, pexels_key)
+        slots = await loop.run_in_executor(None, _plan_slots_sync, segments, openai_key, duration)
     except Exception:
-        return video
+        slots = []
+    if not slots:
+        return video, 0, 0
+    animated, rest = await animate_slots(ctx, slots, animate, pexels_key, out_dir, fmt)
+    try:
+        stock = await loop.run_in_executor(None, _fetch_clips_sync, rest, pexels_key,
+                                           out_dir / "broll_cache") if rest else []
+    except Exception:
+        stock = []
+    placed = sorted(animated + list(stock), key=lambda s2: s2["start"])
+    if not placed:
+        return video, 0, 0
+    try:
+        ok = await loop.run_in_executor(None, _composite_sync, video, placed, dest)
+    except Exception:
+        ok = False
+    if not ok or not Path(dest).is_file():
+        return video, 0, 0
+    return Path(dest), len(stock), len(animated)
 
 
 # ── runner ────────────────────────────────────────────────────────────────────
@@ -172,6 +314,12 @@ async def run(ctx: Any, inp: Dict[str, Any]) -> AgentResult:
     if fmt not in FORMATS:
         fmt = "landscape"
     want_broll = inp.get("broll", True) is not False
+    try:
+        animate = int(inp.get("animate") if inp.get("animate") not in (None, "") else 3)
+    except (TypeError, ValueError):
+        animate = 3
+    if animate not in ANIMATION_CHOICES:
+        animate = 3
     want_captions = inp.get("captions", True) is not False
     out_dir = Path(ctx.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -250,20 +398,19 @@ async def run(ctx: Any, inp: Dict[str, Any]) -> AgentResult:
     words, segments, timing_source = build_timing(script, float(duration),
                                                   (t_asset.meta or {}).get("subtitle_path"))
     current = raw
-    cutaways = False
+    stock_n = animated_n = 0
 
     if want_broll:
         ctx.check_cancelled()
-        async with ctx.step("cutaways", "Cutting in stock footage"):
-            cut = await add_cutaways(raw, segments, out_dir / "twin_broll.mp4", out_dir / "broll_cache",
-                                     openai_key, pexels_key)
-            if cut != raw and Path(cut).is_file():
-                current = Path(cut)
-                cutaways = True
-            else:
+        async with ctx.step("cutaways", "Cutting in footage"):
+            current, stock_n, animated_n = await add_cutaways(
+                ctx, raw, segments, out_dir / "twin_broll.mp4", out_dir, float(duration),
+                openai_key, pexels_key, animate, fmt)
+            if current == raw:
                 ctx.warn("No cutaways landed on this one — you're on camera the whole way.")
     elif callable(getattr(ctx, "skip_step", None)):
-        ctx.skip_step("cutaways", "Cutting in stock footage")
+        ctx.skip_step("cutaways", "Cutting in footage")
+    cutaways = (stock_n + animated_n) > 0
 
     ctx.check_cancelled()
     final = out_dir / "twin.mp4"
@@ -281,7 +428,8 @@ async def run(ctx: Any, inp: Dict[str, Any]) -> AgentResult:
 
     ctx.add_output(Output(kind="video", label="Twin video", file=final.name,
                           meta={"duration_s": round(float(duration), 2), "ai_generated": True,
-                                "format": fmt, "cutaways": cutaways, "captions": captioned,
+                                "format": fmt, "cutaways": cutaways, "stock_cutaways": stock_n,
+                                "animated_cutaways": animated_n, "captions": captioned,
                                 "caption_timing": timing_source}))
     ctx.add_output(Output(kind="text", label="Script", value=script))
     ctx.add_output(Output(kind="json", label="Usage", value=[v_asset.usage or {}, t_asset.usage or {}]))

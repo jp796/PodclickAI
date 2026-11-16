@@ -2612,3 +2612,19 @@ all `frontend/*.html` head/nav regions, `main.py` (upload whitelist), `docs/UI_C
 **Not in this change:** generated animations or motion graphics (cutaways are Pexels stock only), and any publish step.
 
 **Files:** `services/media/heygen.py`, `services/media/base.py`, `services/media/registry.py`, `services/agents/runners/twin_video.py`, `services/agents/runners/avatar_video.py`, `services/agents/registry.py`, `services/agents/contract.py`, `services/agents/jobs.py`, `config.py`, `frontend/agents.html`, `tests/test_media_heygen.py`, `tests/test_agents_core.py`, `tests/test_agents_routes.py`, `docs/*`
+
+---
+
+## 2026-11-16 — Animated cutaways in Twin Video (Higgsfield) + Higgsfield key name mismatch
+
+**Ask (JP):** the reference video has b-roll and animation throughout, and he has a Higgsfield API key pair.
+
+**Bug fixed — a connected Higgsfield account could still show "needs setup".** The adapter reads `HF_API_KEY` / `HF_API_SECRET`, but `services/agents/jobs.py` checked `higgsfield_api_key` / `HIGGSFIELD_API_KEY`, a setting `config.py` does not define, and `docs/API.md` and the Crew page hint used the `HIGGSFIELD_*` spelling too. With keys saved under the adapter's names, `requirement_met("higgsfield")` was false. Both spellings now count in the requirement check and in the adapter. Pinned by `test_higgsfield_requirement_is_met_under_either_key_name` and `test_either_higgsfield_key_spelling_connects_it`.
+
+**What shipped (`services/agents/runners/twin_video.py`):** a new `animate` input (0, 2, 3, 4, 6; default 3). The cutaway step picks that many slots spread through the video, pulls a stock still for each, and has Higgsfield animate it into a 5-second shot; the remaining slots get stock clips as before. A moment with no still, or a render Higgsfield rejects, falls back to stock. A key, credit or unheard-from-submit problem stops the animating with one warning and the video still ships.
+
+**Verified:** 9 new tests in `tests/test_media_heygen.py` (41 total) with mocked Pexels and Higgsfield HTTP. Three guards were each disabled in turn (the seconds-cap trim, the stop-on-credits flag, the key alias) and each turned a test red.
+
+**NOT verified:** no live Higgsfield call. Whether `wan/v2.7/image-to-video` follows the still's orientation for vertical output is unconfirmed, and so is the credit cost per shot. The stills are stock photos brought to life, not motion graphics, charts or text animation.
+
+**Files:** `services/agents/runners/twin_video.py`, `services/agents/registry.py`, `services/agents/jobs.py`, `services/media/higgsfield.py`, `tests/test_media_heygen.py`, `docs/API.md`, `docs/ARCHITECTURE.md`, `docs/BUGS_AND_FIXES.md`

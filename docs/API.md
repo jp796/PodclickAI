@@ -1108,15 +1108,16 @@ New settings read via `config.settings` first, `os.getenv` fallback: `ELEVENLABS
 Runs through the same `/api/agents/twin_video/run` and `/api/agents/jobs/...` routes as every other agent; no new route.
 
 ```json
-Request:  { "input": { "script": "...", "topic": "...", "length": "2", "format": "landscape|vertical", "broll": true, "captions": true } }
+Request:  { "input": { "script": "...", "topic": "...", "length": "2", "format": "landscape|vertical", "broll": true, "animate": "3", "captions": true } }
 Notes:    One of script or topic is required. `length` (minutes: 1, 2, 3, 5, 8) only applies when the script is drafted from a topic.
           Steps: preflight → script (topic only, Foundation-voiced) → voice (ElevenLabs) → twin (HeyGen) → cutaways (pipeline/broll.py) → captions.
-          Outputs: video `twin.mp4` (meta: duration_s, ai_generated, format, cutaways, captions, caption_timing), the script, usage.
+          `animate` (0, 2, 3, 4 or 6; default 3) is how many cutaways become Higgsfield-animated stills, 5 seconds each, spread through the video. The rest use stock footage.
+          Outputs: video `twin.mp4` (meta: duration_s, ai_generated, format, cutaways, stock_cutaways, animated_cutaways, captions, caption_timing), the script, usage.
           Never publishes and has no commit step: the job ends with a file to review.
 Errors:   409 needs_setup with missing ["elevenlabs"] and/or ["heygen"].
 ```
 
-New settings (same rules as the other providers): `HEYGEN_API_KEY`, `HEYGEN_AVATAR_ID` (the twin's look id), `HEYGEN_ENGINE` (empty = HeyGen's default), `HEYGEN_RESOLUTION` (default `1080p`), `HEYGEN_MAX_SECONDS` (default 600), `HEYGEN_POLL_TIMEOUT_S` (default 3600), `HEYGEN_BASE_URL`. A script over `ELEVENLABS_MAX_CHARS` (default 5000, about 5 minutes) is refused in preflight, so raise it for longer videos. Cutaways need `PEXELS_API_KEY` and `OPENAI_API_KEY`; without them the job warns and keeps the twin on camera.
+New settings (same rules as the other providers): `HEYGEN_API_KEY`, `HEYGEN_AVATAR_ID` (the twin's look id), `HEYGEN_ENGINE` (empty = HeyGen's default), `HEYGEN_RESOLUTION` (default `1080p`), `HEYGEN_MAX_SECONDS` (default 600), `HEYGEN_POLL_TIMEOUT_S` (default 3600), `HEYGEN_BASE_URL`. A script over `ELEVENLABS_MAX_CHARS` (default 5000, about 5 minutes) is refused in preflight, so raise it for longer videos. Cutaways need `PEXELS_API_KEY` and `OPENAI_API_KEY`; without them the job warns and keeps the twin on camera. Animated cutaways also need the Higgsfield key pair; without it the job warns and uses stock footage. The Higgsfield pair is accepted as `HF_API_KEY` / `HF_API_SECRET` or `HIGGSFIELD_API_KEY` / `HIGGSFIELD_API_SECRET`. The animated count is trimmed to fit `HIGGSFIELD_MAX_SECONDS` (default 60) before anything is submitted.
 
 ## Page entry points — 2026-10-03
 
