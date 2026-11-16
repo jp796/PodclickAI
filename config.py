@@ -147,6 +147,14 @@ class Settings(BaseSettings):
     higgsfield_resolution: str = Field(default="720p", description="720p or 1080p")
     higgsfield_concurrency: int = Field(default=2, description="Max in-flight Higgsfield jobs (over-limit returns 400)")
     higgsfield_poll_timeout_s: int = Field(default=1200, description="Give up polling (never resubmit) after this long")
+    # HeyGen (digital twin video) — services/media/heygen.py. v3 API; the twin is created and consented in HeyGen itself.
+    heygen_api_key: str = Field(default="", description="HeyGen API key (Twin Video)")
+    heygen_avatar_id: str = Field(default="", description="Your HeyGen digital twin look id (GET /v3/avatars/looks)")
+    heygen_engine: str = Field(default="", description="avatar_iii | avatar_iv | avatar_v | heygen-avatar-6; empty = HeyGen default (Avatar IV)")
+    heygen_resolution: str = Field(default="1080p", description="720p | 1080p | 4k (4k: Avatar III twins only)")
+    heygen_max_seconds: int = Field(default=600, description="Per-job cap on rendered seconds, enforced before any upload or submit")
+    heygen_poll_timeout_s: int = Field(default=3600, description="Give up polling (never resubmit) after this long")
+    heygen_base_url: str = Field(default="https://api.heygen.com", description="HeyGen API base")
     # Meta Muse (text + image) — services/media/muse.py. Key from dev.meta.ai; env MODEL_API_KEY or META_MODEL_API_KEY.
     meta_model_api_key: str = Field(default="", validation_alias=AliasChoices("meta_model_api_key", "model_api_key"), description="Meta Model API key (Muse)")
     meta_muse_model: str = Field(default="muse-spark-1.3", description="Muse text model (standard tier)")

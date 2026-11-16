@@ -175,8 +175,10 @@ _REQ_SETTINGS: Dict[str, Tuple[str, str]] = {
     "ghl": ("ghl_token", "GHL_TOKEN"),
     "elevenlabs": ("elevenlabs_api_key", "ELEVENLABS_API_KEY"),
     "higgsfield": ("higgsfield_api_key", "HIGGSFIELD_API_KEY"),
+    "heygen": ("heygen_api_key", "HEYGEN_API_KEY"),
 }
-_REQ_CAPABILITY: Dict[str, str] = {"elevenlabs": "tts", "higgsfield": "avatar_video"}
+_REQ_CAPABILITY: Dict[str, str] = {"elevenlabs": "tts", "higgsfield": "avatar_video",
+                                   "heygen": "twin_video"}
 
 
 def requirement_met(req: str) -> bool:

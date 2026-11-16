@@ -18,13 +18,15 @@ from services.media import base
 from services.media.base import CAPABILITIES, MediaProvider
 from services.media.elevenlabs import ElevenLabsProvider
 from services.media.ffmpeg_local import FfmpegLocalProvider
+from services.media.heygen import HeyGenProvider
 from services.media.higgsfield import HiggsfieldProvider
 from services.media.muse import MuseProvider
 
-BUILTIN_ORDER = ("elevenlabs", "higgsfield", "muse", "ffmpeg_local")
+BUILTIN_ORDER = ("elevenlabs", "heygen", "higgsfield", "muse", "ffmpeg_local")
 
 _FACTORIES: Dict[str, Callable[[], MediaProvider]] = {
     "elevenlabs": ElevenLabsProvider,
+    "heygen": HeyGenProvider,
     "higgsfield": HiggsfieldProvider,
     "muse": MuseProvider,
     "ffmpeg_local": FfmpegLocalProvider,
@@ -65,6 +67,7 @@ def _ffmpeg_ready() -> bool:
 # openai, anthropic) belong to lane A's checks and are ignored here.
 REQUIREMENT_CHECKS: Dict[str, Callable[[], bool]] = {
     "elevenlabs": lambda: ElevenLabsProvider().is_configured(),
+    "heygen": lambda: HeyGenProvider().is_configured(),
     "higgsfield": lambda: HiggsfieldProvider().is_configured(),
     "muse": lambda: MuseProvider().is_configured(),
     "pexels": _pexels_ready,

@@ -1103,6 +1103,21 @@ Notes:    Stored at data/agent_uploads/{upload_id}. A `files` field in an agent'
 ### Environment (shipped 2026-10-02)
 New settings read via `config.settings` first, `os.getenv` fallback: `ELEVENLABS_API_KEY`, `ELEVENLABS_VOICE_ID`, `ELEVENLABS_MODEL_ID`, `ELEVENLABS_MAX_CHARS`, `ELEVENLABS_VOICE_SETTINGS`, `HIGGSFIELD_API_KEY`, `HIGGSFIELD_API_SECRET`, `HIGGSFIELD_BASE_URL`, `HIGGSFIELD_MAX_SECONDS`, `PODCLICK_MEDIA_PREFERENCE`, `PODCLICK_AGENTS_DISABLED`. Provider facts: see `MEDIA_PROVIDERS_VERIFIED.md`. Planned contract fix: `/api/yt/content-calendar` and `/api/yt/pillar-plan` gain `get_brand_context` (see BUGS_AND_FIXES 2026-10-01).
 
+### Twin Video agent (`twin_video`) — 2026-11-16
+
+Runs through the same `/api/agents/twin_video/run` and `/api/agents/jobs/...` routes as every other agent; no new route.
+
+```json
+Request:  { "input": { "script": "...", "topic": "...", "length": "2", "format": "landscape|vertical", "broll": true, "captions": true } }
+Notes:    One of script or topic is required. `length` (minutes: 1, 2, 3, 5, 8) only applies when the script is drafted from a topic.
+          Steps: preflight → script (topic only, Foundation-voiced) → voice (ElevenLabs) → twin (HeyGen) → cutaways (pipeline/broll.py) → captions.
+          Outputs: video `twin.mp4` (meta: duration_s, ai_generated, format, cutaways, captions, caption_timing), the script, usage.
+          Never publishes and has no commit step: the job ends with a file to review.
+Errors:   409 needs_setup with missing ["elevenlabs"] and/or ["heygen"].
+```
+
+New settings (same rules as the other providers): `HEYGEN_API_KEY`, `HEYGEN_AVATAR_ID` (the twin's look id), `HEYGEN_ENGINE` (empty = HeyGen's default), `HEYGEN_RESOLUTION` (default `1080p`), `HEYGEN_MAX_SECONDS` (default 600), `HEYGEN_POLL_TIMEOUT_S` (default 3600), `HEYGEN_BASE_URL`. A script over `ELEVENLABS_MAX_CHARS` (default 5000, about 5 minutes) is refused in preflight, so raise it for longer videos. Cutaways need `PEXELS_API_KEY` and `OPENAI_API_KEY`; without them the job warns and keeps the twin on camera.
+
 ## Page entry points — 2026-10-03
 
 | Method | Path | Purpose |
