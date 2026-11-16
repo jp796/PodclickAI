@@ -2588,3 +2588,43 @@ all `frontend/*.html` head/nav regions, `main.py` (upload whitelist), `docs/UI_C
 **Fix:** Every chrome emoji now uses a Lucide `pc-i` icon (`PodClickIcons.svg()` in JS, with a placeholder fallback). Platforms show neutral monogram chips (`.plat-mark`). AI output containers have `data-ai-output`, and Copy still copies verbatim. Added skeleton loaders, a designed Foundation-not-ready empty state, a thin-Foundation banner, per-platform live character counters, segmented mode tabs, focus rings and press states, all using tokens only. Brand Studio's grid is now `minmax(0,1fr)` below 900px. The widget scripts got `?v=20261004-2`.
 
 **Verified:** 0 visible chrome emoji and 0 safety-net swaps across 28 headless-Chrome states at 1366px and 375px. No elements clip past the viewport, there is one `<nav>`, and there are no JS exceptions. The Brick bubble and the recorder FAB both open. 785 tests pass.
+
+---
+
+## 2026-11-16 — Twin Video agent (HeyGen twin + ElevenLabs voice) + media runners crashed recording usage
+
+**Ask (JP):** a full clone that looks and sounds natural, the way a twin-led YouTube channel does: script, voice, face, b-roll, captions.
+
+**Found first (diagnosis):** the voice and avatar pieces already existed (`voiceover`, `avatar_video`), but Avatar Video animates a still photo on Higgsfield in 15-second shots and needs a public media origin. Nothing used the HeyGen twin, and `MEDIA_PROVIDERS_VERIFIED.md` pointed at HeyGen's retired `/v2/video/generate`.
+
+**Bug fixed — every media runner failed right after its first paid call.** `voiceover`, `avatar_video`, `home_tour` and `market_reel` call `ctx.add_usage(usage_dict)`, but `AgentContext.add_usage` took `(provider, unit, amount)`. On the real context that is a `TypeError` inside the `voice` step, after the ElevenLabs characters are spent. The runner tests never caught it because their stand-in context accepts one argument. `add_usage` now takes either form. Pinned by `test_real_context_records_the_usage_dict_runners_hand_it`.
+
+**What shipped:**
+- `services/media/heygen.py` — HeyGen v3 adapter, capability `twin_video`. Caps and config are checked before any call, the create call is never retried, and the key is never sent to a returned link.
+- `services/agents/runners/twin_video.py` + the `twin_video` spec — script (Foundation) → voice → twin → cutaways → captions. Landscape or vertical. Never publishes.
+- `draft_script` takes `max_tokens` so a multi-minute script is not cut off at the short-video default.
+- `GenerationRequest.source_audio`, `ProviderJob.meta` (both additive).
+
+**Verified:** `tests/test_media_heygen.py` (32 tests) against the real registry and adapters with mocked HTTP and real ffmpeg. The agent and media suites show no new failures against the commit before this one.
+
+**NOT verified — needs JP's keys:** no live HeyGen or ElevenLabs call was made. First real run: set `HEYGEN_API_KEY` and `HEYGEN_AVATAR_ID`, run a 20-second verbatim script with cutaways off, and confirm the render lands before trusting a long one. `test_avatar_renders_one_shot_per_15s_segment_with_public_urls` was already failing before this change and still is.
+
+**Not in this change:** generated animations or motion graphics (cutaways are Pexels stock only), and any publish step.
+
+**Files:** `services/media/heygen.py`, `services/media/base.py`, `services/media/registry.py`, `services/agents/runners/twin_video.py`, `services/agents/runners/avatar_video.py`, `services/agents/registry.py`, `services/agents/contract.py`, `services/agents/jobs.py`, `config.py`, `frontend/agents.html`, `tests/test_media_heygen.py`, `tests/test_agents_core.py`, `tests/test_agents_routes.py`, `docs/*`
+
+---
+
+## 2026-11-16 — Animated cutaways in Twin Video (Higgsfield) + Higgsfield key name mismatch
+
+**Ask (JP):** the reference video has b-roll and animation throughout, and he has a Higgsfield API key pair.
+
+**Bug fixed — a connected Higgsfield account could still show "needs setup".** The adapter reads `HF_API_KEY` / `HF_API_SECRET`, but `services/agents/jobs.py` checked `higgsfield_api_key` / `HIGGSFIELD_API_KEY`, a setting `config.py` does not define, and `docs/API.md` and the Crew page hint used the `HIGGSFIELD_*` spelling too. With keys saved under the adapter's names, `requirement_met("higgsfield")` was false. Both spellings now count in the requirement check and in the adapter. Pinned by `test_higgsfield_requirement_is_met_under_either_key_name` and `test_either_higgsfield_key_spelling_connects_it`.
+
+**What shipped (`services/agents/runners/twin_video.py`):** a new `animate` input (0, 2, 3, 4, 6; default 3). The cutaway step picks that many slots spread through the video, pulls a stock still for each, and has Higgsfield animate it into a 5-second shot; the remaining slots get stock clips as before. A moment with no still, or a render Higgsfield rejects, falls back to stock. A key, credit or unheard-from-submit problem stops the animating with one warning and the video still ships.
+
+**Verified:** 9 new tests in `tests/test_media_heygen.py` (41 total) with mocked Pexels and Higgsfield HTTP. Three guards were each disabled in turn (the seconds-cap trim, the stop-on-credits flag, the key alias) and each turned a test red.
+
+**NOT verified:** no live Higgsfield call. Whether `wan/v2.7/image-to-video` follows the still's orientation for vertical output is unconfirmed, and so is the credit cost per shot. The stills are stock photos brought to life, not motion graphics, charts or text animation.
+
+**Files:** `services/agents/runners/twin_video.py`, `services/agents/registry.py`, `services/agents/jobs.py`, `services/media/higgsfield.py`, `tests/test_media_heygen.py`, `docs/API.md`, `docs/ARCHITECTURE.md`, `docs/BUGS_AND_FIXES.md`

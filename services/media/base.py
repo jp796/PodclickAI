@@ -28,7 +28,8 @@ from typing import Any, Dict, FrozenSet, List, Optional
 import httpx
 
 CAPABILITIES: FrozenSet[str] = frozenset(
-    {"tts", "voices", "avatar_video", "image_to_video", "text_to_video", "text_to_image", "ken_burns"}
+    {"tts", "voices", "avatar_video", "twin_video", "image_to_video", "text_to_video", "text_to_image",
+     "ken_burns"}
 )
 
 # ── Test seams ────────────────────────────────────────────────────────────────
@@ -159,6 +160,7 @@ class GenerationRequest:
     image_url: Optional[str] = None      # public URL the provider fetches
     audio_url: Optional[str] = None      # public URL of the driving audio
     source_image: Optional[Path] = None  # local file behind image_url (likeness check)
+    source_audio: Optional[Path] = None  # local driving audio the provider uploads itself (HeyGen twin)
     aspect: str = "9:16"
     resolution: Optional[str] = None
 
@@ -174,6 +176,7 @@ class ProviderJob:
     cancel_url: Optional[str] = None
     result_url: Optional[str] = None
     error: Optional[str] = None
+    meta: Dict[str, Any] = field(default_factory=dict)   # provider extras (e.g. HeyGen subtitle_url)
 
 
 @dataclass

@@ -154,7 +154,7 @@ def clean_script(raw: str) -> str:
 
 async def draft_script(ctx: Any, topic: str, brief: str, seconds: int, rules: Iterable[str] = (),
                        number_sources: Optional[Iterable[str]] = None,
-                       fair_housing: bool = False) -> str:
+                       fair_housing: bool = False, max_tokens: int = 900) -> str:
     """Foundation-voiced spoken script (contract #3: every generation goes
     through brand context). Deterministic guards run on the result; one redraft
     is allowed, then the step fails rather than ship an invented number or a
@@ -183,7 +183,7 @@ async def draft_script(ctx: Any, topic: str, brief: str, seconds: int, rules: It
         if problems:
             user += ("\n\nYour last draft broke the rules: " + "; ".join(problems) +
                      ". Rewrite it without those.")
-        script = clean_script(await _complete(system, user))
+        script = clean_script(await _complete(system, user, max_tokens=max_tokens))
         problems = []
         if sources is not None:
             bad = fabricated_numbers(script, sources)
