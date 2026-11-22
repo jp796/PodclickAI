@@ -1175,7 +1175,7 @@ async def create_project_from_upload(
 
     # Stream to disk in 1MB chunks (never hold the whole upload in memory) and
     # enforce a size cap so a runaway upload cannot fill the disk.
-    _MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024  # 2GB
+    _MAX_UPLOAD_BYTES = 20 * 1024 * 1024 * 1024  # 20GB — full-length 4K episodes run past 2GB
     _written = 0
     try:
         with open(recording_path, "wb") as f:
@@ -1190,7 +1190,7 @@ async def create_project_from_upload(
     except ValueError:
         Path(recording_path).unlink(missing_ok=True)
         return JSONResponse(
-            {"error": "File is too large. The upload limit is 2GB. Export a smaller or audio-only version and try again."},
+            {"error": "File is too large. The upload limit is 20GB. Export a smaller or audio-only version and try again."},
             status_code=413,
         )
     except Exception as exc:
