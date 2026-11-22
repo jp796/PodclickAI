@@ -38,7 +38,7 @@ EDITABLE_KINDS = frozenset({"text", "cards"})
 FOUNDATION_MODES = frozenset({"none", "required", "optional", "inherited"})
 
 REQUIREMENTS = frozenset({
-    "youtube_api", "elevenlabs", "higgsfield", "pexels", "ghl", "openai", "anthropic",
+    "youtube_api", "elevenlabs", "higgsfield", "heygen", "pexels", "ghl", "openai", "anthropic",
 })
 
 JOB_STATUSES = frozenset({
@@ -427,8 +427,15 @@ class AgentContext:
             self._job["warnings"].append(msg)
             self._persist()
 
-    def add_usage(self, provider: str, unit: str, amount: float) -> None:
-        self._job["usage"].append({"provider": provider, "unit": unit, "amount": amount})
+    def add_usage(self, provider: Any, unit: Optional[str] = None, amount: Optional[float] = None) -> None:
+        """Record spend. Takes (provider, unit, amount) or one {provider, unit, amount}
+        dict — the media runners hand over the provider's usage dict as-is."""
+        if isinstance(provider, dict):
+            usage = provider
+            provider, unit, amount = usage.get("provider"), usage.get("unit"), usage.get("amount")
+        if not provider or not unit:
+            return
+        self._job["usage"].append({"provider": str(provider), "unit": str(unit), "amount": amount or 0})
         self._persist()
 
     # control

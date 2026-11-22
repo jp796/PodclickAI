@@ -175,8 +175,13 @@ _REQ_SETTINGS: Dict[str, Tuple[str, str]] = {
     "ghl": ("ghl_token", "GHL_TOKEN"),
     "elevenlabs": ("elevenlabs_api_key", "ELEVENLABS_API_KEY"),
     "higgsfield": ("higgsfield_api_key", "HIGGSFIELD_API_KEY"),
+    "heygen": ("heygen_api_key", "HEYGEN_API_KEY"),
 }
-_REQ_CAPABILITY: Dict[str, str] = {"elevenlabs": "tts", "higgsfield": "avatar_video"}
+# The Higgsfield adapter reads HF_API_KEY; this table said HIGGSFIELD_API_KEY, so a
+# connected account still showed "needs setup". Both spellings count now.
+_REQ_ALIASES: Dict[str, List[Tuple[str, str]]] = {"higgsfield": [("hf_api_key", "HF_API_KEY")]}
+_REQ_CAPABILITY: Dict[str, str] = {"elevenlabs": "tts", "higgsfield": "avatar_video",
+                                   "heygen": "twin_video"}
 
 
 def requirement_met(req: str) -> bool:
@@ -190,13 +195,16 @@ def requirement_met(req: str) -> bool:
     if not field_name:
         return False
     value = ""
-    try:
-        from config import settings
-        value = str(getattr(settings, field_name, "") or "")
-    except Exception:
-        value = ""
-    if not value:
-        value = os.getenv(env_name, "")
+    for f_name, e_name in [(field_name, env_name)] + _REQ_ALIASES.get(req, []):
+        try:
+            from config import settings
+            value = str(getattr(settings, f_name, "") or "")
+        except Exception:
+            value = ""
+        if not value:
+            value = os.getenv(e_name, "")
+        if value.strip():
+            break
     if not value.strip():
         return False
     cap = _REQ_CAPABILITY.get(req)
