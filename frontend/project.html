@@ -85,6 +85,15 @@
     /* ── Audio ── */
     audio { width: 100%; margin-top: 12px; }
     .assembly-flags { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .slots-box { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 16px; }
+    .slots-box:empty { display: none; }
+    .slots-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+    .slots-head .hint { font-size: 12px; color: var(--text-dim); }
+    .slot-row { display: grid; grid-template-columns: 96px 1fr auto auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .slot-row select { width: 100%; min-width: 0; }
+    .slot-row .slot-name { font-size: 12px; font-weight: 700; color: var(--text-sec); }
+    .slot-row .btn-sm { white-space: nowrap; }
+    @media (max-width: 560px) { .slot-row { grid-template-columns: 1fr auto auto; } .slot-row .slot-name { grid-column: 1 / -1; } }
     .flag { font-size: 10px; font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border); color: var(--text-dim); }
     .flag.on { color: var(--green-hi); border-color: var(--green-dim); background: color-mix(in srgb, var(--green) 8%, transparent); }
     .sponsor-line { margin-top: 14px; padding: 12px 14px; background: var(--bg-raised); border-left: 3px solid var(--orange); border-radius: 5px; font-size: 13px; color: var(--text-pri); }
@@ -203,6 +212,32 @@
     .swatch:hover { transform: translateY(-1px); }
     .swatch .dot { width: 20px; height: 20px; border-radius: 50%; }
     .swatch.active { border-color: var(--orange-hi); box-shadow: 0 0 0 2px color-mix(in srgb, var(--orange-hi) 30%, transparent); }
+
+    /* Caption preset grid — each tile is a CSS mock of the burned-in look */
+    .cap-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    .cap-tile {
+      display: flex; flex-direction: column; gap: 5px; padding: 6px; cursor: pointer;
+      background: var(--bg-inset); border: 1px solid var(--border); border-radius: 10px;
+      transition: border-color 0.12s, transform 0.12s; min-width: 0;
+    }
+    .cap-tile:hover { border-color: var(--border-lit); transform: translateY(-1px); }
+    .cap-tile.active { border-color: var(--orange-hi); box-shadow: 0 0 0 2px color-mix(in srgb, var(--orange-hi) 30%, transparent); }
+    .cap-demo {
+      height: 46px; border-radius: 7px; display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(160deg, #3a3f47, #1d2026); overflow: hidden; padding: 0 4px;
+      font-size: 12px; line-height: 1.1; color: #fff; text-align: center; white-space: nowrap;
+    }
+    .cap-name { font-size: 10.5px; font-weight: 700; color: var(--text-sec); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cap-tile.active .cap-name { color: var(--text-pri); }
+    .cap-accent-row { display: flex; gap: 8px; align-items: center; }
+    .cap-accent {
+      width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid var(--border);
+      transition: transform 0.12s;
+    }
+    .cap-accent:hover { transform: scale(1.08); }
+    .cap-accent.active { border-color: var(--text-pri); box-shadow: 0 0 0 2px color-mix(in srgb, var(--orange-hi) 40%, transparent); }
+    .cap-check { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--text-sec); cursor: pointer; }
+    .cap-check input { accent-color: var(--orange); }
 
     /* Position pills */
     .pos-row { display: flex; gap: 8px; }
@@ -571,6 +606,7 @@
         <button class="btn btn-primary" id="step1-next-btn">Next <i class="pc-i" data-i="arrow-right"></i></button>
       </div>
       <div id="ai-broll-result" class="hint" style="margin:8px 0 0"></div>
+      <div class="slots-box" id="slots-step1"></div>
     </div>
 
     <!-- Step 2 — Audio Assembly -->
@@ -582,7 +618,7 @@
       <div id="audio-player-wrap"></div>
       <div id="sponsor-line-wrap"></div>
       <div class="assembly-flags" id="assembly-flags"></div>
-      <p style="font-size:12px;color:var(--text-dim);margin-top:14px;">Swap sponsor lands in a future release.</p>
+      <div class="slots-box" id="slots-step2"></div>
       <div class="field-row" style="justify-content:flex-end;">
         <button class="btn btn-primary" id="step2-next-btn">Next <i class="pc-i" data-i="arrow-right"></i></button>
       </div>
@@ -680,27 +716,34 @@
             <div class="tool-section">
               <div class="tool-title">Crop Mode</div>
               <div class="pos-row" id="crop-mode-row">
-                <div class="pos-pill active" data-crop="stack" title="Top/bottom split — default (two people on screen)"><i class="pc-i" data-i="layers"></i> Stack</div>
+                <div class="pos-pill active" data-crop="auto" title="Follow faces — centers a solo speaker and tracks them; frames two people each on their face"><i class="pc-i" data-i="user"></i> Auto</div>
+                <div class="pos-pill" data-crop="stack" title="Top/bottom split (two people on screen)"><i class="pc-i" data-i="layers"></i> Stack</div>
                 <div class="pos-pill" data-crop="center" title="Center crop (single speaker)"><i class="pc-i" data-i="crop"></i> Center</div>
               </div>
               <button class="btn btn-ghost" id="rerender-btn" style="width:100%;margin-top:8px;"><i class="pc-i" data-i="rotate-ccw"></i> Re-render with this crop</button>
             </div>
 
-            <!-- Caption styling (preview overlay) -->
+            <!-- Caption style — burned into the clip when applied -->
             <div class="tool-section">
               <div class="tool-title">Caption Style</div>
-              <div class="pos-row" id="caption-swatches" style="display:flex;gap:6px;margin-bottom:8px;">
-                <div class="swatch active" data-color="#FFD700" title="Gold" style="width:22px;height:22px;border-radius:50%;background:#FFD700;cursor:pointer;border:2px solid transparent;"></div>
-                <div class="swatch" data-color="#FFFFFF" title="White" style="width:22px;height:22px;border-radius:50%;background:#FFFFFF;cursor:pointer;border:2px solid transparent;"></div>
-                <div class="swatch" data-color="#2EE49C" title="Green" style="width:22px;height:22px;border-radius:50%;background:#2EE49C;cursor:pointer;border:2px solid transparent;"></div>
-                <div class="swatch" data-color="#FF6B6B" title="Red" style="width:22px;height:22px;border-radius:50%;background:#FF6B6B;cursor:pointer;border:2px solid transparent;"></div>
-                <div class="swatch" data-color="#7FB8E8" title="Blue" style="width:22px;height:22px;border-radius:50%;background:#7FB8E8;cursor:pointer;border:2px solid transparent;"></div>
+              <div class="cap-grid" id="cap-grid"></div>
+              <div class="tool-title" style="margin-top:4px;">Accent</div>
+              <div class="cap-accent-row" id="cap-accents">
+                <div class="cap-accent active" data-color="#FFD700" title="Gold" style="background:#FFD700"></div>
+                <div class="cap-accent" data-color="#2EE49C" title="Green" style="background:#2EE49C"></div>
+                <div class="cap-accent" data-color="#FF7A1A" title="Orange" style="background:#FF7A1A"></div>
+                <div class="cap-accent" data-color="#FF4D4D" title="Red" style="background:#FF4D4D"></div>
+                <div class="cap-accent" data-color="#4DA3FF" title="Blue" style="background:#4DA3FF"></div>
+                <div class="cap-accent" data-color="#FFFFFF" title="White" style="background:#FFFFFF"></div>
               </div>
               <div class="pos-row" id="caption-positions">
-                <div class="pos-pill active" data-pos="bottom" title="Captions near the bottom"><i class="pc-i" data-i="arrow-down"></i> Bottom</div>
+                <div class="pos-pill" data-pos="top" title="Captions near the top"><i class="pc-i" data-i="arrow-up"></i> Top</div>
                 <div class="pos-pill" data-pos="middle" title="Captions centered"><i class="pc-i" data-i="circle-dot"></i> Middle</div>
+                <div class="pos-pill active" data-pos="bottom" title="Captions above the Shorts/Reels buttons"><i class="pc-i" data-i="arrow-down"></i> Bottom</div>
               </div>
-              <div class="tool-note">Preview styling — applies to the player overlay.</div>
+              <label class="cap-check"><input type="checkbox" id="cap-all-clips"> Use for every clip in this episode</label>
+              <button class="btn btn-ghost" id="cap-apply-btn" style="width:100%;"><i class="pc-i" data-i="type"></i> Apply captions</button>
+              <div class="tool-note" id="cap-note">Captions burn into the clip when you apply them.</div>
             </div>
 
             <!-- Clip info block -->
@@ -759,7 +802,15 @@
         <input type="datetime-local" id="closing-at" />
       </div>
       <div style="margin-top:18px;">
-        <label class="field-label">Channels</label>
+        <label class="field-label">Full episode</label>
+        <div class="platforms" id="episode-destinations">
+          <label class="plat-tile on" data-key="podcast_feed"><input type="checkbox" id="dest-podcast" checked /><span>Podcast feed (Buzzsprout)</span></label>
+          <label class="plat-tile on" data-key="youtube_episode"><input type="checkbox" id="dest-youtube" checked /><span>YouTube (full episode)</span></label>
+        </div>
+        <div class="hint" id="dest-note" style="font-size:12px;color:var(--text-dim);margin-top:6px;">Uploads go up private and publish at the closing date.</div>
+      </div>
+      <div style="margin-top:18px;">
+        <label class="field-label">Social posts</label>
         <div class="platforms" id="platforms"></div>
       </div>
       <div style="margin-top:18px;">
@@ -1027,7 +1078,11 @@
     let _currentClipId = null;    // id of the clip currently loaded in the player
     let _srtEntries = [];         // parsed SRT for the active clip
     let _captionColor = '#FFD700';
-    let _captionPos = 'bottom';   // 'bottom' | 'middle'
+    let _captionPos = 'bottom';   // 'bottom' | 'middle' | 'top'
+    let _captionPreset = 'bold';
+    let _capPresets = [];         // from GET /api/caption-presets
+    let _capEpisode = null;       // episode default {preset, accent, position}
+    let _capClipStyles = {};      // per-clip overrides keyed by clip id
     let _hookTimer = null;
     let _capTimer = null;
     let _controlsBound = false;
@@ -1203,6 +1258,7 @@
       hideAllStepPanels();
       stopPlayer();
       $('step1-panel').classList.remove('hidden');
+      renderAudioSlots('slots-step1');
       const p = state.project || {};
       const text = p.transcript || '';
       $('transcript-area').value = text;
@@ -1257,10 +1313,116 @@
         ? '<div class="sponsor-line"><strong>Sponsor:</strong> ' + escHtml(spName) + ' — inserted at ' + escHtml(sp.position_pct||50) + '%</div>'
         : '';
       const asm = p.audio_assembly || {};
+      const files = asm.slot_files || {};
       $('assembly-flags').innerHTML = ['Intro','Commercial','Outro'].map(k => {
         const on = !!asm['has_' + k.toLowerCase()];
-        return '<span class="flag' + (on?' on':'') + '">' + k + (on?' ' + ic('check'):' —') + '</span>';
+        const name = files[k.toLowerCase()];
+        return '<span class="flag' + (on?' on':'') + '"' + (name ? ' title="' + escHtml(name) + '"' : '') + '>' +
+          k + (on?' ' + ic('check'):' —') + '</span>';
       }).join('');
+      renderAudioSlots('slots-step2');
+    }
+
+    // ── Intro / commercial / outro picks (per episode) ────────────────────────
+    // Saved to /api/projects/{id}/audio-slots. Ship It uses them; on the Listen
+    // step "Rebuild audio" re-assembles just the episode audio with them.
+    const SLOT_LABELS = { intro: 'Intro', commercial: 'Commercial', outro: 'Outro' };
+    let _slotData = null;
+
+    async function renderAudioSlots(boxId) {
+      const box = $(boxId);
+      if (!box) return;
+      try {
+        _slotData = await api('GET', '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/audio-slots');
+      } catch (e) { box.innerHTML = ''; return; }
+      const d = _slotData;
+      const onListen = boxId === 'slots-step2';
+      const rows = Object.keys(SLOT_LABELS).map(slot => {
+        const items = d.library[slot] || [];
+        const pick = d.slots[slot] || '';
+        const defItem = items.find(i => i.id === d.defaults[slot]);
+        const defLabel = slot === 'commercial'
+          ? 'Default — sponsor rotation' + (defItem ? ' (else ' + defItem.label + ')' : '')
+          : 'Default' + (defItem ? ' — ' + defItem.label : ' — none in library');
+        const opts = ['<option value="">' + escHtml(defLabel) + '</option>']
+          .concat(items.map(i => '<option value="' + escHtml(i.id) + '"' + (pick === i.id ? ' selected' : '') + '>' + escHtml(i.label) + '</option>'))
+          .concat(['<option value="none"' + (pick === 'none' ? ' selected' : '') + '>No ' + SLOT_LABELS[slot].toLowerCase() + '</option>']);
+        const chosen = pick && pick !== 'none' ? items.find(i => i.id === pick) : (pick === 'none' ? null : defItem);
+        return '<div class="slot-row">' +
+          '<span class="slot-name">' + SLOT_LABELS[slot] + '</span>' +
+          '<select data-slot="' + slot + '">' + opts.join('') + '</select>' +
+          '<button class="btn btn-ghost btn-sm" data-play="' + slot + '"' + (chosen ? ' data-url="' + escHtml(chosen.url) + '"' : ' disabled') + ' title="Preview">' + ic('play') + '</button>' +
+          '<button class="btn btn-ghost btn-sm" data-upload="' + slot + '" title="Add a new ' + SLOT_LABELS[slot].toLowerCase() + ' file to the library">' + ic('upload') + ' Add</button>' +
+          '</div>';
+      }).join('');
+      const rebuild = onListen
+        ? '<div class="field-row" style="justify-content:flex-end;margin-top:6px;">' +
+            '<button class="btn btn-ghost" id="rebuild-audio-btn"' + (d.can_rebuild ? '' : ' disabled title="Audio is locked once the episode is lined up"') + '>' +
+            ic('rotate-ccw') + ' Rebuild audio</button></div>'
+        : '';
+      box.innerHTML =
+        '<div class="slots-head"><div class="tool-title">Intro · Commercial · Outro</div>' +
+        '<span class="hint">' + (onListen ? 'Change a pick, then Rebuild audio. Clips stay as they are.' : 'Ship It adds these around your episode.') + '</span></div>' +
+        rows + rebuild +
+        '<audio id="' + boxId + '-preview" preload="none" style="display:none"></audio>';
+
+      box.querySelectorAll('select[data-slot]').forEach(sel => sel.addEventListener('change', () => saveAudioSlots(boxId)));
+      box.querySelectorAll('[data-play]').forEach(btn => btn.addEventListener('click', () => {
+        const a = $(boxId + '-preview');
+        if (!a.paused && a.dataset.slot === btn.dataset.play) { a.pause(); return; }
+        a.src = btn.dataset.url; a.dataset.slot = btn.dataset.play; a.play().catch(() => {});
+      }));
+      box.querySelectorAll('[data-upload]').forEach(btn => btn.addEventListener('click', () => uploadSlotFile(btn.dataset.upload, boxId)));
+      const rb = $('rebuild-audio-btn');
+      if (rb) rb.addEventListener('click', rebuildAudio);
+    }
+
+    async function saveAudioSlots(boxId) {
+      const body = {};
+      document.querySelectorAll('#' + boxId + ' select[data-slot]').forEach(s => { body[s.dataset.slot] = s.value || null; });
+      try {
+        await api('PUT', '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/audio-slots', body);
+        toast('Saved. ' + (boxId === 'slots-step2' ? 'Rebuild audio to hear it.' : 'Ship It will use it.'), 'success');
+        renderAudioSlots(boxId);
+      } catch (e) { toast('Could not save — ' + e.message, 'error'); }
+    }
+
+    function uploadSlotFile(slot, boxId) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'audio/*,.mp3,.m4a,.wav,.aac';
+      input.addEventListener('change', async () => {
+        const f = input.files && input.files[0];
+        if (!f) return;
+        const form = new FormData();
+        form.append('file', f);
+        form.append('slot_type', slot);
+        form.append('label', f.name.replace(/\.[^.]+$/, ''));
+        try {
+          const r = await fetch('/api/library', { method: 'POST', body: form });
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          const item = await r.json();
+          await api('PUT', '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/audio-slots',
+            Object.assign({}, _slotData ? _slotData.slots : {}, { [slot]: item.id }));
+          toast(SLOT_LABELS[slot] + ' added and picked for this episode.', 'success');
+          renderAudioSlots(boxId);
+        } catch (e) { toast('Upload failed — ' + e.message, 'error'); }
+      });
+      input.click();
+    }
+
+    async function rebuildAudio() {
+      const btn = $('rebuild-audio-btn');
+      btn.disabled = true; btn.innerHTML = ic('loader-circle', true) + ' Rebuilding…';
+      try {
+        await api('POST', '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/reassemble');
+        state.project = await loadProject();
+        toast('Episode audio rebuilt.', 'success');
+        showStep2();
+      } catch (e) {
+        toast('Rebuild failed — ' + e.message, 'error');
+        btn.disabled = false; btn.innerHTML = ic('rotate-ccw') + ' Rebuild audio';
+      }
     }
 
     function showStep3() {
@@ -1268,6 +1430,22 @@
       $('step3-panel').classList.remove('hidden');
       $('shell').classList.add('wide');
       renderClips();
+    }
+
+    // Full-episode destinations on the Release step. Already-uploaded ones are
+    // shown as done and locked (re-scheduling never re-uploads).
+    function renderDestinations(p) {
+      const done = { podcast: !!p.buzzsprout_url, youtube: !!(p.youtube_url || p.youtube_video_id) };
+      [['podcast', 'Podcast feed (Buzzsprout)'], ['youtube', 'YouTube (full episode)']].forEach(([k, label]) => {
+        const cb = $('dest-' + k);
+        const tile = cb.closest('.plat-tile');
+        if (done[k]) { cb.checked = true; cb.disabled = true; tile.querySelector('span').textContent = label + ' ✓ uploaded'; }
+        tile.classList.toggle('on', cb.checked);
+        if (!cb.dataset.bound) {
+          cb.dataset.bound = '1';
+          cb.addEventListener('change', () => tile.classList.toggle('on', cb.checked));
+        }
+      });
     }
 
     function showStep4() {
@@ -1278,6 +1456,7 @@
       $('closing-at').value = toLocalInputValue(p.closing_scheduled_at) || defaultClosingTime();
       renderPlatforms();
       renderGuests();
+      renderDestinations(p);
 
       // Scheduled/closing → the button RE-schedules (change date/channels). Closed
       // → locked (already published, nothing to change).
@@ -1416,6 +1595,7 @@
       const video = $('clip-player');
       const emptyEl = $('player-empty');
       _currentClipId = clip.id;
+      selectClipCaptionStyle(clip.id);
 
       // Reset caption state for the new clip.
       _srtEntries = [];
@@ -1539,28 +1719,21 @@
     }
 
     function initEditorTools() {
-      // Caption color swatches.
-      document.querySelectorAll('#caption-swatches .swatch').forEach(sw => {
+      // Caption style: accent colours + position (burned in on Apply).
+      document.querySelectorAll('#cap-accents .cap-accent').forEach(sw => {
         sw.addEventListener('click', () => {
-          document.querySelectorAll('#caption-swatches .swatch').forEach(s => s.classList.remove('active'));
-          sw.classList.add('active');
           _captionColor = sw.getAttribute('data-color') || '#FFD700';
-          const overlay = $('caption-overlay');
-          overlay.style.color = _captionColor;
+          syncCaptionUI();
         });
       });
-
-      // Caption position pills.
       document.querySelectorAll('#caption-positions .pos-pill').forEach(pill => {
         pill.addEventListener('click', () => {
-          document.querySelectorAll('#caption-positions .pos-pill').forEach(p => p.classList.remove('active'));
-          pill.classList.add('active');
           _captionPos = pill.getAttribute('data-pos') || 'bottom';
-          const overlay = $('caption-overlay');
-          overlay.classList.remove('pos-bottom', 'pos-middle');
-          overlay.classList.add(_captionPos === 'middle' ? 'pos-middle' : 'pos-bottom');
+          syncCaptionUI();
         });
       });
+      $('cap-apply-btn').addEventListener('click', applyCaptions);
+      loadCaptionStyles();
 
       // Hook text — debounced auto-save on input, immediate on blur.
       const hookEl = $('hook-edit');
@@ -2061,7 +2234,11 @@
       const btn = $('line-it-up-btn');
       btn.disabled = true; btn.textContent = 'Lining up…';
       try {
-        await scheduleClosing({ closing_at: iso, platforms });
+        await scheduleClosing({
+          closing_at: iso, platforms,
+          podcast_feed: $('dest-podcast').checked,
+          youtube_episode: $('dest-youtube').checked,
+        });
         toast('Release scheduled. Check destination results as publishing progresses.', 'success');
         const p = await loadProject();
         state.project = p;
@@ -2249,10 +2426,149 @@
       }
     }
 
+    // ── Caption styles ───────────────────────────────────────────────────
+    // CSS stand-ins for each preset so the grid reads at a glance. The real
+    // look is rendered by libass (pipeline/subtitles.py) when applied.
+    const CAP_DEMOS = {
+      clean:         { html: 'Say it <b>simply</b>', css: 'font-family:Helvetica Neue,Arial,sans-serif;font-weight:600;text-shadow:0 2px 4px #000;', b: '' },
+      executive:     { html: '<span style="background:rgba(0,0,0,.65);padding:3px 6px;border-radius:2px;">Say it simply</span>', css: 'font-family:Avenir Next,Arial,sans-serif;font-weight:600;font-size:11px;', b: '' },
+      bold:          { html: 'SAY <b>IT</b> NOW', css: 'font-family:Avenir Next,Arial,sans-serif;font-weight:900;-webkit-text-stroke:2px #000;paint-order:stroke;font-size:13px;', b: 'color:ACC' },
+      karaoke:       { html: '<b>Say it</b> now', css: 'font-family:Avenir Next,Arial,sans-serif;font-weight:900;-webkit-text-stroke:2px #000;paint-order:stroke;', b: 'color:ACC' },
+      pop:           { html: 'SAY <b>IT</b> NOW', css: 'font-family:Avenir Next,Arial,sans-serif;font-weight:900;-webkit-text-stroke:2px #000;paint-order:stroke;font-size:12px;', b: 'color:ACC;font-size:16px' },
+      highlight_box: { html: 'SAY <b>IT</b> NOW', css: 'font-family:Avenir Next,Arial,sans-serif;font-weight:900;-webkit-text-stroke:2px #000;paint-order:stroke;font-size:12px;', b: 'background:ACC;color:INK;-webkit-text-stroke:0;padding:1px 4px;border-radius:3px' },
+      punch:         { html: 'SAY <b>IT</b>', css: 'font-family:Impact,Arial Black,sans-serif;font-size:19px;-webkit-text-stroke:2.5px #000;paint-order:stroke;text-shadow:2px 3px 0 #000;', b: 'color:ACC' },
+      one_word:      { html: '<b>SAY</b>', css: 'font-family:Impact,Arial Black,sans-serif;font-size:24px;-webkit-text-stroke:2.5px #000;paint-order:stroke;text-shadow:2px 3px 0 #000;', b: 'color:ACC' },
+      sticker:       { html: '<span style="background:ACC;color:INK;padding:3px 6px;display:inline-block;transform:rotate(-3deg);">SAY IT NOW</span>', css: 'font-family:Futura,Arial,sans-serif;font-weight:800;font-size:11px;', b: '' },
+      glow:          { html: 'SAY <b>IT</b> <span style="opacity:.5">NOW</span>', css: 'font-family:Futura,Arial,sans-serif;font-weight:800;font-size:13px;-webkit-text-stroke:1px #000;paint-order:stroke;', b: 'text-shadow:0 0 6px ACC,0 0 10px ACC' },
+      editorial:     { html: 'Say it <span style="opacity:.45">simply</span>', css: 'font-family:Didot,Georgia,serif;font-style:italic;font-weight:700;font-size:14px;text-shadow:0 2px 4px #000;', b: '' },
+      typewriter:    { html: '<span style="background:rgba(0,0,0,.65);padding:3px 6px;">Say <b>it</b>_</span>', css: 'font-family:American Typewriter,Courier New,monospace;font-weight:700;font-size:12px;', b: 'color:ACC' },
+    };
+
+    function _inkFor(hex) {
+      const h = hex.replace('#', '');
+      const r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+      return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#111' : '#fff';
+    }
+
+    function renderCaptionGrid() {
+      const grid = $('cap-grid');
+      if (!grid) return;
+      const ink = _inkFor(_captionColor);
+      const fill = str => str.replace(/ACC/g, _captionColor).replace(/INK/g, ink);
+      grid.innerHTML = '';
+      _capPresets.forEach(p => {
+        const demo = CAP_DEMOS[p.id] || { html: p.label, css: '', b: '' };
+        const tile = document.createElement('div');
+        tile.className = 'cap-tile' + (p.id === _captionPreset ? ' active' : '');
+        tile.title = p.description;
+        tile.dataset.preset = p.id;
+        const box = document.createElement('div');
+        box.className = 'cap-demo';
+        box.style.cssText = demo.css;
+        box.innerHTML = fill(demo.html).replace(/<b>/g, '<b style="' + fill(demo.b) + '">');
+        const name = document.createElement('div');
+        name.className = 'cap-name';
+        name.textContent = p.label;
+        tile.append(box, name);
+        tile.addEventListener('click', () => { _captionPreset = p.id; syncCaptionUI(); });
+        grid.appendChild(tile);
+      });
+    }
+
+    function syncCaptionUI() {
+      renderCaptionGrid();
+      document.querySelectorAll('#cap-accents .cap-accent').forEach(sw =>
+        sw.classList.toggle('active', (sw.dataset.color || '').toUpperCase() === _captionColor.toUpperCase()));
+      document.querySelectorAll('#caption-positions .pos-pill').forEach(p =>
+        p.classList.toggle('active', p.dataset.pos === _captionPos));
+    }
+
+    function selectClipCaptionStyle(clipId) {
+      const st = (clipId && _capClipStyles[clipId]) || _capEpisode;
+      if (st) {
+        _captionPreset = st.preset || 'bold';
+        _captionColor = st.accent || '#FFD700';
+        _captionPos = st.position || 'bottom';
+      }
+      const note = $('cap-note');
+      if (note) {
+        note.textContent = (clipId && _capClipStyles[clipId])
+          ? 'This clip has its own caption style. Apply to burn in changes.'
+          : 'Using the episode caption style. Apply to burn in changes.';
+      }
+      syncCaptionUI();
+    }
+
+    async function loadCaptionStyles() {
+      try {
+        const [catalog, saved] = await Promise.all([
+          api('GET', '/api/caption-presets'),
+          api('GET', '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/caption-style'),
+        ]);
+        _capPresets = catalog.presets || [];
+        _capEpisode = saved.caption_style || catalog.default;
+        _capClipStyles = saved.clip_caption_styles || {};
+      } catch (e) {
+        _capPresets = [];
+      }
+      selectClipCaptionStyle(_currentClipId);
+    }
+
+    async function applyCaptions() {
+      if (!_currentClipId) { toast('Select a clip first.', 'error'); return; }
+      const cropBtn = document.querySelector('#crop-mode-row .pos-pill.active');
+      const cropMode = cropBtn ? cropBtn.dataset.crop : 'auto';
+      const style = { preset: _captionPreset, accent: _captionColor, position: _captionPos };
+      const allClips = $('cap-all-clips').checked;
+      const btn = $('cap-apply-btn');
+      btn.disabled = true;
+      btn.innerHTML = ic('loader-circle', true) + ' Burning in captions…';
+      try {
+        const data = await api('POST',
+          '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/clips/' + encodeURIComponent(_currentClipId) + '/rerender',
+          { crop_mode: cropMode, caption_style: style, apply_to_episode: allClips }
+        );
+        const saved = data.caption_style || style;
+        if (allClips) { _capEpisode = saved; _capClipStyles = {}; _capClipStyles[_currentClipId] = saved; }
+        else { _capClipStyles[_currentClipId] = saved; }
+        const video = $('clip-player');
+        video.src = data.rendered_url + '?t=' + Date.now();
+        video.load();
+        video.play().catch(() => {});
+        const label = (_capPresets.find(p => p.id === saved.preset) || {}).label || saved.preset;
+        if (allClips) {
+          // Burn the episode style into every other clip, one at a time.
+          const others = _visibleClips.map(c => c.id).filter(id => id && id !== _currentClipId);
+          let done = 0, failed = 0;
+          for (const id of others) {
+            btn.innerHTML = ic('loader-circle', true) + ` Burning in captions… ${done + 1} of ${others.length}`;
+            try {
+              await api('POST',
+                '/api/projects/' + encodeURIComponent(PROJECT_ID) + '/clips/' + encodeURIComponent(id) + '/rerender',
+                { crop_mode: 'auto' });
+            } catch (e) { failed++; }
+            done++;
+          }
+          toast(failed
+            ? `${label} captions on ${others.length + 1 - failed} clips; ${failed} failed. Try those again.`
+            : `${label} captions burned into all ${others.length + 1} clips.`, failed ? 'error' : 'success');
+        } else {
+          toast(`${label} captions burned in.`, 'success');
+        }
+        selectClipCaptionStyle(_currentClipId);
+        await reloadClips();
+      } catch (err) {
+        toast('Caption render failed — ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = ic('type') + ' Apply captions';
+      }
+    }
+
     async function reRenderClip() {
       if (!_currentClipId) { toast('Select a clip first.', 'error'); return; }
       const cropBtn = document.querySelector('#crop-mode-row .pos-pill.active');
-      const cropMode = cropBtn ? cropBtn.dataset.crop : 'stack';
+      const cropMode = cropBtn ? cropBtn.dataset.crop : 'auto';
       const btn = $('rerender-btn');
       btn.disabled = true;
       btn.innerHTML = ic('loader-circle', true) + ' Re-rendering…';

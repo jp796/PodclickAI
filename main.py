@@ -1190,7 +1190,7 @@ async def create_project_from_upload(
 
     # Stream to disk in 1MB chunks (never hold the whole upload in memory) and
     # enforce a size cap so a runaway upload cannot fill the disk.
-    _MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024  # 2GB
+    _MAX_UPLOAD_BYTES = 20 * 1024 * 1024 * 1024  # 20GB — full-length 4K episodes run past 2GB
     _written = 0
     try:
         with open(recording_path, "wb") as f:
@@ -1205,7 +1205,7 @@ async def create_project_from_upload(
     except ValueError:
         Path(recording_path).unlink(missing_ok=True)
         return JSONResponse(
-            {"error": "File is too large. The upload limit is 2GB. Export a smaller or audio-only version and try again."},
+            {"error": "File is too large. The upload limit is 20GB. Export a smaller or audio-only version and try again."},
             status_code=413,
         )
     except Exception as exc:
@@ -2539,8 +2539,17 @@ async def rerender_clip(project_id: str, clip_id: str, request: Request):
     """
     Re-render a single clip with a different crop mode.
 
-    Body: { "crop_mode": "stack" | "left" | "right" | "center" }
-      stack  — host top / guest bottom (default, best for interviews)
+    Body: { "crop_mode": "auto" | "stack" | "left" | "right" | "center",
+            "caption_style": {"preset", "accent", "position"}  (optional),
+            "apply_to_episode": bool  (optional) }
+      caption_style    — saved as this clip's caption style; omitted → the
+                         clip's saved style, else the episode default.
+      apply_to_episode — also make caption_style the episode default (used by
+                         every clip without its own style and by Ship It).
+      auto   — (default) follow faces: one speaker → face-centred 9:16 that
+               tracks them; two side by side → stack, each framed on their
+               face; no face found → center (pipeline/face_track.py)
+      stack  — host top / guest bottom (best for interviews)
       left   — left half of frame only (host solo)
       right  — right half of frame only (guest solo)
       center — original center crop (wide single-speaker)
@@ -2567,9 +2576,9 @@ async def rerender_clip(project_id: str, clip_id: str, request: Request):
     try: body = await request.json()
     except Exception: pass
 
-    crop_mode = body.get("crop_mode", "stack")
-    if crop_mode not in ("stack", "left", "right", "center"):
-        raise HTTPException(status_code=400, detail="crop_mode must be stack|left|right|center")
+    crop_mode = body.get("crop_mode", "auto")
+    if crop_mode not in ("auto", "stack", "left", "right", "center"):
+        raise HTTPException(status_code=400, detail="crop_mode must be auto|stack|left|right|center")
 
     async with _async_session() as session:
         clip = (await session.execute(
@@ -2584,8 +2593,28 @@ async def rerender_clip(project_id: str, clip_id: str, request: Request):
     if not proj:
         raise HTTPException(status_code=404, detail="Project not found")
 
+    # Caption style: explicit body → this clip's saved style → episode default.
+    from pipeline.subtitles import normalize_style as _normalize_style
+    legacy = dict(proj.legacy_metadata or {})
+    _clip_styles = dict(legacy.get("clip_caption_styles") or {})
+    if isinstance(body.get("caption_style"), dict):
+        caption_style = _normalize_style(body["caption_style"])
+        _clip_styles[str(cid)] = caption_style
+        legacy["clip_caption_styles"] = _clip_styles
+        if body.get("apply_to_episode"):
+            legacy["caption_style"] = caption_style
+            # The episode style now governs every clip; drop per-clip overrides.
+            legacy["clip_caption_styles"] = {str(cid): caption_style}
+        from sqlalchemy.orm.attributes import flag_modified as _flag_modified
+        async with _async_session() as session:
+            _p = (await session.execute(select(Project).where(Project.id == pid))).scalar_one()
+            _p.legacy_metadata = legacy
+            _flag_modified(_p, "legacy_metadata")
+            await session.commit()
+    else:
+        caption_style = _normalize_style(_clip_styles.get(str(cid)) or legacy.get("caption_style"))
+
     recording_path = proj.recording_path or ""
-    legacy = proj.legacy_metadata or {}
     stored_words = legacy.get("whisper_words", [])
     extracted_audio = legacy.get("extracted_audio_path", "")
 
@@ -2614,7 +2643,7 @@ async def rerender_clip(project_id: str, clip_id: str, request: Request):
     if os.getenv("PODCLICK_VIRAL_CAPTIONS", "1") not in ("0", "false", "no") and stored_words:
         try:
             _ass = mp4_path.rsplit(".", 1)[0] + ".ass"
-            if generate_ass_for_clip(stored_words, start, end, _ass):
+            if generate_ass_for_clip(stored_words, start, end, _ass, style=caption_style):
                 ass_path = _ass
         except Exception:
             ass_path = ""
@@ -2655,8 +2684,81 @@ async def rerender_clip(project_id: str, clip_id: str, request: Request):
     return JSONResponse({
         "ok": True,
         "crop_mode": crop_mode,
+        "caption_style": caption_style,
         "rendered_url": f"/api/projects/{project_id}/clips/{clip_id}/video",
     })
+
+
+# ── Caption styles ───────────────────────────────────────────────────────────
+
+@app.get("/api/caption-presets")
+async def get_caption_presets():
+    """Caption style catalogue: [{id, label, family, description}] + defaults."""
+    from pipeline.subtitles import list_presets, DEFAULT_PRESET, DEFAULT_ACCENT, POSITIONS
+    return JSONResponse({
+        "presets": list_presets(),
+        "default": {"preset": DEFAULT_PRESET, "accent": DEFAULT_ACCENT, "position": "bottom"},
+        "positions": list(POSITIONS),
+    })
+
+
+@app.get("/api/projects/{project_id}/caption-style")
+async def get_project_caption_style(project_id: str):
+    """Episode caption style + per-clip overrides."""
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    from pipeline.subtitles import normalize_style
+    import uuid as _uuid
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    legacy = proj.legacy_metadata or {}
+    return JSONResponse({
+        "caption_style": normalize_style(legacy.get("caption_style")),
+        "clip_caption_styles": {
+            k: normalize_style(v) for k, v in (legacy.get("clip_caption_styles") or {}).items()
+        },
+    })
+
+
+@app.put("/api/projects/{project_id}/caption-style")
+async def put_project_caption_style(project_id: str, request: Request):
+    """
+    Set the episode caption style. Body: {preset, accent, position}.
+    Used by Ship It and by every clip without its own style. Does not re-render
+    existing clips (use POST .../clips/{id}/rerender for that).
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select
+    from sqlalchemy.orm.attributes import flag_modified
+    from pipeline.subtitles import normalize_style
+    import uuid as _uuid
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    style = normalize_style(body if isinstance(body, dict) else {})
+    async with _async_session() as session:
+        proj = (await session.execute(select(Project).where(Project.id == pid))).scalar_one_or_none()
+        if not proj:
+            raise HTTPException(status_code=404, detail="Project not found")
+        legacy = dict(proj.legacy_metadata or {})
+        legacy["caption_style"] = style
+        proj.legacy_metadata = legacy
+        flag_modified(proj, "legacy_metadata")
+        await session.commit()
+    return JSONResponse({"ok": True, "caption_style": style})
 
 
 @app.post("/api/projects/{project_id}/clips/{clip_id}/post-to-youtube")
@@ -3511,6 +3613,8 @@ async def _run_ship_it_inner(
     # Otherwise center-crop, so a solo one-person video is NEVER a duplicated split
     # screen and an interview is never center-cropped down the seam (both faces lost).
     _crop_mode = "center"
+    _caption_style = None   # episode caption style (legacy_metadata["caption_style"])
+    _audio_slots = None     # episode intro/commercial/outro picks (legacy_metadata["audio_slots"])
     try:
         _guest_linked = False
         async with _async_session() as _cm_session:
@@ -3518,11 +3622,20 @@ async def _run_ship_it_inner(
                 select(Project).where(Project.id == project_uuid)
             )).scalar_one_or_none()
             _guest_linked = bool(_cm_proj and _cm_proj.guest_ids and len(_cm_proj.guest_ids) > 0)
+            if _cm_proj and isinstance(_cm_proj.legacy_metadata, dict):
+                _caption_style = _cm_proj.legacy_metadata.get("caption_style")
+                _audio_slots = _cm_proj.legacy_metadata.get("audio_slots")
         if _guest_linked or await loop.run_in_executor(None, _looks_side_by_side, recording_path):
             _crop_mode = "stack"
     except Exception as _cm_err:
         print(f"[ship_it] crop-mode auto-detect failed, defaulting to center (solo): {_cm_err}")
-    print(f"[ship_it] crop_mode={_crop_mode} (guest_linked={_guest_linked}; side-by-side→stack, solo→center)")
+    # Face-aware framing supersedes the fixed crops above: per clip it frames a
+    # solo speaker on their face and a side-by-side pair each on theirs, and
+    # only falls back to center when no face is visible. PODCLICK_CROP_MODE=legacy
+    # keeps the stack/center choice made above.
+    if os.getenv("PODCLICK_CROP_MODE", "auto") != "legacy":
+        _crop_mode = "auto"
+    print(f"[ship_it] crop_mode={_crop_mode} (guest_linked={_guest_linked})")
 
     # ── a-c: Sponsor, clip detection, clip rendering (sync via executor) ───────
     try:
@@ -3535,6 +3648,8 @@ async def _run_ship_it_inner(
                 progress_cb=lambda msg: None,
                 source_video=recording_path,
                 crop_mode=_crop_mode,  # solo → center (no split); interview → stack
+                caption_style=_caption_style,
+                audio_slots=_audio_slots,
             )
 
         ship_result = await loop.run_in_executor(None, _sync)
@@ -4047,19 +4162,22 @@ def _youtube_release_settings(closing_at_ts, now=None):
     return {"privacy_status": privacy, "publish_at": ""}
 
 
-async def _distribute_project(project_id: str, closing_at_ts: float) -> None:
+async def _distribute_project(project_id: str, closing_at_ts: float,
+                              send_podcast: bool = True, send_youtube: bool = True) -> None:
     from services.podcast_autopilot import PlanError
     import logging
     try:
         # The same lock protects new plans and legacy uploads. A plan cannot
         # opt into an episode halfway through a legacy provider upload.
         with _podcast_autopilot().store.lock(project_id):
-            await _distribute_project_unlocked(project_id, closing_at_ts)
+            await _distribute_project_unlocked(project_id, closing_at_ts,
+                                               send_podcast=send_podcast, send_youtube=send_youtube)
     except PlanError as exc:
         logging.getLogger("podclick.distribute").warning("Distribution not started: %s", exc)
 
 
-async def _distribute_project_unlocked(project_id: str, closing_at_ts: float) -> None:
+async def _distribute_project_unlocked(project_id: str, closing_at_ts: float,
+                                       send_podcast: bool = True, send_youtube: bool = True) -> None:
     """
     Background task: upload assembled episode to Buzzsprout (private draft) and
     YouTube (private). Adds Buzzsprout entry to the release queue so the scheduler
@@ -4202,7 +4320,9 @@ async def _distribute_project_unlocked(project_id: str, closing_at_ts: float) ->
     buzzsprout_ep_id   = None
     if _existing_bz:
         _logger.info("_distribute_project: Buzzsprout already done (%s) — skipping re-upload", _existing_bz)
-    if mp3_ready and not _existing_bz:
+    if not send_podcast:
+        _logger.info("_distribute_project: podcast feed (Buzzsprout) turned off for this release — skipping")
+    if mp3_ready and not _existing_bz and send_podcast:
         try:
             from pipeline.upload import upload_episode
             bz_result = await upload_episode(
@@ -4238,7 +4358,9 @@ async def _distribute_project_unlocked(project_id: str, closing_at_ts: float) ->
     video_path = recording_path or mp3_path
     if _existing_yt:
         _logger.info("_distribute_project: YouTube already done (%s) — skipping re-upload", _existing_yt)
-    if video_path and Path(video_path).exists() and not _existing_yt:
+    if not send_youtube:
+        _logger.info("_distribute_project: full-episode YouTube upload turned off for this release — skipping")
+    elif video_path and Path(video_path).exists() and not _existing_yt:
         try:
             from pipeline.youtube import upload_video, is_authorized
             if is_authorized():
@@ -4416,7 +4538,9 @@ async def _schedule_closing_legacy(project_id: str, request: Request):
     Body: {
       "closing_at": "2026-05-30T08:00:00Z",   // ISO timestamp
       "platforms": ["linkedin", "facebook"],   // optional, defaults to all connected
-      "guest_ids": ["abc123"]                  // optional, override project guest_ids
+      "guest_ids": ["abc123"],                 // optional, override project guest_ids
+      "podcast_feed": true,                    // optional (default true) — upload to Buzzsprout
+      "youtube_episode": true                  // optional (default true) — full episode on YouTube
     }
 
     On call:
@@ -4446,6 +4570,9 @@ async def _schedule_closing_legacy(project_id: str, request: Request):
     closing_at_str = body.get("closing_at")
     platforms = body.get("platforms", ["linkedin", "facebook", "instagram"])
     guest_id_overrides = body.get("guest_ids")
+    # Full-episode destinations (both on unless the release turns them off).
+    send_podcast = body.get("podcast_feed", True) is not False      # Buzzsprout
+    send_youtube = body.get("youtube_episode", True) is not False   # full episode on YouTube
 
     if _autopilot_owns_project(project_id):
         return JSONResponse({"error": "This episode has a release plan. Use its pause, resume, or release controls."}, status_code=409)
@@ -4544,6 +4671,8 @@ async def _schedule_closing_legacy(project_id: str, request: Request):
         spawn(_distribute_project(
             project_id=project_id,
             closing_at_ts=closing_at_ts,
+            send_podcast=send_podcast,
+            send_youtube=send_youtube,
         ), name=f"distribute:{project_id}", on_failure=on_task_failure("distribute", project_id=project_id))
 
     _when = closing_at.strftime('%B %d at %-I:%M %p')
@@ -6169,6 +6298,146 @@ async def serve_library_file(item_id: str):
         return JSONResponse({"error": "Not found"}, status_code=404)
     return FileResponse(match["path"], media_type="audio/mpeg",
                         filename=match["filename"])
+
+
+# ── Per-episode intro / commercial / outro picks ─────────────────────────────
+#
+# Stored in Project.legacy_metadata["audio_slots"] = {"intro"|"commercial"|"outro":
+# <library item id> | "none"}; a missing slot uses the default (newest library file
+# for that slot; for the commercial, the sponsor rotation). Ship It applies them,
+# and /reassemble rebuilds only the episode audio with them (no clip re-render).
+
+_AUDIO_SLOT_NAMES = ("intro", "commercial", "outro")
+
+
+def _audio_slot_payload(project) -> dict:
+    lib = [i for i in _load_library() if i.get("slot_type") in _AUDIO_SLOT_NAMES
+           and Path(i.get("path", "")).exists()]
+    meta = project.legacy_metadata if isinstance(project.legacy_metadata, dict) else {}
+    defaults = {}
+    for i in lib:                      # last one per slot wins, matching assembly
+        defaults[i["slot_type"]] = i["id"]
+    return {
+        "slots": {k: (meta.get("audio_slots") or {}).get(k) for k in _AUDIO_SLOT_NAMES},
+        "defaults": defaults,
+        "library": {k: [{"id": i["id"], "label": i.get("label") or i.get("filename"),
+                         "url": f"/api/library/{i['id']}/file"}
+                        for i in lib if i["slot_type"] == k] for k in _AUDIO_SLOT_NAMES},
+        "assembly": project.audio_assembly or {},
+        "can_rebuild": project.status == "review" and not project.buzzsprout_url,
+    }
+
+
+async def _load_project_for_slots(project_id: str):
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select as _select
+    try:
+        pid = uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid project ID")
+    async with _async_session() as session:
+        proj = (await session.execute(_select(Project).where(Project.id == pid))).scalar_one_or_none()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return proj
+
+
+@app.get("/api/projects/{project_id}/audio-slots")
+async def get_audio_slots(project_id: str):
+    """The episode's intro/commercial/outro picks plus the library to pick from."""
+    return JSONResponse(_audio_slot_payload(await _load_project_for_slots(project_id)))
+
+
+@app.put("/api/projects/{project_id}/audio-slots")
+async def put_audio_slots(project_id: str, request: Request):
+    """Body: {"intro"|"commercial"|"outro": <library id> | "none" | null(default)}."""
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select as _select
+    from sqlalchemy.orm.attributes import flag_modified as _fm
+
+    body = await request.json()
+    valid_ids = {i["id"]: i.get("slot_type") for i in _load_library()}
+    slots = {}
+    for k in _AUDIO_SLOT_NAMES:
+        v = body.get(k)
+        if v in (None, "", "default"):
+            continue
+        if v != "none" and valid_ids.get(v) != k:
+            return JSONResponse({"error": f"Pick a {k} from the library."}, status_code=400)
+        slots[k] = v
+
+    proj = await _load_project_for_slots(project_id)
+    async with _async_session() as session:
+        proj = (await session.execute(_select(Project).where(Project.id == proj.id))).scalar_one()
+        meta = dict(proj.legacy_metadata or {})
+        meta["audio_slots"] = slots
+        proj.legacy_metadata = meta
+        _fm(proj, "legacy_metadata")
+        await session.commit()
+        await session.refresh(proj)
+        return JSONResponse(_audio_slot_payload(proj))
+
+
+@app.post("/api/projects/{project_id}/reassemble")
+async def reassemble_episode_audio(project_id: str):
+    """
+    Rebuild only the finished episode audio (intro → main → commercial → outro)
+    with the episode's current picks. Clips, captions and show notes are untouched.
+    Allowed before release only: once the episode is on Buzzsprout, the uploaded
+    file would no longer match.
+    """
+    from db.engine import async_session as _async_session
+    from db.models import Project
+    from sqlalchemy import select as _select
+    from sqlalchemy.orm.attributes import flag_modified as _fm
+    from pipeline.project_pipeline import _assemble_episode
+
+    proj = await _load_project_for_slots(project_id)
+    if proj.status != "review" or proj.buzzsprout_url:
+        return JSONResponse({"error": "Audio can only be rebuilt before the episode is lined up."},
+                            status_code=409)
+    meta = proj.legacy_metadata if isinstance(proj.legacy_metadata, dict) else {}
+    main_mp3 = meta.get("extracted_audio_path") or ""
+    if not main_mp3 or not Path(main_mp3).exists():
+        return JSONResponse({"error": "The episode's main audio is missing. Run Ship It again."},
+                            status_code=400)
+    slots = meta.get("audio_slots") or {}
+    sponsor = None if slots.get("commercial") else (proj.sponsor_placement or None)
+
+    log_lines = []
+    try:
+        assembly = await asyncio.get_running_loop().run_in_executor(None, lambda: _assemble_episode(
+            project_id=project_id, main_mp3=main_mp3, sponsor=sponsor,
+            word_timestamps=meta.get("whisper_words") or [], log=log_lines.append,
+            audio_slots=slots,
+        ))
+    except Exception as exc:
+        return JSONResponse({"error": f"Audio rebuild failed: {exc}"}, status_code=500)
+    if not assembly:
+        return JSONResponse({"error": "Nothing to assemble — the library is empty."}, status_code=400)
+
+    async with _async_session() as session:
+        p = (await session.execute(_select(Project).where(Project.id == proj.id))).scalar_one()
+        p.mp3_url = assembly["path"]
+        asm = dict(p.audio_assembly or {})
+        asm.update({
+            "has_intro": assembly["has_intro"],
+            "has_commercial": assembly["has_commercial"],
+            "has_outro": assembly["has_outro"],
+            "commercial_inserted_at": assembly.get("commercial_inserted_at"),
+            "slot_files": assembly.get("slot_files", {}),
+            "audio_slots": dict(slots),
+        })
+        if slots.get("commercial"):
+            asm["sponsor_name"] = None
+            p.sponsor_placement = None
+        p.audio_assembly = asm
+        _fm(p, "audio_assembly")
+        await session.commit()
+        await session.refresh(p)
+        return JSONResponse({**_audio_slot_payload(p), "log": log_lines})
 
 
 # ── YouTube Studio — AI Persona Library ──────────────────────────────────────

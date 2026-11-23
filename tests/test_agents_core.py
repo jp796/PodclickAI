@@ -173,6 +173,7 @@ ROSTER = {
     "thumbnail":         ("create", "draftsman", "bricklayer", None, "inherited"),
     "voiceover":         ("create", "draftsman", "bricklayer", None, "none"),
     "avatar_video":      ("create", "bricklayer", "bricklayer", None, "optional"),
+    "twin_video":        ("create", "bricklayer", "bricklayer", None, "optional"),
     "home_tour":         ("create", "draftsman", "bricklayer", None, "required"),
     "market_reel":       ("create", "draftsman", "bricklayer", None, "required"),
     "content_scheduler": ("publish", "draftsman", None, "bricklayer", "none"),
@@ -181,7 +182,7 @@ ROSTER = {
 }
 
 
-def test_registry_holds_exactly_the_twelve_roster_specs():
+def test_registry_holds_exactly_the_roster_specs():
     assert list(REGISTRY) == list(ROSTER), "roster ids or display order drifted from §1.6"
     for aid, (cat, run, spend, commit, fnd) in ROSTER.items():
         s = REGISTRY[aid]
@@ -193,7 +194,7 @@ def test_category_counts_match_the_ui_headers():
     counts = {c: 0 for c in CATEGORY_IDS}
     for s in REGISTRY.values():
         counts[s.category] += 1
-    assert counts == {"research": 3, "plan": 1, "create": 7, "publish": 3, "grow": 0}
+    assert counts == {"research": 3, "plan": 1, "create": 8, "publish": 3, "grow": 0}
 
 
 def test_every_spec_is_internally_consistent():

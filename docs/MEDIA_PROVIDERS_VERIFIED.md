@@ -24,11 +24,21 @@ Spec corrections: §4.3 and §4.5 assumed default model `eleven_multilingual_v2`
 
 Spec corrections: §4.4 assumed the surface was unverifiable and might be empty; it is verified as above. Higgsfield is no longer assumed to expose no avatar capability, but the avatar path is image-to-video with driving audio, not a dedicated Speak/Soul endpoint.
 
-## HeyGen (fallback avatar provider)
+## HeyGen (digital twin video)
 
-- Auth: header `X-Api-Key`
-- Endpoint: `/v2/video/generate`
-- Role: fallback avatar provider if the Higgsfield talking-head path is unavailable.
+Read from developers.heygen.com on 2026-11-16. No live call was run from this repo. Adapter: `services/media/heygen.py`, capability `twin_video`.
+
+- The earlier note here (`/v2/video/generate`) is out of date: HeyGen documents v1/v2 as removed after 2026-10-31. Use v3 only.
+- Base URL: `https://api.heygen.com`. Auth: header `x-api-key`.
+- Upload audio: `POST /v3/assets`, multipart field `file` (mp3 / wav / m4a, 32 MB for audio). Returns `data.asset_id`.
+- Create: `POST /v3/videos` with `{type: "avatar", avatar_id, audio_asset_id, aspect_ratio, resolution, engine?: {type}}`. Returns `data.video_id`. `script` and audio inputs are mutually exclusive.
+- Poll: `GET /v3/videos/{video_id}`. `data.status` is `pending | processing | completed | failed`. Completed gives `video_url` (presigned), `subtitle_url` (SRT) and `duration`; failed gives `failure_code` / `failure_message`.
+- Engines: `avatar_iii`, `avatar_iv` (HeyGen's default), `avatar_v`, `heygen-avatar-6`. A twin's supported engines are on its look: `GET /v3/avatars/looks` → `supported_api_engines`. That same listing is where `HEYGEN_AVATAR_ID` comes from.
+- One request renders up to 30 minutes of audio. `Idempotency-Key` is honored for 24 hours on both writes.
+- The audio is uploaded, so the twin path needs no public media origin (unlike the Higgsfield talking-head path).
+- A private twin needs its consent approved in HeyGen before it renders (`avatar_not_usable` otherwise).
+
+Not verified: per-minute credit cost by engine (HeyGen's pricing page and blog disagree), how long `video_url` stays valid (the adapter downloads immediately), and whether the SRT is always present for audio-driven videos (the runner falls back to estimated timing).
 
 ## Submagic (captions)
 

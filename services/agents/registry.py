@@ -1,4 +1,4 @@
-"""The Crew roster — all 12 agent specs from AGENTS_HUB_SPEC §1. Pure data.
+"""The Crew roster — the agent specs from AGENTS_HUB_SPEC §1, plus Twin Video. Pure data.
 
 No imports of main or brick_agent: brick_agent imports THIS module to register
 `agent_run:{id}` tier gates, so anything heavier would create a cycle.
@@ -212,6 +212,36 @@ _SPECS: List[AgentSpec] = [
         requires=("elevenlabs", "higgsfield"),
         spends=("ElevenLabs characters", "Higgsfield credits"),
         wraps=("media:tts", "media:avatar_video"),
+        require_one_of=(("script", "topic"),),
+    ),
+    AgentSpec(
+        id="twin_video",
+        name="Twin Video",
+        category="create",
+        job="Produce a full video of your digital twin delivering a script in your voice, with cutaways and captions.",
+        icon="🎬",
+        runner=_R + "twin_video",
+        fields=(
+            FieldSpec("script", "Script", "textarea", max_len=12000,
+                      help="Spoken word for word. Leave empty and give me a topic instead."),
+            FieldSpec("topic", "Topic (I'll draft the script)", "text", max_len=300),
+            FieldSpec("length", "Length (minutes, when I draft it)", "select", default="2",
+                      options=("1", "2", "3", "5", "8")),
+            FieldSpec("format", "Shape", "select", default="landscape",
+                      options=("landscape", "vertical"),
+                      help="Landscape for YouTube, vertical for Shorts and Reels."),
+            FieldSpec("broll", "Cut in footage", "checkbox", default=True),
+            FieldSpec("animate", "Animated cutaways", "select", default="3",
+                      options=("0", "2", "3", "4", "6"),
+                      help="How many cutaways to bring to life on Higgsfield. The rest use stock footage."),
+            FieldSpec("captions", "Burn in captions", "checkbox", default=True),
+        ),
+        run_tier="bricklayer",
+        spend_tier="bricklayer",
+        foundation="optional",          # required only when it drafts the script
+        requires=("elevenlabs", "heygen"),
+        spends=("ElevenLabs characters", "HeyGen credits", "Higgsfield credits (if connected)"),
+        wraps=("media:tts", "media:twin_video", "media:image_to_video", "pipeline:broll"),
         require_one_of=(("script", "topic"),),
     ),
     AgentSpec(
