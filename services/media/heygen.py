@@ -309,7 +309,10 @@ class HeyGenProvider(MediaProvider):
                     job.result_url = data.get("video_url")
                     job.meta = {"subtitle_url": data.get("subtitle_url"), "duration": data.get("duration")}
                 elif job.status == "failed":
-                    job.error = str(data.get("failure_code") or data.get("failure_message") or "failed")
+                    err = data.get("error")
+                    if isinstance(err, dict):
+                        err = err.get("message") or err.get("detail") or err.get("code")
+                    job.error = str(data.get("failure_message") or err or data.get("failure_code") or "failed")
                 return job
         raise ProviderError(f"poll failed: {last}", provider=self.name,
                             user_message="Lost the line to HeyGen while it was rendering — check your HeyGen videos.")
@@ -390,9 +393,14 @@ class HeyGenProvider(MediaProvider):
                                     user_message="HeyGen finished but didn't hand over a video link — "
                                                  "grab it from your HeyGen videos.")
             if job.status == "failed":
+                if "credit" in str(job.error or "").lower():
+                    raise ProviderRejected(f"failed: {job.error}", provider=self.name,
+                                           user_message="HeyGen is out of API credits — top up API credits "
+                                                        "at https://app.heygen.com/settings/api, then run it again.")
                 raise ProviderRejected(f"failed: {job.error}", provider=self.name,
                                        user_message="HeyGen couldn't render that one — check the twin and the "
-                                                    "voice track in HeyGen, then run it again.")
+                                                    "voice track in HeyGen, then run it again. "
+                                                    f"(HeyGen said: {str(job.error or 'no reason given')[:160]})")
             if waited >= timeout_s:
                 raise ProviderUncertainError(
                     f"still {job.status} after {waited:.0f}s", provider=self.name,
