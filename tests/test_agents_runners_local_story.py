@@ -830,3 +830,68 @@ def test_content_box_finds_the_picture_inside_light_grey_bars(tmp_path):
     assert (x, y) == (0, 555) and abs(w - 1060) <= 20 and h == 810
     Image.new("RGB", (1080, 1920), (242, 242, 244)).save(p)
     assert sr.content_box(str(p)) is None                          # flat frame: leave it alone
+
+
+# ── daily cron + no repeats ───────────────────────────────────────────────────
+
+def _cron_fakes(monkeypatch):
+    from services.agents import jobs as _jobs
+    started, sent = [], []
+
+    async def fake_start(agent_id, inp, initiator="user", location_id=None):
+        started.append(dict(inp, initiator=initiator))
+        return {"id": f"j{len(started)}"}
+    monkeypatch.setattr(_jobs, "start", fake_start)
+    monkeypatch.setattr(_jobs, "task_for", lambda jid: None)
+    monkeypatch.setattr(_jobs, "get_job", lambda jid: {"status": "awaiting_approval",
+                                                       "outputs": [{"id": "s1_story"}]})
+
+    async def fake_notify(text):
+        sent.append(text)
+        return True
+    monkeypatch.setattr(ls, "_notify", fake_notify)
+    return started, sent
+
+
+def test_daily_run_one_story_per_market_listing_only_on_monday(monkeypatch):
+    from datetime import date
+    started, sent = _cron_fakes(monkeypatch)
+    run(ls.daily_run(today=date(2026, 11, 24)))          # a Tuesday
+    assert [s["market"] for s in started] == ["Springfield, MO", "Cheyenne, WY"]
+    assert all(s["stories"] == 1 and s["listings"] is False and s["reels"] is True for s in started)
+    assert all(s["initiator"] == "cron" for s in started)
+    assert "daily" in sent[0] and "2 local stories drafted" in sent[0]
+    started.clear()
+    run(ls.daily_run(today=date(2026, 11, 23)))          # a Monday
+    assert all(s["listings"] is True for s in started)
+
+
+def test_used_story_keys_skips_recent_drafts_for_that_market(monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    from services.agents import jobs as _jobs
+    now = datetime.now(timezone.utc)
+    story = {"id": "s1_story", "value": {"url": "https://x.test/a", "title": "Big New Park Opens!"}}
+    jobs = {
+        "recent": {"id": "recent", "agent_id": "local_story", "status": "needs_approval",
+                   "input": {"market": "Cheyenne, WY"}, "created_at": now.isoformat(), "outputs": [story]},
+        "old": {"id": "old", "agent_id": "local_story", "status": "done",
+                "input": {"market": "Cheyenne, WY"}, "created_at": (now - timedelta(days=40)).isoformat(),
+                "outputs": [{"id": "s1_story", "value": {"url": "https://x.test/old", "title": "Old"}}]},
+        "failed": {"id": "failed", "agent_id": "local_story", "status": "failed",
+                   "input": {"market": "Cheyenne, WY"}, "created_at": now.isoformat(),
+                   "outputs": [{"id": "s1_story", "value": {"url": "https://x.test/f", "title": "F"}}]},
+        "other": {"id": "other", "agent_id": "local_story", "status": "done",
+                  "input": {"market": "Springfield, MO"}, "created_at": now.isoformat(),
+                  "outputs": [{"id": "s1_story", "value": {"url": "https://x.test/s", "title": "S"}}]},
+    }
+    monkeypatch.setattr(_jobs, "_ensure_loaded", lambda: None)
+    monkeypatch.setattr(_jobs, "AGENT_JOBS", jobs)
+    used = ls.used_story_keys("Cheyenne, WY")
+    cands = [{"url": "https://x.test/a", "title": "x"},
+             {"url": "https://y.test/syndicated", "title": "Big new park opens"},
+             {"url": "https://x.test/old", "title": "Old"},
+             {"url": "https://x.test/f", "title": "F"},
+             {"url": "https://x.test/s", "title": "S"}]
+    assert [c["url"] for c in ls.drop_used(cands, used)] == \
+        ["https://x.test/old", "https://x.test/f", "https://x.test/s"]
+    assert ls.used_story_keys("Cheyenne, WY", exclude_job="recent") == set()
