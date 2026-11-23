@@ -39,6 +39,7 @@ from urllib.parse import parse_qs, quote, urlparse
 
 from services.agents.contract import AgentResult, CommitPlan, Output, StepError, foundation_tier
 from services.agents.runners import avatar_video as _av
+from services.agents.runners import story_reel as _reel
 
 ROUTES: Tuple[str, ...] = ()
 
@@ -240,7 +241,7 @@ DRAFT_BRIEF = f"""Return JSON only, with these keys:
 "caption": Instagram/Facebook carousel caption, 2-4 short sentences, ends with a question, max 3 hashtags.
 "slides": a list of exactly {SLIDE_COUNT} objects {{"headline": "<max 7 words>", "body": "<max 22 words>"}}. Slide 1 hooks, slides 2-4 give the facts, slide 5 is a soft call to follow for local updates.
 "gmb": a Google Business Profile update, 2-3 sentences, plain text, no hashtags.
-"script": a 30-45 second talk-to-camera reel script. First line starts "Hook: ". Then short spoken lines.
+"script": a 20-35 second talk-to-camera reel script (55-85 words) in a high-energy real estate coach style: the first line starts "Hook: " and is a pattern-interrupt under 12 words that names the town; then 3-5 short, punchy spoken lines with ONE clear takeaway for local homeowners; end with a direct call to action. Spoken words only: no stage directions, emojis or hashtags.
 "blog": a 300-450 word blog post in markdown with a "# " title, written for locals.
 """
 
@@ -682,6 +683,7 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
         n = 3
     extra = str(inp.get("extra_topics") or "")
     want_listing = inp.get("listings", True) not in (False, "false", "0", 0, "")
+    want_reels = inp.get("reels", True) not in (False, "false", "0", 0, "")
 
     listing: Optional[Dict[str, Any]] = None
     if want_listing:
@@ -757,9 +759,7 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
                 outs.append(Output(id=f"s{s}_{k}", kind="text", label=f"Story {s} — {LABELS[k]}",
                                    value=d[k], meta={"editable": True, "original": d[k], "story": s,
                                                      "format": k}))
-            for o in outs:
-                ctx.add_output(o)
-                outputs.append(o)
+            outputs.extend(outs)
 
     if listing is not None:
         async with ctx.step("listing", f"Writing your listing post for {listing['address']}"):
@@ -776,10 +776,23 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
     if not stories:
         raise StepError("Every story I picked broke a guardrail, so nothing is ready to review. "
                         "Run it again.")
+
+    reels = 0
+    if want_reels:
+        async with ctx.step("reels", "Filming each story with your AI twin"):
+            ctx.check_cancelled()
+            reels = await _add_reels(ctx, out_dir, stories, outputs)
+    elif callable(getattr(ctx, "skip_step", None)):
+        ctx.skip_step("reels", "Filming each story with your AI twin")
+    for o in outputs:
+        ctx.add_output(o)
+
     has_listing = any(s.get("kind") == "listing" for s in stories)
+    video_kind = ("AI-twin Reel" if reels == len(stories) else
+                  "Reel (AI twin where it rendered, slideshow otherwise)" if reels else "slideshow Reel")
     summary = (f"Schedule {len(stories)} {city} stor{'y' if len(stories) == 1 else 'ies'}"
                + (" (including your listing)" if has_listing else "") +
-               ": slideshow Reel on Instagram + Facebook and an update on Google Business, one per day")
+               f": {video_kind} on Instagram + Facebook and an update on Google Business, one per day")
     return AgentResult(outputs=outputs, commit=CommitPlan(summary=summary))
 
 
@@ -807,7 +820,7 @@ async def _listing_outputs(ctx, out_dir: Path, s: int, market: str, listing: Dic
                     "summary": "", "mls_id": listing.get("mlsId"), "attribution": listing["attribution"],
                     "facts": dict(listing_facts(listing)), "slides": d["slides"],
                     "images": [i["file"] for i in images], "video": video,
-                    "photos_used": sum(1 for p in photos if p)})
+                    "photos_used": sum(1 for p in photos if p), "hero": first_photo})
     outs = [Output(id=f"s{s}_story", kind="json", label=f"Story {s} (your listing): {listing['address']}",
                    value=stories[-1]),
             Output(id=f"s{s}_video", kind="video", label=f"Story {s} listing slideshow (Reel)", file=video,
@@ -816,9 +829,83 @@ async def _listing_outputs(ctx, out_dir: Path, s: int, market: str, listing: Dic
     for k in FORMATS:
         outs.append(Output(id=f"s{s}_{k}", kind="text", label=f"Story {s} (listing) — {LABELS[k]}",
                            value=d[k], meta={"editable": True, "original": d[k], "story": s, "format": k}))
-    for o in outs:
-        ctx.add_output(o)
     return outs
+
+
+# ── AI-twin reels (story_reel) ────────────────────────────────────────────────
+
+REEL_DISCLOSURE = "🎥 Video made with my AI twin."
+
+
+def _listing_chip(facts: Dict[str, str]) -> str:
+    bits = [facts.get("List price", "")]
+    if facts.get("Bedrooms"):
+        bits.append(f"{facts['Bedrooms']} bd")
+    if facts.get("Bathrooms"):
+        bits.append(f"{facts['Bathrooms']} ba")
+    return " · ".join(b for b in bits if b)
+
+
+async def _story_panel(out_dir: Path, story: Dict[str, Any]) -> Path:
+    """The top half of a story's reel: the article's headline screenshot (or a
+    headline card), or for a listing its hero photo + MLS facts + attribution."""
+    s = story["n"]
+    panel = out_dir / f"story{s}_panel.png"
+    loop = asyncio.get_running_loop()
+    if story.get("kind") == "listing":
+        hero = story.get("hero")
+        await loop.run_in_executor(None, lambda: _reel.render_panel(
+            str(panel), story.get("attribution") or "", shot=hero, headline=story.get("title", ""),
+            source=story.get("source", ""), chip=_listing_chip(story.get("facts") or {})))
+        return panel
+    shot = out_dir / f"story{s}_shot.png"
+    got = await _reel.capture_article(story.get("url") or "", story.get("title") or "", shot)
+    src = story.get("source") or (urlparse(story.get("url") or "").hostname or "").removeprefix("www.") \
+        or "local news"
+    await loop.run_in_executor(None, lambda: _reel.render_panel(
+        str(panel), f"Source: {src}. Commentary by {BRAND_NAME}.", shot=str(shot) if got else None,
+        headline=story.get("title", ""), source=src))
+    story["screenshot"] = bool(got)
+    return panel
+
+
+async def _add_reels(ctx, out_dir: Path, stories: List[Dict[str, Any]], outputs: List[Any]) -> int:
+    """Swap each story's slideshow for an AI-twin reel where one renders. The
+    slideshow stays as the video wherever a reel doesn't land. Returns reel count."""
+    tts, twin, why = _reel.providers(ctx)
+    if why:
+        ctx.warn(f"No AI-twin reels this week — {why}. The stories keep the slideshow video.")
+        return 0
+    by_id = {o.id: o for o in outputs}
+    jobs = []
+    for st in stories:
+        script = str(_get(by_id.get(f"s{st['n']}_script"), "value") or "")
+        try:
+            panel = await _story_panel(out_dir, st)
+        except Exception as exc:
+            ctx.warn(f"Story {st['n']}: no reel — couldn't build the story screenshot ({str(exc)[:120]}).")
+            continue
+        jobs.append({"n": st["n"], "script": script, "panel": str(panel)})
+    if not jobs:
+        return 0
+    made = await _reel.build_all(ctx, tts, twin, jobs)
+    for st in stories:
+        reel = made.get(st["n"])
+        if not reel:
+            continue
+        st["slideshow"], st["video"], st["reel"] = st.get("video"), reel["file"], True
+        vid = by_id.get(f"s{st['n']}_video")
+        if vid is not None:
+            vid.file = reel["file"]
+            vid.label = f"Story {st['n']} reel (your AI twin)"
+            vid.meta = {"duration_s": reel["duration_s"], "ai_generated": True, "captions": reel["captions"],
+                        "screenshot": st.get("screenshot", st.get("kind") == "listing"),
+                        "slideshow": st["slideshow"]}
+        cap = by_id.get(f"s{st['n']}_caption")
+        if cap is not None and REEL_DISCLOSURE not in str(cap.value or ""):
+            cap.value = f"{str(cap.value or '').rstrip()}\n\n{REEL_DISCLOSURE}"
+            cap.meta = {**(cap.meta or {}), "original": cap.value}
+    return len(made)
 
 
 # ── slideshow video ───────────────────────────────────────────────────────────
@@ -1034,7 +1121,7 @@ async def weekly_run(markets: Optional[List[str]] = None) -> List[str]:
     lines: List[str] = []
     for market in markets or list(MARKETS):
         try:
-            job = await _jobs.start("local_story", {"market": market, "stories": 3, "listings": True},
+            job = await _jobs.start("local_story", {"market": market, "stories": 3, "listings": True, "reels": True},
                                     initiator="cron")
             started.append((market, job["id"]))
         except Exception as exc:

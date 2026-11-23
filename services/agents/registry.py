@@ -79,6 +79,9 @@ _SPECS: List[AgentSpec] = [
                       help="Optional, comma separated, e.g. new subdivision, zoning."),
             FieldSpec("listings", "Add one of my active listings", "checkbox", default=True,
                       help="Your own active MLS listings only, pulled through REOS's MLS gate."),
+            FieldSpec("reels", "Film each story with my AI twin", "checkbox", default=True,
+                      help="Story screenshot on top, your HeyGen twin in your voice underneath, big "
+                           "captions. Uses HeyGen + ElevenLabs credits; falls back to the slideshow."),
         ),
         commit_tier="bricklayer",
         foundation="required",

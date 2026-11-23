@@ -627,3 +627,182 @@ def test_dropped_listing_says_which_rule_broke(tmp_path, with_listing, monkeypat
     with pytest.raises(StepError):
         run(ls.run(ctx, {"market": "Cheyenne, WY", "stories": 1}))
     assert any("Dropped the listing post" in w and "150" in w for w in ctx.warnings)
+
+
+# ── AI-twin reels (story_reel) ────────────────────────────────────────────────
+
+from services.agents.runners import story_reel as sr
+from services.media.base import MediaProviderError
+
+
+class FakeTTS:
+    max_chars = 5000
+
+    def __init__(self):
+        self.texts = []
+
+    def check_text(self, text):
+        return None
+
+    async def synthesize_speech(self, req, dest):
+        self.texts.append(req.text)
+        Path(dest).write_bytes(b"mp3")
+        return SimpleNamespace(usage={"chars": len(req.text)}, duration_s=None)
+
+
+class FakeTwin:
+    def __init__(self, max_seconds=600, fail=None):
+        self.max_seconds, self.fail, self.renders = max_seconds, fail, []
+
+    def check_ready(self):
+        return None
+
+    def check_seconds(self, s):
+        if s > self.max_seconds:
+            raise MediaProviderError("cap", provider="heygen", user_message="Over the HeyGen cap.")
+
+    async def generate(self, req, dest):
+        if self.fail:
+            raise MediaProviderError("boom", provider="heygen", user_message=self.fail)
+        self.renders.append((req.aspect, req.duration_s, str(req.source_audio)))
+        Path(dest).write_bytes(b"twin")
+        return SimpleNamespace(usage={"seconds": req.duration_s}, meta={})
+
+
+class MediaCtx(Ctx):
+    def __init__(self, out_dir, tts=None, twin=None):
+        super().__init__(out_dir)
+        self._m = {"tts": tts, "twin_video": twin}
+
+    def media(self, cap):
+        return self._m.get(cap)
+
+
+@pytest.fixture
+def fake_render(monkeypatch):
+    """No browser, no ffmpeg: screenshots fail (headline card), stack/captions write placeholders."""
+    st = SimpleNamespace(shots=[], stacked=[], captioned=[])
+
+    async def shot(url, title, dest):
+        st.shots.append(url)
+        return False
+
+    async def dur(path):
+        return 24.0
+
+    async def stack(panel, raw, voice, duration, dest):
+        st.stacked.append((str(panel), duration))
+        Path(dest).write_bytes(b"stacked")
+
+    async def burn(video, words, dest, size=None):
+        st.captioned.append((size, len(words)))
+        Path(dest).write_bytes(b"final")
+        return dest
+    monkeypatch.setattr(sr, "capture_article", shot)
+    monkeypatch.setattr(sr.ffmpeg_local, "probe_duration", dur)
+    monkeypatch.setattr(sr, "stack", stack)
+    monkeypatch.setattr(sr.ffmpeg_local, "burn_captions", burn)
+    return st
+
+
+def test_spoken_text_drops_labels_and_stage_directions():
+    script = ("Hook: Springfield just got a new chicken spot.\n[B-roll of storefront]\n"
+              "Huey Magoo's opened on Battlefield.\n(show the menu) \nCTA: Follow for local updates.")
+    assert sr.spoken_text(script) == ("Springfield just got a new chicken spot. Huey Magoo's opened on "
+                                      "Battlefield. Follow for local updates.")
+
+
+def test_headline_check_rejects_consent_walls():
+    title = "Huey Magoo's opens in Springfield"
+    assert sr.headline_visible("News-Leader  Huey Magoo's opens in Springfield on Battlefield", title)
+    assert not sr.headline_visible("We value your privacy. Accept all cookies to continue.", title)
+
+
+def test_panel_renders_card_without_a_screenshot_and_photo_with_one(tmp_path):
+    from PIL import Image
+    card = tmp_path / "card.png"
+    sr.render_panel(str(card), "Source: News-Leader.", headline="Huey Magoo's opens in Springfield",
+                    source="News-Leader")
+    assert Image.open(card).size == (1080, 900)
+    photo = tmp_path / "p.jpg"
+    Image.new("RGB", (800, 600), (30, 140, 200)).save(photo)
+    out = tmp_path / "listing.png"
+    sr.render_panel(str(out), "Listing courtesy of Real Broker, LLC. Source: Cheyenne MLS.", shot=str(photo),
+                    chip="$149,000 · 3 bd · 1.75 ba")
+    img = Image.open(out)
+    assert img.size == (1080, 900)
+    assert img.getpixel((540, 300)) == pytest.approx((30, 140, 200), abs=12)
+
+
+def test_run_swaps_the_slideshow_for_an_ai_twin_reel(tmp_path, feeds, gen, fake_render):
+    tts, twin = FakeTTS(), FakeTwin()
+    ctx = MediaCtx(tmp_path, tts, twin)
+    res = run(ls.run(ctx, {"market": "Springfield, MO", "stories": 1}))
+    by_id = {o.id: o for o in ctx.outputs}
+    vid = by_id["s1_video"]
+    assert vid.file == "story1_reel.mp4" and (tmp_path / vid.file).is_file()
+    assert vid.meta["ai_generated"] is True and vid.meta["slideshow"] == "story1_slideshow.mp4"
+    assert by_id["s1_story"].value["video"] == "story1_reel.mp4"           # what approve uploads
+    assert ls.REEL_DISCLOSURE in by_id["s1_caption"].value
+    assert twin.renders == [("9:16", 24, str(tmp_path / "story1_voice.mp3"))]
+    assert "Hook" not in tts.texts[0] and "Huey Magoo's opened on Battlefield." in tts.texts[0]
+    assert fake_render.captioned[0][0] == (1080, 1920)
+    assert "AI-twin Reel" in res.commit.summary
+    assert not [w for w in ctx.warnings if "reel" in w.lower()]
+
+
+def test_listing_reel_uses_the_listing_photo_and_attribution(tmp_path, with_listing, fake_render, monkeypatch):
+    panels = []
+    real = sr.render_panel
+
+    def spy(dest, strip, shot=None, headline="", source="", chip=""):
+        panels.append((strip, shot, chip))
+        real(dest, strip, shot=shot, headline=headline, source=source, chip=chip)
+    monkeypatch.setattr(sr, "render_panel", spy)
+    ctx = MediaCtx(tmp_path, FakeTTS(), FakeTwin())
+    run(ls.run(ctx, {"market": "Cheyenne, WY", "stories": 1}))
+    strip, shot, chip = panels[0]
+    assert "Source: Cheyenne MLS" in strip and shot.endswith("story1_photo1.jpg")
+    assert chip.startswith("$149,000")
+    assert fake_render.shots == []                                       # listings never hit a browser
+
+
+def test_no_heygen_keeps_the_slideshow_and_never_opens_a_browser(tmp_path, feeds, gen, fake_render):
+    ctx = MediaCtx(tmp_path, FakeTTS(), None)
+    res = run(ls.run(ctx, {"market": "Springfield, MO", "stories": 1}))
+    by_id = {o.id: o for o in ctx.outputs}
+    assert by_id["s1_video"].file == "story1_slideshow.mp4"
+    assert ls.REEL_DISCLOSURE not in by_id["s1_caption"].value
+    assert any("HeyGen isn't connected" in w for w in ctx.warnings)
+    assert fake_render.shots == [] and "slideshow Reel" in res.commit.summary
+
+
+def test_a_failed_render_keeps_that_storys_slideshow(tmp_path, feeds, gen, fake_render):
+    ctx = MediaCtx(tmp_path, FakeTTS(), FakeTwin(fail="HeyGen is out of credits."))
+    run(ls.run(ctx, {"market": "Springfield, MO", "stories": 1}))
+    by_id = {o.id: o for o in ctx.outputs}
+    assert by_id["s1_video"].file == "story1_slideshow.mp4"
+    assert any("out of credits" in w and "keeps the slideshow" in w for w in ctx.warnings)
+
+
+def test_reels_off_skips_filming(tmp_path, feeds, gen, fake_render):
+    tts, twin = FakeTTS(), FakeTwin()
+    ctx = MediaCtx(tmp_path, tts, twin)
+    run(ls.run(ctx, {"market": "Springfield, MO", "stories": 1, "reels": False}))
+    assert not tts.texts and not twin.renders and "reels" not in ctx.steps
+
+
+def test_heygen_budget_is_split_across_the_run(tmp_path, fake_render):
+    ctx = MediaCtx(tmp_path)
+    words = " ".join(["word"] * 60)                                      # ~23 s each
+    jobs = [{"n": i, "script": words, "panel": str(tmp_path / "p.png")} for i in (1, 2, 3)]
+    made = run(sr.build_all(ctx, FakeTTS(), FakeTwin(max_seconds=50), jobs))
+    assert sorted(made) == [1, 2]
+    assert any("Story 3" in w and "HEYGEN_MAX_SECONDS" in w for w in ctx.warnings)
+
+
+def test_overlong_script_gets_no_reel(tmp_path, fake_render):
+    ctx = MediaCtx(tmp_path)
+    got = run(sr.build_reel(ctx, FakeTTS(), FakeTwin(), tmp_path, 1, " ".join(["word"] * 200),
+                            tmp_path / "p.png"))
+    assert got is None and "reel limit" in ctx.warnings[0]
