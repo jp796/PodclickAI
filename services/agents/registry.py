@@ -62,6 +62,33 @@ _SPECS: List[AgentSpec] = [
         foundation="required",
         wraps=("/api/yt/content-calendar",),
     ),
+    AgentSpec(
+        id="local_story",
+        name="Local Story Desk",
+        category="research",
+        job="Find this week's local stories, plus one of your own active listings, and turn each into a "
+            "slideshow Reel, Google Business update, reel script and blog post — scheduled only when you approve.",
+        icon="🗞️",
+        runner=_R + "local_story",
+        fields=(
+            FieldSpec("market", "Market", "select", required=True, default="Springfield, MO",
+                      options=("Springfield, MO", "Cheyenne, WY")),
+            FieldSpec("stories", "How many stories", "number", default=3,
+                      min_value=1, max_value=5),
+            FieldSpec("extra_topics", "Extra topics to search", "text", max_len=300,
+                      help="Optional, comma separated, e.g. new subdivision, zoning."),
+            FieldSpec("listings", "Add one of my active listings", "checkbox", default=True,
+                      help="Your own active MLS listings only, pulled through REOS's MLS gate."),
+            FieldSpec("reels", "Film each story with my AI twin", "checkbox", default=True,
+                      help="Story screenshot on top, your HeyGen twin in your voice underneath, big "
+                           "captions. Uses HeyGen + ElevenLabs credits; falls back to the slideshow."),
+        ),
+        commit_tier="bricklayer",
+        foundation="required",
+        requires=("anthropic",),
+        spends=("Claude drafting", "GHL media uploads on approve"),
+        wraps=("/calendar",),
+    ),
     # ── Plan ──────────────────────────────────────────────────────────────────
     AgentSpec(
         id="pillar_planner",

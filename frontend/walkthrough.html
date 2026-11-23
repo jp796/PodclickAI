@@ -780,6 +780,7 @@ const ACTION_CONSEQUENCE = {
   'agent_run:content_scheduler': 'Starts Content Scheduler on a new work order. Nothing is committed or published; any commit is a separate approval.',
   'agent_run:repurpose': 'Starts Clip Dispatcher on a new work order. Nothing is committed or published; any commit is a separate approval.',
   'agent_run:facebook_page': 'Starts Facebook Page on a new work order. Drafts only; nothing is published, and any commit is a separate approval. \u26a0\ufe0f Spends: model tokens (Muse tokens if that provider is chosen).',
+  'agent_run:local_story': 'Starts Local Story Desk on a new work order. Reads local news and drafts carousels, Google Business updates, reel scripts and blog posts; nothing is published, and scheduling in GHL is a separate approval. \u26a0\ufe0f Spends: model tokens.',
 };
 
 /* Keys worth showing per type, in the order a human reads them. */
@@ -832,6 +833,7 @@ const ACTION_FIELDS = {
   'agent_run:content_scheduler': ['input', 'summary'],
   'agent_run:repurpose': ['input', 'summary'],
   'agent_run:facebook_page': ['input', 'summary'],
+  'agent_run:local_story': ['input', 'summary'],
 };
 
 function formatPayloadValue(value) {

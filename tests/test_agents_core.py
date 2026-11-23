@@ -166,6 +166,7 @@ ROSTER = {
     # id: (category, run, spend, commit, foundation)
     "market_scout":      ("research", "draftsman", "bricklayer", None, "optional"),
     "trend_radar":       ("research", "draftsman", None, None, "required"),
+    "local_story":       ("research", "draftsman", None, "bricklayer", "required"),
     "pillar_planner":    ("plan", "draftsman", None, None, "required"),
     "click_studio":      ("create", "bricklayer", "bricklayer", None, "inherited"),
     "draftsman":         ("create", "draftsman", None, "bricklayer", "required"),
@@ -193,7 +194,7 @@ def test_category_counts_match_the_ui_headers():
     counts = {c: 0 for c in CATEGORY_IDS}
     for s in REGISTRY.values():
         counts[s.category] += 1
-    assert counts == {"research": 2, "plan": 1, "create": 8, "publish": 3, "grow": 0}
+    assert counts == {"research": 3, "plan": 1, "create": 8, "publish": 3, "grow": 0}
 
 
 def test_every_spec_is_internally_consistent():

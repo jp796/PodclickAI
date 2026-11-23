@@ -314,19 +314,26 @@ class HeyGenProvider(MediaProvider):
         raise ProviderError(f"poll failed: {last}", provider=self.name,
                             user_message="Lost the line to HeyGen while it was rendering — check your HeyGen videos.")
 
+    # The render is already paid for when this runs, so ride out a DNS/CDN blip for
+    # a couple of minutes instead of ~12 s (2026-11-22: a short DNS failure on
+    # files2.heygen.ai threw away two finished renders).
+    DOWNLOAD_BACKOFF_S = (2.0, 5.0, 10.0, 20.0, 30.0, 45.0)
+
     async def _download(self, url: str, timeout: float) -> bytes:
         last: Optional[str] = None
         async with base.http_client(timeout=timeout) as client:
-            for attempt in range(3):
+            for wait in self.DOWNLOAD_BACKOFF_S + (None,):
                 try:
                     resp = await client.get(url, follow_redirects=True)   # presigned link: no key sent
                 except httpx.TransportError as exc:
                     last = type(exc).__name__
-                    await base.sleep(2.0 * (attempt + 1))
+                    if wait is not None:
+                        await base.sleep(wait)
                     continue
                 if resp.status_code >= 500:
                     last = f"http {resp.status_code}"
-                    await base.sleep(2.0 * (attempt + 1))
+                    if wait is not None:
+                        await base.sleep(wait)
                     continue
                 if resp.status_code != 200 or not resp.content:
                     raise ProviderError(f"download {resp.status_code}", provider=self.name)
