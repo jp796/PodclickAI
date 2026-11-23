@@ -200,7 +200,8 @@ def env(monkeypatch, tmp_path, fx):
                            stock=stock_fetches, composites=composites)
 
 
-def heygen_ok(env, polls_before_done: int = 1, srt: Optional[str] = SRT, status_final: str = "completed"):
+def heygen_ok(env, polls_before_done: int = 1, srt: Optional[str] = SRT, status_final: str = "completed",
+              failed_data: Optional[dict] = None):
     """ElevenLabs TTS + the whole HeyGen happy path."""
     state = {"polls": 0}
 
@@ -217,8 +218,8 @@ def heygen_ok(env, polls_before_done: int = 1, srt: Optional[str] = SRT, status_
             if state["polls"] <= polls_before_done:
                 return httpx.Response(200, json={"data": {"id": "v_1", "status": "processing"}})
             if status_final == "failed":
-                return httpx.Response(200, json={"data": {"id": "v_1", "status": "failed",
-                                                          "failure_code": "render_error"}})
+                return httpx.Response(200, json={"data": dict({"id": "v_1", "status": "failed"},
+                                                              **(failed_data or {"failure_code": "render_error"}))})
             data = {"id": "v_1", "status": "completed", "duration": 3.0,
                     "video_url": f"https://{CDN}/video/v_1.mp4"}
             if srt is not None:
@@ -429,8 +430,16 @@ async def test_create_timeout_is_uncertain_not_retried(env):
 async def test_failed_render_and_poll_timeout(env):
     env.cfg.update(KEYS)
     env.net.handler = heygen_ok(env, status_final="failed")
-    with pytest.raises(base.ProviderRejected):
+    with pytest.raises(base.ProviderRejected) as ei:
         await heygen.HeyGenProvider().generate(twin_req(env), env.tmp / "o.mp4")
+    assert "render_error" in ei.value.user_message
+
+    env.net.requests.clear()
+    env.net.handler = heygen_ok(env, status_final="failed", failed_data={
+        "error": "Insufficient credit. This operation requires 'api' credits."})
+    with pytest.raises(base.ProviderRejected) as ei:
+        await heygen.HeyGenProvider().generate(twin_req(env), env.tmp / "o.mp4")
+    assert "out of API credits" in ei.value.user_message
 
     env.net.requests.clear()
     env.cfg.update(heygen_poll_timeout_s=20)
