@@ -181,6 +181,47 @@ def keep_story(item: Dict[str, Any], city: str, now: Optional[datetime] = None) 
     return True
 
 
+USED_LOOKBACK_DAYS = 21
+
+
+def used_story_keys(market: str, days: int = USED_LOOKBACK_DAYS,
+                    exclude_job: Optional[str] = None) -> set:
+    """URLs and normalised titles of stories this market already drafted recently.
+
+    Daily runs read the same news feeds every morning; without this they'd redraft
+    yesterday's story. Failed and cancelled jobs don't count — nothing came of them."""
+    try:
+        from services.agents import jobs as _jobs
+        _jobs._ensure_loaded()
+        rows = list(_jobs.AGENT_JOBS.values())
+    except Exception:
+        return set()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    keys: set = set()
+    for j in rows:
+        if j.get("agent_id") != "local_story" or j.get("id") == exclude_job:
+            continue
+        if (j.get("input") or {}).get("market") != market or j.get("status") in ("failed", "cancelled"):
+            continue
+        if str(j.get("created_at") or "") < cutoff:
+            continue
+        for o in j.get("outputs") or []:
+            if not str(_get(o, "id", "")).endswith("_story"):
+                continue
+            v = _get(o, "value") or {}
+            if isinstance(v, dict):
+                if v.get("url"):
+                    keys.add(str(v["url"]))
+                if v.get("title"):
+                    keys.add(_norm_title(str(v["title"])))
+    return keys
+
+
+def drop_used(candidates: List[Dict[str, Any]], used: set) -> List[Dict[str, Any]]:
+    return [c for c in candidates
+            if c.get("url") not in used and _norm_title(c.get("title") or "") not in used]
+
+
 async def gather_candidates(city: str, state: str, extra: str = "") -> List[Dict[str, Any]]:
     urls = _feed_urls(city, state)
     for term in [t.strip() for t in extra.split(",") if t.strip()][:5]:
@@ -713,11 +754,16 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
 
     async with ctx.step("source", f"Reading this week's {city} news"):
         candidates = await gather_candidates(city, state, extra)
+        fresh = drop_used(candidates, used_story_keys(market, exclude_job=ctx.job_id))
+        if candidates and not fresh:
+            ctx.warn(f"Every {city} story in the feeds was already drafted in the last "
+                     f"{USED_LOOKBACK_DAYS} days.")
+        candidates = fresh
         if not candidates and listing is None:
-            raise StepError(f"No usable {city} stories in the last {MAX_AGE_DAYS} days — the news "
-                            "feeds came back empty. Run it again later.")
+            raise StepError(f"No new {city} stories in the last {MAX_AGE_DAYS} days — the feeds were "
+                            "empty or already used. Run it again later.")
         if not candidates:
-            ctx.warn(f"No usable {city} news this week — only your listing is in this batch.")
+            ctx.warn(f"No new {city} news — only your listing is in this batch.")
 
     async with ctx.step("pick", "Picking the stories locals will care about"):
         ctx.check_cancelled()
@@ -1128,17 +1174,21 @@ async def commit(ctx, job: Dict[str, Any], edits: Dict[str, Any]) -> Dict[str, A
         return result
 
 
-# ── weekly cron entry point ──────────────────────────────────────────────────
+# ── scheduled entry points ───────────────────────────────────────────────────
 
-async def weekly_run(markets: Optional[List[str]] = None) -> List[str]:
+DAILY_STORIES = 1            # one fresh story per market per day
+LISTING_WEEKDAY = 0          # the listing story rides along on Mondays only
+
+
+async def _scheduled_run(base: Dict[str, Any], cadence: str,
+                         markets: Optional[List[str]] = None) -> List[str]:
     """Start one Local Story Desk job per market and ping Telegram. Returns job ids."""
     from services.agents import jobs as _jobs
     started: List[Tuple[str, str]] = []
     lines: List[str] = []
     for market in markets or list(MARKETS):
         try:
-            job = await _jobs.start("local_story", {"market": market, "stories": 3, "listings": True, "reels": True},
-                                    initiator="cron")
+            job = await _jobs.start("local_story", dict(base, market=market), initiator="cron")
             started.append((market, job["id"]))
         except Exception as exc:
             lines.append(f"• {market}: didn't start ({getattr(exc, 'args', [exc])[0]})")
@@ -1155,9 +1205,24 @@ async def weekly_run(markets: Optional[List[str]] = None) -> List[str]:
             lines.append(f"• {market}: {count} stor{'y' if count == 1 else 'ies'} ready")
         else:
             lines.append(f"• {market}: nothing ready ({status})")
-    await _notify(f"*Local Story Desk* — {ready} local stor{'y' if ready == 1 else 'ies'} drafted. "
+    await _notify(f"*Local Story Desk ({cadence})* — {ready} local stor{'y' if ready == 1 else 'ies'} drafted. "
                   "Nothing posts until you approve: http://127.0.0.1:8765/agents\n" + "\n".join(lines))
     return [jid for _, jid in started]
+
+
+async def weekly_run(markets: Optional[List[str]] = None) -> List[str]:
+    """The original Monday batch: 3 stories + a listing per market."""
+    return await _scheduled_run({"stories": 3, "listings": True, "reels": True}, "weekly", markets)
+
+
+async def daily_run(markets: Optional[List[str]] = None, today: Optional[date] = None) -> List[str]:
+    """One fresh story per market every day; the listing joins on Mondays.
+
+    Stories already drafted in the last USED_LOOKBACK_DAYS are skipped by run(), so
+    a quiet news week doesn't repeat yesterday's post."""
+    monday = (today or date.today()).weekday() == LISTING_WEEKDAY
+    return await _scheduled_run({"stories": DAILY_STORIES, "listings": monday, "reels": True},
+                                "daily", markets)
 
 
 async def _notify(text: str) -> bool:
