@@ -2628,3 +2628,65 @@ all `frontend/*.html` head/nav regions, `main.py` (upload whitelist), `docs/UI_C
 **NOT verified:** no live Higgsfield call. Whether `wan/v2.7/image-to-video` follows the still's orientation for vertical output is unconfirmed, and so is the credit cost per shot. The stills are stock photos brought to life, not motion graphics, charts or text animation.
 
 **Files:** `services/agents/runners/twin_video.py`, `services/agents/registry.py`, `services/agents/jobs.py`, `services/media/higgsfield.py`, `tests/test_media_heygen.py`, `docs/API.md`, `docs/ARCHITECTURE.md`, `docs/BUGS_AND_FIXES.md`
+
+---
+
+## 2026-11-22 — Clips were rigid 60s windows, framed off-center
+
+**Symptom (JP):** every Short was ~60 seconds, often starting/ending mid-thought, and solo
+recordings were framed off-center (head cut off at the frame edge).
+
+**Root cause:**
+- `pipeline/clip.py::score_and_select_clips` tried durations in the order 60/75/90/45 and
+  `break`s on the first that fits, so nearly every window was exactly 60s; windows started on a
+  5-second grid regardless of sentences; the score was speaking speed + a power-word list.
+- No face detection anywhere. Ship It used a fixed center crop for solo recordings (JP sits
+  left of center) and the editor defaulted to Stack, which splits a solo frame in half.
+
+**Fix:**
+- `pipeline/moments.py` (new, default picker via `detect_clips_for_project`): sentences from
+  Whisper words → Claude picks self-contained moments by sentence number in a mix of lengths
+  (quick 20-45s / standard 45-90s / deep 90-180s) → code snaps to sentence edges, enforces
+  20-180s, drops overlaps, trims leading filler and trailing transitions ("with that being
+  said"), pads edges. Adds `title`, `why`, `kind`, `fits` (platforms by length) to each
+  candidate. hook_text stays the verbatim first sentence. Falls back to the old scorer
+  (sentence-snapped) if the AI call fails. `PODCLICK_CLIP_PICKER=legacy` restores the old one;
+  model via `PODCLICK_CLIP_MODEL` (default claude-sonnet-5-5, falls back to 4-5).
+- `pipeline/face_track.py` (new) + crop mode `auto` in `render_clip.py`: OpenCV Haar faces on
+  keyframes (~1/s, 4x faster than full 4K HEVC decode). Solo → 9:16 window on the face with a
+  dead-zone camera (moves only when the face stays out of the zone ≥1s, eased over 0.6s).
+  Two side-by-side faces → stack, each half framed on its face. No face → center.
+  Ship It and the re-render API default to `auto`; editor has an Auto pill (default).
+  `PODCLICK_CROP_MODE=legacy` restores stack/center.
+
+**Gotchas found:** iPhone .mov is stored 2160x3840 + rotate flag — size must come from the
+rotation-aware probe or frames are squashed; newer Claude models reject `temperature` and spend
+output tokens thinking, so max_tokens is 16000 and the parser salvages complete objects from a
+cut-off reply.
+
+**New dependency:** `opencv-python-headless` (requirements.txt).
+
+**Files:** `pipeline/moments.py`, `pipeline/face_track.py`, `pipeline/render_clip.py`,
+`pipeline/project_pipeline.py`, `main.py`, `frontend/project.html`, `requirements.txt`
+
+---
+
+## 2026-11-22 — Episode page had no intro/commercial/outro picks and hid Buzzsprout
+
+**Symptom (JP):** after uploading, no way to choose intro/commercial/outro on the episode page and no
+visible Buzzsprout option — only the legacy builder (/legacy/episode-builder) managed bumpers. The
+legacy builder's "browse" picker also only listed audio files, so a .mov couldn't be chosen.
+
+**Fix:**
+- Per-episode picks in `Project.legacy_metadata["audio_slots"]` ({intro|commercial|outro: library id |
+  "none"}; missing = default). `_assemble_episode(..., audio_slots=)` applies them; an explicit
+  commercial overrides the sponsor rotation. `audio_assembly.slot_files` records which file filled each slot.
+- API: `GET/PUT /api/projects/{id}/audio-slots`, `POST /api/projects/{id}/reassemble` (rebuilds only the
+  episode audio; allowed in `review` before Buzzsprout upload).
+- Episode page: picker (preview + "Add" upload to the library) on Refine (before Ship It) and Listen
+  (with "Rebuild audio"). Release step shows "Full episode" toggles — Podcast feed (Buzzsprout) and
+  YouTube (full episode) — sent as `podcast_feed` / `youtube_episode` to schedule-closing
+  (`_distribute_project(send_podcast=, send_youtube=)`, both default on). Already-uploaded destinations show ✓ and lock.
+- Legacy builder `pickFiles` now accepts video (.mov/.mp4/…) and images, matching its drop zone.
+
+**Files:** `main.py`, `pipeline/project_pipeline.py`, `frontend/project.html`, `frontend/index.html`

@@ -2410,7 +2410,13 @@ async function pickFiles(type) {
     try {
       const picked = await window.showOpenFilePicker({
         multiple: true,
-        types: [{ description: "Audio files", accept: { "audio/*": [".mp3",".wav",".m4a",".aac",".flac",".ogg",".opus"] } }],
+        types: [
+          { description: "Audio & video", accept: {
+              "audio/*": [".mp3",".wav",".m4a",".aac",".flac",".ogg",".opus"],
+              "video/*": [".mov",".mp4",".m4v",".mkv",".webm",".avi"],
+          } },
+          { description: "Images", accept: { "image/*": [".jpg",".jpeg",".png",".gif",".webp"] } },
+        ],
       });
       const newFiles   = await Promise.all(picked.map(h => h.getFile()));
       addFilesToSlot(type, newFiles, picked);

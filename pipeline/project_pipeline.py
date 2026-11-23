@@ -220,14 +220,16 @@ def generate_ass_for_clip(
     output_path: str,
     width: int = 1080,
     height: int = 1920,
+    style: Optional[dict] = None,
 ) -> str:
     """
-    Generate a viral TikTok-style ASS subtitle file for a clip window.
+    Generate a styled ASS caption file for a clip window.
 
-    Big bold uppercase captions in 2-3 word groups with each word highlighted
-    yellow as it's spoken (the look creators expect on Shorts). Words are
-    rebased so the clip starts at 0. Returns output_path, or "" if no words.
-    Delegates the styling to pipeline.subtitles.generate_ass_subtitles.
+    `style` = {"preset", "accent", "position"} (see pipeline.subtitles.PRESETS);
+    None → the default Bold preset.
+
+    Words are rebased so the clip starts at 0. Returns output_path, or "" if
+    no words. Delegates the styling to pipeline.subtitles.generate_ass_subtitles.
     """
     from pipeline.subtitles import generate_ass_subtitles
 
@@ -244,7 +246,7 @@ def generate_ass_for_clip(
     if not clip_words:
         return ""
 
-    generate_ass_subtitles(clip_words, width, height, output_path)
+    generate_ass_subtitles(clip_words, width, height, output_path, style=style)
     return output_path
 
 
@@ -260,12 +262,18 @@ def detect_clips_for_project(
     """
     Detect clip candidates from a transcript.
 
-    Uses the existing score_and_select_clips() from pipeline/clip.py
-    (power-word density + sentence boundary scoring).
+    Default: pipeline/moments.py — AI-picked, sentence-clean moments from 20s
+    to 3 min in a mix of lengths (it falls back to the old scorer itself if the
+    AI call fails). PODCLICK_CLIP_PICKER=legacy restores the fixed-window
+    scorer below. min_dur/max_dur apply to the legacy scorer only.
 
     Returns list of dicts:
-      {start, end, duration, transcript, score, hook_text}
+      {start, end, duration, transcript, score, hook_text, ...}
     """
+    if os.getenv("PODCLICK_CLIP_PICKER", "moments") != "legacy":
+        from pipeline.moments import pick_moments
+        return pick_moments(words, segments, num_clips=num_clips)
+
     from pipeline.clip import score_and_select_clips
 
     candidates = score_and_select_clips(
@@ -394,6 +402,7 @@ _CROP_MODE_MAP = {
     "left":   "solo_top",     # top speaker = guest (left in old side-by-side thinking)
     "right":  "solo_bottom",  # bottom speaker = host
     "center": "center",
+    "auto":   "auto",     # face-aware framing (pipeline/face_track.py)
     # Also accept render_clip native names directly
     "split":        "split",
     "solo_top":     "solo_top",
@@ -515,6 +524,7 @@ def render_all_clips(
     progress_cb=None,
     source_video: str = "",
     crop_mode: str = "stack",
+    caption_style: Optional[dict] = None,
 ) -> list:
     """
     Render all clip candidates for a project.
@@ -566,7 +576,7 @@ def render_all_clips(
             if os.getenv("PODCLICK_VIRAL_CAPTIONS", "1") not in ("0", "false", "no"):
                 try:
                     _ass = str(out_dir / f"{clip_id}.ass")
-                    if generate_ass_for_clip(words, start, end, _ass):
+                    if generate_ass_for_clip(words, start, end, _ass, style=caption_style):
                         ass_path = _ass
                 except Exception as _ass_err:
                     log(f"  ⚠ {clip_id} viral caption gen failed ({_ass_err}) — using plain SRT")
@@ -633,6 +643,8 @@ def run_ship_it(
     progress_cb=None,
     source_video: str = "",
     crop_mode: str = "stack",
+    caption_style: Optional[dict] = None,
+    audio_slots: Optional[dict] = None,
 ) -> dict:
     """
     Full Ship It chain (sync, run via executor):
@@ -680,6 +692,9 @@ def run_ship_it(
     except Exception as e:
         result["errors"].append(f"sponsor selection: {e}")
         log(f"  Sponsor selection error: {e}")
+    if (audio_slots or {}).get("commercial"):
+        # The episode picked its own commercial (or none) — no sponsor placement.
+        result["sponsor_placement"] = None
 
     # ── b. Clip detection ──────────────────────────────────────────────────────
     words = job_data.get("words", [])
@@ -721,6 +736,7 @@ def run_ship_it(
                 progress_cb=progress_cb,
                 source_video=source_video,
                 crop_mode=crop_mode,
+                caption_style=caption_style,
             )
             result["rendered_clips"] = rendered
         except Exception as e:
@@ -739,6 +755,7 @@ def run_ship_it(
                 sponsor=result.get("sponsor_placement"),
                 word_timestamps=words,
                 log=log,
+                audio_slots=audio_slots,
             )
             if assembly:
                 result["assembled_mp3"] = assembly["path"]
@@ -749,6 +766,8 @@ def run_ship_it(
                     "commercial_inserted_at": assembly.get("commercial_inserted_at"),
                     "sponsor_name":   (result.get("sponsor_placement") or {}).get("sponsor_name"),
                     "sponsor_position_pct": (result.get("sponsor_placement") or {}).get("position_pct", 50),
+                    "slot_files":     assembly.get("slot_files", {}),
+                    "audio_slots":    dict(audio_slots or {}),
                 }
                 log(f"  ✓ Assembled episode: {assembly['path']}"
                     f"  intro={assembly['has_intro']} "
@@ -771,6 +790,7 @@ def _assemble_episode(
     sponsor: Optional[dict],
     word_timestamps: list,
     log,
+    audio_slots: Optional[dict] = None,
 ) -> Optional[str]:
     """
     Assemble finished episode: intro + main + commercial + outro → single MP3.
@@ -778,23 +798,47 @@ def _assemble_episode(
     Loads intro and outro from library.json. Commercial comes from the selected
     sponsor's audio_url (which is the Panda Dash path when using the fallback).
 
+    audio_slots — the episode's own picks, {"intro"|"commercial"|"outro": value}:
+      a library item id → use that file (a commercial pick overrides the sponsor)
+      "none"            → leave that slot out
+      missing / ""      → default behaviour above
+
     Returns the assembled MP3 path, or None if no library assets are available.
     Assembly failure raises RuntimeError (caller logs + continues gracefully).
     """
     from pipeline.assemble import assemble_clips
 
     library = _load_library()
-    if not library:
+    audio_slots = audio_slots or {}
+    if not library and not audio_slots:
         log("  No library assets found — skipping assembly")
         return None
 
-    # Build slot lookup from library
+    # Build slot lookup from library (last item per slot = the default)
     by_slot = {}
+    by_id = {}
     for item in library:
         slot = item.get("slot_type")
         path = item.get("path", "")
         if slot and path and Path(path).exists():
             by_slot[slot] = path
+            if item.get("id"):
+                by_id[item["id"]] = path
+
+    # Apply the episode's own picks on top of the defaults.
+    for _slot in ("intro", "commercial", "outro"):
+        _pick = audio_slots.get(_slot)
+        if _pick == "none":
+            by_slot.pop(_slot, None)
+            if _slot == "commercial":
+                sponsor = None
+            log(f"    {_slot}: turned off for this episode")
+        elif _pick and _pick in by_id:
+            by_slot[_slot] = by_id[_pick]
+            if _slot == "commercial":
+                sponsor = None          # explicit pick beats the sponsor rotation
+        elif _pick:
+            log(f"    {_slot}: picked file {_pick} is missing — using the default")
 
     # Need at least a main track to assemble anything meaningful
     clips = []
@@ -867,4 +911,20 @@ def _assemble_episode(
         "has_outro":      assembly_result.get("has_outro", False),
         "commercial_inserted_at": assembly_result.get("commercial_inserted_at"),
         "duration_saved": assembly_result.get("duration_saved", 0),
+        # which library file filled each slot (for the Listen step)
+        "slot_files": {
+            "intro": _library_label(intro_path),
+            "commercial": _library_label(commercial_path) if commercial_path and Path(commercial_path).exists() else None,
+            "outro": _library_label(outro_path),
+        },
     }
+
+
+def _library_label(path: Optional[str]) -> Optional[str]:
+    """Friendly name of a library file (its label), else the file name."""
+    if not path:
+        return None
+    for item in _load_library():
+        if item.get("path") == path:
+            return item.get("label") or item.get("filename") or Path(path).name
+    return Path(path).name

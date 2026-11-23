@@ -181,6 +181,7 @@ def _build_filter(
     out_w: int = 1080,
     out_h: int = 1920,
     ass_path: str = "",
+    auto_chain: str = "",
 ) -> str:
     # Viral ASS captions (word-by-word highlight) when provided; else styled SRT.
     if ass_path and Path(ass_path).exists():
@@ -190,6 +191,8 @@ def _build_filter(
     fill = _fill_scale(out_w, out_h)
     half_h = out_h // 2
 
+    if mode == "auto" and auto_chain:
+        return f"{auto_chain},{cap}[v]"
     if mode == "split":
         top_fill = _fill_scale(out_w, half_h)
         bot_fill = _fill_scale(out_w, half_h)
@@ -231,12 +234,35 @@ def render_clip(
 
     duration = end - start
 
+    # "auto" = face-aware framing (pipeline/face_track.py). Falls back to the
+    # fixed center crop when no face is found or detection fails. (Not split:
+    # every ordinary 16:9 camera frame reads as "side_by_side" to detect_layout,
+    # so split would cut a solo speaker in half.)
+    auto_chain = ""
+    if mode == "auto":
+        try:
+            from pipeline.face_track import plan_auto_crop
+            plan = plan_auto_crop(
+                source, start, end,
+                (layout.content_x, layout.content_y, layout.content_w, layout.content_h),
+                out_w, out_h,
+            )
+        except Exception as exc:
+            print(f"[render_clip] face tracking failed, using fixed crop: {exc}")
+            plan = None
+        if plan:
+            auto_chain = plan.filter_chain
+            print(f"[render_clip] auto crop: {plan.detail}")
+        else:
+            mode = "center"
+            print("[render_clip] auto crop: no face found, using center")
+
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp = Path(tmpdir)
         srt_path = str(tmp / "clip.srt")
         Path(srt_path).write_text(srt_content, encoding="utf-8")
 
-        filter_complex = _build_filter(mode, layout, srt_path, out_w, out_h, ass_path)
+        filter_complex = _build_filter(mode, layout, srt_path, out_w, out_h, ass_path, auto_chain)
 
         cmd = [
             "ffmpeg", "-y",
