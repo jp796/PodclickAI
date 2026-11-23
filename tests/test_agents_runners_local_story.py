@@ -694,14 +694,14 @@ def fake_render(monkeypatch):
         st.stacked.append((str(panel), duration))
         Path(dest).write_bytes(b"stacked")
 
-    async def burn(video, words, dest, size=None):
-        st.captioned.append((size, len(words)))
+    async def burn(video, words, dest):
+        st.captioned.append(len(words))
         Path(dest).write_bytes(b"final")
         return dest
     monkeypatch.setattr(sr, "capture_article", shot)
     monkeypatch.setattr(sr.ffmpeg_local, "probe_duration", dur)
     monkeypatch.setattr(sr, "stack", stack)
-    monkeypatch.setattr(sr.ffmpeg_local, "burn_captions", burn)
+    monkeypatch.setattr(sr, "burn_captions", burn)
     return st
 
 
@@ -744,9 +744,9 @@ def test_run_swaps_the_slideshow_for_an_ai_twin_reel(tmp_path, feeds, gen, fake_
     assert vid.meta["ai_generated"] is True and vid.meta["slideshow"] == "story1_slideshow.mp4"
     assert by_id["s1_story"].value["video"] == "story1_reel.mp4"           # what approve uploads
     assert ls.REEL_DISCLOSURE in by_id["s1_caption"].value
-    assert twin.renders == [("9:16", 24, str(tmp_path / "story1_voice.mp3"))]
+    assert twin.renders == [("16:9", 24, str(tmp_path / "story1_voice.mp3"))]
     assert "Hook" not in tts.texts[0] and "Huey Magoo's opened on Battlefield." in tts.texts[0]
-    assert fake_render.captioned[0][0] == (1080, 1920)
+    assert fake_render.captioned and fake_render.captioned[0] > 0
     assert "AI-twin Reel" in res.commit.summary
     assert not [w for w in ctx.warnings if "reel" in w.lower()]
 
@@ -806,3 +806,27 @@ def test_overlong_script_gets_no_reel(tmp_path, fake_render):
     got = run(sr.build_reel(ctx, FakeTTS(), FakeTwin(), tmp_path, 1, " ".join(["word"] * 200),
                             tmp_path / "p.png"))
     assert got is None and "reel limit" in ctx.warnings[0]
+
+
+def test_spelled_out_numbers_are_checked_like_digits():
+    assert ls.spelled_numbers("Five beds, two full baths and three more upstairs. No one asked.") == ["5", "2", "3"]
+    d = json.loads(good_draft())
+    d["script"] = "Hook: Five beds in town.\nThree more upstairs."
+    probs = ls._problems(d, ["Bedrooms 5", "Huey Magoo's opens in Springfield"])
+    assert probs and "(3)" in probs[0]                 # 5 is in the record, 3 is not
+    d["script"] = "Hook: Five beds in town."
+    assert ls._problems(d, ["Bedrooms: five", "Huey Magoo's"]) == []   # spelled in the source counts too
+
+
+def test_content_box_finds_the_picture_inside_light_grey_bars(tmp_path):
+    from PIL import Image, ImageDraw
+    im = Image.new("RGB", (1080, 1920), (242, 242, 244))
+    d = ImageDraw.Draw(im)
+    for x in range(0, 1080, 40):                                   # a busy 4:3 picture in the middle
+        d.rectangle([x, 555, x + 19, 1364], fill=(30, 30, 30))
+    p = tmp_path / "f.png"
+    im.save(p)
+    w, h, x, y = sr.content_box(str(p))
+    assert (x, y) == (0, 555) and abs(w - 1060) <= 20 and h == 810
+    Image.new("RGB", (1080, 1920), (242, 242, 244)).save(p)
+    assert sr.content_box(str(p)) is None                          # flat frame: leave it alone

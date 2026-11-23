@@ -251,6 +251,21 @@ def _all_text(d: Dict[str, Any]) -> str:
     return " ".join(str(d.get(k) or "") for k in FORMATS) + " " + slides
 
 
+_NUM_WORDS = {w: i for i, w in enumerate(
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
+    "sixteen seventeen eighteen nineteen twenty".split())}
+_NUM_WORDS.update({"thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80,
+                   "ninety": 90})
+for _w in ("zero", "one"):          # "no one", "the one" — too common to treat as figures
+    _NUM_WORDS.pop(_w)
+
+
+def spelled_numbers(text: str) -> List[str]:
+    """Spelled-out numbers as digits ("five beds" -> "5"), so the digit guard sees them.
+    Reels are spoken, and the script writes numbers the way they're said."""
+    return [str(_NUM_WORDS[w]) for w in re.findall(r"[a-z]+", (text or "").lower()) if w in _NUM_WORDS]
+
+
 def _problems(d: Any, sources: List[str]) -> List[str]:
     if not isinstance(d, dict):
         return ["it wasn't the JSON I asked for"]
@@ -262,7 +277,8 @@ def _problems(d: Any, sources: List[str]) -> List[str]:
     if not isinstance(slides, list) or len(slides) != SLIDE_COUNT:
         probs.append(f"it needs exactly {SLIDE_COUNT} slides")
     text = _all_text(d)
-    bad = _av.fabricated_numbers(text, sources)
+    sources = list(sources) + [" ".join(spelled_numbers(" ".join(sources)))]
+    bad = _av.fabricated_numbers(text + " " + " ".join(spelled_numbers(text)), sources)
     if bad:
         probs.append("it used numbers the story never gave (" + ", ".join(bad) + ")")
     flags = _av.fair_housing_flags(text)

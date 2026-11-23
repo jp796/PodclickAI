@@ -220,18 +220,68 @@ def providers(ctx: Any) -> Tuple[Any, Any, Optional[str]]:
     return tts, twin, None
 
 
+TWIN_ASPECT = "16:9"           # JP's HeyGen look is landscape; a 9:16 request comes back letterboxed
+
+
+def content_box(frame: str, threshold: float = 6.0) -> Optional[Tuple[int, int, int, int]]:
+    """(w, h, x, y) of the picture inside plain letterbox/pillarbox bars of any
+    colour (HeyGen pads JP's 4:3 look with light grey). None when there are no bars."""
+    from PIL import Image, ImageStat
+    with Image.open(frame) as raw:
+        im = raw.convert("L")
+    W, H = im.size
+    rows = [y for y in range(H) if ImageStat.Stat(im.crop((0, y, W, y + 1))).stddev[0] > threshold]
+    cols = [x for x in range(W) if ImageStat.Stat(im.crop((x, 0, x + 1, H))).stddev[0] > threshold]
+    if not rows or not cols:
+        return None
+    x0, x1, y0, y1 = cols[0], cols[-1] + 1, rows[0], rows[-1] + 1
+    w, h = (x1 - x0) // 2 * 2, (y1 - y0) // 2 * 2
+    if w >= W - 4 and h >= H - 4:
+        return None
+    if w < W // 3 or h < H // 4:            # a mostly-flat frame: don't trust it
+        return None
+    return w, h, x0, y0
+
+
+async def _twin_crop(twin_raw: Path, duration: float) -> str:
+    frame = twin_raw.with_name(twin_raw.stem + "_probe.png")
+    try:
+        await ffmpeg_local.run_ffmpeg(["-ss", f"{min(3.0, duration / 2):.2f}", "-i", str(twin_raw),
+                                       "-frames:v", "1", str(frame)])
+        box = await asyncio.get_running_loop().run_in_executor(None, content_box, str(frame))
+    except Exception:
+        box = None
+    return f"crop={box[0]}:{box[1]}:{box[2]}:{box[3]}," if box else ""
+
+
 async def stack(panel: Path, twin_raw: Path, voice: Path, duration: float, dest: Path) -> None:
-    """Panel on top (slow push-in), the twin's face-and-shoulders underneath."""
-    frames = int(math.ceil(duration * 30)) + 30
-    fc = (f"[0:v]scale={REEL_W * 2}:{PANEL_H * 2},zoompan=z='min(zoom+0.0004,1.06)':d={frames}"
-          f":x='iw/2-(iw/zoom/2)':y='0':s={REEL_W}x{PANEL_H}:fps=30,setsar=1[top];"
-          f"[1:v]scale={REEL_W}:-2,crop={REEL_W}:{TWIN_H}:0:'min(ih-{TWIN_H},ih*0.12)',setsar=1,fps=30[bot];"
+    """Panel on top (static, so the source strip is never cropped), the twin filling
+    the bottom half: bars trimmed, then cover-scaled and centred on JP."""
+    trim = await _twin_crop(Path(twin_raw), duration)
+    fc = (f"[0:v]scale={REEL_W}:{PANEL_H},setsar=1,fps=30[top];"
+          f"[1:v]{trim}scale={REEL_W}:{TWIN_H}:force_original_aspect_ratio=increase,"
+          f"crop={REEL_W}:{TWIN_H},setsar=1,fps=30[bot];"
           f"[top][bot]vstack=inputs=2,format=yuv420p[v]")
     await ffmpeg_local.run_ffmpeg([
         "-loop", "1", "-t", f"{duration:.2f}", "-i", str(panel), "-i", str(twin_raw), "-i", str(voice),
         "-filter_complex", fc, "-map", "[v]", "-map", "2:a", "-t", f"{duration:.2f}",
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
         "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(dest)], timeout=600)
+
+
+async def burn_captions(video: Path, words: List[Dict[str, Any]], dest: Path) -> Path:
+    """The Bold word captions, centred on the seam between story and twin."""
+    from pipeline.subtitles import burn_subtitles, generate_ass_subtitles
+    ass = Path(dest).with_suffix(".ass")
+    loop = asyncio.get_running_loop()
+    await loop.run_in_executor(None, lambda: generate_ass_subtitles(
+        words, REEL_W, REEL_H, str(ass), style={"preset": "bold", "position": "middle"}))
+    try:
+        await loop.run_in_executor(None, burn_subtitles, str(video), str(ass), str(dest), None)
+    except RuntimeError as exc:
+        raise ffmpeg_local.FfmpegError(str(exc), provider="ffmpeg_local",
+                                       user_message="Couldn't burn the captions in.")
+    return Path(dest)
 
 
 async def build_reel(ctx: Any, tts: Any, twin: Any, out_dir: Path, n: int, script: str,
@@ -266,7 +316,7 @@ async def build_reel(ctx: Any, tts: Any, twin: Any, out_dir: Path, n: int, scrip
         ctx.check_cancelled()
         t = await twin.generate(GenerationRequest(capability="twin_video", prompt="",
                                                   duration_s=int(math.ceil(duration)), source_audio=voice,
-                                                  aspect="9:16"), raw)
+                                                  aspect=TWIN_ASPECT), raw)
         _record_usage(ctx, t.usage)
         await stack(panel, raw, voice, float(duration), stacked)
     except MediaProviderError as exc:
@@ -279,7 +329,7 @@ async def build_reel(ctx: Any, tts: Any, twin: Any, out_dir: Path, n: int, scrip
     captioned = False
     if words:
         try:
-            await ffmpeg_local.burn_captions(stacked, words, final, size=(REEL_W, REEL_H))
+            await burn_captions(stacked, words, final)
             captioned = final.is_file()
         except MediaProviderError:
             ctx.warn(f"Story {n}: couldn't burn the captions in — the reel ships without them.")

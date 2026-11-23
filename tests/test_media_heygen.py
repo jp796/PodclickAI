@@ -702,3 +702,31 @@ def test_real_context_records_the_usage_dict_runners_hand_it(tmp_path):
     ctx.add_usage({})                                                        # nothing to record
     assert job["usage"] == [{"provider": "heygen", "unit": "seconds", "amount": 42},
                             {"provider": "elevenlabs", "unit": "characters", "amount": 900}]
+
+
+async def test_download_rides_out_a_dns_blip(monkeypatch):
+    """A finished render is paid for: a few failed lookups must not throw it away."""
+    import httpx
+    from services.media import heygen as hg
+    calls = {"n": 0}
+    slept = []
+
+    class Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def get(self, url, follow_redirects=True):
+            calls["n"] += 1
+            if calls["n"] < 5:
+                raise httpx.ConnectError("nodename nor servname provided")
+            return httpx.Response(200, content=b"video")
+
+    async def fake_sleep(s):
+        slept.append(s)
+    monkeypatch.setattr(hg.base, "http_client", lambda timeout=None: Client())
+    monkeypatch.setattr(hg.base, "sleep", fake_sleep)
+    got = await hg.HeyGenProvider()._download("https://files2.heygen.ai/x.mp4", timeout=10)
+    assert got == b"video" and calls["n"] == 5 and slept == [2.0, 5.0, 10.0, 20.0]
