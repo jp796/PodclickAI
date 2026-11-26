@@ -895,3 +895,22 @@ def test_used_story_keys_skips_recent_drafts_for_that_market(monkeypatch):
     assert [c["url"] for c in ls.drop_used(cands, used)] == \
         ["https://x.test/old", "https://x.test/f", "https://x.test/s"]
     assert ls.used_story_keys("Cheyenne, WY", exclude_job="recent") == set()
+
+
+def test_article_text_keeps_story_paragraphs_drops_chrome():
+    page = (b"<html><nav><p>Home News Sports Weather and other menu links here ok</p></nav>"
+            b"<script>var x='<p>nope nope nope nope nope nope nope nope nope nope nope</p>'</script>"
+            b"<p>Wing Shack plans to open its first Cheyenne location at 1400 Dell Range Blvd this spring.</p>"
+            b"<p>Subscribe to our newsletter for the latest local news delivered every morning.</p>"
+            b"<p>short</p></html>")
+    got = ls.article_text(page)
+    assert "1400 Dell Range Blvd" in got
+    assert "menu" not in got and "nope" not in got and "newsletter" not in got and "short" not in got
+
+
+def test_fetch_article_skips_google_wrappers_and_swallows_errors(monkeypatch):
+    async def boom(url):
+        raise RuntimeError("403")
+    monkeypatch.setattr(ls, "_fetch", boom)
+    assert run(ls.fetch_article("https://example.com/a")) == ""
+    assert run(ls.fetch_article("https://news.google.com/rss/articles/x")) == ""
