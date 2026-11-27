@@ -17,13 +17,84 @@ caller keeps the slideshow, so a HeyGen hiccup never costs JP the week's posts.
 """
 
 import asyncio
+import json
 import math
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from services.media import base, ffmpeg_local
-from services.media.base import GenerationRequest, MediaProviderError, SpeechRequest
+from services.media.base import GenerationRequest, MediaProviderError, ProviderQuotaError, SpeechRequest
+
+VO_DISCLOSURE = "AI voice of JP"   # voice-over reels: cloned voice, no twin on screen
+
+# ── HeyGen spend (estimated locally — HeyGen's API has no verified balance read) ──
+SPEND_FILE = Path(__file__).resolve().parent.parent.parent.parent / "data" / "heygen_spend.json"
+DEFAULT_USD_PER_MIN = 4.83         # Avatar IV + digital twin, API pay-as-you-go (third-party, 2026-11)
+DEFAULT_MONTHLY_BUDGET = 100.0
+
+
+def _float_setting(name: str, default: float) -> float:
+    try:
+        return float(base.setting(name, default))
+    except (TypeError, ValueError):
+        return default
+
+
+def heygen_rate() -> float:
+    return _float_setting("heygen_usd_per_min", DEFAULT_USD_PER_MIN)
+
+
+def heygen_budget() -> float:
+    return _float_setting("heygen_monthly_budget_usd", DEFAULT_MONTHLY_BUDGET)
+
+
+def _month(now: Optional[datetime] = None) -> str:
+    return (now or datetime.now()).strftime("%Y-%m")
+
+
+def _read_spend() -> Dict[str, Any]:
+    try:
+        return json.loads(SPEND_FILE.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def record_heygen_seconds(seconds: float, now: Optional[datetime] = None) -> None:
+    """Add one finished twin render to this month's tally. Never raises."""
+    try:
+        data = _read_spend()
+        m = data.setdefault(_month(now), {"seconds": 0.0, "renders": 0})
+        m["seconds"] = round(float(m.get("seconds") or 0) + float(seconds or 0), 1)
+        m["renders"] = int(m.get("renders") or 0) + 1
+        SPEND_FILE.parent.mkdir(parents=True, exist_ok=True)
+        SPEND_FILE.write_text(json.dumps(data, indent=2))
+    except Exception:
+        pass
+
+
+def month_spend(now: Optional[datetime] = None) -> Dict[str, float]:
+    m = _read_spend().get(_month(now)) or {}
+    seconds = float(m.get("seconds") or 0)
+    return {"seconds": seconds, "renders": int(m.get("renders") or 0),
+            "usd": round(seconds / 60.0 * heygen_rate(), 2), "budget": heygen_budget()}
+
+
+def spend_line(now: Optional[datetime] = None) -> str:
+    s = month_spend(now)
+    line = (f"HeyGen this month (est.): {s['seconds'] / 60:.1f} min, {s['renders']} reels, "
+            f"≈ ${s['usd']:.0f} of ${s['budget']:.0f}")
+    if s["budget"] and s["usd"] >= 0.8 * s["budget"]:
+        line += " — nearly out; reels switch to voice-over when HeyGen runs dry"
+    return line
+
+
+def is_out_of_credit(exc: BaseException) -> bool:
+    if isinstance(exc, ProviderQuotaError):
+        return True
+    text = f"{exc} {getattr(exc, 'user_message', '')}".lower()
+    return "credit" in text or "quota" in text
 
 REEL_W, REEL_H = 1080, 1920
 PANEL_H = 900                 # story screenshot on top
@@ -196,6 +267,43 @@ def render_panel(dest: str, strip_text: str, shot: Optional[str] = None, headlin
     img.save(dest, "PNG")
 
 
+def retag_panel(src: str, dest: str, text: str = VO_DISCLOSURE) -> None:
+    """Copy of a rendered panel with the top-right disclosure tag swapped (the
+    voice-over reel has no twin on screen, so it says 'AI voice', not 'AI twin')."""
+    from PIL import Image, ImageDraw
+    with Image.open(src) as raw:
+        img = raw.convert("RGB")
+    d = ImageDraw.Draw(img)
+    tf = _font(28)
+    W = img.width
+    old_w = int(d.textlength(DISCLOSURE, font=tf))
+    new_w = int(d.textlength(text, font=tf))
+    w = max(old_w, new_w)
+    d.rounded_rectangle([W - w - 64, 24, W - 24, 72], radius=12, fill=(0, 0, 0))
+    d.text((W - new_w - 44, 33), text, font=tf, fill=(255, 255, 255))
+    img.save(dest, "PNG")
+
+
+async def stack_voiceover(panel: Path, slides: List[str], voice: Path, duration: float, dest: Path) -> None:
+    """Voice-over reel: the story panel on top, the story's slides taking turns in
+    the bottom half (each held an equal share of the voice), JP's cloned voice."""
+    seg = max(1.0, duration / max(1, len(slides))) + 0.1     # a hair long so the voice never outruns it
+    args = ["-loop", "1", "-t", f"{duration:.2f}", "-i", str(panel)]
+    for s in slides:
+        args += ["-loop", "1", "-t", f"{seg:.2f}", "-i", str(s)]
+    args += ["-i", str(voice)]
+    parts = "".join(
+        f"[{i + 1}:v]scale={REEL_W}:{TWIN_H}:force_original_aspect_ratio=increase,"
+        f"crop={REEL_W}:{TWIN_H},setsar=1,fps=30[s{i}];" for i in range(len(slides)))
+    fc = (f"[0:v]scale={REEL_W}:{PANEL_H},setsar=1,fps=30[top];{parts}"
+          + "".join(f"[s{i}]" for i in range(len(slides)))
+          + f"concat=n={len(slides)}:v=1:a=0[bot];[top][bot]vstack=inputs=2,format=yuv420p[v]")
+    await ffmpeg_local.run_ffmpeg(args + [
+        "-filter_complex", fc, "-map", "[v]", "-map", f"{len(slides) + 1}:a", "-t", f"{duration:.2f}",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(dest)], timeout=600)
+
+
 # ── the reel ──────────────────────────────────────────────────────────────────
 
 def _record_usage(ctx: Any, usage: Optional[Dict[str, Any]]) -> None:
@@ -204,20 +312,24 @@ def _record_usage(ctx: Any, usage: Optional[Dict[str, Any]]) -> None:
         add(usage)
 
 
-def providers(ctx: Any) -> Tuple[Any, Any, Optional[str]]:
-    """(tts, twin, why-not). why-not is None when both are ready."""
+def providers(ctx: Any) -> Tuple[Any, Any, Optional[str], Optional[str]]:
+    """(tts, twin, why-no-reels, why-no-twin).
+
+    No ElevenLabs → no reels at all (why-no-reels). No usable HeyGen → twin is
+    None and the reels go out as voice-over reels (why-no-twin says why)."""
     media = getattr(ctx, "media", None)
     if not callable(media):
-        return None, None, "no media providers in this context"
+        return None, None, "no media providers in this context", None
     tts, twin = media("tts"), media("twin_video")
-    missing = [n for n, p in (("ElevenLabs", tts), ("HeyGen", twin)) if p is None]
-    if missing:
-        return tts, twin, " and ".join(missing) + " isn't connected"
+    if tts is None:
+        return None, None, "ElevenLabs isn't connected", None
+    if twin is None:
+        return tts, None, None, "HeyGen isn't connected"
     try:
         twin.check_ready()
     except MediaProviderError as exc:
-        return tts, twin, exc.user_message
-    return tts, twin, None
+        return tts, None, None, exc.user_message
+    return tts, twin, None, None
 
 
 TWIN_ASPECT = "16:9"           # JP's HeyGen look is landscape; a 9:16 request comes back letterboxed
@@ -285,12 +397,18 @@ async def burn_captions(video: Path, words: List[Dict[str, Any]], dest: Path) ->
 
 
 async def build_reel(ctx: Any, tts: Any, twin: Any, out_dir: Path, n: int, script: str,
-                     panel: Path) -> Optional[Dict[str, Any]]:
-    """Voice → twin → stack → captions. Returns {"file", "duration_s", "captions"} or None
-    (with a warning) — never raises for a provider problem."""
+                     panel: Path, slides: Optional[List[str]] = None,
+                     state: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+    """Voice → twin → stack → captions. If the twin can't render (no HeyGen, out of
+    credits, any HeyGen failure) and the story has slides, it becomes a voice-over
+    reel instead: same panel on top, the slides underneath, JP's cloned voice.
+    Returns {"file", "duration_s", "captions", "mode"} or None (with a warning) —
+    never raises for a provider problem."""
     from services.agents.runners.twin_video import build_timing
     from services.media.elevenlabs import voice_settings_for
 
+    state = state if state is not None else {}
+    slides = [s for s in (slides or []) if s and Path(s).is_file()]
     text = spoken_text(script)
     if not text:
         ctx.warn(f"Story {n}: no reel — the script was empty, so it keeps the slideshow.")
@@ -306,26 +424,54 @@ async def build_reel(ctx: Any, tts: Any, twin: Any, out_dir: Path, n: int, scrip
     final = out_dir / f"story{n}_reel.mp4"
     try:
         tts.check_text(text)
-        twin.check_seconds(est)
         v = await tts.synthesize_speech(SpeechRequest(text=text, settings=voice_settings_for("narration")), voice)
         _record_usage(ctx, v.usage)
         duration = await ffmpeg_local.probe_duration(voice) or v.duration_s
         if not duration:
             raise RuntimeError("the voice track came back unreadable")
-        twin.check_seconds(float(duration))
-        ctx.check_cancelled()
-        t = await twin.generate(GenerationRequest(capability="twin_video", prompt="",
-                                                  duration_s=int(math.ceil(duration)), source_audio=voice,
-                                                  aspect=TWIN_ASPECT), raw)
-        _record_usage(ctx, t.usage)
-        await stack(panel, raw, voice, float(duration), stacked)
     except MediaProviderError as exc:
         ctx.warn(f"Story {n}: no reel — {exc.user_message} It keeps the slideshow.")
         return None
-    except Exception as exc:  # a render problem never costs the week's posts
+    except Exception as exc:
         ctx.warn(f"Story {n}: no reel — {str(exc)[:160]}. It keeps the slideshow.")
         return None
-    words, _segs, _src = build_timing(text, float(duration), (t.meta or {}).get("subtitle_path"))
+
+    mode, t = None, None
+    if twin is not None and not state.get("twin_out"):
+        try:
+            twin.check_seconds(float(duration))
+            ctx.check_cancelled()
+            t = await twin.generate(GenerationRequest(capability="twin_video", prompt="",
+                                                      duration_s=int(math.ceil(duration)), source_audio=voice,
+                                                      aspect=TWIN_ASPECT), raw)
+            _record_usage(ctx, t.usage)
+            record_heygen_seconds(float(getattr(t, "duration_s", None) or duration))
+            await stack(panel, raw, voice, float(duration), stacked)
+            mode = "twin"
+        except MediaProviderError as exc:
+            if is_out_of_credit(exc):
+                if not state.get("twin_out"):
+                    state["twin_out"] = True
+                    ctx.warn("HeyGen is out of credits — switching to voice-over reels "
+                             "(your ElevenLabs voice, no twin). Top up at https://app.heygen.com/settings/api "
+                             "to bring the twin back.")
+            else:
+                ctx.warn(f"Story {n}: no twin — {exc.user_message}")
+        except Exception as exc:
+            ctx.warn(f"Story {n}: no twin — {str(exc)[:160]}.")
+    if mode is None:
+        if not slides:
+            ctx.warn(f"Story {n}: no reel — no twin and no slides to show. It keeps the slideshow.")
+            return None
+        vo_panel = out_dir / f"story{n}_panel_vo.png"
+        try:
+            await asyncio.get_running_loop().run_in_executor(None, retag_panel, str(panel), str(vo_panel))
+            await stack_voiceover(vo_panel, slides, voice, float(duration), stacked)
+            mode = "voiceover"
+        except Exception as exc:
+            ctx.warn(f"Story {n}: no reel — {str(exc)[:160]}. It keeps the slideshow.")
+            return None
+    words, _segs, _src = build_timing(text, float(duration), ((t.meta if t else None) or {}).get("subtitle_path"))
     captioned = False
     if words:
         try:
@@ -335,30 +481,35 @@ async def build_reel(ctx: Any, tts: Any, twin: Any, out_dir: Path, n: int, scrip
             ctx.warn(f"Story {n}: couldn't burn the captions in — the reel ships without them.")
     if not captioned:
         stacked.replace(final)
-    return {"file": final.name, "duration_s": round(float(duration), 1), "captions": captioned}
+    return {"file": final.name, "duration_s": round(float(duration), 1), "captions": captioned, "mode": mode}
 
 
 async def build_all(ctx: Any, tts: Any, twin: Any, jobs: List[Dict[str, Any]],
                     concurrency: int = 2) -> Dict[int, Dict[str, Any]]:
     """Render reels for several stories at once (HeyGen renders take minutes).
-    Each job: {"n", "script", "panel"}. `tts`/`twin` come from `providers()`.
-    Returns {n: reel} for the ones that landed."""
-    cap = int(getattr(twin, "max_seconds", 0) or 0)
+    Each job: {"n", "script", "panel", "slides"?}. `tts`/`twin` come from `providers()`;
+    twin may be None (voice-over reels only). A story past the per-run HeyGen cap
+    gets a voice-over reel instead. Returns {n: reel} for the ones that landed."""
+    cap = int(getattr(twin, "max_seconds", 0) or 0) if twin is not None else 0
     budget = float(cap) if cap else float("inf")
-    planned: List[Dict[str, Any]] = []
+    planned: List[Tuple[Dict[str, Any], Any]] = []
     for j in jobs:
         est = len(spoken_text(j["script"]).split()) / 2.6
-        if est > budget:
-            ctx.warn(f"Story {j['n']}: no reel — HEYGEN_MAX_SECONDS ({cap}s) is used up for this run.")
-            continue
-        budget -= est
-        planned.append(j)
+        use_twin = twin
+        if twin is not None and est > budget:
+            ctx.warn(f"Story {j['n']}: no twin — HEYGEN_MAX_SECONDS ({cap}s) is used up for this run; "
+                     "it gets a voice-over reel.")
+            use_twin = None
+        elif twin is not None:
+            budget -= est
+        planned.append((j, use_twin))
     sem = asyncio.Semaphore(max(1, concurrency))
+    state: Dict[str, Any] = {}
 
-    async def one(j: Dict[str, Any]) -> Tuple[int, Optional[Dict[str, Any]]]:
+    async def one(j: Dict[str, Any], tw: Any) -> Tuple[int, Optional[Dict[str, Any]]]:
         async with sem:
-            return j["n"], await build_reel(ctx, tts, twin, Path(ctx.output_dir), j["n"], j["script"],
-                                            Path(j["panel"]))
+            return j["n"], await build_reel(ctx, tts, tw, Path(ctx.output_dir), j["n"], j["script"],
+                                            Path(j["panel"]), slides=j.get("slides"), state=state)
 
-    done = await asyncio.gather(*(one(j) for j in planned))
+    done = await asyncio.gather(*(one(j, tw) for j, tw in planned))
     return {n: r for n, r in done if r}
