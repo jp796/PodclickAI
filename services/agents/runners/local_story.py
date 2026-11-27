@@ -113,6 +113,38 @@ async def _fetch(url: str) -> bytes:
         return r.content
 
 
+ARTICLE_CHARS = 3500        # article text handed to the drafter
+
+
+def article_text(raw: bytes, limit: int = ARTICLE_CHARS) -> str:
+    """The story's paragraphs from an article page — the specifics an RSS blurb lacks
+    (names, addresses, dates, what's actually going in). Empty when it isn't an article."""
+    page = raw.decode("utf-8", "ignore") if isinstance(raw, (bytes, bytearray)) else str(raw or "")
+    page = re.sub(r"(?is)<(script|style|noscript|nav|header|footer|aside|form)\b.*?</\1>", " ", page)
+    paras = []
+    for m in re.finditer(r"(?is)<p\b[^>]*>(.*?)</p>", page):
+        t = re.sub(r"\s+", " ", html.unescape(re.sub(r"<[^>]+>", " ", m.group(1)))).strip()
+        if len(t) >= 60 and not re.search(r"(?i)cookie|subscribe|sign up|newsletter|all rights reserved|"
+                                           r"advertis|click here|javascript", t):
+            paras.append(t)
+    out = ""
+    for t in paras:
+        if len(out) + len(t) > limit:
+            break
+        out += t + "\n"
+    return out.strip()
+
+
+async def fetch_article(url: str) -> str:
+    """Best-effort article body; '' on any failure (the summary still carries the story)."""
+    if not url or "news.google.com" in url:
+        return ""
+    try:
+        return article_text(await _fetch(url))
+    except Exception:
+        return ""
+
+
 def _feed_urls(city: str, state: str) -> List[Tuple[str, str]]:
     urls = []
     for term in TOPICS:
@@ -254,10 +286,14 @@ def _json_block(raw: str) -> Any:
 async def pick_stories(market: str, candidates: List[Dict[str, Any]], n: int) -> List[Dict[str, Any]]:
     listing = "\n".join(f"{i}. {c['title']} — {c['summary'][:240]} ({c['source']})"
                         for i, c in enumerate(candidates))
-    system = ("You pick local news stories for a real estate investor-agent's social content. "
-              "Homeowners in the market should care: new businesses and restaurants opening, "
-              "developments, housing, roads, schools, city decisions that change daily life or "
-              "property. Skip national news, ads, crime, and anything about how safe an area is. "
+    system = ("You pick local news stories for a real estate investor-agent's social content. The "
+              "goal is the scroll-stop: a local sees it and thinks 'wait, THAT'S going in there?' "
+              "and shares it with a friend. Rank highest: a named brand or restaurant coming to a "
+              "specific spot people drive past, a big employer or a big dollar figure, a road or "
+              "landmark that changes, a surprising or first-ever thing, something locals will argue "
+              "about. Rank lowest: routine committee votes, permits and license approvals with no "
+              "new place in them, press-release fluff, anything vague about 'growth'. "
+              "Skip national news, ads, crime, and anything about how safe an area is. "
               "Answer with JSON only.")
     user = (f"Market: {market}\nPick the {n} best stories. Return a JSON list of objects "
             f'{{"index": <number>, "why": "<one sentence on why locals care>"}}.\n\n{listing}')
@@ -278,12 +314,24 @@ async def pick_stories(market: str, candidates: List[Dict[str, Any]], n: int) ->
     return picks[:n]
 
 
-DRAFT_BRIEF = f"""Return JSON only, with these keys:
-"caption": Instagram/Facebook carousel caption, 2-4 short sentences, ends with a question, max 3 hashtags.
-"slides": a list of exactly {SLIDE_COUNT} objects {{"headline": "<max 7 words>", "body": "<max 22 words>"}}. Slide 1 hooks, slides 2-4 give the facts, slide 5 is a soft call to follow for local updates.
-"gmb": a Google Business Profile update, 2-3 sentences, plain text, no hashtags.
-"script": a 20-35 second talk-to-camera reel script (55-85 words) in a high-energy real estate coach style: the first line starts "Hook: " and is a pattern-interrupt under 12 words that names the town; then 3-5 short, punchy spoken lines with ONE clear takeaway for local homeowners; end with a direct call to action. Spoken words only: no stage directions, emojis or hashtags.
-"blog": a 300-450 word blog post in markdown with a "# " title, written for locals.
+HOOK_RULES = """How to grab attention (this matters more than anything else):
+- Lead with the most surprising, specific thing: the brand name, the exact spot or street, the dollar figure, the date it opens. Never lead with the process ("committee approves", "council votes", "liquor license", "plans submitted").
+- Open a curiosity gap the next line pays off: "Something big is going in where the old ___ was." / "Locals have been asking what's being built on ___. Here's the answer."
+- Talk like a neighbor texting a friend the news, not a news anchor. Short words. Contractions. One idea per line.
+- Every line must add a NEW fact or a reason to care. Never restate the headline, never pad with "this shows growth", "more options for residents", "the local economy is moving", "stay tuned".
+- Use the article's real specifics (who, what, exactly where, when, how big, what was there before). If the story only has a few facts, use fewer, sharper lines rather than filler.
+- End on a question locals will actually answer in the comments ("Would you go?", "What should go in next to it?", "Did you know this was happening?").
+Bad hook: "Cheyenne's getting two new businesses with liquor licenses."
+Good hook: "Wing Shack is coming to Cheyenne. Here's where."
+"""
+
+DRAFT_BRIEF = HOOK_RULES + f"""
+Return JSON only, with these keys:
+"caption": Instagram/Facebook carousel caption. First line is the hook (under 12 words, works alone before "...more"). Then 1-3 short lines of the best specifics, then a question. Max 3 hashtags.
+"slides": a list of exactly {SLIDE_COUNT} objects {{"headline": "<max 7 words>", "body": "<max 22 words>"}}. Slide 1 is a scroll-stopping hook headline with a curiosity gap (body teases, doesn't give it all away). Slides 2-4 each reveal ONE new specific (where exactly, what it is / what was there before, when / how big). No two slides repeat a fact. Slide 5 asks the comment question and says to follow for what's coming to town.
+"gmb": a Google Business Profile update, 2-3 sentences, plain text, no hashtags, leading with the specific news.
+"script": a 20-35 second talk-to-camera reel script (55-85 words): the first line starts "Hook: " and is a pattern-interrupt under 12 words that names the town and the specific thing; then 3-5 short spoken lines, each a new specific or why it matters to locals; end with the comment question. Spoken words only: no stage directions, emojis or hashtags.
+"blog": a 300-450 word blog post in markdown with a "# " title, written for locals, answering what, where, when and what it means for the area.
 """
 
 
@@ -339,8 +387,13 @@ async def draft_story(bc: Any, market: str, story: Dict[str, Any]) -> Optional[D
               "family status, age, religion, race, disability, or how safe an area is."
               "\n- Only state facts from the story below. If a detail isn't there, leave it out."
               "\n\n" + DRAFT_BRIEF)
+    body = story.get("article")
+    if body is None:
+        body = story["article"] = await fetch_article(story.get("url") or "")
     facts = f"Market: {market}\nHeadline: {story['title']}\nSummary: {story.get('summary') or '(headline only)'}\nSource: {story.get('source') or ''}"
-    sources = [market, story["title"], story.get("summary") or "", story.get("source") or ""]
+    if body:
+        facts += f"\n\nArticle text (the only other facts you may use):\n{body}"
+    sources = [market, story["title"], story.get("summary") or "", story.get("source") or "", body]
     problems: List[str] = []
     for _attempt in range(2):
         user = facts
@@ -583,9 +636,11 @@ def listing_facts(listing: Dict[str, Any]) -> List[Tuple[str, str]]:
 
 
 LISTING_BRIEF = DRAFT_BRIEF.replace(
-    "slide 5 is a soft call to follow for local updates.",
-    "slide 5 is a soft call to message me for a showing.").replace(
-    "written for locals.", "about this home and its area, written for local buyers.")
+    "Slide 5 asks the comment question and says to follow for what's coming to town.",
+    "Slide 5 is a soft call to message me for a showing.").replace(
+    "written for locals, answering what, where, when and what it means for the area.",
+    "about this home and its area, written for local buyers.")
+assert LISTING_BRIEF.count("message me for a showing") == 1 and "local buyers" in LISTING_BRIEF
 
 
 LISTING_ATTEMPTS = 3
