@@ -679,7 +679,7 @@ class MediaCtx(Ctx):
 
 
 @pytest.fixture
-def fake_render(monkeypatch):
+def fake_render(monkeypatch, tmp_path):
     """No browser, no ffmpeg: screenshots fail (headline card), stack/captions write placeholders."""
     st = SimpleNamespace(shots=[], stacked=[], captioned=[])
 
@@ -702,6 +702,13 @@ def fake_render(monkeypatch):
     monkeypatch.setattr(sr.ffmpeg_local, "probe_duration", dur)
     monkeypatch.setattr(sr, "stack", stack)
     monkeypatch.setattr(sr, "burn_captions", burn)
+    st.vo = []
+
+    async def stack_vo(panel, slides, voice, duration, dest):
+        st.vo.append((str(panel), len(slides), duration))
+        Path(dest).write_bytes(b"vo")
+    monkeypatch.setattr(sr, "stack_voiceover", stack_vo)
+    monkeypatch.setattr(sr, "SPEND_FILE", tmp_path / "heygen_spend.json")
     return st
 
 
@@ -767,22 +774,73 @@ def test_listing_reel_uses_the_listing_photo_and_attribution(tmp_path, with_list
     assert fake_render.shots == []                                       # listings never hit a browser
 
 
-def test_no_heygen_keeps_the_slideshow_and_never_opens_a_browser(tmp_path, feeds, gen, fake_render):
-    ctx = MediaCtx(tmp_path, FakeTTS(), None)
+def test_no_heygen_makes_a_voice_over_reel(tmp_path, feeds, gen, fake_render):
+    tts = FakeTTS()
+    ctx = MediaCtx(tmp_path, tts, None)
     res = run(ls.run(ctx, {"market": "Springfield, MO", "stories": 1}))
     by_id = {o.id: o for o in ctx.outputs}
-    assert by_id["s1_video"].file == "story1_slideshow.mp4"
+    vid = by_id["s1_video"]
+    assert vid.file == "story1_reel.mp4" and vid.meta["mode"] == "voiceover"
+    assert ls.VO_REEL_DISCLOSURE in by_id["s1_caption"].value
     assert ls.REEL_DISCLOSURE not in by_id["s1_caption"].value
-    assert any("HeyGen isn't connected" in w for w in ctx.warnings)
+    assert any("HeyGen isn't connected" in w and "voice-over" in w for w in ctx.warnings)
+    assert fake_render.vo and fake_render.vo[0][1] == 5 and fake_render.vo[0][0].endswith("story1_panel_vo.png")
+    assert not fake_render.stacked and "voice-over Reel" in res.commit.summary
+
+
+def test_no_voice_provider_keeps_the_slideshow(tmp_path, feeds, gen, fake_render):
+    ctx = MediaCtx(tmp_path, None, FakeTwin())
+    res = run(ls.run(ctx, {"market": "Springfield, MO", "stories": 1}))
+    assert {o.id: o for o in ctx.outputs}["s1_video"].file == "story1_slideshow.mp4"
     assert fake_render.shots == [] and "slideshow Reel" in res.commit.summary
 
 
-def test_a_failed_render_keeps_that_storys_slideshow(tmp_path, feeds, gen, fake_render):
-    ctx = MediaCtx(tmp_path, FakeTTS(), FakeTwin(fail="HeyGen is out of credits."))
+def test_out_of_heygen_credits_switches_to_voice_over(tmp_path, feeds, gen, fake_render):
+    from services.media.base import ProviderQuotaError
+
+    class BrokeTwin(FakeTwin):
+        async def generate(self, req, dest):
+            self.renders.append(1)
+            raise ProviderQuotaError("402", provider="heygen", user_message="Out of HeyGen credits.")
+    twin = BrokeTwin()
+    ctx = MediaCtx(tmp_path, FakeTTS(), twin)
     run(ls.run(ctx, {"market": "Springfield, MO", "stories": 1}))
     by_id = {o.id: o for o in ctx.outputs}
-    assert by_id["s1_video"].file == "story1_slideshow.mp4"
-    assert any("out of credits" in w and "keeps the slideshow" in w for w in ctx.warnings)
+    assert by_id["s1_video"].file == "story1_reel.mp4" and by_id["s1_video"].meta["mode"] == "voiceover"
+    assert sum(1 for w in ctx.warnings if "out of credits" in w.lower()) == 1
+
+
+def test_once_heygen_is_out_the_rest_of_the_run_skips_it(tmp_path, fake_render):
+    from PIL import Image
+    from services.media.base import ProviderQuotaError
+    calls = []
+
+    class BrokeTwin(FakeTwin):
+        async def generate(self, req, dest):
+            calls.append(1)
+            raise ProviderQuotaError("402", provider="heygen", user_message="Out of HeyGen credits.")
+    panel = tmp_path / "p.png"
+    sr.render_panel(str(panel), "Source: x.", headline="Huey Magoo's opens", source="x")
+    slide = tmp_path / "s.png"
+    Image.new("RGB", (1080, 1350)).save(slide)
+    jobs = [{"n": i, "script": "word " * 40, "panel": str(panel), "slides": [str(slide)]} for i in (1, 2, 3)]
+    made = run(sr.build_all(MediaCtx(tmp_path), FakeTTS(), BrokeTwin(), jobs, concurrency=1))
+    assert sorted(made) == [1, 2, 3] and all(r["mode"] == "voiceover" for r in made.values())
+    assert calls == [1]
+
+
+def test_twin_renders_are_tallied_by_month(tmp_path, monkeypatch):
+    from datetime import datetime
+    monkeypatch.setattr(sr, "SPEND_FILE", tmp_path / "spend.json")
+    now = datetime(2026, 12, 3)
+    sr.record_heygen_seconds(30, now)
+    sr.record_heygen_seconds(30, now)
+    s = sr.month_spend(now)
+    assert s["renders"] == 2 and s["seconds"] == 60 and s["usd"] == pytest.approx(sr.DEFAULT_USD_PER_MIN)
+    assert "2 reels" in sr.spend_line(now) and "nearly out" not in sr.spend_line(now)
+    sr.record_heygen_seconds(60 * 18, now)                       # ~$92 of $100
+    assert "nearly out" in sr.spend_line(now)
+    assert sr.month_spend(datetime(2027, 1, 1))["renders"] == 0
 
 
 def test_reels_off_skips_filming(tmp_path, feeds, gen, fake_render):
@@ -797,7 +855,7 @@ def test_heygen_budget_is_split_across_the_run(tmp_path, fake_render):
     words = " ".join(["word"] * 60)                                      # ~23 s each
     jobs = [{"n": i, "script": words, "panel": str(tmp_path / "p.png")} for i in (1, 2, 3)]
     made = run(sr.build_all(ctx, FakeTTS(), FakeTwin(max_seconds=50), jobs))
-    assert sorted(made) == [1, 2]
+    assert sorted(made) == [1, 2]                                    # no slides here, so story 3 can't go voice-over
     assert any("Story 3" in w and "HEYGEN_MAX_SECONDS" in w for w in ctx.warnings)
 
 

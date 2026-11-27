@@ -905,8 +905,15 @@ async def run(ctx, inp: Dict[str, Any]) -> AgentResult:
         ctx.add_output(o)
 
     has_listing = any(s.get("kind") == "listing" for s in stories)
-    video_kind = ("AI-twin Reel" if reels == len(stories) else
-                  "Reel (AI twin where it rendered, slideshow otherwise)" if reels else "slideshow Reel")
+    modes = [s.get("reel_mode") for s in stories]
+    if reels and all(m == "twin" for m in modes):
+        video_kind = "AI-twin Reel"
+    elif reels and all(m == "voiceover" for m in modes):
+        video_kind = "voice-over Reel (your AI voice)"
+    elif reels:
+        video_kind = "Reel (AI twin where it rendered, voice-over or slideshow otherwise)"
+    else:
+        video_kind = "slideshow Reel"
     summary = (f"Schedule {len(stories)} {city} stor{'y' if len(stories) == 1 else 'ies'}"
                + (" (including your listing)" if has_listing else "") +
                f": {video_kind} on Instagram + Facebook and an update on Google Business, one per day")
@@ -952,6 +959,7 @@ async def _listing_outputs(ctx, out_dir: Path, s: int, market: str, listing: Dic
 # ── AI-twin reels (story_reel) ────────────────────────────────────────────────
 
 REEL_DISCLOSURE = "🎥 Video made with my AI twin."
+VO_REEL_DISCLOSURE = "🎙️ Voice-over made with my AI voice."
 
 
 def _listing_chip(facts: Dict[str, str]) -> str:
@@ -989,10 +997,12 @@ async def _story_panel(out_dir: Path, story: Dict[str, Any]) -> Path:
 async def _add_reels(ctx, out_dir: Path, stories: List[Dict[str, Any]], outputs: List[Any]) -> int:
     """Swap each story's slideshow for an AI-twin reel where one renders. The
     slideshow stays as the video wherever a reel doesn't land. Returns reel count."""
-    tts, twin, why = _reel.providers(ctx)
+    tts, twin, why, no_twin = _reel.providers(ctx)
     if why:
-        ctx.warn(f"No AI-twin reels this week — {why}. The stories keep the slideshow video.")
+        ctx.warn(f"No reels this run — {why}. The stories keep the slideshow video.")
         return 0
+    if no_twin:
+        ctx.warn(f"No AI twin this run — {no_twin}. Reels go out as voice-over reels in your AI voice.")
     by_id = {o.id: o for o in outputs}
     jobs = []
     for st in stories:
@@ -1002,7 +1012,8 @@ async def _add_reels(ctx, out_dir: Path, stories: List[Dict[str, Any]], outputs:
         except Exception as exc:
             ctx.warn(f"Story {st['n']}: no reel — couldn't build the story screenshot ({str(exc)[:120]}).")
             continue
-        jobs.append({"n": st["n"], "script": script, "panel": str(panel)})
+        slides = [str(out_dir / f) for f in st.get("images") or []]
+        jobs.append({"n": st["n"], "script": script, "panel": str(panel), "slides": slides})
     if not jobs:
         return 0
     made = await _reel.build_all(ctx, tts, twin, jobs)
@@ -1010,17 +1021,20 @@ async def _add_reels(ctx, out_dir: Path, stories: List[Dict[str, Any]], outputs:
         reel = made.get(st["n"])
         if not reel:
             continue
-        st["slideshow"], st["video"], st["reel"] = st.get("video"), reel["file"], True
+        mode = reel.get("mode") or "twin"
+        st["slideshow"], st["video"], st["reel"], st["reel_mode"] = st.get("video"), reel["file"], True, mode
         vid = by_id.get(f"s{st['n']}_video")
         if vid is not None:
             vid.file = reel["file"]
-            vid.label = f"Story {st['n']} reel (your AI twin)"
+            vid.label = (f"Story {st['n']} reel (your AI twin)" if mode == "twin"
+                         else f"Story {st['n']} reel (voice-over, your AI voice)")
             vid.meta = {"duration_s": reel["duration_s"], "ai_generated": True, "captions": reel["captions"],
                         "screenshot": st.get("screenshot", st.get("kind") == "listing"),
-                        "slideshow": st["slideshow"]}
+                        "slideshow": st["slideshow"], "mode": mode}
         cap = by_id.get(f"s{st['n']}_caption")
-        if cap is not None and REEL_DISCLOSURE not in str(cap.value or ""):
-            cap.value = f"{str(cap.value or '').rstrip()}\n\n{REEL_DISCLOSURE}"
+        note = REEL_DISCLOSURE if mode == "twin" else VO_REEL_DISCLOSURE
+        if cap is not None and note not in str(cap.value or ""):
+            cap.value = f"{str(cap.value or '').rstrip()}\n\n{note}"
             cap.meta = {**(cap.meta or {}), "original": cap.value}
     return len(made)
 
@@ -1251,8 +1265,10 @@ async def _scheduled_run(base: Dict[str, Any], cadence: str,
     if tasks:
         await asyncio.wait(tasks, timeout=WEEKLY_WAIT_S)
     ready = 0
+    heygen_out = False
     for market, jid in started:
         job = _jobs.get_job(jid)
+        heygen_out = heygen_out or any("out of credits" in str(w).lower() for w in job.get("warnings") or [])
         count = sum(1 for o in job.get("outputs") or [] if str(_get(o, "id", "")).endswith("_story"))
         status = job.get("status")
         if count:
@@ -1260,6 +1276,10 @@ async def _scheduled_run(base: Dict[str, Any], cadence: str,
             lines.append(f"• {market}: {count} stor{'y' if count == 1 else 'ies'} ready")
         else:
             lines.append(f"• {market}: nothing ready ({status})")
+    if heygen_out:
+        lines.append("• HeyGen is out of credits — today's reels are voice-over (your AI voice). "
+                     "Top up at https://app.heygen.com/settings/api to bring the twin back.")
+    lines.append("• " + _reel.spend_line())
     await _notify(f"*Local Story Desk ({cadence})* — {ready} local stor{'y' if ready == 1 else 'ies'} drafted. "
                   "Nothing posts until you approve: http://127.0.0.1:8765/agents\n" + "\n".join(lines))
     return [jid for _, jid in started]
