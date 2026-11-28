@@ -409,8 +409,42 @@ def get_job(job_id: str) -> Dict[str, Any]:
     return job
 
 
+LABEL_CHARS = 90
+
+
+def job_label(job: Dict[str, Any]) -> str:
+    """A short name for a work order card: what it's about, not which agent ran it.
+
+    Uses the titles a runner put on its JSON outputs (story headlines, clip titles),
+    led by the market's city when there is one: "Cheyenne · Fig and Olive to open… (+2 more)".
+    """
+    titles: List[str] = []
+    for o in job.get("outputs") or []:
+        v = o.get("value")
+        if o.get("kind") == "json" and isinstance(v, dict):
+            t = str(v.get("title") or "").strip()
+            if t and t not in titles:
+                titles.append(t)
+    inp = job.get("input") or {}
+    if not titles:
+        for k in ("title", "topic", "name", "address"):
+            if isinstance(inp.get(k), str) and inp[k].strip():
+                titles.append(inp[k].strip())
+                break
+    if not titles:
+        return ""
+    head = titles[0]
+    if len(head) > LABEL_CHARS:
+        head = head[:LABEL_CHARS - 1].rstrip() + "…"
+    if len(titles) > 1:
+        head += f" (+{len(titles) - 1} more)"
+    city = str(inp.get("market") or "").split(",")[0].strip()
+    return f"{city} · {head}" if city else head
+
+
 def summarize(job: Dict[str, Any]) -> Dict[str, Any]:
     s = {k: v for k, v in job.items() if k not in ("input", "outputs", "edits", "cancel_requested")}
+    s["label"] = job_label(job)
     s["outputs"] = [{k: v for k, v in o.items() if k != "value"} for o in job.get("outputs") or []]
     s["output_count"] = len(job.get("outputs") or [])
     return s

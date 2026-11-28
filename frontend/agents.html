@@ -67,6 +67,7 @@
     .row:hover { border-color: var(--border-hot); background: var(--orange-mist); }
     .row .t { display: flex; justify-content: space-between; gap: 8px; font-family: var(--font-cond); font-size: 15px; }
     .row .m { color: var(--text-sec); font-size: 12px; margin-top: 3px; overflow-wrap: anywhere; }
+    .row .lbl { color: var(--text); font-weight: 600; font-size: 14px; line-height: 1.3; margin-top: 4px; overflow-wrap: anywhere; }
     .row .id { font-family: var(--font-mono); color: var(--text-dim); font-size: 11px; }
     .st { font-family: var(--font-cond); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
     .st-done { color: var(--green-hi); } .st-failed { color: var(--red); } .st-needs_approval { color: var(--orange-hi); }
@@ -370,8 +371,10 @@ function rowHtml(j, withSummary) {
   var word = STATUS_WORDS[j.status] || j.status;
   var h = '<button type="button" class="row" data-job-id="' + escHtml(j.id) + '"><div class="t"><span>' + escHtml(agentName(j.agent_id)) + '</span>' +
     '<span class="st st-' + escHtml(j.status) + '">' + escHtml(word) + '</span></div>';
+  if (j.label) h += '<div class="lbl">' + escHtml(j.label) + '</div>';
   if (withSummary && j.approval && j.approval.summary) h += '<div class="m">' + escHtml(j.approval.summary) + '</div>';
-  h += '<div class="m">' + escHtml(ago(j.updated_at || j.created_at)) + ' · <span class="id">' + escHtml(shortId(j.id)) + '</span></div></button>';
+  var when = withSummary ? 'Drafted ' + ago(j.created_at || j.updated_at) : ago(j.updated_at || j.created_at);
+  h += '<div class="m">' + escHtml(when) + ' · <span class="id">' + escHtml(shortId(j.id)) + '</span></div></button>';
   return h;
 }
 function loadPunchList() {
